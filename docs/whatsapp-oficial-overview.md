@@ -105,6 +105,7 @@ Camadas:
 | --- | --- |
 | [client.ts](../src/http/whats-oficial/client.ts) | `graphFetch<T>` + `graphFetchMultipart<T>`. Base `graph.facebook.com/v23.0`, header `Authorization: Bearer`, erro Meta `{ error: { message, code, fbtrace_id } }`. |
 | [send-text.ts](../src/http/whats-oficial/send-text.ts) | `sendOfficialText(accessToken, phoneNumberId, { to, body, previewUrl?, replyToWamid? })` |
+| [send-interactive.ts](../src/http/whats-oficial/send-interactive.ts) | `sendOfficialInteractive(accessToken, phoneNumberId, { to, body, footer?, options, listButtonLabel? })` — até 3 opções viram botões de resposta, de 4 a 10 viram lista; títulos acima do limite da Meta são encurtados ([spec 0079](../specs/astro-bot/0079-menu-guiado-com-botoes-e-listas-no-whatsapp.md)) |
 | [send-media.ts](../src/http/whats-oficial/send-media.ts) | `sendOfficialMedia(...)` cobrindo image/audio/document/sticker/video — audio/sticker sem caption, document com filename |
 | [send-location.ts](../src/http/whats-oficial/send-location.ts) | `sendOfficialLocation(...)` |
 | [send-contact.ts](../src/http/whats-oficial/send-contact.ts) | `sendOfficialContact(...)` (mínimo nesta fase) |
@@ -341,6 +342,9 @@ Content-Type: application/json
 - **Mídia:** `{ ..., type:"image"|"audio"|"document"|"sticker"|"video", <type>:{ id|link, caption?, filename? } }`
   - `audio` e `sticker` **não** aceitam `caption`.
   - `document` aceita `filename`.
+- **Interativa (botões):** `{ ..., type:"interactive", interactive:{ type:"button", body:{ text }, footer?:{ text }, action:{ buttons:[{ type:"reply", reply:{ id, title } }] } } }` — até 3 botões, `title` até 20 caracteres.
+- **Interativa (lista):** `{ ..., type:"interactive", interactive:{ type:"list", body:{ text }, action:{ button, sections:[{ rows:[{ id, title, description? }] }] } } }` — até 10 linhas, `title` até 24, `description` até 72, `button` até 20. Só dentro da janela de 24h.
+  - O clique volta no webhook como `type:"interactive"` com `interactive.button_reply:{ id, title }` ou `interactive.list_reply:{ id, title, description }`, e `context.id` = `wamid` da mensagem com os botões. O adapter converte para `interactive_reply` (`replyId`, `replyText`). Capturas reais (corpo cru do POST, telefones mascarados): [interactive-button-reply.json](../src/http/whats-oficial/jsons/webhooks/interactive-button-reply.json) e [interactive-list-reply.json](../src/http/whats-oficial/jsons/webhooks/interactive-list-reply.json).
 - **Location:** `{ ..., type:"location", location:{ latitude, longitude, name?, address? } }`
 - **Resposta:** `{ messaging_product, contacts:[{input, wa_id}], messages:[{id:"wamid..."}] }` ([send-message.json](../src/http/whats-oficial/jsons/outputs/send-message.json) confirma).
 
@@ -441,6 +445,10 @@ Princípio: cada fase é entregável e testável isoladamente. **Uazapi nunca é
 
 ### Fases finais
 
+| Variável | Função |
+| --- | --- |
+| `ASTRO_BOT_INTERACTIVE` (opcional) | `false` desliga botões e listas do Astro no WhatsApp oficial sem deploy; o menu e as perguntas voltam para lista numerada em texto. Ausente = ligado. |
+
 Credenciais por-tracking vivem no banco (`WhatsAppInstance.meta*`, cifradas). Env globais ficam só para overrides operacionais.
 
 ---
@@ -449,6 +457,7 @@ Credenciais por-tracking vivem no banco (`WhatsAppInstance.meta*`, cifradas). En
 
 | Data | Mudança |
 | --- | --- |
+| 2026-10-09 | **Mensagens interativas e menu do Astro ([spec 0079](../specs/astro-bot/0079-menu-guiado-com-botoes-e-listas-no-whatsapp.md)).** Novo cliente `send-interactive.ts` (botões de resposta e lista) e método opcional `sendInteractive` na PORT (`providers/types.ts`), implementado só no adapter `meta-cloud`. O webhook oficial passa a desviar para o Astro o clique (`interactive_reply`) cujo id começa com `menu:` ou `ans:`; os demais ids seguem o fluxo de tag por botão das automações. Flag `ASTRO_BOT_INTERACTIVE=false` desliga. Testado com número real em 2026-10-09 (envio de botões e lista, clique de botão e de lista). O gate do Astro passou a aceitar o `wa_id` sem o 9º dígito (`waIdLookupVariants`) e a buscar o binding dentro da org da tracking. |
 | 2026-10-08 | **Template reserva, template no modo rápido e template de aviso ([spec 0077](../specs/workflows/0077-correcoes-api-oficial-e-gatilhos-orbita.md), RF-14 a RF-16).** (1) O passo "Enviar Mensagem" (texto, imagem, documento) aceita um **template reserva** opcional (`action.fallbackTemplate`), enviado quando a janela de 24h está fechada — nas duas engines. (2) No modo rápido de gatilhos, o passo oferece "Texto livre" ou "Template aprovado" em tracking `META_CLOUD`. Seletor único em [`send-message/template-fields.tsx`](../src/features/tracking-executions/components/send-message/template-fields.tsx). (3) Avisos para quem não é o lead: sem template global da plataforma. O passo "Enviar mensagem aos participantes" (workspace) ganhou o tipo Template, com os modelos da conta do cliente; lembrete, notificação de formulário e notificação administrativa **não são enviados** em `META_CLOUD` (followup 0077-d). `integrations.listAvailable` passou a devolver `provider`. Pendente de validação manual. |
 | 2026-10-08 | **Demais envios automáticos pela porta de provedores ([spec 0077](../specs/workflows/0077-correcoes-api-oficial-e-gatilhos-orbita.md), RF-13).** Deixaram de chamar a Uazapi direto: automação de inatividade (`triggers/idle-automation`), confirmação de agendamento (`booking-notification`), notificação de formulário (`form/send-whatsapp-notification`), lembretes (`crons/check-reminders`), IA do chat (`tracking-chat-ai/lib/agent.ts` e tools de imagem, documento, áudio e botões), rota `api/chat/ia/message/text`, tools de WhatsApp do Astro, workflows de workspace (`send-message-participants`) e `admin/notification-service`. Helpers comuns em [`providers/automated-outbound.ts`](../src/features/tracking-chat/lib/providers/automated-outbound.ts) (`isFreeFormWindowOpen`, `toLegacyUazapiMessageId`). Envio para o lead confere a janela antes (fechada = pula sem cobrar); grupos e botões da IA não existem na API Oficial e devolvem erro claro. Pendente de validação manual. |
 | 2026-10-08 | **Workflows pela porta de provedores + template nas automações ([spec 0077](../specs/workflows/0077-correcoes-api-oficial-e-gatilhos-orbita.md), fatia 1).** Os executores de envio (`tracking-executions/components/send-message/*`, `lib/send-link-to-lead.ts`, `lib/send-buttons-to-lead.ts`, `workflows/lib/agent-executors/apps.ts`) deixaram de chamar a Uazapi direto e resolvem o provedor em [`tracking-executions/lib/workflow-outbound.ts`](../src/features/tracking-executions/lib/workflow-outbound.ts). Em `META_CLOUD`: texto, imagem, documento, mídia e link funcionam dentro da janela; fora dela o passo falha **antes** do envio e da cobrança (`getCustomerWindow`, novo em [`tracking-chat/lib/customer-window.ts`](../src/features/tracking-chat/lib/customer-window.ts), usado também pelo `message.customerWindow`). Novo tipo **Template** no passo "Enviar Mensagem" ([`lib/send-template-to-lead.ts`](../src/features/tracking-executions/lib/send-template-to-lead.ts)), com os modelos aprovados da conta e variáveis do lead. Menu de botões e voz por IA seguem só na Uazapi (falham com mensagem clara). PORT: `SendBase.typingDelayMs` (Uazapi `delay`; Meta ignora). Pendente de validação manual. |

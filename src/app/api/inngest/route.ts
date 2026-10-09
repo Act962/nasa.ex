@@ -85,6 +85,7 @@ import { formSendWhatsappNotification } from "@/inngest/functions/form/send-what
 import { chatAiWhatsappAgent } from "@/inngest/functions/chat-ai/whatsapp-agent";
 import { syncCatalogOrderToNerp } from "@/inngest/functions/nerp-catalog/sync-order-to-nerp";
 import { awaitReplyTagCheck } from "@/inngest/functions/org-defaults/await-reply-tag";
+import { astroBotInactivityNotice } from "@/inngest/functions/astro-bot/inactivity-notice";
 import { seedSampleContent } from "@/inngest/functions/org-defaults/seed-sample-content";
 import { emailLeadCaptureCron } from "@/inngest/functions/crons/email-lead-capture";
 import { watchCatalogOrderPayment } from "@/inngest/functions/nerp-catalog/watch-order-payment";
@@ -215,6 +216,7 @@ export const { GET, POST, PUT } = serve({
     watchCatalogOrderPayment,
     syncCatalogOrderToNerp,
     awaitReplyTagCheck,
+    astroBotInactivityNotice,
     seedSampleContent,
     emailLeadCaptureCron,
     // ── STAR FRIENDS: validade das stars ──

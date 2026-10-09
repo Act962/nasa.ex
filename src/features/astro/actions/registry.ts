@@ -14,6 +14,8 @@ import { createAgendaAction } from "./agenda/create-agenda";
 import { createAppointmentAction } from "./agenda/create-appointment";
 import { createWorkspaceAction } from "./workspace/create-workspace";
 import { createWorkspaceActionItem } from "./workspace/create-action";
+import { completeWorkspaceActionItem } from "./workspace/complete-action";
+import { attachImageToWorkspaceActionItem } from "./workspace/attach-image";
 import { updateWorkspaceActionItem } from "./workspace/update-action";
 import { addChecklistItemAction } from "./workspace/add-checklist-item";
 import { createTagAction } from "./tags/create-tag";
@@ -59,6 +61,8 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   createAppointmentAction,
   createWorkspaceAction,
   createWorkspaceActionItem,
+  completeWorkspaceActionItem,
+  attachImageToWorkspaceActionItem,
   updateWorkspaceActionItem,
   addChecklistItemAction,
   createTagAction,

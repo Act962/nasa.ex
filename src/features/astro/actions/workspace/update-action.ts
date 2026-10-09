@@ -9,6 +9,7 @@ import {
   DAY_WORDS,
   MEMBER_PICKER,
   PRIORITY_OPTIONS,
+  PRIORITY_PICKER_OPTIONS,
   TIME_OF_DAY,
   findTeamMember,
   formatDay,
@@ -36,7 +37,7 @@ const NEW_VALUE_PICKERS: Record<ChangeField, AstroPicker> = {
   newTitle: { kind: "text", placeholder: "Novo título", maxLength: 200 },
   dueAnswer: { kind: "datetime", mode: "date" },
   responsibleName: MEMBER_PICKER,
-  priorityName: { kind: "select", options: PRIORITY_OPTIONS.map((option) => ({ ...option })) },
+  priorityName: { kind: "select", options: PRIORITY_PICKER_OPTIONS },
 };
 
 const inputSchema = z.object({

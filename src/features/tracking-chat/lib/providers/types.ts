@@ -300,6 +300,16 @@ export interface SendResult {
   readonly raw: unknown;
 }
 
+/** Pergunta com opções clicáveis (spec 0079): até 3 viram botões, de 4 a 10 viram lista. */
+export interface SendCanonicalInteractive extends SendBase {
+  readonly kind: "interactive";
+  readonly body: string;
+  readonly footer?: string;
+  readonly options: ReadonlyArray<{ readonly id: string; readonly title: string; readonly description?: string }>;
+  /** Texto do botão que abre a lista. */
+  readonly listButtonLabel?: string;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // PORT
 // ════════════════════════════════════════════════════════════════════════════
@@ -336,6 +346,11 @@ export interface WhatsAppChatProvider {
    * `UazapiProvider` lança `ProviderFeatureUnsupportedError`.
    */
   sendTemplate(input: SendCanonicalTemplate): Promise<SendResult>;
+  /**
+   * Botões de resposta ou lista. Opcional: só a Meta Cloud implementa; quem chama
+   * confere a presença e cai para texto quando o provider não tem.
+   */
+  sendInteractive?(input: SendCanonicalInteractive): Promise<SendResult>;
 
   // ── Webhook inbound ─────────────────────────────────────────────────────
 

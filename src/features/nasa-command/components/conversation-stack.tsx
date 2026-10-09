@@ -25,16 +25,34 @@ export function ConversationStack({
   sessionId,
   onRespond,
 }: ConversationStackProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const lastMessage = messages.at(-1);
 
+  // O cartão de pergunta cresce depois de montado (lista de pessoas, seletor de data): rolar só na
+  // chegada da mensagem deixava a pergunta nova escondida embaixo. Mesmo padrão do widget do Astro.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.length, loading]);
+    const contentElement = contentRef.current;
+    if (!contentElement) return;
+    // A caixa de texto fica presa embaixo e cobre o fim da conversa: scrollIntoView dava a pergunta
+    // por visível atrás dela. Ir ao fim da área de rolagem deixa a caixa depois da conversa.
+    const scrollArea = contentElement.closest<HTMLElement>("[data-home-scroll]");
+    if (!scrollArea) return;
+    let lastScrollHeight = 0;
+    const observer = new ResizeObserver(() => {
+      const currentScrollHeight = scrollArea.scrollHeight;
+      if (currentScrollHeight > lastScrollHeight) {
+        scrollArea.scrollTo({ top: currentScrollHeight, behavior: "smooth" });
+      }
+      lastScrollHeight = currentScrollHeight;
+    });
+    observer.observe(contentElement);
+    if (scrollArea.firstElementChild) observer.observe(scrollArea.firstElementChild);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className="pb-2">
+    <div ref={contentRef} className="pb-2">
       <div className="space-y-0.5">
         <AstroWidgetApprovals surface="theme" />
         {messages.map((message) => (
@@ -54,7 +72,6 @@ export function ConversationStack({
             {error.message || "Erro ao processar."}
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   );

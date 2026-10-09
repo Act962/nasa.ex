@@ -125,6 +125,12 @@ export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
    */
   codeOnlyFields?: string[];
   /**
+   * Campos respondidos em partes, que se somam em vez de se substituir. "Para quando?" →
+   * "amanhã" → "que horas?" → "meio dia": a segunda resposta apagava o dia e o Astro voltava
+   * a perguntar "para quando?". A resposta nova entra na frente, então corrigir o dia continua valendo.
+   */
+  accumulatingFields?: string[];
+  /**
    * Frases inequívocas deste verbo, sobre o texto sem acento e em minúsculas.
    * Casou só este verbo, o roteiro começa sem classificador: "quero agendar"
    * não precisa de modelo — e cada vez que ele escapava, o orquestrador

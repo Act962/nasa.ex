@@ -41,7 +41,12 @@ export function resolveWhenOrAsk(params: {
   /** Verbo da pergunta: "marco", "remarco". */
   verb: string;
 }): { iso: string } | { ask: AstroActionResult } {
-  const whenText = [params.answeredWhen, params.spokenWhen ?? params.startsAt].filter(Boolean).join(" ");
+  // "12" ou "às 14", respondendo a "que horas?", é hora: sem o "h" o número não era lido como nada.
+  const answeredWhen = params.answeredWhen?.replace(
+    /^\s*(?:[aà]s\s+)?(\d{1,2})(?=\s|$)(?!\s*(?:h|:|\/|de\b|horas?))/i,
+    "$1h",
+  );
+  const whenText = [answeredWhen, params.spokenWhen ?? params.startsAt].filter(Boolean).join(" ");
   const when = parseDateTime(whenText);
   const ask = (title: string, description: string, label: string, picker: AstroPicker) => ({
     ask: {
@@ -75,4 +80,10 @@ export function resolveWhenOrAsk(params: {
     );
   }
   return { iso: when.iso };
+}
+
+/** Link público do compromisso (`/agenda/appointment/<id>`), onde o cliente remarca ou cancela. */
+export function buildAppointmentPublicUrl(appointmentId: string): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ?? "";
+  return `${base}/agenda/appointment/${appointmentId}`;
 }

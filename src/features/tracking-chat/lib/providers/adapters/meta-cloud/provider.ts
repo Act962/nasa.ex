@@ -29,6 +29,7 @@ import {
   sendOfficialMedia,
   sendOfficialTemplate,
   sendOfficialText,
+  sendOfficialInteractive,
   type MetaApiError,
   type WhatsAppOfficialInboundMessage,
   type WhatsAppOfficialMetadata,
@@ -54,6 +55,7 @@ import type {
   SendCanonicalMedia,
   SendCanonicalTemplate,
   SendCanonicalText,
+  SendCanonicalInteractive,
   SendResult,
   WhatsAppChatProvider,
 } from "../../types";
@@ -371,6 +373,25 @@ export class OfficialProvider implements WhatsAppChatProvider {
     ).catch(rethrowWindowClosed);
     return {
       externalMessageId: extractWamid(response, "sendText"),
+      raw: response,
+    };
+  }
+
+  async sendInteractive(input: SendCanonicalInteractive): Promise<SendResult> {
+    const response = await sendOfficialInteractive(
+      this.config.accessToken,
+      this.config.phoneNumberId,
+      {
+        to: normalizePhoneToMetaE164(input.to),
+        body: input.body,
+        footer: input.footer,
+        options: input.options.map((option) => ({ ...option })),
+        listButtonLabel: input.listButtonLabel,
+        replyToWamid: input.replyToExternalMessageId,
+      },
+    ).catch(rethrowWindowClosed);
+    return {
+      externalMessageId: extractWamid(response, "sendInteractive"),
       raw: response,
     };
   }
