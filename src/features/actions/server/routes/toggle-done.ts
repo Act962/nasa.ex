@@ -3,12 +3,8 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { awardPoints } from "@/app/router/space-point/utils";
 import { logActivity } from "@/features/admin/lib/activity-logger";
-import {
-  hasActionCompletedWorkflow,
-  sendWorkspaceWorkflowEvent,
-} from "@/inngest/utils";
+import { runActionCompletedEffects } from "@/features/actions/server/lib/complete-action";
 
 export const toggleDone = base
   .use(requiredAuthMiddleware)
@@ -40,62 +36,39 @@ export const toggleDone = base
       },
     });
 
-    if (!previous.isDone && isDone) {
-      const orgId = session.activeOrganizationId;
-      if (orgId) {
-        await awardPoints(
-          previous.createdBy,
-          orgId,
-          "complete_card",
-          "Card concluído ✅",
-        );
-      }
+    const orgId = session.activeOrganizationId;
+    const wentToDone = !previous.isDone && isDone;
+    const wentToReopen = previous.isDone && !isDone;
 
-      try {
-        if (await hasActionCompletedWorkflow(action.workspaceId)) {
-          await sendWorkspaceWorkflowEvent({
-            trigger: "WS_ACTION_COMPLETED",
-            workspaceId: action.workspaceId,
-            actionId: action.id,
-          });
-        }
-      } catch (err) {
-        console.error(
-          "[workspace-workflow] failed to emit action.completed",
-          err,
-        );
-      }
+    if (wentToDone && orgId) {
+      await runActionCompletedEffects({
+        action: { id: action.id, title: action.title, createdBy: previous.createdBy, workspaceId: action.workspaceId },
+        organizationId: orgId,
+        actor: {
+          id: context.user.id,
+          name: context.user.name,
+          email: context.user.email,
+          image: (context.user as { image?: string | null }).image,
+        },
+      });
     }
 
-    const orgId = session.activeOrganizationId;
-    if (orgId) {
-      const wentToDone = !previous.isDone && isDone;
-      const wentToReopen = previous.isDone && !isDone;
-
-      if (wentToDone || wentToReopen) {
-        const featureKey = wentToDone
-          ? "workspace.action.completed"
-          : "workspace.action.reopened";
-        const actionLabel = wentToDone
-          ? `Concluiu a ação "${action.title}"`
-          : `Reabriu a ação "${action.title}"`;
-
-        await logActivity({
-          organizationId: orgId,
-          userId: context.user.id,
-          userName: context.user.name,
-          userEmail: context.user.email,
-          userImage: (context.user as any).image,
-          appSlug: "workspace",
-          subAppSlug: "workspace-actions",
-          featureKey,
-          action: featureKey,
-          actionLabel,
-          resource: action.title,
-          resourceId: action.id,
-          metadata: { changedFields: ["isDone"] },
-        });
-      }
+    if (wentToReopen && orgId) {
+      await logActivity({
+        organizationId: orgId,
+        userId: context.user.id,
+        userName: context.user.name,
+        userEmail: context.user.email,
+        userImage: (context.user as { image?: string | null }).image,
+        appSlug: "workspace",
+        subAppSlug: "workspace-actions",
+        featureKey: "workspace.action.reopened",
+        action: "workspace.action.reopened",
+        actionLabel: `Reabriu a ação "${action.title}"`,
+        resource: action.title,
+        resourceId: action.id,
+        metadata: { changedFields: ["isDone"] },
+      });
     }
 
     return { action };

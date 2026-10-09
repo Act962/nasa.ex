@@ -9,6 +9,7 @@ import {
   DAY_WORDS,
   MEMBER_PICKER,
   PRIORITY_OPTIONS,
+  PRIORITY_PICKER_OPTIONS,
   TIME_OF_DAY,
   findTeamMember,
   formatDay,
@@ -17,14 +18,16 @@ import {
   toPriority,
 } from "./task-fields";
 import { notifyNewTask } from "@/features/actions/server/lib/notify-new-task";
+import { applyImageToTask, takePendingTaskImage } from "./pending-image";
 
 // Criar demanda/tarefa dentro de um workspace. Sem este verbo, "adicione a
 // demanda CRIAR SITE dentro de DEMANDAS" caía em `workspace.create` e
 // respondia que o workspace já existia — o buraco de verbo ausente de novo.
-// Roteiro (spec 0033, RF-9): título → workspace → prazo → responsável →
-// prioridade, cada passo com o seu seletor.
+// Roteiro (spec 0033, RF-9; spec 0080): título → workspace → prazo → responsável →
+// prioridade → descrição, cada passo com o seu seletor.
 
 const NO_DEADLINE_ANSWER = "sem prazo";
+const NO_DESCRIPTION_ANSWER = "sem descrição";
 
 const inputSchema = z.object({
   title: z
@@ -43,9 +46,16 @@ const inputSchema = z.object({
   responsibleName: z.string().trim().optional().describe("Responsável escolhido no roteiro."),
   priorityName: z.string().trim().optional().describe("Prioridade dita ou escolhida."),
   participantNames: z.string().trim().optional().describe("Participantes ditos na frase, separados por vírgula ou 'e'."),
+  descriptionAnswer: z.string().trim().max(4000).optional().describe("Descrição escrita no roteiro, ou 'sem descrição'."),
 });
 
-const TITLE_LEAD_IN = /^(?:com\s+o\s+(?:t[ií]tulo|nome)|chamad[ao]|intitulad[ao]|de\s+nome)\s*:?\s*/iu;
+// "com essa foto: Trocar banner" (legenda de imagem no WhatsApp) e "com o título X": o que sobra é o título.
+const TITLE_LEAD_IN =
+  /^(?:com\s+(?:essa|esta|a)\s+(?:foto|imagem|print)\s*[:,-]?\s*)?(?:(?:com\s+o\s+(?:t[ií]tulo|nome)|chamad[ao]|intitulad[ao]|de\s+nome)\s*:?\s*)?/iu;
+
+// Depois de "demanda" pode vir o prazo, o workspace ou os participantes em vez do título:
+// "criar uma demanda para hoje até às 18h" virava a demanda "hoje até às 18h". Sem título, o roteiro pergunta.
+const NOT_A_TITLE = `\\s+(?:(?:para|pra|ate|até)\\s+(?:${DAY_WORDS}|dia\\s+\\d|\\d{1,2}\\/\\d{1,2})|(?:no|na|em)\\s+(?:workspace|quadro)\\b|com\\s+(?:os\\s+|as\\s+)?participantes?\\b|(?:onde|cujo|com)\\s+(?:o\\s+|a\\s+)?(?:respons|prioridade))`;
 
 /** "cria a tarefa revisar contrato no workspace Operação para amanhã, urgente" → campos, sem modelo. */
 function inferTaskFields(text: string): Record<string, unknown> {
@@ -55,7 +65,7 @@ function inferTaskFields(text: string): Record<string, unknown> {
   const quotedTitle = text.match(/["“]([^"”]{2,200})["”]/u)?.[1];
   const looseTitle = text.match(
     new RegExp(
-      `\\b(?:tarefa|demanda|atividade)\\s+(?:de\\s+|para\\s+)?(.+?)(?=\\s+(?:no|na|em)\\s+(?:workspace|quadro)\\b|\\s+com\\s+(?:os\\s+|as\\s+)?participantes?\\b|\\s+(?:para|pra|ate|até)\\s+(?:${DAY_WORDS}|dia\\s+\\d|\\d{1,2}\\/\\d{1,2})|,|$)`,
+      `\\b(?:tarefa|demanda|atividade)(?!${NOT_A_TITLE})\\s*:?\\s+(?:de\\s+|para\\s+)?(.+?)(?=\\s+(?:no|na|em)\\s+(?:workspace|quadro)\\b|\\s+com\\s+(?:os\\s+|as\\s+)?participantes?\\b|\\s+(?:para|pra|ate|até)\\s+(?:${DAY_WORDS}|dia\\s+\\d|\\d{1,2}\\/\\d{1,2})|,|$)`,
       "iu",
     ),
   )?.[1];
@@ -80,6 +90,12 @@ function inferTaskFields(text: string): Record<string, unknown> {
   return inferred;
 }
 
+// O modelo também preenche o título com o que achar na frase; prazo sozinho não é título.
+const DEADLINE_ONLY_TITLE = new RegExp(
+  `^(?:(?:para|pra|ate|até|as|às|a|de|dia|${DAY_WORDS}|\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?|\\d{1,2}(?:\\s*(?:h(?:oras?)?\\s*\\d{0,2}|:\\d{2}))?)[\\s,.]*)+$`,
+  "iu",
+);
+
 function splitNames(raw: string): string[] {
   return raw
     .split(/\s*(?:,|;|\be\b)\s*/iu)
@@ -101,19 +117,32 @@ export const createWorkspaceActionItem: AstroAction<typeof inputSchema> = {
   newNameFields: ["title"],
   input: inputSchema,
   inferFields: inferTaskFields,
-  codeOnlyFields: ["dueAnswer", "responsibleName", "priorityName", "participantNames"],
+  codeOnlyFields: ["dueAnswer", "responsibleName", "priorityName", "participantNames", "descriptionAnswer"],
   intentPatterns: [
     /^(?!.*\b(checklist|check-list|subtarefas?|sub-tarefas?|subitem)\b).*\b(cria|criar|crie|adiciona|adicionar|adicione|nova|novo|abre|abrir|quero criar)\b.{0,20}\b(tarefa|demanda|atividade)\b/,
   ],
   fieldSteps: {
+    // "O que precisa ser feito?" pedia o título com cara de descrição: a pessoa escrevia os
+    // detalhes e eles viravam o nome da demanda. O título é pedido pelo nome; os detalhes têm passo próprio.
     title: {
-      title: "Qual a tarefa?",
-      question: "O que precisa ser feito?",
+      title: "Título da demanda",
+      question: "Qual o título da demanda? Um nome curto, como \"Revisar contrato\".",
       picker: { kind: "text", placeholder: "Ex.: Revisar contrato", maxLength: 200 },
     },
   },
 
   async execute({ ctx, input, dryRun }): Promise<AstroActionResult> {
+    if (DEADLINE_ONLY_TITLE.test(input.title)) {
+      return {
+        status: "needs_input",
+        title: "Título da demanda",
+        description: "Qual o título da demanda? Um nome curto, como \"Revisar contrato\".",
+        missingFields: [{ key: "title", label: "o título da demanda" }],
+        appName: "Workspaces",
+        picker: { kind: "text", placeholder: "Ex.: Revisar contrato", maxLength: 200 },
+      };
+    }
+
     const pickedWorkspace = input.workspaceName ? parsePickedAnswer(input.workspaceName) : null;
     const workspaces = await prisma.workspace.findMany({
       where: {
@@ -220,10 +249,29 @@ export const createWorkspaceActionItem: AstroAction<typeof inputSchema> = {
         description: "Qual a prioridade?",
         missingFields: [{ key: "priorityName", label: "a prioridade" }],
         appName: "Workspaces",
-        picker: { kind: "select", options: PRIORITY_OPTIONS.map((option) => ({ ...option })) },
+        picker: { kind: "select", options: PRIORITY_PICKER_OPTIONS },
       };
     }
     const priorityLabel = PRIORITY_OPTIONS.find((option) => option.answer === priority)!.label.toLowerCase();
+
+    // Descrição: opcional, mas perguntada — é onde cabem os detalhes que não são título.
+    if (input.descriptionAnswer === undefined) {
+      return {
+        status: "needs_input",
+        title: "Descrição",
+        description: "Quer descrever a demanda? Escreva os detalhes, ou siga sem descrição.",
+        missingFields: [{ key: "descriptionAnswer", label: "a descrição" }],
+        appName: "Workspaces",
+        picker: {
+          kind: "text",
+          placeholder: "Detalhes do que precisa ser feito",
+          maxLength: 4000,
+          skipOption: { label: "Sem descrição", answer: NO_DESCRIPTION_ANSWER },
+        },
+      };
+    }
+    const hasDescription = normalizeIntent(input.descriptionAnswer).replace(/[.!]+$/, "") !== normalizeIntent(NO_DESCRIPTION_ANSWER);
+    const description = hasDescription ? input.descriptionAnswer : null;
 
     const participants: { id: string; name: string }[] = [];
     const unknownParticipants: string[] = [];
@@ -238,6 +286,7 @@ export const createWorkspaceActionItem: AstroAction<typeof inputSchema> = {
       `"${input.title}" em ${workspace.name}, ${dueDate ? `prazo ${formatDay(dueDate, hasDueTime)}` : "sem prazo"}, ` +
       `responsável ${responsible.name}, prioridade ${priorityLabel}` +
       (participants.length > 0 ? `, participantes ${participants.map((participant) => participant.name).join(" e ")}` : "") +
+      (description ? ", com descrição" : "") +
       "." +
       (unknownParticipants.length > 0 ? ` Não achei ${unknownParticipants.join(" e ")} na equipe — adicione pela demanda.` : "");
 
@@ -259,9 +308,24 @@ export const createWorkspaceActionItem: AstroAction<typeof inputSchema> = {
       select: { order: true },
     });
 
+    // Imagem enviada pelo WhatsApp antes ou junto do pedido entra na demanda nova (spec 0080, RF-6).
+    // Só o WhatsApp recebe imagem; nos outros canais nem consulta o armazenamento.
+    const pendingImage =
+      ctx.channel === "WHATSAPP"
+        ? await takePendingTaskImage(ctx.sessionId, ctx.organizationId).catch((imageError: unknown) => {
+            console.error("[astro/create-action] imagem pendente falhou", imageError);
+            return null;
+          })
+        : null;
+    const imageFields = pendingImage
+      ? applyImageToTask({ image: pendingImage, currentAttachments: [], currentCoverImage: null })
+      : null;
+
     const created = await prisma.action.create({
       data: {
         title: input.title,
+        description,
+        ...(imageFields ? { attachments: imageFields.attachments, coverImage: imageFields.coverImage } : {}),
         workspaceId: workspace.id,
         columnId: column?.id ?? null,
         organizationId: ctx.organizationId,
@@ -287,7 +351,7 @@ export const createWorkspaceActionItem: AstroAction<typeof inputSchema> = {
     return {
       status: "done",
       title: "Demanda criada",
-      description: summary,
+      description: pendingImage ? `${summary} A imagem entrou como anexo e capa.` : summary,
       internalUrl: `/workspaces/${workspace.id}?action=${created.id}`,
       openLabel: "Abrir demanda",
       appName: "Workspaces",

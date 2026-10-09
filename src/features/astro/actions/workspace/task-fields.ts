@@ -16,6 +16,9 @@ export const PRIORITY_OPTIONS = [
   { label: "Urgente", answer: "URGENT" },
 ] as const;
 
+/** No seletor a resposta é o próprio rótulo: ela vira o balão do usuário, e "HIGH" não é o que ele escolheu. */
+export const PRIORITY_PICKER_OPTIONS = PRIORITY_OPTIONS.map((option) => ({ label: option.label, answer: option.label }));
+
 export type ActionPriority = (typeof PRIORITY_OPTIONS)[number]["answer"];
 
 const PRIORITY_WORDS: Record<string, ActionPriority> = {
@@ -36,7 +39,7 @@ export const MEMBER_PICKER: AstroPicker = {
 
 export const DAY_WORDS =
   "amanha|amanhã|hoje|depois de amanha|depois de amanhã|segunda|terca|terça|quarta|quinta|sexta|sabado|sábado|domingo";
-export const TIME_OF_DAY = "(?:\\s+(?:as|às)?\\s*\\d{1,2}\\s*(?:h(?:oras?)?\\s*\\d{0,2}|:\\d{2}))?";
+export const TIME_OF_DAY = "(?:\\s+(?:(?:ate|até)\\s+)?(?:as|às)?\\s*\\d{1,2}\\s*(?:h(?:oras?)?\\s*\\d{0,2}|:\\d{2}))?";
 
 export function normalizeIntent(text: string): string {
   return text
@@ -91,4 +94,13 @@ export async function findTeamMember(
     },
     select: { id: true, name: true },
   });
+}
+
+/** Filtro de prioridade dito na frase (texto sem acento). "Alta" inclui urgente: quem pede as de alta não quer perder as urgentes. */
+export function taskPrioritiesFrom(normalizedText: string): { priorities: ActionPriority[]; label: string } | null {
+  if (/\burgentes?\b/.test(normalizedText)) return { priorities: ["URGENT"], label: "urgente" };
+  if (/\b(alta prioridade|prioridade alta)\b/.test(normalizedText)) return { priorities: ["HIGH", "URGENT"], label: "de alta prioridade" };
+  if (/\b(media prioridade|prioridade media)\b/.test(normalizedText)) return { priorities: ["MEDIUM"], label: "de prioridade média" };
+  if (/\b(baixa prioridade|prioridade baixa)\b/.test(normalizedText)) return { priorities: ["LOW"], label: "de prioridade baixa" };
+  return null;
 }

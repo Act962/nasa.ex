@@ -7,16 +7,28 @@
  */
 import "server-only";
 
+/** Opção clicável de uma resposta do bot. O `id` volta no clique (webhook `interactive_reply`). */
+export interface BotButton {
+  id: string;
+  text: string;
+  /** Subtítulo da linha, só em lista. */
+  description?: string;
+  /** Só aparece onde há botão de verdade; em lista numerada seria ruído ("1. Menu 2. Encerrar"). */
+  interactiveOnly?: boolean;
+}
+
 export interface ButtonPayload {
   bodyText: string;
   footerText?: string;
-  buttons: Array<{ id: string; text: string }>;
+  buttons: BotButton[];
+  /** Texto do botão que abre a lista, quando as opções não cabem em 3 botões. */
+  listButtonLabel?: string;
 }
 
 export interface WhatsappBotChannel {
   /** Envia mensagem de texto. Quebra em múltiplas se > 4000 chars. */
   sendText(phone: string, text: string): Promise<{ messageId: string | null }>;
-  /** Envia menu de até 3 botões interativos (confirmações destrutivas). */
+  /** Envia pergunta com opções: botões ou lista onde o provider aceita, lista numerada onde não. */
   sendButtons(phone: string, payload: ButtonPayload): Promise<{ messageId: string | null }>;
   /** Envia imagem com legenda por URL pública (prévia de post do Planner, spec 0064). */
   sendMedia(phone: string, media: { url: string; caption?: string }): Promise<{ messageId: string | null }>;
@@ -62,7 +74,8 @@ export interface BotCommandResult {
   reply: string;
   /** Tools chamadas pela orquestração (pro audit log). */
   /** Opções clicáveis; sem isto a escolha volta como lista numerada. */
-  buttons?: Array<{ id: string; text: string }>;
+  buttons?: BotButton[];
+  listButtonLabel?: string;
   toolsCalled?: string[];
   tokensUsed?: number;
   starsCharged?: number;

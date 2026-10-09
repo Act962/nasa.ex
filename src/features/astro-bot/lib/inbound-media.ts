@@ -204,3 +204,54 @@ export async function storeBotInboundDocument(params: {
     },
   };
 }
+
+
+// ── Imagem para demanda do Workspace (spec 0080) ─────────────────────────────
+
+const TASK_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const TASK_IMAGE_EXTENSIONS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+export type DownloadBotTaskImageResult =
+  | { isDownloaded: true; body: Buffer; fileName: string; mimeType: string }
+  | { isDownloaded: false; status: BotMediaRejectionStatus; reply: string };
+
+/** Baixa do provider e valida formato e tamanho. Quem chama guarda: o link da Meta expira. */
+export async function downloadBotTaskImage(params: {
+  binding: UserWhatsappBinding;
+  trackingId: string;
+  media: BotInboundMedia;
+}): Promise<DownloadBotTaskImageResult> {
+  const { binding, trackingId, media } = params;
+  const declaredMimetype = media.mimetype?.split(";")[0]?.trim().toLowerCase() || "image/jpeg";
+  const extension = TASK_IMAGE_EXTENSIONS[declaredMimetype];
+  if (media.kind !== "image" || !extension) {
+    return {
+      isDownloaded: false,
+      status: "media_unsupported",
+      reply: "📎 Para anexar em demanda eu aceito imagem *JPG*, *PNG* ou *WebP*. Manda nesse formato.",
+    };
+  }
+
+  const fileBuffer = await downloadFromTrackingProvider(trackingId, media).catch((downloadError: unknown) => {
+    console.error("[astro-bot/inbound-media] task_image_download_failed", { bindingId: binding.id, downloadError });
+    return null;
+  });
+  if (!fileBuffer) return { isDownloaded: false, status: "media_failed", reply: FAILED_REPLY };
+  if (fileBuffer.length > TASK_IMAGE_MAX_BYTES) {
+    return {
+      isDownloaded: false,
+      status: "media_unsupported",
+      reply: `📎 Essa imagem tem ${formatFileSize(fileBuffer.length)} — o limite é ${formatFileSize(TASK_IMAGE_MAX_BYTES)}. Manda uma versão menor.`,
+    };
+  }
+  return {
+    isDownloaded: true,
+    body: fileBuffer,
+    fileName: media.fileName?.trim() || buildFallbackFileName(media, extension),
+    mimeType: declaredMimetype,
+  };
+}

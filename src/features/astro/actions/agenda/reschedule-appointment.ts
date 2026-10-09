@@ -3,7 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import type { AstroAction, AstroActionResult } from "../types";
-import { formatAgendaDateTime, resolveWhenOrAsk } from "./schedule-steps";
+import { buildAppointmentPublicUrl, formatAgendaDateTime, resolveWhenOrAsk } from "./schedule-steps";
 import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
 import { extractNameAfter } from "../leads/lead-steps";
 
@@ -67,6 +67,7 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
     return { spokenWhen: text, ...(personName ? { personName } : {}) };
   },
   codeOnlyFields: ["spokenWhen", "answeredWhen"],
+  accumulatingFields: ["answeredWhen"],
   intentPatterns: [
     /\b(remarca|remarcar|remarque|adia|adiar|adie)\b/,
     /\b(muda|mudar|troca|trocar)\s+o\s+horario\b/,
@@ -218,6 +219,7 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
         `"${appointment.title}" saiu de ${formatAgendaDateTime(appointment.startsAt)} ` +
         `para ${formatAgendaDateTime(newStart)}.`,
       internalUrl: `/agendas?appointment=${appointment.id}`,
+      publicUrl: buildAppointmentPublicUrl(appointment.id),
       appName: "Agendas",
     };
   },

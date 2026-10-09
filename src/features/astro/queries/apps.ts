@@ -11,6 +11,7 @@ import {
   startOfToday,
   type AstroQuery,
 } from "./types";
+import { taskPrioritiesFrom } from "@/features/astro/actions/workspace/task-fields";
 
 /** "Quais…", "liste…", "me mostra…": a pessoa quer os itens, não o número. */
 const LISTS = /\b(quais|liste|lista|listar|mostra|mostre|me mostra|me manda|minhas|meus)\b/;
@@ -238,75 +239,130 @@ const workspaces: AstroQuery = {
   },
 };
 
+// Tarefas em aberto (spec 0078). Período na frase é PRAZO, não criação: "quantas tarefas tenho
+// hoje?" contava as criadas hoje na empresa inteira. Só "criadas hoje" olha a data de criação.
+const TASK_NOUN = /\b(tarefas?|acoes?|atividades?|demandas?)\b/;
+const TASK_QUESTION = /\b(pendentes?|abertas?|atrasadas?|quantas|quantos|quais|vencidas?|prioridade|urgentes?)\b/;
+const TASK_FOLLOW_UP = /\b(atrasadas?|vencidas?|pendentes?|prioridade|urgentes?)\b/;
+const OTHER_SUBJECT = /\b(leads?|propostas?|contas?|lancamentos?|faturas?|cobrancas?|formularios?|compromissos?|mensagens?|clientes?)\b/;
+const TASK_LISTS = /\b(quais|liste|lista|listar|mostra|mostre|me manda|traga|traz|trazer|minhas|meus)\b/;
+const MINE = /\b(tenho|minhas|meus|comigo|estou)\b/;
+const OVERDUE = /\b(atrasadas?|vencidas?)\b/;
+const CREATED = /\bcriad[ao]s?\b/;
+
 const pendingActions: AstroQuery = {
   key: "workspace.actions_pending",
   app: "workspaces",
   appKey: "workspace",
-  matches: (text) =>
-    /\btarefas?|acoes?|atividades?\b/.test(text) &&
-    /\bpendentes?|abertas?|atrasadas?|quantas|quantos|vencidas?\b/.test(text),
+  matches: (text, history) => {
+    if (TASK_NOUN.test(text)) return TASK_QUESTION.test(text);
+    // "Quantas estão atrasadas?", "me traga as de alta prioridade": continuação de uma conversa sobre tarefas.
+    return TASK_FOLLOW_UP.test(text) && !OTHER_SUBJECT.test(text) && TASK_NOUN.test(history);
+  },
   run: async ({ ctx, text }) => {
     const period = periodFrom(text);
-    const base = {
+    const isAboutCreation = CREATED.test(text);
+    const isToday = !isAboutCreation && period?.label === "hoje";
+    const onlyMine = MINE.test(text);
+    const onlyOverdue = OVERDUE.test(text);
+    const priority = taskPrioritiesFrom(text);
+    const now = new Date();
+    const today = startOfToday();
+
+    const scope = {
       workspace: { organizationId: ctx.organizationId },
       isDone: false,
-      ...createdWithin(period),
+      isArchived: false,
+      ...(onlyMine ? { responsibles: { some: { userId: ctx.userId } } } : {}),
+      ...(priority ? { priority: { in: priority.priorities } } : {}),
     };
+    const dueWindow =
+      period && !isAboutCreation && !isToday
+        ? {
+            gte: period.since,
+            lt: period.futureUntil > period.until ? period.futureUntil : period.until,
+          }
+        : null;
+    const base = {
+      ...scope,
+      ...(isAboutCreation ? createdWithin(period) : {}),
+      // "Hoje" = o que vence hoje mais o que já passou do prazo.
+      ...(isToday ? { dueDate: { lt: period.until } } : {}),
+      ...(dueWindow ? { dueDate: dueWindow } : {}),
+    };
+
+    // Em "hoje", atrasada é a que venceu antes de hoje; o resto do dia ainda é "para hoje".
+    const overdueBefore = isToday ? today : now;
+    const overdueDue = dueWindow
+      ? { gte: dueWindow.gte, lt: dueWindow.lt < overdueBefore ? dueWindow.lt : overdueBefore }
+      : { lt: overdueBefore };
     const [pending, overdue] = await Promise.all([
       prisma.action.count({ where: base }),
-      prisma.action.count({ where: { ...base, dueDate: { lt: new Date() } } }),
+      prisma.action.count({ where: { ...base, dueDate: overdueDue } }),
     ]);
-    if (pending === 0) {
-      return { text: period ? `Nenhuma tarefa em aberto criada ${period.label}.` : "Nenhuma tarefa em aberto." };
+
+    const qualifier = priority ? ` ${priority.label}` : "";
+    const owner = onlyMine ? "Você tem " : "";
+    const openLabel = (count: number) => `${count} ${plural(count, "tarefa", "tarefas")}${qualifier} em aberto`;
+
+    let summary: string;
+    if (onlyOverdue) {
+      summary =
+        overdue === 0
+          ? `Nenhuma tarefa${qualifier} atrasada.`
+          : `${owner}${overdue} ${plural(overdue, "tarefa", "tarefas")}${qualifier} ${plural(overdue, "atrasada", "atrasadas")}`;
+    } else if (isToday) {
+      const dueToday = pending - overdue;
+      summary =
+        pending === 0
+          ? `Nenhuma tarefa${qualifier} para hoje nem atrasada.`
+          : `${owner}${dueToday} ${plural(dueToday, "tarefa", "tarefas")}${qualifier} para hoje` +
+            (overdue > 0 ? ` e ${overdue} ${plural(overdue, "atrasada", "atrasadas")}` : "");
+    } else if (pending === 0) {
+      summary = period
+        ? `Nenhuma tarefa${qualifier} em aberto ${isAboutCreation ? "criada" : "com prazo"} ${period.label}.`
+        : `Nenhuma tarefa${qualifier} em aberto.`;
+    } else {
+      summary =
+        `${owner}${openLabel(pending)}` +
+        (period ? ` ${isAboutCreation ? `criada${plural(pending, "", "s")}` : "com prazo"} ${period.label}` : "") +
+        (overdue > 0 ? `, sendo ${overdue} ${plural(overdue, "atrasada", "atrasadas")}` : "");
     }
-    const summary =
-      `${pending} ${plural(pending, "tarefa em aberto", "tarefas em aberto")}` +
-      (period ? ` criada${plural(pending, "", "s")} ${period.label}` : "") +
-      (overdue > 0 ? `, sendo ${overdue} ${plural(overdue, "atrasada", "atrasadas")}` : "");
+
+    const listedCount = onlyOverdue ? overdue : pending;
     // "Quais tarefas" pede as tarefas; "quantas", só o número.
-    if (LISTS.test(text)) {
-      const onlyOverdue = /\batrasadas?|vencidas?\b/.test(text);
-      // "Minhas tarefas": só as que a pessoa é responsável.
-      const onlyMine = /\b(minhas|meus)\b/.test(text);
-      const tasks = await prisma.action.findMany({
-        where: {
-          ...base,
-          ...(onlyOverdue ? { dueDate: { lt: new Date() } } : {}),
-          ...(onlyMine ? { responsibles: { some: { userId: ctx.userId } } } : {}),
-        },
-        select: { id: true, title: true, dueDate: true, workspaceId: true, workspace: { select: { name: true } } },
-        orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }],
-        take: MAX_LIST_ROWS,
-      });
-      return {
-        text: `${summary}:`,
-        table: {
-          kind: "astro_table",
-          entityType: "action",
-          title: onlyOverdue ? "Tarefas atrasadas" : "Tarefas em aberto",
-          columns: [
-            { key: "tarefa", label: "Tarefa" },
-            { key: "workspace", label: "Workspace" },
-            { key: "prazo", label: "Prazo" },
-          ],
-          rows: tasks.map((task) => ({
-            id: task.id,
-            workspaceId: task.workspaceId,
-            tarefa: task.title,
-            workspace: task.workspace.name,
-            prazo: task.dueDate
-              ? task.dueDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
-              : "—",
-          })),
-          totalCount: tasks.length,
-        },
-      };
+    if (!TASK_LISTS.test(text) || listedCount === 0) {
+      return { text: /[.!?]$/.test(summary) ? summary : `${summary}.` };
     }
+
+    const tasks = await prisma.action.findMany({
+      where: { ...base, ...(onlyOverdue ? { dueDate: overdueDue } : {}) },
+      select: { id: true, title: true, dueDate: true, workspaceId: true, workspace: { select: { name: true } } },
+      orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }],
+      take: MAX_LIST_ROWS,
+    });
     return {
-      text:
-        `${pending} ${plural(pending, "tarefa em aberto", "tarefas em aberto")}` +
-        (period ? ` criada${plural(pending, "", "s")} ${period.label}` : "") +
-        (overdue > 0 ? `, sendo ${overdue} ${plural(overdue, "atrasada", "atrasadas")}.` : "."),
+      text: `${summary}:`,
+      table: {
+        kind: "astro_table",
+        entityType: "action",
+        title: onlyOverdue ? "Tarefas atrasadas" : "Tarefas em aberto",
+        columns: [
+          { key: "tarefa", label: "Tarefa" },
+          { key: "workspace", label: "Workspace" },
+          { key: "prazo", label: "Prazo" },
+        ],
+        rows: tasks.map((task) => ({
+          id: task.id,
+          workspaceId: task.workspaceId,
+          tarefa: task.title,
+          workspace: task.workspace.name,
+          prazo: task.dueDate
+            ? task.dueDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+            : "—",
+        })),
+        totalCount: listedCount,
+      },
     };
   },
 };

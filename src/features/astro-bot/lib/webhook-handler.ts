@@ -15,8 +15,11 @@ import type {
   UserWhatsappBinding,
 } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
+import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
 import { handleBotCommand } from "./router";
+import { notifyBotMessageReceived, scheduleInactivityNotice } from "./inactivity";
+import { rememberOpenQuestion } from "./open-question";
 import { TrackingProviderBotChannel } from "./tracking-provider-channel";
 import type { BotInboundMedia } from "./types";
 
@@ -30,6 +33,12 @@ export interface WhatsappWebhookHookInput {
    * `financeEnabled`; sem isso a mídia segue o atendimento normal.
    */
   media?: BotInboundMedia;
+  /** Clique em botão ou lista enviados pelo Astro: o `id` que voltou no webhook (spec 0079). */
+  /** Id da mensagem no provider (`wamid`), para ignorar reenvio da mesma entrega. */
+  externalMessageId?: string;
+  interactiveReplyId?: string;
+  /** Id da mensagem que tinha o botão clicado (`context.id` da Meta). */
+  interactiveContextId?: string;
   /** Tracking que recebeu o webhook — define o número/provider de resposta. */
   trackingId: string;
   /**
@@ -79,20 +88,21 @@ interface BotGateResult {
  * em que o inbound foi interceptado.
  */
 async function resolveBotGate(input: BotGateInput): Promise<BotGateResult> {
-  // 1. Lookup binding por phone — index unique, rápido.
-  const binding = await prisma.userWhatsappBinding.findUnique({
-    where: { phoneE164: input.phone },
+  // 1 e 2. Binding do número NESTA org — a org dona do botConfig é a fonte autoritativa.
+  // O mesmo telefone pode existir em outra org, e em duas grafias: a Meta entrega o número de
+  // conta móvel antiga sem o 9º dígito (`558698221810`) e o admin cadastra com ele
+  // (`5586998221810`). Igualdade exata deixava o Astro mudo na API oficial; buscar sem filtrar a
+  // org achava o binding da outra grafia, de outra empresa. Sem binding aqui, a mensagem é de um
+  // lead desta tracking que por acaso compartilha o número com um membro de outra org.
+  const binding = await prisma.userWhatsappBinding.findFirst({
+    where: {
+      phoneE164: { in: waIdLookupVariants(input.phone) },
+      botConfig: { organizationId: input.trackingOrganizationId },
+    },
+    orderBy: { isActive: "desc" },
     include: { botConfig: true },
   });
   if (!binding) return { allowed: false };
-
-  // 2. Restringe à org dona do botConfig — fonte autoritativa. phoneE164 é
-  // unique GLOBAL, então o lookup acima pode achar binding de outra org;
-  // neste caso a mensagem é de um lead desta tracking que por acaso
-  // compartilha o número com um membro de outra org.
-  if (binding.botConfig.organizationId !== input.trackingOrganizationId) {
-    return { allowed: false };
-  }
 
   // 3. Config da org precisa estar ativa.
   if (!binding.botConfig.isActive) return { allowed: false };
@@ -132,6 +142,22 @@ export async function shouldSuppressBotEcho(
   return gate.allowed;
 }
 
+const DELIVERY_MEMORY_MS = 10 * 60_000;
+const globalForDeliveries = globalThis as unknown as { astroBotSeenDeliveries?: Map<string, number> };
+const seenDeliveries = (globalForDeliveries.astroBotSeenDeliveries ??= new Map<string, number>());
+
+/** Marca a entrega como vista; `true` se o mesmo id já passou por aqui há pouco. */
+function isRepeatedDelivery(externalMessageId: string | undefined): boolean {
+  if (!externalMessageId) return false;
+  const now = Date.now();
+  for (const [seenId, seenAt] of seenDeliveries) {
+    if (now - seenAt > DELIVERY_MEMORY_MS) seenDeliveries.delete(seenId);
+  }
+  if (seenDeliveries.has(externalMessageId)) return true;
+  seenDeliveries.set(externalMessageId, now);
+  return false;
+}
+
 export async function maybeHandleBotMessage(
   input: WhatsappWebhookHookInput,
 ): Promise<WhatsappWebhookHookResult> {
@@ -145,10 +171,11 @@ export async function maybeHandleBotMessage(
 
   // Documento e imagem alimentam o Financeiro; áudio é só outra forma de
   // pedir (spec 0036) e vale para todo membro vinculado.
-  if (input.media && input.media.kind !== "audio" && !binding.botConfig.financeEnabled) {
+  // Imagem também serve às demandas do Workspace (spec 0080), com ou sem o Financeiro.
+  if (input.media?.kind === "document" && !binding.botConfig.financeEnabled) {
     return { handled: false };
   }
-  if (!input.media && !input.messageText.trim()) return { handled: false };
+  if (!input.media && !input.messageText.trim() && !input.interactiveReplyId) return { handled: false };
 
   // Provider de saída precisa estar resolvível ANTES de marcarmos handled:true.
   // Se a tracking habilitada estiver desconectada/sem credencial,
@@ -168,6 +195,15 @@ export async function maybeHandleBotMessage(
   // Canal provider-agnóstico pela própria tracking.
   const channel = new TrackingProviderBotChannel(input.trackingId);
 
+  // A Meta reenvia o webhook quando a resposta demora (imagem, servidor ocupado). Sem isto a mesma
+  // foto era tratada duas vezes e a pessoa recebia a pergunta em dobro.
+  if (isRepeatedDelivery(input.externalMessageId)) {
+    return { handled: true, bindingId: binding.id, status: "duplicate" };
+  }
+
+  // Chegou mensagem do membro: o aviso de inatividade que estivesse contando deixa de valer.
+  await notifyBotMessageReceived(binding.id);
+
   // Executa o bot e envia a resposta — TUDO dentro de try/catch interno.
   // Uma vez aqui, o binding é válido e a mensagem é pro bot; mesmo que algo
   // falhe NO MEIO, NÃO deixamos o webhook cair pro fluxo de atendimento —
@@ -181,6 +217,8 @@ export async function maybeHandleBotMessage(
         trackingId: input.trackingId,
         deviceId: input.deviceId,
         media: input.media,
+        interactiveReplyId: input.interactiveReplyId,
+        interactiveContextId: input.interactiveContextId,
       },
       input.messageText,
     );
@@ -188,17 +226,25 @@ export async function maybeHandleBotMessage(
     try {
       // Escolha vira botão; o resto, texto. O canal degrada sozinho quando o
       // provider não aceita menu.
-      if (result.buttons && result.buttons.length > 0) {
-        await channel.sendButtons(input.fromPhone, {
-          bodyText: result.reply,
-          buttons: result.buttons,
-        });
-      } else {
-        await channel.sendText(input.fromPhone, result.reply);
-      }
+      const sent =
+        result.buttons && result.buttons.length > 0
+          ? await channel.sendButtons(input.fromPhone, {
+              bodyText: result.reply,
+              buttons: result.buttons,
+              listButtonLabel: result.listButtonLabel,
+            })
+          : await channel.sendText(input.fromPhone, result.reply);
+      rememberOpenQuestion(binding.id, sent.messageId, result.buttons);
     } catch (sendErr) {
       console.error("[astro-bot/webhook-handler] envio falhou", sendErr);
+      // O comando rodou, mas a resposta não saiu (token inválido, janela fechada): "ok" aqui escondia isso.
+      return { handled: true, bindingId: binding.id, status: "send_failed" };
     }
+
+    await scheduleInactivityNotice(
+      { bindingId: binding.id, trackingId: input.trackingId, phone: input.fromPhone },
+      (result.toolsCalled ?? []).includes("imagem"),
+    );
 
     return {
       handled: true,

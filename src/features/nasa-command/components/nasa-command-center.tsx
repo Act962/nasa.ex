@@ -381,7 +381,7 @@ export function NasaCommandCenter() {
       <SpaceScene />
       <HomeHeader />
 
-      <div className="flex-1 overflow-y-auto relative z-10">
+      <div data-home-scroll className="flex-1 overflow-y-auto relative z-10">
         <WelcomeScreen
           isConversationActive={hasMessages}
           onOpenLastConversation={!hasMessages && lastConversationId ? openLastConversation : undefined}

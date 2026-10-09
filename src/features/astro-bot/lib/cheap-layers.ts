@@ -14,6 +14,9 @@ import prisma from "@/lib/prisma";
 import { getProposalExecutor } from "@/features/astro/server/tools/_shared/proposals/types";
 import type { AstroTablePayload } from "@/features/astro/lib/astro-table";
 import type { AgentContext } from "@/features/astro/server/agents/types";
+import type { BotButton } from "./types";
+import type { AstroPicker } from "@/features/astro/lib/astro-picker";
+import { ANSWER_ID_PREFIX, MENU_END_ID, MENU_ROOT_ID } from "./menu/menu-tree";
 
 /**
  * As camadas baratas do Astro, faladas em WhatsApp.
@@ -121,6 +124,7 @@ async function tryConfirmation(
     const absoluteLinks = (result.links ?? []).filter((link) => /^https?:\/\//.test(link.href)).map((link) => `${link.label}: ${link.href}`);
     return {
       reply: [result.ok ? `✅ ${result.summary}` : `⚠️ ${result.summary}`, ...absoluteLinks].join("\n"),
+      buttons: AFTER_DONE_BUTTONS,
       route: "confirmacao",
       tokensUsed: 0,
     };
@@ -156,15 +160,72 @@ function outputToText(output: ClassifiedOutput): string {
     return `${output.description}\n\n${optionsToText(output.options)}`;
   }
   if (output.status === "needs_input") {
-    return output.description;
+    // Na tela o campo já vem preenchido com a sugestão; no WhatsApp ela precisa estar escrita.
+    const suggestion = output.picker?.kind === "text" ? output.picker.suggestion?.trim() : undefined;
+    return toWhatsappWording(output.description) + (suggestion ? `\nSugestão: "${suggestion}"` : "");
   }
   return `⚠️ ${output.description}`;
 }
 
+/**
+ * O id do botão é a resposta que a pessoa teria digitado na lista numerada ("2"): o clique
+ * entra pelo mesmo caminho, sem depender do título, que a Meta devolve encurtado (spec 0079, RF-14).
+ */
+function toAnswerButtons(options: { label: string }[]): BotButton[] {
+  return options.map((option, index) => ({ id: `${ANSWER_ID_PREFIX}${index + 1}`, text: option.label }));
+}
+
+/**
+ * Atalhos da pergunta que na plataforma abre um seletor (spec 0079): dia, opção fixa, "sem lead".
+ * O id é a resposta que a pessoa digitaria. Só onde há botão de verdade: em lista numerada,
+ * "1" não seria entendido como "hoje".
+ */
+/** Id de botão da Meta: 256 caracteres; sobra para o prefixo. */
+const MAX_ANSWER_ID_LENGTH = 180;
+
+function pickerShortcutButtons(picker: AstroPicker | undefined): BotButton[] | undefined {
+  if (!picker) return undefined;
+  const answerButton = (label: string, answer: string): BotButton => ({
+    id: `${ANSWER_ID_PREFIX}${answer}`,
+    // Botão da Meta aceita 20 caracteres: "Sem lead (compromisso interno)" vira "Sem lead".
+    text: label.replace(/\s*\(.*\)\s*$/, ""),
+    interactiveOnly: true,
+  });
+  if (picker.kind === "select") return picker.options.map((option) => answerButton(option.label, option.answer));
+  if (picker.kind === "datetime") {
+    if (picker.mode === "time") return undefined;
+    return [
+      answerButton("Hoje", "hoje"),
+      answerButton("Amanhã", "amanhã"),
+      ...(picker.skipOption ? [answerButton(picker.skipOption.label, picker.skipOption.answer)] : []),
+    ];
+  }
+  if (picker.kind === "entity") return picker.noneOption ? [answerButton(picker.noneOption.label, picker.noneOption.answer)] : undefined;
+  const textButtons = [
+    ...(picker.suggestion?.trim() ? [answerButton("Usar sugestão", picker.suggestion.trim().slice(0, MAX_ANSWER_ID_LENGTH))] : []),
+    ...(picker.skipOption ? [answerButton(picker.skipOption.label, picker.skipOption.answer)] : []),
+  ];
+  return textButtons.length > 0 ? textButtons : undefined;
+}
+
+/** As perguntas foram escritas para a tela, que tem busca e calendário; no WhatsApp a pessoa escreve. */
+function toWhatsappWording(description: string): string {
+  return description
+    .replace(/\s*Busque abaixo\./g, " Escreva o nome de novo, como está cadastrado.")
+    .replace(/Busque o lead ou marque como interno\./g, "Escreva o nome do lead, ou responda *sem lead* se for interno.")
+    .replace(/Escolha o dia e o horário\./g, 'Ex.: "amanhã às 15h".')
+    .replace(/Busque (o|a) (\w+)\./g, "Escreva o nome d$1 $2.");
+}
+
+const AFTER_DONE_BUTTONS: BotButton[] = [
+  { id: MENU_ROOT_ID, text: "Menu", interactiveOnly: true },
+  { id: MENU_END_ID, text: "Encerrar", interactiveOnly: true },
+];
+
 export interface CheapLayerReply {
   reply: string;
   /** Opções da pergunta atual — viram botões no canal que aceita. */
-  buttons?: Array<{ id: string; text: string }>;
+  buttons?: BotButton[];
   /** Vai para `WhatsappBotCommand.toolsCalled`, para o custo ficar visível. */
   route: string;
   actionKey?: string;
@@ -227,10 +288,7 @@ export async function tryCheapLayers(params: {
   if (resolved.kind === "choice") {
     return {
       reply: resolved.payload.description,
-      buttons: resolved.payload.options.map((option) => ({
-        id: option.id,
-        text: option.label,
-      })),
+      buttons: toAnswerButtons(resolved.payload.options),
       route: "dropdown",
       actionKey: resolved.actionKey,
       tokensUsed,
@@ -238,18 +296,18 @@ export async function tryCheapLayers(params: {
   }
 
   const output = resolved.output;
-  const buttons = (() => {
+  const buttons = ((): BotButton[] | undefined => {
     if ("kind" in output) {
-      // Confirmação também merece toque: digitar "sim" é o atrito mais bobo
-      // do fluxo inteiro.
+      // Confirmação também merece toque: digitar "sim" é o atrito mais bobo do fluxo inteiro.
+      // Em lista numerada o texto já diz "responda SIM ou NÃO", então os botões não se repetem lá.
       return [
-        { id: "confirmar", text: "SIM" },
-        { id: "cancelar", text: "NÃO" },
+        { id: `${ANSWER_ID_PREFIX}sim`, text: "Confirmar", interactiveOnly: true },
+        { id: `${ANSWER_ID_PREFIX}não`, text: "Cancelar", interactiveOnly: true },
       ];
     }
-    if (output.status === "ambiguous") {
-      return output.options.map((option) => ({ id: option.id, text: option.label }));
-    }
+    if (output.status === "ambiguous") return toAnswerButtons(output.options);
+    if (output.status === "done") return AFTER_DONE_BUTTONS;
+    if (output.status === "needs_input") return pickerShortcutButtons(output.picker);
     return undefined;
   })();
 

@@ -111,6 +111,20 @@ Vale por cima do rework acima:
 5. **Rollback sem deploy:** desligar `financeEnabled` volta o bot a insights e a mídia ao
    atendimento (a cobrança de Stars continua — zerar a regra `astro_prompt` remove só o stake).
 
+## ⭐ Menu guiado com botões e listas — 2026-10-09 (spec 0079)
+
+Na API oficial, a equipe usa o Astro escrevendo o pedido ou clicando num menu. Fonte: [spec 0079](../specs/astro-bot/0079-menu-guiado-com-botoes-e-listas-no-whatsapp.md).
+
+- **Árvore** em [`menu/menu-tree.ts`](../src/features/astro-bot/lib/menu/menu-tree.ts): saudação (2 atalhos + "Mais opções") → Apps → ações do App. Cada folha guarda a **frase** que a pessoa teria escrito; ela segue o mesmo caminho de um pedido digitado. App ou ação novos = uma entrada nesse arquivo.
+- **Navegação** em [`menu/menu-flow.ts`](../src/features/astro-bot/lib/menu/menu-flow.ts), chamada no `router.ts` **antes do stake**: navegar não usa IA nem cobra Stars. Abre com saudação ("oi", "bom dia"), com "menu"/"opções"/"ajuda" e pelo botão "Menu".
+- **Ids**: `menu:<nó>` para navegação e `ans:<resposta>` para pergunta do roteiro. `ans:2` entra como se a pessoa tivesse digitado "2" na lista numerada, então o clique não depende do título (que a Meta devolve encurtado). Clique em `ans:<n>` sem pergunta no ar responde "essa pergunta já foi encerrada".
+- **Canal** ([`tracking-provider-channel.ts`](../src/features/astro-bot/lib/tracking-provider-channel.ts)): se o provider tem `sendInteractive`, até 3 opções viram botões e de 4 a 10 viram lista (acima disso, 9 + "Buscar pelo nome"). Sem isso, ou se o envio falhar, cai para a lista numerada. Botões marcados `interactiveOnly` (Menu, Encerrar, Confirmar, Cancelar) não aparecem na lista numerada.
+- **Número sem botões**: o menu sai numerado e "2" escolhe o segundo item, pelo estado em memória de `menu-flow.ts` (15 min).
+- **Inatividade** ([`inactivity.ts`](../src/features/astro-bot/lib/inactivity.ts) + função Inngest `astro-bot-inactivity-notice`): pergunta do roteiro ou menu sem resposta por 10 min é encerrado com aviso. O `webhook-handler` emite `astro-bot/message.received` a cada mensagem (cancela a espera) e `astro-bot/question.opened` quando a resposta deixa pergunta ou menu no ar. `ASTRO_BOT_INACTIVITY_MINUTES` muda o prazo; `0` desliga. Função nova: exige "Resync app" no Inngest Cloud depois do deploy.
+- **Imagem para demanda** ([spec 0080](../specs/astro-bot/0080-demanda-com-descricao-anexo-e-capa.md), [`task-image.ts`](../src/features/astro-bot/lib/task-image.ts)): imagem de membro liberado chega ao Astro mesmo sem o Financeiro. Com o Financeiro ligado, só vai para o Workspace se a legenda falar de demanda/tarefa. O arquivo é guardado em `workspace/attachments/<orgId>/` e fica pendente por conversa; "anexa na demanda X" usa a ação `action.attach_image`, "cria uma demanda…" segue o roteiro de criação, e sem legenda o Astro pergunta o destino. Entra como anexo e, sem capa prévia, como capa.
+- **Desligar**: `ASTRO_BOT_INTERACTIVE=false`.
+- **Substitui o item 4 acima** ("Botões interativos ficaram de fora") para a API oficial. A Uazapi continua com botões desligados (`ASTRO_BOT_BUTTONS`).
+
 O restante deste documento é o design original (2026-05-30), mantido por histórico.
 
 ---
