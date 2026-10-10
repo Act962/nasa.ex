@@ -9,6 +9,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { ChatBotIaGeneralTab } from "./chatbot-ia-general-tab";
+import { ChatBotIaCapabilitiesTab } from "./chatbot-ia-capabilities-tab";
 import { ChatBotIaButtonsTab } from "./chatbot-ia-buttons-tab";
 import { ChatBotIaModelTab } from "./chatbot-ia-model-tab";
 import { ChatBotIaUsageTab } from "./chatbot-ia-usage-tab";
@@ -37,12 +38,17 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
         <TabsList>
           <TabsTrigger value="general">Geral</TabsTrigger>
           <TabsTrigger value="buttons">Botões</TabsTrigger>
+          <TabsTrigger value="capabilities">O que o Astro pode fazer</TabsTrigger>
           <TabsTrigger value="model">Modelo</TabsTrigger>
           <TabsTrigger value="usage">Uso</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
           <ChatBotIaGeneralTab trackingId={trackingId} />
+        </TabsContent>
+
+        <TabsContent value="capabilities">
+          <ChatBotIaCapabilitiesTab trackingId={trackingId} />
         </TabsContent>
 
         <TabsContent value="buttons">

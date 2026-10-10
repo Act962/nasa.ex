@@ -39,6 +39,7 @@
  * é injetado. Isso é o que permite Fase 5 (webhook oficial Meta) e Fase 6
  * (router/message via factory) sem refator deste módulo.
  */
+import { applyTagFromButtonReply } from "@/features/tracking-chat-ai/lib/button-reply-tag";
 import "server-only";
 
 import { LeadSource } from "@/generated/prisma/enums";
@@ -304,6 +305,16 @@ export async function persistCanonicalInbound(
       break;
     case "interactive_reply":
       messageData = await persistInteractive(persistParams, canonical);
+      // Clique em menu com tag por opção (spec 0085, RF-9). Só na API oficial:
+      // a Uazapi já trata o clique no próprio webhook, e aplicar aqui duplicaria.
+      if (ctx.providerId === "meta-cloud" && !canonical.sender.fromMe) {
+        await applyTagFromButtonReply({
+          leadId: lead.id,
+          conversationId: persistParams.lead.conversationId,
+          clickedButtonId: canonical.replyId,
+          repliedMessageId: canonical.replyToExternalMessageId ?? null,
+        }).catch((error: unknown) => console.error("[persist-canonical-inbound] tag do botão falhou", error));
+      }
       break;
   }
 

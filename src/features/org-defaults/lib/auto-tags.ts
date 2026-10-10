@@ -39,6 +39,18 @@ async function addMissingTags(leadId: string, tagIds: string[]) {
   if (missing.length > 0) await applyTagsByAi({ leadId, tagIds: missing });
 }
 
+const NEW_LEAD_WINDOW_MS = 10 * 60_000;
+const PAID_UTM_MEDIUM = /^(cpc|ppc|cpm|cpa|paid|paid[-_ ]?social|ads?|display)$/i;
+
+function isNewLead(createdAt: Date): boolean {
+  return Date.now() - createdAt.getTime() <= NEW_LEAD_WINDOW_MS;
+}
+
+/** Anúncio que abre o WhatsApp (dados do anúncio da Meta) ou link com UTM de mídia paga. */
+function cameFromPaidTraffic(lead: { ctwaClid: string | null; metaAdId: string | null; utmMedium: string | null }): boolean {
+  return Boolean(lead.ctwaClid || lead.metaAdId || (lead.utmMedium && PAID_UTM_MEDIUM.test(lead.utmMedium.trim())));
+}
+
 /** Estado antes da mensagem: define se o cliente já estava esperando resposta. */
 export async function loadAwaitingState(leadId: string) {
   const lead = await prisma.lead.findUnique({
@@ -58,9 +70,15 @@ export async function applyInboundAutoTags(params: {
   channel: InboundChannel;
   wasAwaitingReply: boolean;
 }) {
-  const lead = await prisma.lead.findUnique({ where: { id: params.leadId }, select: { source: true } });
+  const lead = await prisma.lead.findUnique({
+    where: { id: params.leadId },
+    select: { source: true, createdAt: true, ctwaClid: true, metaAdId: true, utmMedium: true },
+  });
   const channelKey = lead?.source === "NERP_CATALOG" ? "catalog" : CHANNEL_TAG[params.channel];
-  const keys: AutoTagKey[] = ["inService", "awaitingReply", ...(channelKey ? [channelKey] : [])];
+  // Origem (spec 0085): só na chegada do lead, para não remarcar cliente antigo a cada mensagem.
+  const originKeys: AutoTagKey[] =
+    lead && isNewLead(lead.createdAt) ? ["newLead", ...(cameFromPaidTraffic(lead) ? (["paidTraffic"] as const) : [])] : [];
+  const keys: AutoTagKey[] = ["inService", "awaitingReply", ...(channelKey ? [channelKey] : []), ...originKeys];
   const tagIdBySlug = await findActiveAutoTags(params.organizationId, keys);
   if (tagIdBySlug.size === 0) return;
 

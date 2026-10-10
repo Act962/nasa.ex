@@ -4,6 +4,8 @@ import type { ModelMessage } from "ai";
 import type { AiModelConfig } from "./model";
 import { loadActiveCatalogOrder } from "@/features/nerp-catalog/lib/order-context";
 import { getActiveProgram } from "@/features/star-friends/lib/program";
+import { parseAiCapabilities } from "./capabilities";
+import { isAudioTooLong, readAudioTranscription } from "./audio-metadata";
 
 const HISTORY_LIMIT = 20;
 
@@ -79,6 +81,7 @@ export async function loadAgentContext(data: AgentEventData) {
         body: true,
         mediaType: true,
         mediaCaption: true,
+        metadata: true,
         createdAt: true,
       },
     }),
@@ -91,6 +94,7 @@ export async function loadAgentContext(data: AgentEventData) {
         organizationId: data.organizationId,
         OR: [{ trackingId: data.trackingId }, { trackingId: null }],
         description: { not: null },
+        archivedAt: null,
       },
       select: { id: true, name: true, description: true },
       orderBy: { name: "asc" },
@@ -115,6 +119,26 @@ export async function loadAgentContext(data: AgentEventData) {
     loadActiveCatalogOrder(data.leadId),
     getActiveProgram(data.organizationId),
   ]);
+
+  const capabilities = parseAiCapabilities(settings?.capabilities);
+  // Agendas liberadas ao agente (spec 0084): nome e id entram no prompt, para ele não precisar perguntar.
+  const availableAgendas =
+    capabilities.agenda.isEnabled && capabilities.agenda.agendaIds.length > 0
+      ? await prisma.agenda.findMany({
+          where: { id: { in: capabilities.agenda.agendaIds }, organizationId: data.organizationId, isActive: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : [];
+
+  const availableForms =
+    capabilities.forms.isEnabled && capabilities.forms.formIds.length > 0
+      ? await prisma.form.findMany({
+          where: { id: { in: capabilities.forms.formIds }, organizationId: data.organizationId, published: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : [];
 
   // Mudança no prompt zera o histórico visível pra IA. Sem isso, o modelo
   // tende a manter tom/estilo das respostas anteriores (viés de continuidade)
@@ -172,6 +196,11 @@ export async function loadAgentContext(data: AgentEventData) {
     modelConfig,
     catalogOrder,
     starFriendsProgramName: starFriendsProgram?.name ?? null,
+    capabilities,
+    availableAgendas,
+    availableForms,
+    // A última mensagem do cliente foi áudio: decide a resposta em voz (spec 0084, RF-3).
+    isLastInboundAudio: messages.find((message) => !message.fromMe)?.mediaType === "audio",
   };
 }
 
@@ -189,10 +218,17 @@ function toModelMessage(m: {
   body: string | null;
   mediaType: string | null;
   mediaCaption: string | null;
+  metadata?: unknown;
 }): ModelMessage | null {
+  // Áudio transcrito entra como o que o cliente disse (spec 0084, RF-1), marcado como áudio.
+  const transcription = readAudioTranscription(m.metadata);
   const text =
     m.body?.trim() ||
     m.mediaCaption?.trim() ||
+    (transcription ? `[áudio do cliente] ${transcription}` : "") ||
+    (isAudioTooLong(m.metadata)
+      ? "[áudio do cliente com mais de 3 minutos: não foi ouvido. Peça para resumir por texto ou ofereça um atendente.]"
+      : "") ||
     (m.mediaType ? `[${m.mediaType}]` : "");
   if (!text) return null;
   return {

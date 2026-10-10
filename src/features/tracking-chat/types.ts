@@ -44,6 +44,8 @@ export enum MessageStatus {
 
 export interface Message {
   id: string;
+  /** Dados extras da mensagem; a transcrição do áudio fica aqui (spec 0084). */
+  metadata?: unknown;
   messageId: string;
   senderId?: string | null;
   senderName?: string | null;

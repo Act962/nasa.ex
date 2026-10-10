@@ -743,6 +743,8 @@ model AiSettings {
   assistantName  String? @map("assistant_name")
   finishSentence String? @map("finish_sentence")
   isAudioEnabled Boolean @default(false) @map("is_audio_enabled")
+  /// O que o agente pode fazer pelo cliente (spec 0084): áudio, agenda, links, PIX. Vazio = tudo desligado.
+  capabilities   Json    @default("{}")
 
   aiProvider    AiProvider? @map("ai_provider")
   aiModelId     String?     @map("ai_model_id")

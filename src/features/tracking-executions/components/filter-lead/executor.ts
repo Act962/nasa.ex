@@ -40,6 +40,8 @@ type FilterLeadNodeData = {
   action?: FilterLeadFormValues;
 };
 
+const INTEREST_RANK = { LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
+
 export const filterLeadExecutor: NodeExecutor<FilterLeadNodeData> = async ({
   data,
   nodeId,
@@ -74,6 +76,7 @@ export const filterLeadExecutor: NodeExecutor<FilterLeadNodeData> = async ({
         where: { id: leadContextData.id },
         include: {
           leadTags: true,
+          metrics: { select: { interestLevel: true } },
         },
       });
 
@@ -113,6 +116,14 @@ export const filterLeadExecutor: NodeExecutor<FilterLeadNodeData> = async ({
               (lead.email || "").toLowerCase().trim() ===
               condition.value.toLowerCase().trim()
             );
+          }
+          case "interest": {
+            // Lead ainda sem Visão do Lead calculada não passa: não dá para afirmar o interesse.
+            const interestLevel = lead.metrics?.interestLevel;
+            if (!interestLevel) return false;
+            return condition.operator === "is"
+              ? interestLevel === condition.value
+              : INTEREST_RANK[interestLevel] >= INTEREST_RANK[condition.value];
           }
           case "leadMessage": {
             return evaluateLeadMessageCondition(

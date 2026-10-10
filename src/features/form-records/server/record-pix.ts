@@ -1,4 +1,5 @@
 import "server-only";
+import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 import prisma from "@/lib/prisma";
 import { buildPixBrCode } from "@/features/form-records/lib/pix-br-code";
 import { formatCents } from "@/features/form-records/lib/measure-units";
@@ -143,5 +144,10 @@ export async function setRecordPaid(params: { organizationId: string; recordId: 
     where: { id: params.recordId, organizationId: params.organizationId, finalizedAt: { not: null } },
     data: { paidAt: params.isPaid ? new Date() : null },
   });
+  if (updated.count > 0) {
+    // Ficha paga conta como compra na Visão do Lead (spec 0085).
+    const record = await prisma.formRecord.findUnique({ where: { id: params.recordId }, select: { leadId: true } });
+    if (record?.leadId) await requestLeadMetricsRecompute(record.leadId);
+  }
   return updated.count > 0;
 }

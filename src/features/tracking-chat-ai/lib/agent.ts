@@ -1,3 +1,9 @@
+import { transcribePendingLeadAudio } from "./audio-transcription";
+import { MAX_AGENT_REPLIES_PER_HOUR } from "./capabilities";
+import { canBeSpoken, estimateSpokenSeconds, toSpeakableText } from "@/features/astro-bot/lib/voice/speakable-text";
+import { synthesizeSpeech } from "@/features/astro-bot/lib/voice/synthesize-speech";
+import { chargeSpeech } from "@/features/astro-bot/lib/voice/reply-voice";
+import { TrackingProviderBotChannel } from "@/features/astro-bot/lib/tracking-provider-channel";
 import "server-only";
 import { generateText } from "ai";
 import { reportAiQuotaExhausted } from "@/features/alerts/lib/ai-token-alerts";
@@ -22,6 +28,36 @@ import { buildCatalogOrderPrompt } from "@/features/nerp-catalog/lib/order-conte
 import { deliverTextToLead } from "@/features/nerp-catalog/lib/order-channel";
 
 type Step = GetStepTools<typeof inngest>;
+
+/** Falha na voz nunca impede o texto: só registra e segue. */
+async function sendLeadVoiceReply(params: {
+  organizationId: string;
+  trackingId: string;
+  leadPhone: string;
+  text: string;
+  voiceName: string | null;
+}): Promise<void> {
+  if (!canBeSpoken(params.text)) return;
+  const speakableText = toSpeakableText(params.text);
+  const speech = await synthesizeSpeech({
+    text: speakableText,
+    voiceName: params.voiceName,
+    organizationId: params.organizationId,
+  });
+  if (!speech) return;
+  try {
+    await new TrackingProviderBotChannel(params.trackingId).sendVoice(params.leadPhone, {
+      audio: speech.audio,
+      mimetype: speech.mimetype,
+    });
+    await chargeSpeech({ organizationId: params.organizationId }, estimateSpokenSeconds(speakableText), speech);
+  } catch (voiceError) {
+    console.warn(
+      "[tracking-chat-ai] nota de voz falhou:",
+      voiceError instanceof Error ? voiceError.message.slice(0, 160) : "erro",
+    );
+  }
+}
 
 interface RunArgs {
   step: Step;
@@ -51,6 +87,14 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // Não envolvemos load-context em step.run: o serializador do Inngest
   // converte o retorno em JsonifyObject, o que quebra o tipo de ModelMessage[]
   // (e o AgentContext que é passado pras tools). Re-executar em retry é barato.
+  // Áudio do cliente vira texto antes de montar o histórico (spec 0084, RF-1).
+  await step.run("transcribe-lead-audio", () =>
+    transcribePendingLeadAudio({
+      trackingId: data.trackingId,
+      conversationId: data.conversationId,
+      organizationId: data.organizationId,
+    }),
+  );
   const ctx = await loadAgentContext(data);
 
   // Pedido do catálogo NERP roda também só no portal (/pedido/<token>), sem
@@ -58,8 +102,19 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   if (!ctx.instance && !ctx.catalogOrder)
     return { skipped: true, reason: "no_whatsapp_instance" };
   if (!ctx.settings) return { skipped: true, reason: "no_ai_settings" };
-  if (!ctx.lead.isActive) return { skipped: true, reason: "lead_inactive" };
-  if (ctx.lead.statusFlow === "FINISHED")
+  // O Inngest roda esta função de novo a cada etapa, e o contexto é recarregado toda vez.
+  // O estado do lead e o uso da última hora são fotografados uma vez só, numa etapa: sem isso,
+  // quando o próprio agente transferia para um atendente (lead inativo), a rodada seguinte
+  // parava aqui e a mensagem de despedida nunca era enviada.
+  const leadGate = await step.run("check-lead-gate", async () => ({
+    isActive: ctx.lead.isActive,
+    statusFlow: ctx.lead.statusFlow as string,
+    repliesLastHour: await prisma.aiChatRun.count({
+      where: { leadId: ctx.lead.id, trackingId: ctx.trackingId, createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
+    }),
+  }));
+  if (!leadGate.isActive) return { skipped: true, reason: "lead_inactive" };
+  if (leadGate.statusFlow === "FINISHED")
     return { skipped: true, reason: "lead_finished" };
   if (!ctx.lead.phone) return { skipped: true, reason: "lead_no_phone" };
   // Conversa truly vazia (sem msgs, ou só mídias sem texto/caption). O SDK
@@ -76,6 +131,39 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     if (!(await isFreeFormWindowOpen(resolved, ctx.conversation.id))) {
       return { skipped: true, reason: WINDOW_CLOSED_SKIP_REASON };
     }
+  }
+
+  // Limite por cliente (spec 0084, RS-9): protege o número e o saldo da empresa de uso abusivo.
+  // No limite, avisa uma vez e passa para a equipe; acima dele, fica em silêncio.
+  const { repliesLastHour } = leadGate;
+  if (repliesLastHour >= MAX_AGENT_REPLIES_PER_HOUR) {
+    if (repliesLastHour === MAX_AGENT_REPLIES_PER_HOUR && !ctx.catalogOrder) {
+      await step.run("send-rate-limit-notice", async () => {
+        await sendAgentText(
+          ctx.trackingId,
+          ctx.lead.phone!,
+          "Vou passar seu atendimento para a nossa equipe, que continua por aqui.",
+          0,
+        );
+        await prisma.lead.update({ where: { id: ctx.lead.id }, data: { isActive: false, statusFlow: "ACTIVE" } });
+        // Conta como execução: a próxima mensagem já cai acima do limite e não repete o aviso.
+        await prisma.aiChatRun.create({
+          data: {
+            trackingId: ctx.trackingId,
+            organizationId: ctx.organizationId,
+            leadId: ctx.lead.id,
+            conversationId: ctx.conversation.id,
+            modelId: "rate-limit",
+            usingCustom: false,
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            toolCalls: 0,
+          },
+        });
+      });
+    }
+    return { skipped: true, reason: "lead_rate_limited" };
   }
 
   // ── Barramento por STARS ──────────────────────────────────────────────
@@ -116,9 +204,14 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
 
   // Cobrança 2★ por resposta gerada (registry: `chat_ai_message`).
   // Se não tem saldo → não chama LLM (já validamos acima, mas double-check).
-  const charge = await chargeStarsByAction(data.organizationId, "chat_ai_message", {
-    description: "Resposta IA WhatsApp",
-    appSlug: "chat_ai_message",
+  // Dentro de etapa: fora dela a cobrança era refeita a cada rodada da função (uma por etapa),
+  // e a mesma resposta era cobrada várias vezes.
+  const charge = await step.run("charge-reply", async () => {
+    const charged = await chargeStarsByAction(data.organizationId, "chat_ai_message", {
+      description: "Resposta IA WhatsApp",
+      appSlug: "chat_ai_message",
+    });
+    return { success: charged.success };
   });
   if (!charge.success) {
     await step.run("send-no-balance-fallback", async () => {
@@ -143,6 +236,9 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     currentTags: ctx.lead.leadTags,
     availableTags: ctx.availableTags,
     availableButtonPresets: ctx.availableButtonPresets,
+    availableAgendas: ctx.availableAgendas,
+    availableForms: ctx.availableForms,
+    capabilities: ctx.capabilities,
   });
 
   // Apêndice ao system prompt quando o disparo veio da automação de ociosidade
@@ -187,9 +283,15 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     const outputTokens = result.usage?.outputTokens ?? 0;
     const totalTokens =
       result.usage?.totalTokens ?? inputTokens + outputTokens;
+    const calledToolNames = result.steps.flatMap((agentStep) => agentStep.toolCalls.map((call) => call.toolName));
     return {
-      text: result.text.trim(),
-      toolCalls: result.toolCalls.length,
+      // Transferiu e não escreveu nada: o cliente não pode ficar sem saber que alguém vai continuar.
+      text:
+        result.text.trim() ||
+        (calledToolNames.includes("transfer_to_human")
+          ? "Vou passar seu atendimento para a nossa equipe, que continua por aqui."
+          : ""),
+      toolCalls: calledToolNames.length,
       inputTokens,
       outputTokens,
       totalTokens,
@@ -245,6 +347,17 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
 
   if (aiResult.text) {
     await step.run("send-final-text", async () => {
+      // Cliente mandou áudio e a empresa ligou a voz: nota de voz antes do texto (spec 0084, RF-3).
+      // O texto segue sempre, para ficar registrado no atendimento.
+      if (ctx.capabilities.voiceReply && ctx.isLastInboundAudio && !ctx.catalogOrder) {
+        await sendLeadVoiceReply({
+          organizationId: ctx.organizationId,
+          trackingId: ctx.trackingId,
+          leadPhone: ctx.lead.phone!,
+          text: aiResult.text,
+          voiceName: ctx.capabilities.voiceName,
+        });
+      }
       const parts = splitForWhatsapp(aiResult.text);
       for (let i = 0; i < parts.length; i++) {
         const chunk = parts[i];

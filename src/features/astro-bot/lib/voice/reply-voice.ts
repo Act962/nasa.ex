@@ -35,13 +35,18 @@ async function hasStarsForSpeech(organizationId: string): Promise<boolean> {
   return (organization?.starsBalance ?? 0) + (organization?.starsBonusBalance ?? 0) > 0;
 }
 
-async function chargeSpeech(binding: UserWhatsappBinding, seconds: number, speech: SynthesizedSpeech): Promise<number> {
+/** Cobra o áudio gerado. Usada também pelo Chatbot IA do cliente (spec 0084), que não tem membro. */
+export async function chargeSpeech(
+  payer: { organizationId: string; userId?: string },
+  seconds: number,
+  speech: SynthesizedSpeech,
+): Promise<number> {
   try {
     const minutes = Math.max(1, Math.ceil(seconds / SECONDS_PER_MINUTE));
     const charge = await meter({
-      organizationId: binding.organizationId,
+      organizationId: payer.organizationId,
       action: "astro_bot_speech",
-      userId: binding.userId,
+      userId: payer.userId,
       quantity: { unit: "minute", amount: minutes },
       appSlug: "astro",
       description: `Astro pelo WhatsApp — resposta em áudio (${minutes} min)`,

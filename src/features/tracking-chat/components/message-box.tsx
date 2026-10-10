@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { FileMessageBox } from "./file-message-box";
 import { AudioMessageBox } from "./audio-message-box";
+import { readAudioTranscription } from "@/features/tracking-chat-ai/lib/audio-metadata";
 import { VideoMessageBox } from "./video-message-box";
 import { LocationMessageBox } from "./location-message-box";
 import { ContactMessageBox } from "./contact-message-box";
@@ -80,6 +81,8 @@ export function MessageBox({
   isGroup?: boolean;
 }) {
   const isOwn = message.fromMe;
+  const audioTranscription =
+    message.mimetype?.startsWith("audio") ? readAudioTranscription(message.metadata) : null;
   const instanceId = useMessageStore((state) => state.instanceId);
   const deleteMessage = useMutationDeleteMessage({
     conversationId,
@@ -436,6 +439,11 @@ export function MessageBox({
                           mimetype={message.mimetype}
                         />
                       )}
+                    {audioTranscription && (
+                      <p className="mt-1 max-w-xs text-xs italic text-muted-foreground">
+                        Transcrição: “{audioTranscription}”
+                      </p>
+                    )}
                     {message.mediaUrl &&
                       message.mimetype?.startsWith("video") && (
                         <VideoMessageBox

@@ -1,3 +1,4 @@
+import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 import prisma from "@/lib/prisma";
 import { dispatchLeadTagged, broadcastAgentWorkflowEvent } from "@/inngest/utils";
 import { eventBus } from "@/features/alerts/lib/event-bus";
@@ -97,6 +98,9 @@ export async function applyTagsByAi(
     where: { id: lead.trackingId },
     select: { organizationId: true },
   });
+
+  // Tag de interesse muda o potencial na Visão do Lead (spec 0085).
+  await requestLeadMetricsRecompute(lead.id);
 
   if (tracking) {
     await Promise.all(

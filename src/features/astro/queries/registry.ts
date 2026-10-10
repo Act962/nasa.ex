@@ -9,6 +9,7 @@ import {
   type AstroQueryResult,
 } from "./types";
 import { TRACKING_QUERIES } from "./tracking";
+import { LEAD_INTEREST_QUERIES } from "./lead-interest";
 import { AGENDA_QUERIES } from "./agenda";
 import { APP_QUERIES } from "./apps";
 import { FORGE_QUERIES } from "./forge";
@@ -39,6 +40,8 @@ export const ASTRO_QUERIES: AstroQuery[] = [
   // quando a empresa não usa fichas ou a frase não é sobre elas (spec 0081, RNF-3).
   ...RECORD_QUERIES,
   ...RESPONSE_QUERIES,
+  // Antes das análises: "leads com interesse alto" casaria com o filtro de leads "quentes" (spec 0085).
+  ...LEAD_INTEREST_QUERIES,
   ...ANALYSIS_QUERIES,
   // Insights antes do tracking: "quantos leads com a tag X" é relatório, e
   // a contagem genérica de leads casaria primeiro.
