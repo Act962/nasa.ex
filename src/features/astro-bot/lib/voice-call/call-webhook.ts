@@ -3,7 +3,19 @@ import { z } from "zod";
 import { sendOfficialCallAction } from "@/http/whats-oficial/calls";
 import { resolveBotGate } from "../webhook-handler";
 import { isCallEnabledForTracking } from "./call-config";
-import { answerCall, endCall, hasActiveCallFor, type CallInstance } from "./call-session";
+import { TrackingProviderBotChannel } from "../tracking-provider-channel";
+import {
+  CLIENT_TEXT_ONLY_MESSAGE,
+  answerCall,
+  countActiveCallsFor,
+  endCall,
+  hasActiveCallFor,
+  type CallInstance,
+} from "./call-session";
+import { prepareClientCall } from "./client-call";
+
+/** Cada chamada mantém conexões de áudio abertas no servidor (spec 0087, RS-7). */
+const MAX_SIMULTANEOUS_CALLS_PER_ORGANIZATION = 5;
 
 /**
  * Eventos de chamada do webhook oficial (campo `calls`), spec 0086.
@@ -58,7 +70,7 @@ async function handleIncomingCall(callEvent: CallEvent, instance: CallInstance):
     trackingId: instance.trackingId,
     trackingOrganizationId: instance.organizationId,
   });
-  if (!gate.allowed || !gate.binding) return rejectSilently("not_a_member");
+  if (!gate.allowed || !gate.binding) return handleClientCall(callEvent as CallEvent & { from: string; session: { sdp: string } }, instance, rejectSilently);
   if (hasActiveCallFor(gate.binding.id)) return rejectSilently("already_in_call");
 
   const outcome = await answerCall({
@@ -69,6 +81,34 @@ async function handleIncomingCall(callEvent: CallEvent, instance: CallInstance):
     binding: gate.binding,
   });
   return outcome.answered ? "answered" : `failed:${outcome.reason}`;
+}
+
+/** Quem ligou não é da equipe: é cliente. Atende com o agente do atendimento, se o tracking tiver a opção ligada. */
+async function handleClientCall(
+  callEvent: CallEvent & { from: string; session: { sdp: string } },
+  instance: CallInstance,
+  rejectSilently: (reason: string) => Promise<string>,
+): Promise<string> {
+  const decision = await prepareClientCall({ instance, callerPhone: callEvent.from });
+  if (!decision.canAnswer) {
+    const outcome = await rejectSilently(decision.reason);
+    if (decision.shouldSendTextOnlyNotice) {
+      await new TrackingProviderBotChannel(instance.trackingId)
+        .sendText(callEvent.from, CLIENT_TEXT_ONLY_MESSAGE, { isImmediate: true })
+        .catch(() => undefined);
+    }
+    return outcome;
+  }
+  if (hasActiveCallFor(decision.persona.callerKey)) return rejectSilently("already_in_call");
+  if (countActiveCallsFor(instance.organizationId) >= MAX_SIMULTANEOUS_CALLS_PER_ORGANIZATION) return rejectSilently("organization_busy");
+  const outcome = await answerCall({
+    metaCallId: callEvent.id,
+    sdpOffer: callEvent.session.sdp,
+    callerPhone: callEvent.from,
+    instance,
+    client: decision.persona,
+  });
+  return outcome.answered ? "answered_client" : `failed:${outcome.reason}`;
 }
 
 export async function handleOfficialCallEvents(callEvents: CallEvent[], instance: CallInstance): Promise<string[]> {

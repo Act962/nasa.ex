@@ -1,5 +1,7 @@
 "use client";
 
+import { playIncomingChatBeep } from "@/features/tracking-chat/lib/notification-sound";
+import { LEAD_AWAITING_HUMAN_EVENT } from "@/features/alerts/lib/lead-awaiting-human-event";
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -128,6 +130,9 @@ export function AlertProvider({ children }: { children?: React.ReactNode }) {
       orpc.userNotifications.list.queryOptions({ input: {} }),
     );
     queryClient.invalidateQueries({ queryKey: ["user-notifications"] });
+
+    // Cliente esperando uma pessoa: o mesmo sinal sonoro de mensagem nova no chat.
+    if (data.eventType === LEAD_AWAITING_HUMAN_EVENT) playIncomingChatBeep();
 
     // Repassa ao ASTRO (orb e widget) sem abrir uma segunda assinatura Pusher.
     window.dispatchEvent(new CustomEvent(ASTRO_ALERT_EVENT, { detail: data }));

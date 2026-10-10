@@ -32,6 +32,8 @@ export async function chargeMessageOutbound(opts: {
   userId?: string;
   /** Canal pra granular o tracking no Insights (StarTransaction.appSlug). */
   channel: "whatsapp" | "instagram" | "facebook";
+  /** Número (tracking) por onde a mensagem saiu: soma o custo por número em /campanhas (spec 0087). */
+  trackingId?: string | null;
   /** Tipo de mídia — só pra description. */
   mediaType?: "text" | "image" | "audio" | "file" | "location" | "contact" | "buttons";
 }): Promise<void> {
@@ -49,6 +51,7 @@ export async function chargeMessageOutbound(opts: {
       provider: opts.channel === "whatsapp" ? "uazapi" : "meta",
     },
     quantity: { unit: "message", amount: 1 },
+    trackingId: opts.trackingId ?? undefined,
     metadata: { mediaType: opts.mediaType ?? "text" },
   });
 

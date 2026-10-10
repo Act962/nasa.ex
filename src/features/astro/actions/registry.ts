@@ -11,6 +11,7 @@ import { addLeadNoteAction } from "./leads/add-lead-note";
 import { createLeadAction } from "./leads/create-lead";
 import { createTrackingAction } from "./tracking/create-tracking";
 import { createAgendaAction } from "./agenda/create-agenda";
+import { setupAttendanceFromSiteAction } from "./tracking/setup-attendance-from-site";
 import { createAppointmentAction } from "./agenda/create-appointment";
 import { createWorkspaceAction } from "./workspace/create-workspace";
 import { createWorkspaceActionItem } from "./workspace/create-action";
@@ -60,6 +61,7 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   createLeadAction,
   createTrackingAction,
   createAgendaAction,
+  setupAttendanceFromSiteAction,
   createAppointmentAction,
   createWorkspaceAction,
   createWorkspaceActionItem,

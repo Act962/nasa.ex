@@ -20,6 +20,9 @@ import prisma from "@/lib/prisma";
 import { loadAgentContext, type AgentEventData } from "./context";
 import { resolveModel } from "./model";
 import { buildSystemPrompt } from "./system-prompt";
+import { loadAttendanceKnowledgeBlock } from "./attendance-knowledge";
+import { signalLeadAwaitingHuman, type AwaitingHumanReason } from "./awaiting-human";
+import { handleGuidedMenu } from "./guided-menu/guided-menu";
 import { splitForWhatsapp } from "./split-message";
 import { persistOutboundMessage } from "./persist";
 import { buildAgentTools } from "../server/tools";
@@ -59,6 +62,15 @@ async function sendLeadVoiceReply(params: {
   }
 }
 
+function signalAwaitingHuman(ctx: Awaited<ReturnType<typeof loadAgentContext>>, reason: AwaitingHumanReason) {
+  return signalLeadAwaitingHuman({
+    organizationId: ctx.organizationId,
+    leadId: ctx.lead.id,
+    conversationId: ctx.conversation.id,
+    reason,
+  });
+}
+
 interface RunArgs {
   step: Step;
   data: AgentEventData;
@@ -81,6 +93,22 @@ async function sendAgentText(
     typingDelayMs,
   });
   return toLegacyUazapiMessageId(sent);
+}
+
+/** Aviso automático ao cliente. Fica no histórico: a equipe precisa ver o que foi dito antes de assumir. */
+async function sendAgentNotice(
+  ctx: Awaited<ReturnType<typeof loadAgentContext>>,
+  text: string,
+): Promise<void> {
+  const externalMessageId = await sendAgentText(ctx.trackingId, ctx.lead.phone!, text, 0);
+  await persistOutboundMessage({
+    conversationId: ctx.conversation.id,
+    leadId: ctx.lead.id,
+    trackingId: ctx.trackingId,
+    body: text,
+    senderName: ctx.settings?.assistantName ?? "IA",
+    externalMessageId,
+  });
 }
 
 export async function runWhatsappAgent({ step, data }: RunArgs) {
@@ -133,19 +161,22 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     }
   }
 
+  // Menu de botões (spec 0089): saudação e cliques do menu são resolvidos em código, sem modelo,
+  // sem cobrar resposta de IA e sem contar no limite abaixo. O resto segue para a assistente.
+  if (ctx.capabilities.guidedMenu && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
+    const guided = await step.run("guided-menu", () => handleGuidedMenu(ctx, data.messageId));
+    if (guided.handled) return { skipped: true, reason: "guided_menu" };
+  }
+
   // Limite por cliente (spec 0084, RS-9): protege o número e o saldo da empresa de uso abusivo.
   // No limite, avisa uma vez e passa para a equipe; acima dele, fica em silêncio.
   const { repliesLastHour } = leadGate;
   if (repliesLastHour >= MAX_AGENT_REPLIES_PER_HOUR) {
     if (repliesLastHour === MAX_AGENT_REPLIES_PER_HOUR && !ctx.catalogOrder) {
       await step.run("send-rate-limit-notice", async () => {
-        await sendAgentText(
-          ctx.trackingId,
-          ctx.lead.phone!,
-          "Vou passar seu atendimento para a nossa equipe, que continua por aqui.",
-          0,
-        );
+        await sendAgentNotice(ctx, "Vou passar seu atendimento para a nossa equipe, que continua por aqui.");
         await prisma.lead.update({ where: { id: ctx.lead.id }, data: { isActive: false, statusFlow: "ACTIVE" } });
+        await signalAwaitingHuman(ctx, "usage_limit");
         // Conta como execução: a próxima mensagem já cai acima do limite e não repete o aviso.
         await prisma.aiChatRun.create({
           data: {
@@ -197,7 +228,8 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
         });
         return;
       }
-      await sendAgentText(ctx.trackingId, ctx.lead.phone!, fallbackText, 0);
+      await sendAgentNotice(ctx, fallbackText);
+      await signalAwaitingHuman(ctx, "no_balance");
     });
     return { skipped: true, reason: "stars_grace_no_balance" };
   }
@@ -224,7 +256,8 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
         });
         return;
       }
-      await sendAgentText(ctx.trackingId, ctx.lead.phone!, fallbackText, 0);
+      await sendAgentNotice(ctx, fallbackText);
+      await signalAwaitingHuman(ctx, "no_balance");
     });
     return { skipped: true, reason: "stars_insufficient" };
   }
@@ -244,9 +277,16 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // Apêndice ao system prompt quando o disparo veio da automação de ociosidade
   // com instrução de reabertura: não há nova msg do lead, o agente precisa
   // tomar iniciativa pra reengajar de forma natural.
+  const knowledgeBlock = await step.run("load-attendance-knowledge", () =>
+    loadAttendanceKnowledgeBlock({
+      organizationId: ctx.organizationId,
+      knowledgeIds: ctx.capabilities.knowledgeIds,
+    }),
+  );
+  const baseWithKnowledge = knowledgeBlock ? `${baseSystem}\n\n${knowledgeBlock}` : baseSystem;
   const baseWithOrder = ctx.catalogOrder
-    ? `${baseSystem}\n\n${buildCatalogOrderPrompt(ctx.catalogOrder)}`
-    : baseSystem;
+    ? `${baseWithKnowledge}\n\n${buildCatalogOrderPrompt(ctx.catalogOrder)}`
+    : baseWithKnowledge;
   const systemPrompt =
     ctx.trigger === "idle-reopen-with-instruction"
       ? `${baseWithOrder}\n\n# Reabertura automática\n\nO lead está ocioso${

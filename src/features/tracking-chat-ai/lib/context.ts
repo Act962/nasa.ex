@@ -80,6 +80,7 @@ export async function loadAgentContext(data: AgentEventData) {
         fromMe: true,
         body: true,
         mediaType: true,
+        mimetype: true,
         mediaCaption: true,
         metadata: true,
         createdAt: true,
@@ -95,6 +96,8 @@ export async function loadAgentContext(data: AgentEventData) {
         OR: [{ trackingId: data.trackingId }, { trackingId: null }],
         description: { not: null },
         archivedAt: null,
+        // Tags padrão ("Aguard. atendimento", "WhatsApp"…) são aplicadas pelo código, nunca pela assistente.
+        type: { not: "SYSTEM" },
       },
       select: { id: true, name: true, description: true },
       orderBy: { name: "asc" },
@@ -200,8 +203,13 @@ export async function loadAgentContext(data: AgentEventData) {
     availableAgendas,
     availableForms,
     // A última mensagem do cliente foi áudio: decide a resposta em voz (spec 0084, RF-3).
-    isLastInboundAudio: messages.find((message) => !message.fromMe)?.mediaType === "audio",
+    isLastInboundAudio: isAudioMessage(messages.find((message) => !message.fromMe)),
   };
+}
+
+function isAudioMessage(message: { mediaType: string | null; mimetype?: string | null } | undefined): boolean {
+  if (!message) return false;
+  return message.mediaType === "audio" || Boolean(message.mimetype?.startsWith("audio/"));
 }
 
 function safeDecrypt(cipher: string): string | null {
@@ -218,6 +226,7 @@ function toModelMessage(m: {
   body: string | null;
   mediaType: string | null;
   mediaCaption: string | null;
+  mimetype?: string | null;
   metadata?: unknown;
 }): ModelMessage | null {
   // Áudio transcrito entra como o que o cliente disse (spec 0084, RF-1), marcado como áudio.
@@ -229,7 +238,10 @@ function toModelMessage(m: {
     (isAudioTooLong(m.metadata)
       ? "[áudio do cliente com mais de 3 minutos: não foi ouvido. Peça para resumir por texto ou ofereça um atendente.]"
       : "") ||
-    (m.mediaType ? `[${m.mediaType}]` : "");
+    (m.mediaType ? `[${m.mediaType}]` : "") ||
+    (m.mimetype?.startsWith("audio/")
+      ? "[áudio do cliente que não foi possível ouvir. Peça para escrever a mensagem.]"
+      : "");
   if (!text) return null;
   return {
     role: m.fromMe ? "assistant" : "user",

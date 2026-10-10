@@ -28,7 +28,7 @@ export const getAiCapabilities = base
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     });
-    const [forms, workspaces] = await Promise.all([
+    const [forms, workspaces, knowledgeDocuments] = await Promise.all([
       prisma.form.findMany({
         where: { organizationId: context.org.id, published: true },
         select: { id: true, name: true },
@@ -41,6 +41,12 @@ export const getAiCapabilities = base
         orderBy: { name: "asc" },
         take: 100,
       }),
+      prisma.aiKnowledge.findMany({
+        where: { organizationId: context.org.id, status: "READY", content: { not: null } },
+        select: { id: true, name: true },
+        orderBy: { updatedAt: "desc" },
+        take: 50,
+      }),
     ]);
     return {
       hasAiSettings: Boolean(tracking.aiSettings),
@@ -48,6 +54,7 @@ export const getAiCapabilities = base
       availableAgendas: agendas,
       availableForms: forms,
       availableWorkspaces: workspaces,
+      availableKnowledge: knowledgeDocuments,
     };
   });
 
@@ -67,7 +74,7 @@ export const updateAiCapabilities = base
       select: { id: true },
     });
     // O mesmo vale para formulários e Workspace: id de outra empresa é descartado.
-    const [ownedForms, ownedWorkspace] = await Promise.all([
+    const [ownedForms, ownedWorkspace, ownedKnowledge] = await Promise.all([
       prisma.form.findMany({
         where: { id: { in: input.capabilities.forms.formIds }, organizationId: context.org.id, published: true },
         select: { id: true },
@@ -78,6 +85,10 @@ export const updateAiCapabilities = base
             select: { id: true },
           })
         : null,
+      prisma.aiKnowledge.findMany({
+        where: { id: { in: input.capabilities.knowledgeIds }, organizationId: context.org.id },
+        select: { id: true },
+      }),
     ]);
     const capabilities = {
       ...input.capabilities,
@@ -88,6 +99,7 @@ export const updateAiCapabilities = base
         isEnabled: input.capabilities.teamRequest.isEnabled && Boolean(ownedWorkspace),
         workspaceId: ownedWorkspace?.id ?? null,
       },
+      knowledgeIds: ownedKnowledge.map((document) => document.id),
       // Quem salva assina as demandas e os lembretes criados pelo agente; nunca vem do cliente.
       configuredByUserId: context.user.id,
     };

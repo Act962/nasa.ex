@@ -3,6 +3,7 @@ import type { OrganizationBotConfig, UserWhatsappBinding } from "@/generated/pri
 import prisma from "@/lib/prisma";
 import { meter } from "@/features/stars/lib/metering";
 import { ASTRO_READ_DENIAL, ASTRO_WRITE_DENIAL } from "@/features/astro/lib/permission-denial";
+import { hasStarsCredit } from "@/features/stars/lib/stars-credit";
 import { isTrafegoOrganization } from "../stars-billing";
 import type { BotCommandResult, WhatsappBotChannel } from "../types";
 import { canBeSpoken, estimateSpokenSeconds, toSpeakableText } from "./speakable-text";
@@ -25,14 +26,6 @@ export function shouldReplyWithVoice(settings: VoiceSettings, result: BotCommand
   if (result.buttons && result.buttons.length > 0) return false;
   if (result.reply.includes(ASTRO_READ_DENIAL) || result.reply.includes(ASTRO_WRITE_DENIAL)) return false;
   return canBeSpoken(result.reply);
-}
-
-async function hasStarsForSpeech(organizationId: string): Promise<boolean> {
-  const organization = await prisma.organization.findUnique({
-    where: { id: organizationId },
-    select: { starsBalance: true, starsBonusBalance: true },
-  });
-  return (organization?.starsBalance ?? 0) + (organization?.starsBonusBalance ?? 0) > 0;
 }
 
 /** Cobra o áudio gerado. Usada também pelo Chatbot IA do cliente (spec 0084), que não tem membro. */
@@ -73,7 +66,7 @@ export async function sendVoiceReply(params: {
 }): Promise<boolean> {
   const { binding, result } = params;
   const isBillingExempt = await isTrafegoOrganization(binding.organizationId);
-  if (!isBillingExempt && !(await hasStarsForSpeech(binding.organizationId))) return false;
+  if (!isBillingExempt && !(await hasStarsCredit(binding.organizationId))) return false;
 
   const speakableText = toSpeakableText(result.reply);
   const speech = await synthesizeSpeech({

@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useAiCapabilities, useUpdateAiCapabilities } from "../hooks/use-ai-capabilities";
+import { KnowledgeChipPicker } from "@/features/astro-commander/components/intelligence/knowledge-chip-picker";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import Link from "next/link";
 
 // Aba "O que o Astro pode fazer" do Chatbot IA (spec 0084). Tudo começa desligado.
 
@@ -99,6 +102,7 @@ function CapabilitiesForm({
   availableAgendas,
   availableForms,
   availableWorkspaces,
+  availableKnowledge,
   canSave,
 }: {
   trackingId: string;
@@ -106,11 +110,16 @@ function CapabilitiesForm({
   availableAgendas: NamedOption[];
   availableForms: NamedOption[];
   availableWorkspaces: NamedOption[];
+  availableKnowledge: NamedOption[];
   canSave: boolean;
 }) {
   const [capabilities, setCapabilities] = useState<AiCapabilities>(savedCapabilities);
   const updateCapabilities = useUpdateAiCapabilities();
   const selectedVoiceName = capabilities.voiceName ?? DEFAULT_BOT_VOICE;
+  // Documento apagado depois de marcado some da contagem e do que é salvo.
+  const selectedKnowledgeIds = capabilities.knowledgeIds.filter((knowledgeId) =>
+    availableKnowledge.some((document) => document.id === knowledgeId),
+  );
 
   const toggleAgenda = (agendaId: string) => {
     const agendaIds = toggleId(capabilities.agenda.agendaIds, agendaId);
@@ -140,6 +149,49 @@ function CapabilitiesForm({
         Cada opção ligada dá ao Astro só aquela capacidade, sempre presa ao cliente da conversa: ele
         nunca vê dados de outra pessoa nem da empresa. “Falar com atendente” funciona sempre.
       </p>
+
+      <section>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Forma de atender</h3>
+        <CapabilityRow
+          title="Atender com menu de botões"
+          description="O cliente marca, remarca, cancela e pede informações clicando. Só o que estiver ligado nesta tela aparece no menu. Dúvidas escritas, áudios e chamadas continuam com a assistente. Passos por clique não cobram resposta de IA."
+          isEnabled={capabilities.guidedMenu}
+          onToggle={(guidedMenu) => setCapabilities({ ...capabilities, guidedMenu })}
+        />
+      </section>
+
+      <section data-guide={GUIDE_ANCHORS.chatbotIaKnowledgePicker.id}>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">O que o Astro sabe</h3>
+        <div className="mt-2 rounded-lg border p-3">
+          <p className="text-sm font-medium">Documentos que o atendimento pode usar</p>
+          <p className="mb-3 text-xs text-muted-foreground">
+            O Astro responde ao cliente, por mensagem e por chamada, só com o que estiver nos documentos marcados.
+          </p>
+          <KnowledgeChipPicker
+            options={availableKnowledge}
+            selectedIds={selectedKnowledgeIds}
+            onChange={(knowledgeIds) => setCapabilities({ ...capabilities, knowledgeIds })}
+            emptyText="Nenhuma base cadastrada no ASTRO. Peça ao Astro “monte o atendimento com o site da minha empresa” ou escreva um documento na Auto Inteligência."
+          />
+          {selectedKnowledgeIds.length > 0 && (
+            <p className="mt-3 rounded-md border border-warning/30 bg-warning/15 px-3 py-2 text-xs text-warning">
+              O cliente pode ouvir ou ler o que estiver nos documentos marcados. Não marque material interno da equipe.
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>
+              {availableKnowledge.length === 0
+                ? ""
+                : selectedKnowledgeIds.length === 0
+                  ? "Nenhum marcado: o Astro responde só com as instruções da aba Geral."
+                  : `${selectedKnowledgeIds.length} de ${availableKnowledge.length} marcados`}
+            </span>
+            <Link href="/astro?aba=auto-inteligencia" className="text-primary hover:underline">
+              Gerenciar na Auto Inteligência →
+            </Link>
+          </div>
+        </div>
+      </section>
 
       <section>
         <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Áudio</h3>
@@ -182,6 +234,12 @@ function CapabilitiesForm({
             ))}
           </div>
         </CapabilityRow>
+        <CapabilityRow
+          title="Atender chamadas de voz"
+          description="O cliente liga pelo WhatsApp e o Astro atende falando, com as mesmas opções ligadas nesta tela. A ligação fica transcrita na conversa. Só em número da API oficial com chamadas ativas; cobra Stars por minuto."
+          isEnabled={capabilities.voiceCall}
+          onToggle={(voiceCall) => setCapabilities({ ...capabilities, voiceCall })}
+        />
       </section>
 
       <section>
@@ -412,6 +470,7 @@ export function ChatBotIaCapabilitiesTab({ trackingId }: { trackingId: string })
       availableAgendas={data?.availableAgendas ?? []}
       availableForms={data?.availableForms ?? []}
       availableWorkspaces={data?.availableWorkspaces ?? []}
+      availableKnowledge={data?.availableKnowledge ?? []}
       canSave={data?.hasAiSettings ?? false}
     />
   );

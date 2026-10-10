@@ -112,6 +112,15 @@ export async function applyAwaitingTagIfStillUnanswered(params: {
   return { applied: true };
 }
 
+/** A assistente passou o cliente para a equipe: "Aguard. atendimento" entra na hora, sem esperar os 15 min. */
+export async function applyAwaitingTagNow(params: { organizationId: string; leadId: string }) {
+  const tagIdBySlug = await findActiveAutoTags(params.organizationId, ["awaitingReply"]);
+  const tagId = tagIdBySlug.get(AUTO_TAG_SLUGS.awaitingReply);
+  if (!tagId) return { applied: false };
+  await addMissingTags(params.leadId, [tagId]);
+  return { applied: true };
+}
+
 /** Resposta do atendente tira "Aguard. atendimento" (RF-5). */
 export async function removeAwaitingTagOnReply(params: { organizationId: string; leadId: string }) {
   const tagIdBySlug = await findActiveAutoTags(params.organizationId, ["awaitingReply"]);

@@ -59,6 +59,10 @@ export const GUIDE_ANCHORS = {
     id: "comments.connect-with-meta",
     description: "Botão \"Usar @conta\" que conecta o Instagram já ligado na Meta",
   },
+  chatbotIaKnowledgePicker: {
+    id: "tracking.chatbot-ia.knowledge-picker",
+    description: "Seletor \"Documentos que o atendimento pode usar\" na aba \"O que o Astro pode fazer\" do Chatbot IA",
+  },
   trackingList: {
     id: "tracking.list",
     description: "Lista de trackings da organização em /tracking",

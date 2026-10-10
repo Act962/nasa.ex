@@ -381,7 +381,7 @@ export function MessageBox({
                     className={cn("relative w-fit", isFile ? "py-0" : "py-1")}
                   >
                     {isCall && callPayload && (
-                      <CallMessageBox payload={callPayload} fromMe={isOwn} />
+                      <CallMessageBox payload={callPayload} fromMe={isOwn} metadata={message.metadata} />
                     )}
                     {isLocation && (
                       <LocationMessageBox

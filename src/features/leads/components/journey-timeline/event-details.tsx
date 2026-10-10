@@ -25,6 +25,19 @@ export function EventMetadataPreview({
     );
   }
 
+  if (kind === "voice_call") {
+    const durationSec = Number(metadata.durationSec ?? 0);
+    const summary = typeof metadata.summary === "string" ? metadata.summary : "";
+    return (
+      <div className="text-xs mt-1 space-y-0.5">
+        <div className="text-muted-foreground">
+          Duração: {Math.floor(durationSec / 60)} min {durationSec % 60} s. A transcrição completa está na conversa.
+        </div>
+        {summary && <div className="line-clamp-3 max-w-xl">{summary}</div>}
+      </div>
+    );
+  }
+
   if (kind === "ctwa_referral") {
     return (
       <div className="text-xs mt-1 space-y-0.5">

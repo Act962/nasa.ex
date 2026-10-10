@@ -630,6 +630,8 @@ async function persistInteractive(
     create: {
       ...baseCreate(params),
       body,
+      // O título do botão é encurtado pela Meta; o id é o que diz qual opção foi clicada (spec 0089).
+      ...(canonical.replyId ? { metadata: { interactiveReplyId: canonical.replyId } } : {}),
     },
     include: messageInclude,
   });

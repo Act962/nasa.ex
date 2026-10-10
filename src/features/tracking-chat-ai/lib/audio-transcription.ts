@@ -52,7 +52,8 @@ export async function transcribePendingLeadAudio(params: {
     where: {
       conversationId: params.conversationId,
       fromMe: false,
-      mediaType: "audio",
+      // Pela API oficial o áudio chega sem `mediaType`: só o `mimetype` diz o que é.
+      OR: [{ mediaType: "audio" }, { mimetype: { startsWith: "audio/" } }],
       mediaUrl: { not: null },
       createdAt: { gte: new Date(Date.now() - RECENT_AUDIO_WINDOW_MS) },
     },

@@ -53,6 +53,12 @@ export const aiCapabilitiesSchema = z.object({
       workspaceId: z.string().nullable().default(null),
     })
     .default({ isEnabled: false, workspaceId: null }),
+  /** Atender chamadas de voz de clientes pelo WhatsApp (spec 0087, Parte C). */
+  voiceCall: z.boolean().default(false),
+  /** Atender por botões e listas o que é roteiro (marcar, ver, remarcar, cancelar), sem modelo (spec 0089). */
+  guidedMenu: z.boolean().default(false),
+  /** Documentos da Auto Inteligência que o atendimento pode ler (spec 0088). Vazio = nenhum. */
+  knowledgeIds: z.array(z.string()).max(10).default([]),
   /** Membro que salvou a configuração: é quem assina demandas e lembretes criados pelo agente. Definido pelo servidor. */
   configuredByUserId: z.string().nullable().default(null),
 });
@@ -73,4 +79,4 @@ export function parseAiCapabilities(raw: unknown): AiCapabilities {
 export const MAX_LEAD_AUDIO_SECONDS = 180;
 
 /** Respostas do agente por cliente, por hora (RS-9). Acima disso, o atendimento passa para a equipe. */
-export const MAX_AGENT_REPLIES_PER_HOUR = 30;
+export const MAX_AGENT_REPLIES_PER_HOUR = 60;

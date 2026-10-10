@@ -29,7 +29,10 @@ dayjs.extend(timezone);
 const AGENDA_TIME_ZONE = "America/Sao_Paulo";
 const DATE_INPUT = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Data no formato YYYY-MM-DD");
 const TIME_INPUT = z.string().regex(/^\d{2}:\d{2}$/).describe("Horário no formato HH:mm");
-const NOT_FOUND_REPLY = { error: "Não encontrei esse agendamento entre os seus." };
+const NOT_FOUND_REPLY = {
+  error:
+    "Não encontrei esse agendamento. Chame list_my_appointments, mostre ao cliente os agendamentos dele e pergunte qual é, usando o appointmentId da lista.",
+};
 
 export interface LeadAgendaScope {
   organizationId: string;
@@ -75,18 +78,25 @@ async function hasConflict(agendaId: string, startsAt: Date, endsAt: Date, ignor
 }
 
 /** Só agendamento futuro, ativo, deste cliente e de agenda liberada. */
-async function findOwnAppointment(scope: LeadAgendaScope, appointmentId: string) {
-  return prisma.appointment.findFirst({
-    where: {
-      id: appointmentId,
-      leadId: scope.leadId,
-      agendaId: { in: scope.agendaIds },
-      agenda: { organizationId: scope.organizationId },
-      status: { notIn: ["CANCELLED"] },
-      startsAt: { gte: new Date() },
-    },
-    select: { id: true, agendaId: true, startsAt: true, agenda: { select: { name: true, slotDuration: true } } },
-  });
+/**
+ * O modelo às vezes manda um id que não existe. Quando o cliente tem um único agendamento
+ * futuro, é dele que se trata: sem isso, "cancela minha consulta" falhava com a consulta ali.
+ */
+async function findOwnAppointment(scope: LeadAgendaScope, appointmentId: string | undefined) {
+  const ownUpcoming = {
+    leadId: scope.leadId,
+    agendaId: { in: scope.agendaIds },
+    agenda: { organizationId: scope.organizationId },
+    status: { notIn: ["CANCELLED" as const] },
+    startsAt: { gte: new Date() },
+  };
+  const select = { id: true, agendaId: true, startsAt: true, agenda: { select: { name: true, slotDuration: true } } };
+  if (appointmentId) {
+    const byId = await prisma.appointment.findFirst({ where: { ...ownUpcoming, id: appointmentId }, select });
+    if (byId) return byId;
+  }
+  const upcoming = await prisma.appointment.findMany({ where: ownUpcoming, select, take: 2 });
+  return upcoming.length === 1 ? upcoming[0] : null;
 }
 
 function describeAppointment(appointment: { id: string; startsAt: Date; agenda: { name: string } }) {
@@ -189,8 +199,8 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
 
     cancel_my_appointment: tool({
       description:
-        "Cancela um agendamento do cliente desta conversa. Use o appointmentId vindo de list_my_appointments, e só depois de o cliente confirmar.",
-      inputSchema: z.object({ appointmentId: z.string() }),
+        "Cancela um agendamento do cliente desta conversa, só depois de o cliente confirmar. Use o appointmentId vindo de list_my_appointments; se o cliente tiver um único agendamento, pode omitir. Remarcação proposta e ainda não confirmada não existe: o que vale é o que list_my_appointments mostra.",
+      inputSchema: z.object({ appointmentId: z.string().optional() }),
       execute: async ({ appointmentId }) => {
         const appointment = await findOwnAppointment(scope, appointmentId);
         if (!appointment) return NOT_FOUND_REPLY;
@@ -226,8 +236,8 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
 
     reschedule_my_appointment: tool({
       description:
-        "Muda a data e o horário de um agendamento do cliente desta conversa. Consulte os horários livres antes e só chame depois de o cliente confirmar.",
-      inputSchema: z.object({ appointmentId: z.string(), date: DATE_INPUT, time: TIME_INPUT }),
+        "Muda a data e o horário de um agendamento do cliente desta conversa. Consulte os horários livres antes e só chame depois de o cliente confirmar. Use o appointmentId vindo de list_my_appointments; se o cliente tiver um único agendamento, pode omitir.",
+      inputSchema: z.object({ appointmentId: z.string().optional(), date: DATE_INPUT, time: TIME_INPUT }),
       execute: async ({ appointmentId, date, time }) => {
         const appointment = await findOwnAppointment(scope, appointmentId);
         if (!appointment) return NOT_FOUND_REPLY;
