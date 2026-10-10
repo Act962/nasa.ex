@@ -88,7 +88,7 @@ interface BotGateResult {
  * gate garante que o echo da resposta do bot é suprimido exatamente nos casos
  * em que o inbound foi interceptado.
  */
-async function resolveBotGate(input: BotGateInput): Promise<BotGateResult> {
+export async function resolveBotGate(input: BotGateInput): Promise<BotGateResult> {
   // 1 e 2. Binding do número NESTA org — a org dona do botConfig é a fonte autoritativa.
   // O mesmo telefone pode existir em outra org, e em duas grafias: a Meta entrega o número de
   // conta móvel antiga sem o 9º dígito (`558698221810`) e o admin cadastra com ele

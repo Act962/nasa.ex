@@ -44,6 +44,7 @@
  * é o `accessToken` da instância — preserva semântica de "token que
  * recebeu a mensagem".
  */
+import { extractCallEvents, handleOfficialCallEvents } from "@/features/astro-bot/lib/voice-call/call-webhook";
 import { type NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 
@@ -246,6 +247,23 @@ export async function POST(request: NextRequest) {
       secretSource: instance.appSecret ? "instance" : "global_env",
     });
     return new NextResponse("Invalid signature", { status: 401 });
+  }
+
+  // ── 3b. Chamadas de voz (spec 0086) ─────────────────────────────────
+  // Evento à parte das mensagens, já com a assinatura conferida. Sem a função
+  // ligada no ambiente, a chamada é só recusada; o resto do webhook não muda.
+  const callEvents = extractCallEvents(json);
+  if (callEvents) {
+    const callOutcomes = await handleOfficialCallEvents(callEvents, {
+      accessToken: instance.accessToken,
+      phoneNumberId: instance.phoneNumberId,
+      trackingId: instance.trackingId,
+      organizationId: instance.organizationId,
+    }).catch((callError: unknown) => {
+      console.error("[webhook:official:POST] call_handler_failed", callError);
+      return ["failed"];
+    });
+    return NextResponse.json({ ok: true, calls: callOutcomes }, { status: 200 });
   }
 
   // ── 4. Parse Zod ────────────────────────────────────────────────────
