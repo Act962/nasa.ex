@@ -52,7 +52,8 @@ export const markPaymentPaidAction: AstroAction<typeof inputSchema> = {
   input: inputSchema,
   inferFields: inferMarkPaidFields,
   intentPatterns: [
-    /\b(marca|marcar|marque)\b.{1,50}\bcomo\s+(pago|paga|recebido|recebida)\b/,
+    // "Marca a ficha da Maria como paga" é a baixa da ficha de atendimento (spec 0081), não um lançamento.
+    /^(?!.*\bfichas?\b).*\b(marca|marcar|marque)\b.{1,50}\bcomo\s+(pago|paga|recebido|recebida)\b/,
     /\b(dar|da|de|quero dar)\s+baixa\b/,
     /\b(paguei|pagamos|recebi|recebemos)\s+(o|a)\s+(?!r\$|\d)/,
   ],

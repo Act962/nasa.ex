@@ -2422,6 +2422,12 @@ model FormRecord {
   sourceRecordId String?   @map("source_record_id")
   /// Vinculado do lead (spec 0076). Sem FK, como `leadId`: a ficha fechada fica.
   leadMemberId   String?   @map("lead_member_id")
+  /// Próxima data (spec 0081): campo marcado como "próxima data" (manutenção,
+  /// retorno, renovação). Só a ficha finalizada mais recente de cada item tem.
+  nextDueAt      DateTime? @map("next_due_at")
+  /// Cobrança por PIX enviada ao cliente e baixa manual (spec 0081, parte D).
+  pixSentAt      DateTime? @map("pix_sent_at")
+  paidAt         DateTime? @map("paid_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -2430,6 +2436,7 @@ model FormRecord {
   response FormResponses @relation(fields: [responseId], references: [id], onDelete: Cascade)
   closing  FormClosing?  @relation(fields: [closingId], references: [id], onDelete: SetNull)
 
+  @@index([organizationId, nextDueAt])
   @@index([organizationId, formId, periodKey])
   @@index([leadId, periodKey])
   @@index([leadMemberId])
@@ -5497,6 +5504,8 @@ model UserNotificationPreference {
   notifType      String   @map("notif_type")
   inApp          Boolean  @default(true) @map("in_app")
   whatsApp       Boolean  @default(false) @map("whats_app")
+  /// Ajustes do aviso (spec 0081): hora do resumo do dia, dias de antecedência.
+  params         Json?
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 

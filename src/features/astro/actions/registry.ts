@@ -39,6 +39,8 @@ import { createReminderAction } from "./agenda/create-reminder";
 import { addTrackingParticipantAction } from "./tracking/add-participant";
 import { sendFormToLeadAction } from "./form/send-to-lead";
 import { toggleFormPublishAction } from "./form/toggle-publish";
+import { markRecordPaidAction, sendRecordPixAction } from "./form/record-pix";
+import { scheduleDailyRecordsAction } from "./form/schedule-record-notice";
 import { sendMessageAction } from "./chat/send-message";
 import { addLeadTagAction } from "./leads/add-lead-tag";
 
@@ -86,6 +88,9 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   addTrackingParticipantAction,
   sendFormToLeadAction,
   toggleFormPublishAction,
+  sendRecordPixAction,
+  markRecordPaidAction,
+  scheduleDailyRecordsAction,
   sendMessageAction,
   addLeadTagAction,
 ];

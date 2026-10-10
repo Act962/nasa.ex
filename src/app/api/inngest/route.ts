@@ -81,6 +81,7 @@ import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-aband
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
 import { worldEventOccupancyTick } from "@/inngest/functions/crons/world-event-occupancy-tick";
 import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-due-soon";
+import { sendRecordNotices } from "@/inngest/functions/crons/send-record-notices";
 import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 import { chatAiWhatsappAgent } from "@/inngest/functions/chat-ai/whatsapp-agent";
 import { syncCatalogOrderToNerp } from "@/inngest/functions/nerp-catalog/sync-order-to-nerp";
@@ -238,6 +239,7 @@ export const { GET, POST, PUT } = serve({
     // ── NASA World — convention occupancy ──
     worldEventOccupancyTick,
     detectActionsDueSoon,
+    sendRecordNotices,
     // ── Idle automation por tracking (substitui detect-leads-waiting-attention + LAST_INBOUND_TIMEOUT) ──
     scheduleIdleChecks,
     checkNoFirstResponse,

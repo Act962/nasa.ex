@@ -19,6 +19,7 @@ import { ANALYSIS_QUERIES } from "./analysis";
 import { PLATFORM_QUERIES } from "./platform";
 import { RESPONSE_QUERIES } from "./responses";
 import { LEAD_LOOKUP_QUERIES } from "./lead-lookup";
+import { RECORD_QUERIES } from "./records";
 import { matchesAnyIntentPattern } from "@/features/astro/actions/match-intent-pattern";
 import { isAccountingQuestion } from "./accounting-question";
 
@@ -33,6 +34,9 @@ export const ASTRO_QUERIES: AstroQuery[] = [
   // Análises com filtro e período antes de tudo: são as perguntas mais
   // específicas e devolvem `null` quando o filtro não existe na org.
   ...LEAD_LOOKUP_QUERIES,
+  // Fichas antes de tudo que fala de clientes, vencimentos e listas: a consulta devolve `null`
+  // quando a empresa não usa fichas ou a frase não é sobre elas (spec 0081, RNF-3).
+  ...RECORD_QUERIES,
   ...RESPONSE_QUERIES,
   ...ANALYSIS_QUERIES,
   // Insights antes do tracking: "quantos leads com a tag X" é relatório, e
