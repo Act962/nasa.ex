@@ -27,6 +27,11 @@ export function useUpsertBotConfig() {
   );
 }
 
+/** Amostra de uma voz da resposta em áudio (spec 0083). Não salva nada. */
+export function useBotVoiceSample() {
+  return useMutation(orpc.astroBot.config.voiceSample.mutationOptions());
+}
+
 export function useBindings(scope: "mine" | "org" = "mine") {
   const query = useQuery(
     orpc.astroBot.binding.list.queryOptions({ input: { scope } }),

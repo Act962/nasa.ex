@@ -67,6 +67,8 @@ export const AUTO_TAG_SLUGS = {
   instagram: "instagram",
   facebook: "facebook",
   siteChat: "chat-do-site",
+  newLead: "novo-lead",
+  paidTraffic: "trafego",
 } as const;
 
 export type AutoTagKey = keyof typeof AUTO_TAG_SLUGS;
@@ -79,4 +81,6 @@ export const DEFAULT_TAGS: { key: AutoTagKey; name: string; color: string; descr
   { key: "instagram", name: "Instagram", color: "#e1306c", description: "Chegou pelo Instagram." },
   { key: "facebook", name: "Facebook", color: "#1877f2", description: "Chegou pelo Facebook." },
   { key: "siteChat", name: "Chat do site", color: "#8b5cf6", description: "Chegou pelo chat do site." },
+  { key: "newLead", name: "Novo lead", color: "#06b6d4", description: "Primeiro contato do cliente." },
+  { key: "paidTraffic", name: "Tráfego", color: "#f97316", description: "Chegou por anúncio." },
 ];

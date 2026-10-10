@@ -82,6 +82,7 @@ export const createMessageWithFile = base
         await chargeMessageOutbound({
           organizationId: conv.tracking.organizationId,
           userId: context.user.id,
+          trackingId: conv?.trackingId,
           channel:
             conv.channel === MessageChannel.INSTAGRAM
               ? "instagram"

@@ -71,9 +71,14 @@ export async function transcribeBotAudio(params: {
 }): Promise<AudioTranscription> {
   try {
     const download = params.downloadAudio ?? downloadFromTrackingProvider;
+    const downloadStartedAt = Date.now();
     const buffer = await download(params.trackingId, params.media);
     if (!buffer) return { isTranscribed: false, reply: AUDIO_UNAVAILABLE_REPLY };
+    const transcriptionStartedAt = Date.now();
     const transcription = await transcribeAudioBuffer(buffer, fileNameFor(params.media), params.media.mimetype);
+    console.log(
+      `[astro-bot/tempo] baixarAudio=${transcriptionStartedAt - downloadStartedAt}ms transcrever=${Date.now() - transcriptionStartedAt}ms`,
+    );
     if (!transcription || !transcription.text) return { isTranscribed: false, reply: AUDIO_UNAVAILABLE_REPLY };
     if (transcription.seconds > MAX_AUDIO_SECONDS) return { isTranscribed: false, reply: AUDIO_TOO_LONG_REPLY };
     const starsCharged = params.isBillingExempt ? 0 : await chargeTranscription(params.binding, transcription.seconds);

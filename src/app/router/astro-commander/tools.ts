@@ -3,6 +3,8 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { z } from "zod";
 import { resolveToolSetForScope } from "@/features/astro/server/tool-scope";
+import { filterToolsByPermission } from "@/features/astro/server/tool-permissions";
+import type { AgentContext } from "@/features/astro/server/agents/types";
 import {
   isFinancialTool,
 } from "@/features/astro-commander/lib/guardrails";
@@ -38,15 +40,17 @@ export const listCommandTools = base
   .use(requireOrgMiddleware)
   .input(z.object({}).optional())
   .handler(async ({ context }) => {
-    const scope = resolveToolSetForScope("full", {
+    const agentContext: AgentContext = {
       userId: context.user.id,
       organizationId: context.org.id,
       route: {},
       restrictToOrgId: context.org.id,
       channel: "CHAT",
-    });
+    };
+    const scope = resolveToolSetForScope("full", agentContext);
+    const permittedTools = await filterToolsByPermission(scope.tools, agentContext);
 
-    const tools = Object.entries(scope.tools)
+    const tools = Object.entries(permittedTools)
       .map(([name, definition]) => ({
         name,
         description:

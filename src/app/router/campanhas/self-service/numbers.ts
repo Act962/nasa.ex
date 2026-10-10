@@ -1,3 +1,9 @@
+import {
+  NUMBER_COST_KINDS,
+  currentBrazilMonth,
+  listNumberCostEntries,
+  loadNumberCostSummary,
+} from "@/features/campanhas/server/lib/number-costs";
 import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
@@ -109,6 +115,45 @@ export const numberPanel = base
   .use(requireOrgMiddleware)
   .input(z.object({ trackingId: z.string().min(1) }))
   .handler(async ({ input, context }) => loadMetaNumberPanel(input.trackingId, context.org.id));
+
+const monthInput = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional();
+
+/** Custos do número no mês: crédito, chamadas, mensagens, mensalidade e gasto guardado da Meta (spec 0087, RF-27). */
+export const numberCostSummary = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .input(z.object({ trackingId: z.string().min(1), month: monthInput }))
+  .handler(async ({ input, context, errors }) => {
+    await assertTrackingInOrg(input.trackingId, context.org.id, errors);
+    return loadNumberCostSummary({ organizationId: context.org.id, trackingId: input.trackingId, month: input.month ?? currentBrazilMonth() });
+  });
+
+/** Histórico de custos do número no mês, com filtro por tipo. */
+export const numberCostEntries = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .input(z.object({ trackingId: z.string().min(1), month: monthInput, kind: z.enum(NUMBER_COST_KINDS).optional() }))
+  .handler(async ({ input, context, errors }) => {
+    await assertTrackingInOrg(input.trackingId, context.org.id, errors);
+    return {
+      entries: await listNumberCostEntries({
+        organizationId: context.org.id,
+        trackingId: input.trackingId,
+        month: input.month ?? currentBrazilMonth(),
+        kind: input.kind,
+      }),
+    };
+  });
+
+/** O número precisa ser da empresa ativa: sem isto, o id de outro tracking mostraria os custos alheios. */
+async function assertTrackingInOrg(
+  trackingId: string,
+  organizationId: string,
+  errors: { NOT_FOUND: (options: { message: string }) => Error },
+): Promise<void> {
+  const tracking = await prisma.tracking.findFirst({ where: { id: trackingId, organizationId }, select: { id: true } });
+  if (!tracking) throw errors.NOT_FOUND({ message: "Número não encontrado." });
+}
 
 /** "Comprar número" no assistente: avisa a equipe do novo lead (o cliente fala com o comercial pelo WhatsApp dele). */
 export const notifyNumberPurchaseInterest = base

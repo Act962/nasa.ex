@@ -44,6 +44,7 @@ const FIELD_LABELS: Record<string, string> = {
   favorite: "se é para favoritar ou desfavoritar",
   active: "se é para ativar ou desativar",
   blocked: "se é para bloquear ou liberar",
+  siteUrl: "o site",
 };
 
 export function labelFor(field: string): string {

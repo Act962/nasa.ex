@@ -136,6 +136,23 @@ export const MENU_APPS: MenuApp[] = [
       { id: "financeiro.receita", title: "Lançar receita", description: "Conta a receber", permission: { appKey: "financeiro", action: "create" }, prompt: "quero lançar uma receita" },
     ],
   },
+  // Fichas com próxima data (spec 0081). As frases usam "fichas", que vale para qualquer formulário
+  // de ficha: o nome do ramo (manutenção, revisão) é da empresa, não do menu.
+  {
+    id: "fichas",
+    title: "Fichas",
+    shortTitle: "Fichas",
+    description: "Atendimentos e próximas datas",
+    appKey: "formularios",
+    question: "O que você quer ver nas Fichas?",
+    items: [
+      { id: "fichas.hoje", title: "Previstas hoje", description: "Com as vencidas", permission: { appKey: "formularios", action: "view" }, prompt: "quais fichas tenho hoje?" },
+      { id: "fichas.semana", title: "Previstas na semana", description: "Próximos 7 dias", permission: { appKey: "formularios", action: "view" }, prompt: "quais fichas tenho essa semana?" },
+      { id: "fichas.vencidas", title: "Vencidas", description: "Data já passou", permission: { appKey: "formularios", action: "view" }, prompt: "quais fichas estão vencidas?" },
+      { id: "fichas.faturado", title: "Faturado no mês", description: "Soma das fichas finalizadas", permission: { appKey: "formularios", action: "view" }, prompt: "quanto faturei esse mês?" },
+      { id: "fichas.cliente", title: "Fichas de um cliente", description: "Pelo nome", permission: { appKey: "formularios", action: "view" }, hint: 'Escreva *fichas da* e o nome do cliente.\nEx.: "me mostra as fichas da Maria".' },
+    ],
+  },
   {
     id: "formularios",
     title: "Formulários",

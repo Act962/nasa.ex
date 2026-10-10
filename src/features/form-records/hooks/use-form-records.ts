@@ -9,6 +9,7 @@ export function useFormRecords(params: {
   leadId?: string;
   leadMemberId?: string;
   search?: string;
+  nextDue?: "overdue" | "week" | "month";
   page: number;
 }) {
   return useQuery({

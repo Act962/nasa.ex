@@ -81,6 +81,7 @@ export const createTemplateMessage = base
       await chargeMessageOutbound({
         organizationId,
         userId: context.user.id,
+        trackingId: trackingId,
         channel: "whatsapp",
         mediaType: "text",
       });

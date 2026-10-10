@@ -1,7 +1,81 @@
 "use client";
 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { PhoneIncomingIcon, PhoneOutgoingIcon, VideoIcon } from "lucide-react";
+import { toast } from "sonner";
+
+/** Fala guardada em `Message.metadata.callTranscript` pelas chamadas atendidas pelo Astro (spec 0087). */
+interface CallTranscriptLine {
+  speaker: "pessoa" | "astro" | "sistema";
+  text: string;
+  at: number;
+}
+
+const SPEAKER_LABEL: Record<CallTranscriptLine["speaker"], string> = { pessoa: "Cliente", astro: "Astro", sistema: "•" };
+
+function readCallTranscript(metadata: unknown): { lines: CallTranscriptLine[]; isInterrupted: boolean } {
+  if (!metadata || typeof metadata !== "object") return { lines: [], isInterrupted: false };
+  const record = metadata as { callTranscript?: unknown; callInterrupted?: unknown };
+  const lines = Array.isArray(record.callTranscript)
+    ? record.callTranscript.filter(
+        (line): line is CallTranscriptLine =>
+          Boolean(line) && typeof line === "object" && typeof (line as CallTranscriptLine).text === "string",
+      )
+    : [];
+  return { lines, isInterrupted: record.callInterrupted === true };
+}
+
+function formatLineTime(at: number): string {
+  return new Date(at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function CallTranscriptDialog({ lines, isInterrupted }: { lines: CallTranscriptLine[]; isInterrupted: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const plainText = lines.map((line) => `[${formatLineTime(line.at)}] ${SPEAKER_LABEL[line.speaker]}: ${line.text}`).join("\n");
+  return (
+    <>
+      <Button type="button" variant="link" size="sm" className="h-auto justify-start p-0 text-xs" onClick={() => setIsOpen(true)}>
+        Ver transcrição
+      </Button>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Transcrição da ligação</DialogTitle>
+          </DialogHeader>
+          <div className="divide-y text-sm">
+            {lines.map((line, lineIndex) => (
+              <div key={lineIndex} className="flex gap-3 py-2">
+                <span className="w-16 shrink-0 text-xs tabular-nums text-muted-foreground">{formatLineTime(line.at)}</span>
+                <span className={cn("w-14 shrink-0 text-xs", line.speaker === "astro" ? "text-info" : "text-muted-foreground")}>
+                  {SPEAKER_LABEL[line.speaker]}
+                </span>
+                <span className={cn("min-w-0", line.speaker === "sistema" && "italic text-muted-foreground")}>{line.text}</span>
+              </div>
+            ))}
+            {isInterrupted && <p className="py-2 text-xs text-muted-foreground">A ligação foi interrompida.</p>}
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">O áudio não é gravado. Fica só o texto.</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                void navigator.clipboard.writeText(plainText);
+                toast.success("Transcrição copiada");
+              }}
+            >
+              Copiar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 /**
  * Card de mensagem de chamada (áudio/vídeo) — visual idêntico ao WhatsApp:
@@ -65,11 +139,15 @@ function formatDuration(sec: number | null | undefined): string {
 export function CallMessageBox({
   payload,
   fromMe,
+  metadata,
 }: {
   payload: CallPayload;
+  /** Dados extras da mensagem: a transcrição da ligação, quando o Astro atendeu. */
+  metadata?: unknown;
   /** `fromMe` é orientação visual: outgoing vs incoming arrow do ícone. */
   fromMe: boolean;
 }) {
+  const transcript = readCallTranscript(metadata);
   const isMissed = payload.status === "missed" || payload.status === "declined";
   const isVideo = payload.type === "video";
 
@@ -130,6 +208,7 @@ export function CallMessageBox({
             {subtitle}
           </span>
         )}
+        {transcript.lines.length > 0 && <CallTranscriptDialog lines={transcript.lines} isInterrupted={transcript.isInterrupted} />}
       </div>
     </div>
   );
