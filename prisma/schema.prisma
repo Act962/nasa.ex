@@ -9735,6 +9735,13 @@ model OrganizationBotConfig {
   /// escrita confirmada, leitura de documentos e cobrança de Stars.
   financeEnabled Boolean @default(false) @map("finance_enabled")
 
+  /// Resposta em áudio no WhatsApp (spec 0083): "off" | "match" (só quando recebe áudio) | "always".
+  voiceReplyMode String  @default("off") @map("voice_reply_mode")
+  /// Voz escolhida; NULL = voz padrão do provedor.
+  voiceName      String? @map("voice_name")
+  /// Depois da nota de voz, envia também a resposta escrita.
+  voiceAlsoText  Boolean @default(true) @map("voice_also_text")
+
   isActive  Boolean  @default(false) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -9842,6 +9849,11 @@ model WhatsappBotCommand {
   tokensUsed   Int? @map("tokens_used")
   /// Stars cobrados (já reflete cobrança real).
   starsCharged Int? @map("stars_charged")
+
+  /// A resposta saiu como nota de voz (spec 0083).
+  repliedWithVoice  Boolean @default(false) @map("replied_with_voice")
+  /// Stars cobradas pelo áudio gerado, à parte de `starsCharged`.
+  voiceStarsCharged Int?    @map("voice_stars_charged")
 
   binding UserWhatsappBinding @relation(fields: [bindingId], references: [id], onDelete: Cascade)
 

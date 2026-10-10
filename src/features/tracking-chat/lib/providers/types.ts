@@ -300,6 +300,12 @@ export interface SendResult {
   readonly raw: unknown;
 }
 
+export interface UploadCanonicalMedia {
+  readonly file: Buffer;
+  readonly mimetype: string;
+  readonly fileName?: string;
+}
+
 /** Pergunta com opções clicáveis (spec 0079): até 3 viram botões, de 4 a 10 viram lista. */
 export interface SendCanonicalInteractive extends SendBase {
   readonly kind: "interactive";
@@ -351,6 +357,11 @@ export interface WhatsAppChatProvider {
    * confere a presença e cai para texto quando o provider não tem.
    */
   sendInteractive?(input: SendCanonicalInteractive): Promise<SendResult>;
+  /**
+   * Sobe um arquivo para o provider e devolve o `mediaId` para `sendMedia`.
+   * Opcional: só a Meta Cloud implementa. Evita expor o arquivo em URL pública.
+   */
+  uploadMedia?(input: UploadCanonicalMedia): Promise<{ mediaId: string }>;
 
   // ── Webhook inbound ─────────────────────────────────────────────────────
 

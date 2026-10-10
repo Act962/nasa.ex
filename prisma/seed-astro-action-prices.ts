@@ -17,6 +17,18 @@ const ACTION_PRICES = [
     isPublic: true,
   },
   {
+    appSlug: "astro_bot_speech",
+    displayName: "ASTRO no WhatsApp — resposta em áudio",
+    description: "1★ por minuto de áudio gerado, mínimo 1★, teto 10★.",
+    monthlyCost: 0,
+    isPublic: false,
+    unit: "minute",
+    unitCost: "1",
+    unitDivisor: 1,
+    minCharge: 1,
+    maxCharge: 10,
+  },
+  {
     appSlug: "astro_bot_transcription",
     displayName: "ASTRO no WhatsApp — transcrição de áudio",
     description: "1★ por minuto de áudio, mínimo 1★, teto 100★.",

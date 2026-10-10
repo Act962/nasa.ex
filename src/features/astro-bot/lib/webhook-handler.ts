@@ -18,6 +18,7 @@ import prisma from "@/lib/prisma";
 import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
 import { handleBotCommand } from "./router";
+import { sendVoiceReply, shouldReplyWithVoice } from "./voice/reply-voice";
 import { notifyBotMessageReceived, scheduleInactivityNotice } from "./inactivity";
 import { rememberOpenQuestion } from "./open-question";
 import { TrackingProviderBotChannel } from "./tracking-provider-channel";
@@ -209,6 +210,7 @@ export async function maybeHandleBotMessage(
   // falhe NO MEIO, NÃO deixamos o webhook cair pro fluxo de atendimento —
   // isso causaria resposta duplicada (bot + chat-ia) e lead fantasma.
   try {
+    const commandStartedAt = Date.now();
     const result = await handleBotCommand(
       {
         binding,
@@ -224,6 +226,23 @@ export async function maybeHandleBotMessage(
     );
 
     try {
+      const replyStartedAt = Date.now();
+      // Nota de voz primeiro, quando a empresa ligou e a resposta pode ser falada (spec 0083).
+      // Se a voz falhar, segue o texto de sempre; com "enviar também o texto" desligado, o áudio basta.
+      const wasVoiceSent =
+        shouldReplyWithVoice(binding.botConfig, result) &&
+        (await sendVoiceReply({ binding, settings: binding.botConfig, channel, phone: input.fromPhone, result }));
+      if (wasVoiceSent || result.wasAudioInput) {
+        console.log(
+          `[astro-bot/tempo] audioRecebido=${Boolean(result.wasAudioInput)} respostaEmVoz=${wasVoiceSent} ` +
+            `comando=${replyStartedAt - commandStartedAt}ms voz=${Date.now() - replyStartedAt}ms`,
+        );
+      }
+      if (wasVoiceSent && !binding.botConfig.voiceAlsoText) {
+        await scheduleInactivityNotice({ bindingId: binding.id, trackingId: input.trackingId, phone: input.fromPhone }, false);
+        return { handled: true, bindingId: binding.id, status: result.status };
+      }
+      const isReplyToAudio = wasVoiceSent || Boolean(result.wasAudioInput);
       // Escolha vira botão; o resto, texto. O canal degrada sozinho quando o
       // provider não aceita menu.
       const sent =
@@ -232,8 +251,9 @@ export async function maybeHandleBotMessage(
               bodyText: result.reply,
               buttons: result.buttons,
               listButtonLabel: result.listButtonLabel,
+              isImmediate: isReplyToAudio,
             })
-          : await channel.sendText(input.fromPhone, result.reply);
+          : await channel.sendText(input.fromPhone, result.reply, { isImmediate: isReplyToAudio });
       rememberOpenQuestion(binding.id, sent.messageId, result.buttons);
     } catch (sendErr) {
       console.error("[astro-bot/webhook-handler] envio falhou", sendErr);

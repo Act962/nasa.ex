@@ -57,6 +57,12 @@ export const CATALOG_DEFAULTS: Record<string, CatalogDefault> = {
     maxCharge: 100,
     displayName: "ASTRO no WhatsApp — transcrição de áudio",
   },
+  astro_bot_speech: {
+    unit: "minute",
+    minCharge: 1,
+    maxCharge: 10,
+    displayName: "ASTRO no WhatsApp — resposta em áudio",
+  },
   astro_voice_minute: {
     unit: "minute",
     minCharge: 1,
