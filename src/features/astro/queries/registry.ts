@@ -1,4 +1,5 @@
 import "server-only";
+import { ASTRO_READ_DENIAL } from "@/features/astro/lib/permission-denial";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import {
   COMPOSE_VERB_ANYWHERE,
@@ -110,7 +111,7 @@ async function runSingleQuery(
     // Casou a frase, mas quem pergunta não pode ver: a recusa sai em código.
     // Seguir para o orquestrador custava ~23 mil tokens para dizer o mesmo.
     if (!(await canAstroRead(ctx, query.appKey))) {
-      return { key: "permission.denied", result: { text: "Você não tem acesso a esse App, então não posso trazer esses dados. Peça ao administrador da empresa." } };
+      return { key: "permission.denied", result: { text: ASTRO_READ_DENIAL } };
     }
     // O Financeiro tem acesso próprio, além da matriz: sem ele, a tela
     // recusa — e o ASTRO recusa igual (F2-12).

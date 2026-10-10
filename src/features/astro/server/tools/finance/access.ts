@@ -7,12 +7,10 @@ import {
   type ResolvedPaymentPermissions,
 } from "@/features/payment/server/access/resolve-payment-permissions";
 import type { PaymentAction, PaymentResource } from "@/features/payment/lib/permissions";
+import { astroDenialFor } from "@/features/astro/lib/permission-denial";
 
 // Gate de permissão das tools financeiras (spec 0014, RF-1/D-4): a mesma
 // matriz do middleware oRPC. Resolvido uma vez por request e cacheado no ctx.
-
-const NO_ACCESS_MESSAGE =
-  "Você não tem acesso ao módulo financeiro desta empresa. Peça ao responsável pelo financeiro pra liberar em /payment › Configurações › Acesso.";
 
 type AccessCache = WeakMap<AgentContext, Promise<ResolvedPaymentPermissions | null>>;
 const accessCache: AccessCache = new WeakMap();
@@ -41,12 +39,8 @@ export async function assertPaymentToolAccess(
   action: PaymentAction,
 ): Promise<FinanceAccessResult> {
   const resolved = await loadPermissions(ctx);
-  if (!resolved) return { ok: false, error: NO_ACCESS_MESSAGE };
-  if (!isPaymentActionAllowed(resolved, resource, action)) {
-    return {
-      ok: false,
-      error: `Sua permissão no financeiro (${resolved.role}) não permite ${action} em ${resource}.`,
-    };
+  if (!resolved || !isPaymentActionAllowed(resolved, resource, action)) {
+    return { ok: false, error: astroDenialFor(action) };
   }
   return { ok: true };
 }

@@ -10,6 +10,7 @@ import { ASTRO_ACTIONS, getAstroAction } from "./registry";
 import { labelFor } from "./field-options";
 import type { AstroAction, AstroActionResult } from "./types";
 import { parsePickedAnswer } from "@/features/astro/lib/astro-picker";
+import { checkAstroPermission } from "./permission-gate";
 
 /**
  * Ponte entre o registro de ações e a confirmação que já existia (spec 0014).
@@ -137,6 +138,9 @@ export function registerRegistryExecutors(): void {
       if (!target) {
         return { ok: false, summary: `Ação "${action.key}" não existe mais.` };
       }
+      // O "sim" pode chegar depois de a permissão mudar: confere de novo antes de gravar.
+      const allowed = await checkAstroPermission({ ctx, ...target.permission });
+      if (!allowed.ok) return { ok: false, summary: allowed.error };
       const parsed = target.input.safeParse(payload);
       if (!parsed.success) {
         return { ok: false, summary: "Os dados da confirmação não são mais válidos." };
