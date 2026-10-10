@@ -107,7 +107,7 @@ const documentPayloadSchema = z.object({
 /**
  * BUTTONS: WhatsApp interactive menu com até 3 botões. Dois modos:
  *  - "preset"  → usa `presetId` de AiButtonPreset já configurado em
- *                Chatbot IA → Presets de botões (tracking-scoped)
+ *                Fluxo de atendimento → Botões (tracking-scoped)
  *  - "inline"  → user define bodyText/footerText/buttons aqui mesmo
  *
  * No runtime, o executor resolve: se `presetId` setado, lê preset do DB;
@@ -341,7 +341,7 @@ function ButtonsPayloadFields({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="preset">
-                  Preset existente (Chatbot IA → Presets de botões)
+                  Preset existente (Fluxo de atendimento → Botões)
                 </SelectItem>
                 <SelectItem value="inline">
                   Inline (digitar aqui agora)
@@ -391,7 +391,7 @@ function ButtonsPayloadFields({
                     href={`/tracking/${trackingId}/settings?tab=chatbot-ia&iaTab=buttons`}
                     className="underline"
                   >
-                    Chatbot IA → Presets de botões
+                    Fluxo de atendimento → Botões
                   </Link>
                   .
                 </FieldDescription>

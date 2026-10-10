@@ -301,15 +301,16 @@ async function toVoiceOutput(call: ActiveCall, textChannel: TrackingProviderBotC
   const hasButtons = Boolean(result.buttons && result.buttons.length > 0);
   const isMessageOnly = MESSAGE_ONLY_CONTENT.test(result.reply);
 
-  if (result.status === "ok" && !hasAnswerButtons && !result.reply.trim().endsWith("?") && canBeSpoken(result.reply)) {
-    return `Resultado da ferramenta, para dizer à pessoa: ${toSpeakableText(result.reply)}`;
-  }
-
-  // Pergunta do roteiro: falada, sem mensagem no meio da ligação. A ação ainda não foi feita.
   // Só é pergunta o que espera resposta: botão de resposta do roteiro ou frase terminada em "?".
   // Cartão de ação concluída também tem botões (abrir, menu) e não pode ser lido como pergunta.
   const hasAnswerButtons = (result.buttons ?? []).some((button) => button.id.startsWith("ans:"));
   const isQuestion = hasAnswerButtons || result.reply.trim().endsWith("?");
+
+  if (result.status === "ok" && !isQuestion && canBeSpoken(result.reply)) {
+    return `Resultado da ferramenta, para dizer à pessoa: ${toSpeakableText(result.reply)}`;
+  }
+
+  // Pergunta do roteiro: falada, sem mensagem no meio da ligação. A ação ainda não foi feita.
   if (result.status === "ok" && isQuestion && !isMessageOnly) {
     const optionNames = spokenOptions.map((button) => button.text);
     call.pendingQuestion = { options: optionNames };

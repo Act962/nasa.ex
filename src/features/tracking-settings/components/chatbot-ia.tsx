@@ -26,7 +26,7 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <BotIcon className="size-4 " />
-            <h2 className="text-xl font-semibold">Chatbot IA</h2>
+            <h2 className="text-xl font-semibold">Fluxo de atendimento</h2>
           </div>
           <p className="text-muted-foreground text-sm">
             Personalize seu agente de IA para respoder de acordo com seu negócio

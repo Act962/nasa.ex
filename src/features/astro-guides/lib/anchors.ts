@@ -61,7 +61,7 @@ export const GUIDE_ANCHORS = {
   },
   chatbotIaKnowledgePicker: {
     id: "tracking.chatbot-ia.knowledge-picker",
-    description: "Seletor \"Documentos que o atendimento pode usar\" na aba \"O que o Astro pode fazer\" do Chatbot IA",
+    description: "Seletor \"Documentos que o atendimento pode usar\" na aba \"O que o Astro pode fazer\" do Fluxo de atendimento",
   },
   trackingList: {
     id: "tracking.list",

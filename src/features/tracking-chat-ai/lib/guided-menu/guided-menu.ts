@@ -91,16 +91,36 @@ function describeDay(date: string): { short: string; long: string } {
 /** O que o menu precisa do canal. Separado para a verificação rodar sem mandar nada ao WhatsApp. */
 export type GuidedMenuChannel = Pick<TrackingProviderBotChannel, "sendButtons" | "sendText">;
 
+/** O que o menu lê do atendimento. O teste da tela monta isto sem lead nem conversa de verdade. */
+export type GuidedMenuContext = Pick<AgentContext, "organizationId" | "trackingId" | "capabilities"> & {
+  lead: Pick<AgentContext["lead"], "id" | "name" | "phone">;
+  conversation: Pick<AgentContext["conversation"], "id">;
+  settings: { assistantName: string | null } | null;
+  organization: { name: string };
+};
+
+interface GuidedMenuOptions {
+  channel?: GuidedMenuChannel;
+  /** Teste pela tela de configuração: mostra o roteiro de verdade, mas não grava, não marca e não transfere. */
+  isTest?: boolean;
+  /** Passa o cliente para a equipe. Ausente no teste. */
+  transferToHuman?: () => Promise<void>;
+}
+
+const TEST_NO_APPOINTMENTS = "(teste) No teste nenhum horário é marcado de verdade, por isso esta lista fica vazia.";
+
 class GuidedMenu {
   private readonly channel: GuidedMenuChannel;
   private readonly tools: ToolSet;
   private readonly hasAgenda: boolean;
+  private readonly isTest: boolean;
 
   constructor(
-    private readonly ctx: AgentContext,
-    channel?: GuidedMenuChannel,
+    private readonly ctx: GuidedMenuContext,
+    private readonly options: GuidedMenuOptions = {},
   ) {
-    this.channel = channel ?? new TrackingProviderBotChannel(ctx.trackingId);
+    this.isTest = options.isTest === true;
+    this.channel = options.channel ?? new TrackingProviderBotChannel(ctx.trackingId);
     const scope = buildLeadAgendaScope(ctx);
     this.hasAgenda = scope !== null;
     this.tools = scope ? makeLeadAgendaTools(scope) : {};
@@ -111,6 +131,7 @@ class GuidedMenu {
   }
 
   private async persist(body: string, externalMessageId: string | null, options: MenuOption[]): Promise<void> {
+    if (this.isTest) return;
     const optionsLine = options.length > 0 ? `\n[opções: ${options.map((option) => option.title).join(" · ")}]` : "";
     await persistOutboundMessage({
       conversationId: this.ctx.conversation.id,
@@ -189,8 +210,11 @@ class GuidedMenu {
   }
 
   private async transferToHuman(): Promise<void> {
-    const transfer = makeTransferToHumanTool(this.ctx) as unknown as { execute: (input: unknown, options: { toolCallId: string; messages: [] }) => Promise<unknown> };
-    await transfer.execute({ reason: "Cliente pediu atendente pelo menu", clientAsked: true }, { toolCallId: `menu-${Date.now()}`, messages: [] });
+    if (this.isTest || !this.options.transferToHuman) {
+      await this.sendText("(teste) Aqui o atendimento passaria para a equipe, que seria avisada.");
+      return;
+    }
+    await this.options.transferToHuman();
     await this.sendText("Vou passar seu atendimento para a nossa equipe, que continua por aqui.");
   }
 
@@ -313,6 +337,13 @@ class GuidedMenu {
 
   private async confirm(target: Extract<ClientMenuStep, { step: "confirm" }>): Promise<void> {
     const slotsTarget = { step: "slots" as const, agendaId: target.agendaId, date: target.date, appointmentId: target.appointmentId, page: 0 };
+    if (this.isTest) {
+      const freeTimes = await this.freeTimes(target.agendaId, target.date);
+      if (!freeTimes?.includes(target.time)) return this.showSlots(slotsTarget, "Esse horário não está mais disponível.");
+      const agendaName = (await this.agendaName(target.agendaId)) ?? "";
+      await this.sendChoice(`(teste) Marcado! ${agendaName}, ${describeDay(target.date).long}, às ${target.time}. Nada foi gravado.`, [this.backToMenu()]);
+      return;
+    }
     const startsAt = dayjs.tz(`${target.date} ${target.time}`, AGENDA_TIME_ZONE).toDate();
     if (target.appointmentId) {
       if (!(await this.findOwnAppointment(target.appointmentId))) return this.unavailable();
@@ -343,6 +374,10 @@ class GuidedMenu {
 
   private async showMine(): Promise<void> {
     if (!this.hasAgenda) return this.unavailable();
+    if (this.isTest) {
+      await this.sendChoice(TEST_NO_APPOINTMENTS, [{ id: clientMenuId({ step: "book" }), title: "Agendar" }, this.backToMenu()]);
+      return;
+    }
     const output = await runAgendaTool(this.tools, "list_my_appointments", {});
     const appointments = (output.appointments as { appointmentId: string; agendaName: string; date: string; time: string }[] | undefined) ?? [];
     if (appointments.length === 0) {
@@ -391,6 +426,13 @@ class GuidedMenu {
   }
 
   async run(target: ClientMenuStep): Promise<void> {
+    // No teste não existe agendamento: os passos que partem de um caem na explicação.
+    const needsAppointment =
+      target.step === "appointment" || target.step === "reschedule" || target.step === "cancel" || target.step === "cancelConfirm";
+    if (this.isTest && (needsAppointment || ("appointmentId" in target && target.appointmentId))) {
+      await this.sendChoice(TEST_NO_APPOINTMENTS, [this.backToMenu()]);
+      return;
+    }
     switch (target.step) {
       case "menu":
         return this.showMenu();
@@ -441,6 +483,13 @@ async function resolveNumberedAnswer(conversationId: string, answer: string): Pr
   return typeof chosen?.id === "string" ? chosen.id : null;
 }
 
+/** Decide o passo a partir do que chegou: clique, número de uma lista numerada ou saudação. */
+function resolveTarget(input: { text: string; replyId: string | null }): ClientMenuStep | "not_menu" | "invalid" {
+  if (input.replyId && !isClientMenuId(input.replyId)) return "not_menu";
+  if (!input.replyId) return GREETING_PATTERN.test(normalize(input.text)) ? { step: "menu" } : "not_menu";
+  return parseClientMenuId(input.replyId) ?? "invalid";
+}
+
 /**
  * Trata a mensagem pelo menu quando ela é saudação ou clique do menu. `handled: false` devolve a
  * mensagem para a assistente (texto livre, áudio, clique de outro tipo de botão).
@@ -458,11 +507,11 @@ export async function handleGuidedMenu(
   if (!inbound || inbound.mimetype || inbound.mediaType) return { handled: false };
 
   const clickedId = (inbound.metadata as { interactiveReplyId?: unknown } | null)?.interactiveReplyId;
-  const text = normalize(inbound.body ?? "");
+  const text = inbound.body ?? "";
   let replyId: string | null = typeof clickedId === "string" ? clickedId : null;
-  if (!replyId && NUMBERED_ANSWER.test(text)) replyId = await resolveNumberedAnswer(ctx.conversation.id, text);
-  if (replyId && !isClientMenuId(replyId)) return { handled: false };
-  if (!replyId && !GREETING_PATTERN.test(text)) return { handled: false };
+  if (!replyId && NUMBERED_ANSWER.test(text.trim())) replyId = await resolveNumberedAnswer(ctx.conversation.id, text.trim());
+  const target = resolveTarget({ text, replyId });
+  if (target === "not_menu") return { handled: false };
 
   const clicksLastHour = await prisma.message.count({
     where: {
@@ -474,12 +523,31 @@ export async function handleGuidedMenu(
   });
   if (clicksLastHour >= MAX_CLICKS_PER_HOUR) return { handled: true };
 
-  const menu = new GuidedMenu(ctx, channel);
-  const target = replyId ? parseClientMenuId(replyId) : ({ step: "menu" } as const);
-  if (!target) {
-    await menu.run({ step: "menu" });
-    return { handled: true };
-  }
-  await menu.run(target);
+  const menu = new GuidedMenu(ctx, {
+    channel,
+    transferToHuman: async () => {
+      const transfer = makeTransferToHumanTool(ctx) as unknown as {
+        execute: (input: unknown, options: { toolCallId: string; messages: [] }) => Promise<unknown>;
+      };
+      await transfer.execute({ reason: "Cliente pediu atendente pelo menu", clientAsked: true }, { toolCallId: `menu-${Date.now()}`, messages: [] });
+    },
+  });
+  await menu.run(target === "invalid" ? { step: "menu" } : target);
+  return { handled: true };
+}
+
+/**
+ * O mesmo roteiro, para o teste da tela de configuração (spec 0089): nada é enviado ao WhatsApp,
+ * nada é gravado e nenhum horário é marcado. O canal recebido só coleta o que seria enviado.
+ */
+export async function runGuidedMenuTest(
+  ctx: GuidedMenuContext,
+  input: { text: string; replyId: string | null },
+  channel: GuidedMenuChannel,
+): Promise<{ handled: boolean }> {
+  if (!ctx.capabilities.guidedMenu) return { handled: false };
+  const target = resolveTarget(input);
+  if (target === "not_menu") return { handled: false };
+  await new GuidedMenu(ctx, { channel, isTest: true }).run(target === "invalid" ? { step: "menu" } : target);
   return { handled: true };
 }

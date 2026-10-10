@@ -90,8 +90,8 @@ export const sendRecordPixAction: AstroAction<typeof leadNameSchema> = {
 
     // O ensaio já barra o que impediria o envio: cliente sem telefone, chave PIX não cadastrada.
     const checked = await checkRecordPix({ organizationId: ctx.organizationId, recordId: record.id });
-    if ("failure" in checked) {
-      return { status: "error", title: "Não dá para enviar o PIX", description: checked.failure.isSent ? "" : checked.failure.message, appName: APP_NAME };
+    if (checked.failure) {
+      return { status: "error", title: "Não dá para enviar o PIX", description: checked.failure.message, appName: APP_NAME };
     }
     if (dryRun) {
       const resendNote = record.pixSentAt ? " O PIX desta ficha já foi enviado antes." : "";

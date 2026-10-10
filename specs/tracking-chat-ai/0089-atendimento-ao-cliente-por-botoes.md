@@ -228,3 +228,16 @@ O roteiro chama as próprias ferramentas da assistente (`makeLeadAgendaTools(...
 | RNF-2 | Nomes que ficam iguais ao encurtar viram a parte que os diferencia ("Centro", "Jóckei"), com o nome inteiro na descrição; a lista de agendas sai sempre em lista | Dois botões "Consulta oftalmológ…" idênticos apareceram na verificação |
 
 **Verificado em 10/10/2026** (`scripts/guided-menu-check.ts`, funil Suporte da Clínica Tércio Rezende): CA-1, 2, 3, 4, 5, 6, 8, 13 e CB-4, mais id malformado e "falar com atendente". **Falta verificar**: clique real no WhatsApp (CA-11, CA-12), número não oficial (CA-10), horário ocupado entre a escolha e o confirmar (CA-7), capacidade desligada (CA-9).
+
+## 15. Testar o fluxo pela tela e novo nome do menu (2026-10-10)
+
+Pedido do Weydson: a pessoa monta o fluxo e testa na própria tela, num celular com a cara do WhatsApp.
+
+- **Nome**: o item "ChatBot AI" das configurações do tracking passa a se chamar **"Fluxo de atendimento"**. O item que já tinha esse nome (lista de consultores do funil) passa a se chamar **"Consultores"**. Só rótulos: valores de aba (`chatbot-ia`, `flow-attendance`), rotas e nomes de arquivo não mudaram. Textos que apontavam para "Chatbot IA" foram ajustados.
+- **Testar**: o botão "Testar" da aba Geral já existia e abria um chat que chamava um webhook externo (`n8n.nasaex.com/webhook/chat-test`) direto do navegador, sem autenticação. Foi substituído por um celular simulado (`tracking-settings/components/chat-test-ai-modal.tsx`), servido pela rota própria `ia.attendanceTest.send`, que exige sessão e confere a empresa do tracking.
+- **Como o teste responde** (`tracking-chat-ai/lib/attendance-test.ts`):
+  - Saudação e cliques: o mesmo roteiro do menu, em modo de teste (`runGuidedMenuTest`). Agendas, dias e horários são os reais; confirmar mostra "(teste) Marcado!" e não grava; "Meus horários" e "atendente" explicam o que aconteceria.
+  - Texto livre: a assistente de verdade, com as instruções, os documentos marcados e as opções ligadas no funil. Só as ferramentas de leitura (`list_agendas`, `get_available_slots`) rodam; as que gravam ou enviam devolvem um resultado simulado. Cobra como uma resposta normal (`chat_ai_message`) e registra o custo em `UsageEvent`.
+  - Nada é enviado ao WhatsApp, nenhuma mensagem, agendamento, tag ou demanda é gravado. O histórico do teste vive só na tela.
+- **Verificado**: ensaio por script do motor (menu, agendar até confirmar, meus horários, atendente, texto livre, tracking de outra empresa recusado) e contagem de zero agendamentos e zero mensagens gravados. **Falta**: abrir a tela no navegador.
+

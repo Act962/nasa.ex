@@ -438,7 +438,7 @@ function CapabilitiesForm({
 
       {!canSave && (
         <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-          Preencha e salve a aba Geral do Chatbot IA antes de ligar estas opções.
+          Preencha e salve a aba Geral do Fluxo de atendimento antes de ligar estas opções.
         </p>
       )}
 

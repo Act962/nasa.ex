@@ -76,7 +76,11 @@ export function buildAgentTools(ctx: AgentContext): ToolSet {
 }
 
 /** Escopo da agenda preso ao cliente da conversa. `null` com a opção desligada ou sem agenda liberada. */
-export function buildLeadAgendaScope(ctx: AgentContext): LeadAgendaScope | null {
+export function buildLeadAgendaScope(
+  ctx: Pick<AgentContext, "organizationId" | "trackingId" | "capabilities"> & {
+    lead: Pick<AgentContext["lead"], "id" | "name" | "phone">;
+  },
+): LeadAgendaScope | null {
   if (!ctx.capabilities.agenda.isEnabled || ctx.capabilities.agenda.agendaIds.length === 0) return null;
   return {
     organizationId: ctx.organizationId,

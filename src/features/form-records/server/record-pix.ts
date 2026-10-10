@@ -58,7 +58,9 @@ const FAILURE_MESSAGES = {
   send_failed: "O WhatsApp recusou o envio.",
 } as const;
 
-function failure(reason: Exclude<SendRecordPixResult, { isSent: true }>["reason"], detail?: string): SendRecordPixResult {
+export type RecordPixFailure = Extract<SendRecordPixResult, { isSent: false }>;
+
+function failure(reason: RecordPixFailure["reason"], detail?: string): RecordPixFailure {
   return { isSent: false, reason, message: detail ?? FAILURE_MESSAGES[reason] };
 }
 
@@ -95,13 +97,14 @@ export async function checkRecordPix(params: { organizationId: string; recordId:
 
   const pixSettings = await getPixSettings(params.organizationId);
   if (!pixSettings.pixKey || !pixSettings.receiverName || !pixSettings.receiverCity) return { failure: failure("no_pix_key") } as const;
-  return { record, lead: { ...lead, phone: lead.phone }, pixSettings } as const;
+  // `failure: null` explícito: é por ele que quem chama separa os dois casos sem ambiguidade de tipo.
+  return { failure: null, record, lead: { ...lead, phone: lead.phone }, pixSettings } as const;
 }
 
 /** Envia ao cliente o valor e, em mensagem separada, o código para copiar com um toque. */
 export async function sendRecordPix(params: { organizationId: string; recordId: string; senderName: string }): Promise<SendRecordPixResult> {
   const checked = await checkRecordPix(params);
-  if ("failure" in checked) return checked.failure;
+  if (checked.failure) return checked.failure;
   const { record, lead, pixSettings } = checked;
 
   const recordTitle = record.label ? `${record.form.name} · ${record.label}` : record.form.name;

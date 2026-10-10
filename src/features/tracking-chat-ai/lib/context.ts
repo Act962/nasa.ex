@@ -173,15 +173,7 @@ export async function loadAgentContext(data: AgentEventData) {
   // de comportamento via system prompt extra (gerado em agent.ts).
   const trigger: AgentTrigger = data.trigger ?? "inbound";
 
-  // BYO model: decifra a key uma vez aqui. Se cifragem falhar (chave rotacionada,
-  // dado corrompido), loga e cai pro default — nunca derruba o agente.
-  const modelConfig: AiModelConfig | null = settings?.aiProvider
-    ? {
-        provider: settings.aiProvider,
-        modelId: settings.aiModelId,
-        apiKey: settings.aiApiKey ? safeDecrypt(settings.aiApiKey) : null,
-      }
-    : null;
+  const modelConfig = toModelConfig(settings);
 
   return {
     trackingId: data.trackingId,
@@ -204,6 +196,21 @@ export async function loadAgentContext(data: AgentEventData) {
     availableForms,
     // A última mensagem do cliente foi áudio: decide a resposta em voz (spec 0084, RF-3).
     isLastInboundAudio: isAudioMessage(messages.find((message) => !message.fromMe)),
+  };
+}
+
+/**
+ * Modelo próprio da empresa: decifra a chave uma vez. Se a cifragem falhar (chave rotacionada,
+ * dado corrompido), registra e cai no padrão — nunca derruba o atendimento.
+ */
+export function toModelConfig(
+  settings: { aiProvider: AiModelConfig["provider"]; aiModelId: string | null; aiApiKey: string | null } | null,
+): AiModelConfig | null {
+  if (!settings?.aiProvider) return null;
+  return {
+    provider: settings.aiProvider,
+    modelId: settings.aiModelId,
+    apiKey: settings.aiApiKey ? safeDecrypt(settings.aiApiKey) : null,
   };
 }
 

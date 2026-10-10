@@ -6,6 +6,7 @@ import { generateCompose } from "./generate-compose";
 import { generateConversationSummary } from "./generate-conversation-summary";
 import { getAiSettings } from "./get-ai-settings";
 import { getAiCapabilities, updateAiCapabilities } from "./ai-capabilities";
+import { sendAttendanceTest } from "./attendance-test";
 import { getAiUsage } from "./get-ai-usage";
 import { getTokenUsageOverview } from "./get-token-usage-overview";
 import { listAiButtonPresets } from "./list-ai-button-presets";
@@ -29,6 +30,9 @@ export const iaRouter = {
   capabilities: {
     get: getAiCapabilities,
     update: updateAiCapabilities,
+  },
+  attendanceTest: {
+    send: sendAttendanceTest,
   },
   usage: {
     get: getAiUsage,

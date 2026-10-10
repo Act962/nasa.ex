@@ -17,7 +17,7 @@ import { TRACKING_FIELD_STEP } from "../leads/lead-steps";
 // Monta o atendimento da empresa a partir do site dela (spec 0088): documento na Auto
 // Inteligência, agendas e configuração da assistente. Tudo nasce desligado para revisão.
 
-const APP_NAME = "Chatbot IA";
+const APP_NAME = "Fluxo de atendimento";
 const MAX_SITE_READS_PER_DAY = 5;
 const SITE_READ_FEATURE_KEY = "astro.attendance.site_read";
 const DAY_MS = 24 * 60 * 60_000;
@@ -157,7 +157,7 @@ export const setupAttendanceFromSiteAction: AstroAction<typeof inputSchema> = {
   app: "tracking",
   toolName: "setup_attendance_from_site",
   description:
-    "Monta o ATENDIMENTO AO CLIENTE da empresa a partir do SITE dela: lê o site e prepara o documento de informações, as agendas e a assistente do Chatbot IA, tudo desligado para revisão. " +
+    "Monta o ATENDIMENTO AO CLIENTE da empresa a partir do SITE dela: lê o site e prepara o documento de informações, as agendas e a assistente do Fluxo de atendimento, tudo desligado para revisão. " +
     "Use para 'monte o atendimento com o site da minha empresa', 'configure a assistente a partir deste link', 'treine o atendimento com meu site'. " +
     "Não é criar site nem página.",
   permission: { appKey: "tracking", action: "edit" },
@@ -304,7 +304,7 @@ export const setupAttendanceFromSiteAction: AstroAction<typeof inputSchema> = {
         ? "As instruções que o funil já tinha foram mantidas."
         : `Assistente "${applied.assistantName}" configurada, com o atendimento desligado.`,
       confirmedDraft.gaps.length > 0 ? `Preencha no documento: ${listNames(confirmedDraft.gaps, 6)}.` : "",
-      "Quando revisar, ligue o atendimento no Chatbot IA. Se quiser, peço em seguida os fluxos de atendimento do seu ramo.",
+      "Quando revisar, ligue o atendimento em Fluxo de atendimento. Se quiser, peço em seguida os fluxos de atendimento do seu ramo.",
     ]
       .filter(Boolean)
       .join("\n");
@@ -314,7 +314,7 @@ export const setupAttendanceFromSiteAction: AstroAction<typeof inputSchema> = {
       title: "Atendimento montado para revisão",
       description: summary,
       internalUrl: `/tracking/${tracking.id}/settings`,
-      openLabel: "Revisar no Chatbot IA",
+      openLabel: "Revisar o Fluxo de atendimento",
       appName: APP_NAME,
     };
   },

@@ -66,7 +66,7 @@ export const updateAiCapabilities = base
     const tracking = await findOwnedTracking(input.trackingId, context.org.id);
     if (!tracking) throw errors.NOT_FOUND({ message: "Tracking não encontrado" });
     if (!tracking.aiSettings) {
-      throw errors.BAD_REQUEST({ message: "Preencha a aba Geral do Chatbot IA antes de ligar estas opções." });
+      throw errors.BAD_REQUEST({ message: "Preencha a aba Geral do Fluxo de atendimento antes de ligar estas opções." });
     }
     // Só agendas desta empresa entram na lista do agente.
     const ownedAgendas = await prisma.agenda.findMany({

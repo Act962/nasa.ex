@@ -44,8 +44,6 @@ export enum MessageStatus {
 
 export interface Message {
   id: string;
-  /** Dados extras da mensagem; a transcrição do áudio fica aqui (spec 0084). */
-  metadata?: unknown;
   messageId: string;
   senderId?: string | null;
   senderName?: string | null;
@@ -67,7 +65,7 @@ export interface Message {
     };
   };
   quotedMessage?: Message | null;
-  /** `metadata.instagram` marca comentário/DM do Instagram (spec 0062). */
+  /** Dados extras: `metadata.instagram` marca comentário/DM do Instagram (spec 0062); a transcrição do áudio também fica aqui (spec 0084). */
   metadata?: unknown;
 }
 
