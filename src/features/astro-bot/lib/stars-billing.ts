@@ -16,7 +16,7 @@ export interface BotStakeCharge {
   isExempt: boolean;
 }
 
-async function isTrafegoOrganization(organizationId: string): Promise<boolean> {
+export async function isTrafegoOrganization(organizationId: string): Promise<boolean> {
   const organization = await prisma.organization.findUnique({
     where: { id: organizationId },
     select: { appScope: true },

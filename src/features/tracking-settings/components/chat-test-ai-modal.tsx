@@ -1,205 +1,200 @@
 "use client";
+
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { RotateCcwIcon, SendIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import { authClient } from "@/lib/auth-client";
-import { SendIcon, Bot, User } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
-import { FormEvent, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useSendAttendanceTest } from "../hooks/use-attendance-test";
+
+// Teste do fluxo de atendimento (spec 0089): um celular com a conversa como o cliente veria no
+// WhatsApp. Botões e listas seguem o roteiro de verdade; nada é enviado nem gravado.
 
 interface ChatTestAiModalProps {
   trackingId: string;
+  assistantName?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
+interface TestOption {
+  id: string;
+  title: string;
+  description?: string;
 }
 
-export const ChatTestAiModal = ({
-  trackingId,
-  open,
-  onOpenChange,
-}: ChatTestAiModalProps) => {
-  const [inputMessage, setInputMessage] = useState("");
-  const { data: session } = authClient.useSession();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+interface TestBubble {
+  from: "client" | "assistant";
+  body: string;
+  options: TestOption[];
+  kind: "menu" | "assistant" | "notice" | "client";
+}
 
-  const handleMessage = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || isLoading) return;
+const MAX_BUTTONS = 3;
 
-    const userMsg = inputMessage;
-    setInputMessage(""); // Limpa o input imediatamente
-    setMessages([{ role: "user", content: userMsg }]); // Reseta a lista para apenas o novo user message
-    setIsLoading(true);
+export function ChatTestAiModal({ trackingId, assistantName, open, onOpenChange }: ChatTestAiModalProps) {
+  const [bubbles, setBubbles] = useState<TestBubble[]>([]);
+  const [draft, setDraft] = useState("");
+  const sendTest = useSendAttendanceTest();
+  const endOfChatRef = useRef<HTMLDivElement>(null);
+  const displayName = assistantName?.trim() || "Assistente";
 
-    try {
-      const response = await fetch("https://n8n.nasaex.com/webhook/chat-test", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+  useEffect(() => {
+    endOfChatRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [bubbles, sendTest.isPending]);
+
+  const send = (text: string, clickId: string | null) => {
+    const trimmedText = text.trim();
+    if (!trimmedText || sendTest.isPending) return;
+    const history = bubbles
+      .filter((bubble) => bubble.kind !== "notice")
+      .map((bubble) => ({ role: bubble.from, text: bubble.body }));
+    setBubbles((current) => [...current, { from: "client", body: trimmedText, options: [], kind: "client" }]);
+    setDraft("");
+    sendTest.mutate(
+      { trackingId, text: trimmedText, clickId, history },
+      {
+        onSuccess: (result) => {
+          setBubbles((current) => [
+            ...current,
+            ...result.messages.map((message): TestBubble => ({ from: "assistant", ...message })),
+          ]);
         },
-        body: JSON.stringify({
-          trackingId,
-          userId: session?.user.id,
-          message: userMsg,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data && data.output) {
-        setMessages([
-          { role: "user", content: userMsg },
-          { role: "assistant", content: data.output },
-        ]);
-      } else {
-        setMessages([
-          { role: "user", content: userMsg },
-          {
-            role: "assistant",
-            content: "Não foi possível obter uma resposta da IA.",
-          },
-        ]);
-      }
-    } catch (error) {
-      console.error("Error fetching AI response:", error);
-      setMessages([
-        { role: "user", content: userMsg },
-        { role: "assistant", content: "Erro de conexão. Tente novamente." },
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
+        onError: (error) => {
+          setBubbles((current) => [
+            ...current,
+            { from: "assistant", body: error.message || "Não foi possível testar agora.", options: [], kind: "notice" },
+          ]);
+        },
+      },
+    );
   };
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    send(draft, null);
+  };
+
+  const lastBubbleIndex = bubbles.length - 1;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl h-[600px] flex flex-col p-6 rounded-3xl">
-        <DialogHeader className="pb-4 border-b">
-          <DialogTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-primary" />
-            </div>
-            Testar IA
-          </DialogTitle>
-          <DialogDescription className="text-sm">
-            Teste como a IA responde em tempo real. Cada nova pergunta reseta o
-            histórico.
+      <DialogContent className="flex max-h-[92dvh] flex-col gap-3 p-4 sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">Testar o fluxo de atendimento</DialogTitle>
+          <DialogDescription className="text-xs">
+            Converse como se fosse o cliente. Nada é enviado ao WhatsApp e nenhum horário é marcado de verdade.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto py-8 space-y-6 px-2">
-          {messages.length === 0 && !isLoading && (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground/40 space-y-4 animate-in fade-in duration-500">
-              <div className="p-4 rounded-full bg-muted/30">
-                <Bot className="w-10 h-10" />
-              </div>
-              <p className="font-medium">O que você gostaria de perguntar?</p>
+        <div className="mx-auto flex min-h-0 w-full max-w-[320px] flex-1 flex-col overflow-hidden rounded-[28px] border-2 border-border bg-background shadow-2xl">
+          <div className="flex h-5 items-center justify-center bg-muted">
+            <span className="h-1 w-16 rounded-full bg-border" />
+          </div>
+          <div className="flex items-center gap-2.5 bg-muted px-3 py-2">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+              {displayName.charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{displayName}</p>
+              <p className="text-[11px] text-muted-foreground">teste · nada é enviado</p>
             </div>
-          )}
+          </div>
 
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={cn(
-                "flex w-full gap-4 shrink-0 animate-in fade-in slide-in-from-bottom-4 duration-500",
-                message.role === "user" ? "justify-end" : "justify-start",
-              )}
+          <div className="min-h-[320px] flex-1 space-y-1.5 overflow-y-auto bg-muted/40 bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:14px_14px] p-2.5">
+            {bubbles.length === 0 && (
+              <p className="mx-auto mt-10 max-w-[220px] rounded-lg bg-card px-3 py-2 text-center text-xs text-muted-foreground">
+                Mande “oi” para ver o menu, ou escreva uma pergunta de cliente.
+              </p>
+            )}
+            {bubbles.map((bubble, bubbleIndex) => {
+              const isClickable = bubbleIndex === lastBubbleIndex && !sendTest.isPending;
+              const isList = bubble.options.length > MAX_BUTTONS;
+              return (
+                <div key={bubbleIndex} className={cn("flex flex-col", bubble.from === "client" ? "items-end" : "items-start")}>
+                  <div
+                    className={cn(
+                      "max-w-[86%] whitespace-pre-line break-words rounded-lg px-2.5 py-1.5 text-[13px] shadow-sm",
+                      bubble.from === "client" && "bg-brand-whatsapp/25",
+                      bubble.from === "assistant" && bubble.kind !== "notice" && "bg-card",
+                      bubble.kind === "notice" && "border border-warning/30 bg-warning/15 text-warning",
+                    )}
+                  >
+                    {bubble.body}
+                  </div>
+                  {bubble.options.length > 0 && (
+                    <div className={cn("mt-0.5 w-[86%]", isList ? "overflow-hidden rounded-lg bg-card shadow-sm" : "grid gap-0.5")}>
+                      {bubble.options.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          disabled={!isClickable}
+                          onClick={() => send(option.title, option.id)}
+                          className={cn(
+                            "w-full text-[13px] transition disabled:opacity-60",
+                            isList
+                              ? "border-b px-2.5 py-1.5 text-left last:border-b-0 enabled:hover:bg-muted"
+                              : "rounded-lg bg-card px-2 py-1.5 text-center font-medium text-info shadow-sm enabled:hover:bg-muted",
+                          )}
+                        >
+                          {option.title}
+                          {isList && option.description && (
+                            <span className="block text-[11px] text-muted-foreground">{option.description}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {bubble.from === "assistant" && bubble.kind !== "notice" && (
+                    <span
+                      className={cn(
+                        "mt-0.5 rounded-full border px-1.5 text-[10px]",
+                        bubble.kind === "assistant" ? "border-primary/40 text-primary" : "text-muted-foreground",
+                      )}
+                    >
+                      {bubble.kind === "assistant" ? "resposta da assistente (usa IA)" : "passo por botão · sem IA"}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+            {sendTest.isPending && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <OrbitaSpinner />
+                respondendo…
+              </div>
+            )}
+            <div ref={endOfChatRef} />
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex items-center gap-2 bg-muted px-2.5 py-2">
+            <input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              maxLength={1500}
+              placeholder="Escreva como se fosse o cliente…"
+              className="min-w-0 flex-1 rounded-full bg-card px-3 py-1.5 text-[13px] outline-none placeholder:text-muted-foreground"
+            />
+            <button
+              type="submit"
+              disabled={!draft.trim() || sendTest.isPending}
+              aria-label="Enviar"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-whatsapp text-white disabled:opacity-50"
             >
-              {message.role === "assistant" && (
-                <div className="w-9 h-9 rounded-2xl bg-secondary flex items-center justify-center shrink-0 shadow-sm">
-                  <Bot className="w-5 h-5 text-secondary-foreground" />
-                </div>
-              )}
-
-              <div
-                className={cn(
-                  "max-w-[85%] px-5 py-3 rounded-2xl text-sm leading-relaxed shadow-sm",
-                  message.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-tr-none font-medium"
-                    : "bg-muted text-muted-foreground rounded-tl-none border border-border/50",
-                )}
-              >
-                {message.content}
-              </div>
-
-              {message.role === "user" && (
-                <div className="w-9 h-9 rounded-2xl bg-muted flex items-center justify-center shrink-0 border border-border/50">
-                  <User className="w-5 h-5 text-muted-foreground" />
-                </div>
-              )}
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="flex justify-start gap-4 animate-pulse">
-              <div className="w-9 h-9 rounded-2xl bg-secondary flex items-center justify-center shadow-sm">
-                <Bot className="w-5 h-5 text-secondary-foreground" />
-              </div>
-              <div className="bg-muted text-muted-foreground px-5 py-4 rounded-3xl rounded-tl-none border border-border/50 flex items-center gap-2">
-                <div className="flex gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" />
-                </div>
-              </div>
-            </div>
-          )}
+              <SendIcon className="size-4" />
+            </button>
+          </form>
         </div>
 
-        <div className="pt-4 border-t px-2">
-          <form onSubmit={handleMessage} className="relative">
-            <InputGroup className="bg-muted/30 border border-border/50 rounded-2xl transition-all duration-300 focus-within:ring-2 ring-primary/10 focus-within:border-primary/30 h-16 shadow-inner">
-              <InputGroupInput
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder={
-                  isLoading
-                    ? "IA está processando..."
-                    : "Escreva sua dúvida aqui..."
-                }
-                disabled={isLoading}
-                className="bg-transparent border-0 focus-visible:ring-0 text-sm pl-6"
-              />
-              <InputGroupAddon align="inline-end" className="pr-3">
-                <Button
-                  type="submit"
-                  size="icon"
-                  disabled={!inputMessage.trim() || isLoading}
-                  className={cn(
-                    "rounded-xl w-10 h-10 transition-all duration-300",
-                    !inputMessage.trim()
-                      ? "opacity-20 scale-90"
-                      : "hover:scale-105 active:scale-95 shadow-lg shadow-primary/20",
-                  )}
-                >
-                  {isLoading ? (
-                    <OrbitaSpinner className="w-5 h-5 " />
-                  ) : (
-                    <SendIcon className="w-4 h-4" />
-                  )}
-                </Button>
-              </InputGroupAddon>
-            </InputGroup>
-          </form>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] text-muted-foreground">Pergunta escrita é respondida pela assistente e consome Stars como uma resposta normal.</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => setBubbles([])} disabled={bubbles.length === 0 || sendTest.isPending}>
+            <RotateCcwIcon />
+            Recomeçar
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
-};
+}

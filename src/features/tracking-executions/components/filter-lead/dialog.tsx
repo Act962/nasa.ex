@@ -75,6 +75,12 @@ const filterConditionSchema = z.discriminatedUnion("field", [
     operator: z.enum(["contains", "not_contains", "equals"]),
     value: z.string().min(1, "Informe o texto a comparar"),
   }),
+  // Interesse da Visão do Lead (spec 0085): Baixo, Médio ou Alto.
+  z.object({
+    field: z.literal("interest"),
+    operator: z.enum(["is", "at_least"]),
+    value: z.enum(["LOW", "MEDIUM", "HIGH"], { message: "Escolha o interesse" }),
+  }),
 ]);
 
 export const filterNodeFormSchema = z.object({
@@ -98,6 +104,13 @@ const FIELD_OPTIONS: { value: FilterCondition["field"]; label: string }[] = [
   { value: "name", label: "Nome" },
   { value: "email", label: "E-mail" },
   { value: "leadMessage", label: "Mensagem do lead" },
+  { value: "interest", label: "Interesse do lead" },
+];
+
+const INTEREST_OPTIONS = [
+  { value: "LOW", label: "Baixo" },
+  { value: "MEDIUM", label: "Médio" },
+  { value: "HIGH", label: "Alto" },
 ];
 
 const OPERATOR_OPTIONS: Record<
@@ -123,6 +136,10 @@ const OPERATOR_OPTIONS: Record<
     { value: "not_contains", label: "não contém" },
     { value: "equals", label: "é igual a" },
   ],
+  interest: [
+    { value: "at_least", label: "é pelo menos" },
+    { value: "is", label: "é exatamente" },
+  ],
 };
 
 const PLACEHOLDER_BY_FIELD: Record<FilterCondition["field"], string> = {
@@ -132,6 +149,7 @@ const PLACEHOLDER_BY_FIELD: Record<FilterCondition["field"], string> = {
   name: "Valor...",
   email: "Valor...",
   leadMessage: "ex: intrevistador",
+  interest: "Interesse...",
 };
 
 const DEFAULT_CONDITION: FilterCondition = {
@@ -435,6 +453,22 @@ export const FilterNodeDialog = ({
                                 </Command>
                               </PopoverContent>
                             </Popover>
+                          ) : currentField === "interest" ? (
+                            <Select
+                              onValueChange={field.onChange}
+                              value={typeof field.value === "string" ? field.value : ""}
+                            >
+                              <SelectTrigger className={fieldState.error ? "border-destructive" : ""}>
+                                <SelectValue placeholder={PLACEHOLDER_BY_FIELD.interest} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {INTEREST_OPTIONS.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           ) : (
                             <Input
                               {...field}

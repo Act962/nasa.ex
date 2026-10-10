@@ -4,6 +4,8 @@ import type { ModelMessage } from "ai";
 import type { AiModelConfig } from "./model";
 import { loadActiveCatalogOrder } from "@/features/nerp-catalog/lib/order-context";
 import { getActiveProgram } from "@/features/star-friends/lib/program";
+import { parseAiCapabilities } from "./capabilities";
+import { isAudioTooLong, readAudioTranscription } from "./audio-metadata";
 
 const HISTORY_LIMIT = 20;
 
@@ -78,7 +80,9 @@ export async function loadAgentContext(data: AgentEventData) {
         fromMe: true,
         body: true,
         mediaType: true,
+        mimetype: true,
         mediaCaption: true,
+        metadata: true,
         createdAt: true,
       },
     }),
@@ -91,6 +95,9 @@ export async function loadAgentContext(data: AgentEventData) {
         organizationId: data.organizationId,
         OR: [{ trackingId: data.trackingId }, { trackingId: null }],
         description: { not: null },
+        archivedAt: null,
+        // Tags padrão ("Aguard. atendimento", "WhatsApp"…) são aplicadas pelo código, nunca pela assistente.
+        type: { not: "SYSTEM" },
       },
       select: { id: true, name: true, description: true },
       orderBy: { name: "asc" },
@@ -115,6 +122,26 @@ export async function loadAgentContext(data: AgentEventData) {
     loadActiveCatalogOrder(data.leadId),
     getActiveProgram(data.organizationId),
   ]);
+
+  const capabilities = parseAiCapabilities(settings?.capabilities);
+  // Agendas liberadas ao agente (spec 0084): nome e id entram no prompt, para ele não precisar perguntar.
+  const availableAgendas =
+    capabilities.agenda.isEnabled && capabilities.agenda.agendaIds.length > 0
+      ? await prisma.agenda.findMany({
+          where: { id: { in: capabilities.agenda.agendaIds }, organizationId: data.organizationId, isActive: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : [];
+
+  const availableForms =
+    capabilities.forms.isEnabled && capabilities.forms.formIds.length > 0
+      ? await prisma.form.findMany({
+          where: { id: { in: capabilities.forms.formIds }, organizationId: data.organizationId, published: true },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : [];
 
   // Mudança no prompt zera o histórico visível pra IA. Sem isso, o modelo
   // tende a manter tom/estilo das respostas anteriores (viés de continuidade)
@@ -146,15 +173,7 @@ export async function loadAgentContext(data: AgentEventData) {
   // de comportamento via system prompt extra (gerado em agent.ts).
   const trigger: AgentTrigger = data.trigger ?? "inbound";
 
-  // BYO model: decifra a key uma vez aqui. Se cifragem falhar (chave rotacionada,
-  // dado corrompido), loga e cai pro default — nunca derruba o agente.
-  const modelConfig: AiModelConfig | null = settings?.aiProvider
-    ? {
-        provider: settings.aiProvider,
-        modelId: settings.aiModelId,
-        apiKey: settings.aiApiKey ? safeDecrypt(settings.aiApiKey) : null,
-      }
-    : null;
+  const modelConfig = toModelConfig(settings);
 
   return {
     trackingId: data.trackingId,
@@ -172,7 +191,32 @@ export async function loadAgentContext(data: AgentEventData) {
     modelConfig,
     catalogOrder,
     starFriendsProgramName: starFriendsProgram?.name ?? null,
+    capabilities,
+    availableAgendas,
+    availableForms,
+    // A última mensagem do cliente foi áudio: decide a resposta em voz (spec 0084, RF-3).
+    isLastInboundAudio: isAudioMessage(messages.find((message) => !message.fromMe)),
   };
+}
+
+/**
+ * Modelo próprio da empresa: decifra a chave uma vez. Se a cifragem falhar (chave rotacionada,
+ * dado corrompido), registra e cai no padrão — nunca derruba o atendimento.
+ */
+export function toModelConfig(
+  settings: { aiProvider: AiModelConfig["provider"]; aiModelId: string | null; aiApiKey: string | null } | null,
+): AiModelConfig | null {
+  if (!settings?.aiProvider) return null;
+  return {
+    provider: settings.aiProvider,
+    modelId: settings.aiModelId,
+    apiKey: settings.aiApiKey ? safeDecrypt(settings.aiApiKey) : null,
+  };
+}
+
+function isAudioMessage(message: { mediaType: string | null; mimetype?: string | null } | undefined): boolean {
+  if (!message) return false;
+  return message.mediaType === "audio" || Boolean(message.mimetype?.startsWith("audio/"));
 }
 
 function safeDecrypt(cipher: string): string | null {
@@ -189,11 +233,22 @@ function toModelMessage(m: {
   body: string | null;
   mediaType: string | null;
   mediaCaption: string | null;
+  mimetype?: string | null;
+  metadata?: unknown;
 }): ModelMessage | null {
+  // Áudio transcrito entra como o que o cliente disse (spec 0084, RF-1), marcado como áudio.
+  const transcription = readAudioTranscription(m.metadata);
   const text =
     m.body?.trim() ||
     m.mediaCaption?.trim() ||
-    (m.mediaType ? `[${m.mediaType}]` : "");
+    (transcription ? `[áudio do cliente] ${transcription}` : "") ||
+    (isAudioTooLong(m.metadata)
+      ? "[áudio do cliente com mais de 3 minutos: não foi ouvido. Peça para resumir por texto ou ofereça um atendente.]"
+      : "") ||
+    (m.mediaType ? `[${m.mediaType}]` : "") ||
+    (m.mimetype?.startsWith("audio/")
+      ? "[áudio do cliente que não foi possível ouvir. Peça para escrever a mensagem.]"
+      : "");
   if (!text) return null;
   return {
     role: m.fromMe ? "assistant" : "user",

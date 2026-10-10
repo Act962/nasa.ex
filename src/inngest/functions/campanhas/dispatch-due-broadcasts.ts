@@ -1,3 +1,4 @@
+import { hasStarsCredit } from "@/features/stars/lib/stars-credit";
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { beginBroadcastDispatch } from "@/features/campanhas/server/lib/begin-broadcast-dispatch";
@@ -34,6 +35,11 @@ export const dispatchDueBroadcasts = inngest.createFunction(
     let dispatched = 0;
     for (const broadcast of dueBroadcasts) {
       const claimed = await step.run(`dispatch-${broadcast.id}`, async () => {
+        // Sem crédito na hora marcada, a campanha fica agendada e sai quando houver recarga (spec 0087, Parte F).
+        if (!(await hasStarsCredit(broadcast.organizationId))) {
+          console.warn(`[campanhas] disparo agendado ${broadcast.id} adiado: empresa sem crédito`);
+          return false;
+        }
         return beginBroadcastDispatch({
           broadcastId: broadcast.id,
           organizationId: broadcast.organizationId,

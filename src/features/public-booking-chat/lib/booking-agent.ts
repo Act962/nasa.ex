@@ -158,102 +158,114 @@ export function makeGetAvailableSlotsTool(orgSlug: string, agendaSlug: string) {
         return { error: "Agenda não encontrada." };
       }
 
-      // Verificar se a data está bloqueada
-      const dateOverride = await prisma.agendaDateOverride.findUnique({
-        where: { agendaId_date: { agendaId: agenda.id, date } },
-      });
-      if (dateOverride?.isBlocked) {
-        return { date, slots: [], message: "Esta data está indisponível. Por favor, escolha outra data." };
-      }
-
-      const requestedDate = dayjs(date, "YYYY-MM-DD");
-
-      if (!requestedDate.isValid()) {
-        return { error: "Data inválida." };
-      }
-
-      if (requestedDate.isBefore(dayjs(), "day")) {
-        return { error: "Não é possível consultar datas passadas.", slots: [] };
-      }
-
-      const daysMap: Record<string, string> = {
-        "0": "SUNDAY",
-        "1": "MONDAY",
-        "2": "TUESDAY",
-        "3": "WEDNESDAY",
-        "4": "THURSDAY",
-        "5": "FRIDAY",
-        "6": "SATURDAY",
-      };
-      const dayName = daysMap[requestedDate.day().toString()];
-
-      const timeSlotRanges = await prisma.availabilityTimeSlot.findMany({
-        where: {
-          availability: {
-            agendaId: agenda.id,
-            dayOfWeek: dayName as any,
-            isActive: true,
-          },
-        },
-        orderBy: { order: "asc" },
-      });
-
-      if (timeSlotRanges.length === 0) {
-        return { date, slots: [], message: "Sem disponibilidade neste dia." };
-      }
-
-      const appointments = await prisma.appointment.findMany({
-        where: {
-          agendaId: agenda.id,
-          startsAt: {
-            gte: requestedDate.startOf("day").toDate(),
-            lte: requestedDate.endOf("day").toDate(),
-          },
-          status: { not: "CANCELLED" },
-        },
-      });
-
-      const generatedSlots: { startTime: string; endTime: string }[] = [];
-      const now = dayjs();
-      const isToday = requestedDate.isSame(now, "day");
-
-      for (const range of timeSlotRanges) {
-        let current = dayjs(`${requestedDate.format("YYYY-MM-DD")}T${range.startTime}`);
-        const end = dayjs(`${requestedDate.format("YYYY-MM-DD")}T${range.endTime}`);
-
-        while (current.isBefore(end) || current.isSame(end)) {
-          const slotStart = current;
-          const slotEnd = current.add(agenda.slotDuration, "minute");
-
-          if (isToday && slotStart.isBefore(now)) {
-            current = slotEnd;
-            continue;
-          }
-
-          const isOccupied = appointments.some((app) => {
-            const appStart = dayjs(app.startsAt);
-            const appEnd = dayjs(app.endsAt);
-            return slotStart.isBefore(appEnd) && slotEnd.isAfter(appStart);
-          });
-
-          if (!isOccupied) {
-            generatedSlots.push({
-              startTime: slotStart.format("HH:mm"),
-              endTime: slotEnd.format("HH:mm"),
-            });
-          }
-
-          current = slotEnd;
-        }
-      }
-
-      return {
-        date,
-        slots: generatedSlots,
-        totalAvailable: generatedSlots.length,
-      };
+      return listAgendaFreeSlots({ agendaId: agenda.id, slotDuration: agenda.slotDuration }, date);
     },
   });
+}
+
+/**
+ * Horários livres de uma agenda numa data. Devolve só início e fim de cada
+ * horário livre: quem ocupa os demais nunca sai daqui. Usada pelo chat público
+ * e pelo Chatbot IA do WhatsApp (spec 0084).
+ */
+export async function listAgendaFreeSlots(
+  agenda: { agendaId: string; slotDuration: number },
+  date: string,
+) {
+  // Verificar se a data está bloqueada
+  const dateOverride = await prisma.agendaDateOverride.findUnique({
+    where: { agendaId_date: { agendaId: agenda.agendaId, date } },
+  });
+  if (dateOverride?.isBlocked) {
+    return { date, slots: [], message: "Esta data está indisponível. Por favor, escolha outra data." };
+  }
+
+  const requestedDate = dayjs(date, "YYYY-MM-DD");
+
+  if (!requestedDate.isValid()) {
+    return { error: "Data inválida." };
+  }
+
+  if (requestedDate.isBefore(dayjs(), "day")) {
+    return { error: "Não é possível consultar datas passadas.", slots: [] };
+  }
+
+  const daysMap: Record<string, string> = {
+    "0": "SUNDAY",
+    "1": "MONDAY",
+    "2": "TUESDAY",
+    "3": "WEDNESDAY",
+    "4": "THURSDAY",
+    "5": "FRIDAY",
+    "6": "SATURDAY",
+  };
+  const dayName = daysMap[requestedDate.day().toString()];
+
+  const timeSlotRanges = await prisma.availabilityTimeSlot.findMany({
+    where: {
+      availability: {
+        agendaId: agenda.agendaId,
+        dayOfWeek: dayName as any,
+        isActive: true,
+      },
+    },
+    orderBy: { order: "asc" },
+  });
+
+  if (timeSlotRanges.length === 0) {
+    return { date, slots: [], message: "Sem disponibilidade neste dia." };
+  }
+
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      agendaId: agenda.agendaId,
+      startsAt: {
+        gte: requestedDate.startOf("day").toDate(),
+        lte: requestedDate.endOf("day").toDate(),
+      },
+      status: { not: "CANCELLED" },
+    },
+  });
+
+  const generatedSlots: { startTime: string; endTime: string }[] = [];
+  const now = dayjs();
+  const isToday = requestedDate.isSame(now, "day");
+
+  for (const range of timeSlotRanges) {
+    let current = dayjs(`${requestedDate.format("YYYY-MM-DD")}T${range.startTime}`);
+    const end = dayjs(`${requestedDate.format("YYYY-MM-DD")}T${range.endTime}`);
+
+    while (current.isBefore(end) || current.isSame(end)) {
+      const slotStart = current;
+      const slotEnd = current.add(agenda.slotDuration, "minute");
+
+      if (isToday && slotStart.isBefore(now)) {
+        current = slotEnd;
+        continue;
+      }
+
+      const isOccupied = appointments.some((app) => {
+        const appStart = dayjs(app.startsAt);
+        const appEnd = dayjs(app.endsAt);
+        return slotStart.isBefore(appEnd) && slotEnd.isAfter(appStart);
+      });
+
+      if (!isOccupied) {
+        generatedSlots.push({
+          startTime: slotStart.format("HH:mm"),
+          endTime: slotEnd.format("HH:mm"),
+        });
+      }
+
+      current = slotEnd;
+    }
+  }
+
+  return {
+    date,
+    slots: generatedSlots,
+    totalAvailable: generatedSlots.length,
+  };
 }
 
 /**

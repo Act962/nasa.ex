@@ -15,6 +15,9 @@ import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { useFormRecords } from "@/features/form-records/hooks/use-form-records";
 import { ALL_TIME_RANGE, DateRangeFilter, type DateRangeValue } from "./date-range-filter";
 import { FormRecordsDashboard } from "./form-records-dashboard";
+import { NextDueCell, NextDueFilterChips, NextDueLine } from "./record-next-due";
+import { PixSettingsButton, RecordPixActions } from "./record-pix-actions";
+import type { NextDueFilter } from "@/features/form-records/lib/next-due-window";
 import { formatCents } from "@/features/form-records/lib/measure-units";
 import { FormRecordQuickView, parseFormBlocks, parseResponseValues } from "./form-record-quick-view";
 
@@ -64,6 +67,7 @@ export function InternalQuickView({
       actions={
         response && (
           <>
+            <RecordPixActions responseId={responseId} />
             <FormPrintButton blocks={blocks} formName={formName} leadName={response.lead?.name ?? undefined} responseValues={responseValues} />
             <Button asChild size="sm">
               <Link href={`/formulario/${buildResponseSlug(formName, response.createdAt)}/${responseId}`}>
@@ -99,6 +103,7 @@ export function FormRecordsSection({
   const [leadMemberId, setLeadMemberId] = useState<string | undefined>();
   const [searchText, setSearchText] = useState("");
   const [search, setSearch] = useState("");
+  const [nextDue, setNextDue] = useState<NextDueFilter | undefined>();
   const [page, setPage] = useState(1);
   const [openRecord, setOpenRecord] = useState<{ responseId: string; label: string | null } | null>(null);
 
@@ -110,9 +115,9 @@ export function FormRecordsSection({
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  const { data, isLoading, isError } = useFormRecords({ formId, dateFrom: dateRange.dateFrom, dateTo: dateRange.dateTo, leadId, leadMemberId, search: search || undefined, page });
+  const { data, isLoading, isError } = useFormRecords({ formId, dateFrom: dateRange.dateFrom, dateTo: dateRange.dateTo, leadId, leadMemberId, search: search || undefined, nextDue, page });
 
-  const hasFilter = Boolean(dateRange.dateFrom || dateRange.dateTo || leadId || leadMemberId || search);
+  const hasFilter = Boolean(dateRange.dateFrom || dateRange.dateTo || leadId || leadMemberId || search || nextDue);
   // Formulário sem fichas e sem colunas configuradas segue só com a tela de respostas de sempre.
   if (isError || (!isLoading && data && data.total === 0 && !hasFilter && data.columns.length === 0)) return null;
   if (isLoading && !data) return null;
@@ -120,6 +125,7 @@ export function FormRecordsSection({
 
   const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
   const hasMembers = data.members.length > 0;
+  const nextDateLabel = data.nextDateLabel;
   // Com um cliente escolhido, o filtro mostra só os vinculados dele.
   const memberOptions = leadId ? data.members.filter((member) => member.leadId === leadId) : data.members;
 
@@ -140,6 +146,7 @@ export function FormRecordsSection({
               Fechamento por cliente
             </Link>
           </Button>
+          <PixSettingsButton />
           <div className="relative max-md:w-full">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -203,6 +210,16 @@ export function FormRecordsSection({
         </div>
       </div>
 
+      {nextDateLabel && (
+        <NextDueFilterChips
+          value={nextDue}
+          onChange={(nextValue) => {
+            setNextDue(nextValue);
+            setPage(1);
+          }}
+        />
+      )}
+
       {dashboard && data.summary.recordCount > 0 && (
         <Button type="button" variant="outline" size="sm" aria-expanded={dashboard.isOpen} onClick={dashboard.onToggle}>
           <ChartColumn className="size-4" />
@@ -237,6 +254,7 @@ export function FormRecordsSection({
                     .filter(Boolean)
                     .join(" · ")}
                 </span>
+                {record.nextDueAt && <NextDueLine nextDueAt={record.nextDueAt} />}
                 <span className="text-xs text-muted-foreground">{record.isClosed ? "Fechada" : record.isFinalized ? "Enviada" : "Rascunho"}</span>
               </button>
             </li>
@@ -254,6 +272,7 @@ export function FormRecordsSection({
               {data.columns.map((column) => (
                 <TableHead key={column.key}>{column.label}</TableHead>
               ))}
+              {nextDateLabel && <TableHead>{nextDateLabel}</TableHead>}
               <TableHead className="text-right">Itens</TableHead>
               <TableHead>Situação</TableHead>
             </TableRow>
@@ -261,7 +280,7 @@ export function FormRecordsSection({
           <TableBody>
             {data.records.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={data.columns.length + (hasMembers ? 5 : 4)} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={data.columns.length + (hasMembers ? 5 : 4) + (nextDateLabel ? 1 : 0)} className="h-24 text-center text-muted-foreground">
                   {hasFilter ? "Nenhuma ficha com esse filtro." : "Nenhuma ficha ainda."}
                 </TableCell>
               </TableRow>
@@ -287,6 +306,11 @@ export function FormRecordsSection({
                   {data.columns.map((column) => (
                     <TableCell key={column.key}>{record.values[column.key] || "—"}</TableCell>
                   ))}
+                  {nextDateLabel && (
+                    <TableCell className="whitespace-nowrap">
+                      <NextDueCell nextDueAt={record.nextDueAt} isFinalized={record.isFinalized} />
+                    </TableCell>
+                  )}
                   <TableCell className="whitespace-nowrap text-right tabular-nums">{formatCents(record.usageTotalCents)}</TableCell>
                   <TableCell>
                     {record.isClosed ? (

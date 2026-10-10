@@ -66,6 +66,7 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
   async sendText(
     phone: string,
     text: string,
+    options?: { isImmediate?: boolean },
   ): Promise<{ messageId: string | null }> {
     const resolved = await resolveOutboundProvider(this.trackingId);
     const chunks = chunkText(text);
@@ -73,7 +74,7 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
     for (let i = 0; i < chunks.length; i++) {
       // Delay próprio (Meta não tem o `delay` nativo do Uazapi); humaniza
       // respostas multi-chunk sem depender de flag provider-specific.
-      await delay(humanDelayMs());
+      if (!options?.isImmediate) await delay(humanDelayMs());
       const result = await resolved.provider.sendText({
         kind: "text",
         to: phone,
@@ -111,7 +112,7 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
       try {
         const options = withListExtras(payload.buttons);
         const isBodyTooLong = payload.bodyText.length > MAX_INTERACTIVE_BODY_LEN;
-        if (isBodyTooLong) await this.sendText(phone, payload.bodyText);
+        if (isBodyTooLong) await this.sendText(phone, payload.bodyText, { isImmediate: payload.isImmediate });
         const result = await resolved.provider.sendInteractive({
           kind: "interactive",
           to: phone,
@@ -174,13 +175,32 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
     const body = [payload.bodyText, ...lines, payload.footerText]
       .filter(Boolean)
       .join("\n");
-    return this.sendText(phone, body);
+    return this.sendText(phone, body, { isImmediate: payload.isImmediate });
   }
 
   async sendMedia(phone: string, media: { url: string; caption?: string }): Promise<{ messageId: string | null }> {
     const resolved = await resolveOutboundProvider(this.trackingId);
     const result = await resolved.provider.sendMedia({ kind: "media", to: phone, mediaKind: "image", mediaUrl: media.url, caption: media.caption });
     return { messageId: result.externalMessageId ?? null };
+  }
+
+  async sendVoice(phone: string, voice: { audio: Buffer; mimetype: string }): Promise<{ messageId: string | null }> {
+    const resolved = await resolveOutboundProvider(this.trackingId);
+    if (resolved.provider.uploadMedia) {
+      // API oficial: sobe direto para a Meta, sem link público (spec 0083, RS-4).
+      const uploaded = await resolved.provider.uploadMedia({ file: voice.audio, mimetype: voice.mimetype, fileName: "resposta.ogg" });
+      const result = await resolved.provider.sendMedia({ kind: "media", to: phone, mediaKind: "audio", mediaId: uploaded.mediaId, mimetype: voice.mimetype, isVoice: true });
+      return { messageId: result.externalMessageId ?? null };
+    }
+    if (!resolved.uazapiToken) throw new Error("Provider sem envio de nota de voz");
+    const { sendMedia: sendUazapiMedia } = await import("@/http/uazapi/send-media");
+    const response = await sendUazapiMedia(
+      resolved.uazapiToken,
+      { number: phone, type: "ptt", file: `data:${voice.mimetype};base64,${voice.audio.toString("base64")}` },
+      resolved.uazapiBaseUrl,
+    );
+    const sent = response as { id?: unknown; messageid?: unknown };
+    return { messageId: typeof sent?.messageid === "string" ? sent.messageid : typeof sent?.id === "string" ? sent.id : null };
   }
 
   async sendTyping(_phone: string, _durationMs: number): Promise<void> {

@@ -146,7 +146,20 @@ export function periodFrom(text: string): AstroPeriod | null {
     const yesterday = new Date(today.getTime() - DAY_MS);
     return { since: yesterday, until: today, futureUntil: today, label: "ontem" };
   }
-  if (/\b(essa|esta|nesta|na|proxima) semana\b|\bultimos 7 dias\b|\b7 dias\b/.test(text)) {
+  // "Próxima semana" é a semana seguinte, de segunda a domingo. Antes caía em "nesta semana"
+  // e "próximo mês" não era entendido: a consulta respondia outro período sem avisar (spec 0081, RF-11).
+  if (/\b(proxima semana|semana que vem)\b/.test(text)) {
+    const daysUntilMonday = (8 - brazilWallClock().getUTCDay()) % 7 || 7;
+    const since = new Date(today.getTime() + daysUntilMonday * DAY_MS);
+    const until = new Date(since.getTime() + 7 * DAY_MS);
+    return { since, until, futureUntil: until, label: "na próxima semana" };
+  }
+  if (/\b(proximo mes|mes que vem)\b/.test(text)) {
+    const since = startOfMonth(1);
+    const until = startOfMonth(2);
+    return { since, until, futureUntil: until, label: "no próximo mês" };
+  }
+  if (/\b(essa|esta|nesta|na) semana\b|\bultimos 7 dias\b|\b7 dias\b/.test(text)) {
     return {
       since: new Date(today.getTime() - 7 * DAY_MS),
       until: tomorrow,

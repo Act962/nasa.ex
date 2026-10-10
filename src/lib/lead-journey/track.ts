@@ -16,7 +16,9 @@ export type LeadJourneyEventKind =
   | "ctwa_referral"
   | "utm_landing"
   | "won"
-  | "lost";
+  | "lost"
+  /** Ligação de voz pelo WhatsApp atendida pelo Astro (spec 0087). */
+  | "voice_call";
 
 export interface TrackLeadEventInput {
   leadId: string;

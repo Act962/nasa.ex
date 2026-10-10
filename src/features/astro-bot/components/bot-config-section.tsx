@@ -11,6 +11,12 @@ import {
   useUpsertBotConfig,
 } from "@/features/astro-bot/hooks/use-astro-bot";
 import { AlertTriangle, MessageCircle } from "lucide-react";
+import { resolveBotVoice, toVoiceReplyMode } from "@/features/astro-bot/lib/voice/voices";
+import {
+  BotVoiceReplySettings,
+  DEFAULT_VOICE_REPLY_SETTINGS,
+  type VoiceReplySettings,
+} from "./bot-voice-reply-settings";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -35,6 +41,7 @@ export function BotConfigSection() {
   const [quietHoursEnd, setQuietHoursEnd] = useState<string>("");
   const [isActive, setIsActive] = useState(false);
   const [isFinanceEnabled, setIsFinanceEnabled] = useState(false);
+  const [voiceSettings, setVoiceSettings] = useState<VoiceReplySettings>(DEFAULT_VOICE_REPLY_SETTINGS);
 
   useEffect(() => {
     if (!config) return;
@@ -48,6 +55,11 @@ export function BotConfigSection() {
     );
     setIsActive(config.isActive);
     setIsFinanceEnabled(config.financeEnabled ?? false);
+    setVoiceSettings({
+      mode: toVoiceReplyMode(config.voiceReplyMode),
+      voiceName: resolveBotVoice(config.voiceName),
+      alsoText: config.voiceAlsoText ?? true,
+    });
   }, [config]);
 
   const toggleTracking = (trackingId: string) => {
@@ -67,6 +79,9 @@ export function BotConfigSection() {
         quietHoursEnd: quietHoursEnd === "" ? null : Number(quietHoursEnd),
         isActive,
         financeEnabled: isFinanceEnabled,
+        voiceReplyMode: voiceSettings.mode,
+        voiceName: voiceSettings.voiceName,
+        voiceAlsoText: voiceSettings.alsoText,
       },
       {
         onSuccess: () => toast.success("Configuração salva"),
@@ -219,6 +234,8 @@ export function BotConfigSection() {
           onCheckedChange={setIsFinanceEnabled}
         />
       </div>
+
+      <BotVoiceReplySettings settings={voiceSettings} onChange={setVoiceSettings} />
 
       {isActive && enabledTrackingIds.length === 0 && (
         <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">

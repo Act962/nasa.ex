@@ -30,6 +30,7 @@ import {
   sendOfficialTemplate,
   sendOfficialText,
   sendOfficialInteractive,
+  uploadOfficialMedia,
   type MetaApiError,
   type WhatsAppOfficialInboundMessage,
   type WhatsAppOfficialMetadata,
@@ -57,6 +58,7 @@ import type {
   SendCanonicalText,
   SendCanonicalInteractive,
   SendResult,
+  UploadCanonicalMedia,
   WhatsAppChatProvider,
 } from "../../types";
 
@@ -421,6 +423,15 @@ export class OfficialProvider implements WhatsAppChatProvider {
       externalMessageId: extractWamid(response, "sendMedia"),
       raw: response,
     };
+  }
+
+  async uploadMedia(input: UploadCanonicalMedia): Promise<{ mediaId: string }> {
+    const uploaded = await uploadOfficialMedia(this.config.accessToken, this.config.phoneNumberId, {
+      file: input.file,
+      mimetype: input.mimetype,
+      filename: input.fileName,
+    });
+    return { mediaId: uploaded.id };
   }
 
   async sendTemplate(input: SendCanonicalTemplate): Promise<SendResult> {

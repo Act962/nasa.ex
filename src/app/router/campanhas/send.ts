@@ -1,3 +1,4 @@
+import { assertStarsCreditForBroadcast } from "@/features/stars/lib/stars-credit";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -25,6 +26,8 @@ export const send = base
 
     const pendingCount = await assertBroadcastSendable(broadcast, org.id);
     await assertBroadcastFeePaid(broadcast.id, pendingCount);
+    // Sem crédito, não dispara nem agenda (spec 0087, Parte F).
+    await assertStarsCreditForBroadcast(org.id);
 
     const claimed = await beginBroadcastDispatch({
       broadcastId: broadcast.id,
