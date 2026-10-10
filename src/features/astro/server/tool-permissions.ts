@@ -3,8 +3,6 @@ import type { ToolSet } from "ai";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import type { AppKey, OrgAction } from "@/features/permissions/lib/catalog";
 import { canAstroDo } from "@/features/astro/actions/permission-gate";
-import { ASTRO_ACTIONS } from "@/features/astro/actions/registry";
-import { APP_TOOL_PACKS } from "@/features/astro/server/tools/app-packs";
 
 /**
  * Permissão de cada ferramenta entregue à IA (spec 0082).
@@ -98,10 +96,23 @@ const PACK_PERMISSIONS: Record<string, { appKey: AppKey; writeAction: OrgAction 
 // Os construtores só fecham sobre o contexto; nada é lido até o `execute`.
 const NAMES_ONLY_CONTEXT: AgentContext = { userId: "", organizationId: "", route: {} };
 
-let cachedRules: Map<string, ToolRule> | null = null;
+let cachedRules: Promise<Map<string, ToolRule>> | null = null;
 
-function loadRules(): Map<string, ToolRule> {
-  if (cachedRules) return cachedRules;
+/**
+ * O registro de ações e os pacotes são carregados só na primeira chamada. Importá-los
+ * no topo fechava um ciclo (orquestrador → aqui → registro → ação → confirmação → registro)
+ * e o Astro quebrava ao carregar, conforme a rota por onde o módulo entrava.
+ */
+function loadRules(): Promise<Map<string, ToolRule>> {
+  cachedRules ??= buildRules();
+  return cachedRules;
+}
+
+async function buildRules(): Promise<Map<string, ToolRule>> {
+  const [{ ASTRO_ACTIONS }, { APP_TOOL_PACKS }] = await Promise.all([
+    import("@/features/astro/actions/registry"),
+    import("@/features/astro/server/tools/app-packs"),
+  ]);
   const rules = new Map<string, ToolRule>();
   for (const action of ASTRO_ACTIONS) rules.set(action.toolName, action.permission);
   for (const [packKey, pack] of Object.entries(APP_TOOL_PACKS)) {
@@ -115,22 +126,21 @@ function loadRules(): Map<string, ToolRule> {
     }
   }
   for (const [toolName, rule] of Object.entries(STATIC_RULES)) rules.set(toolName, rule);
-  cachedRules = rules;
   return rules;
 }
 
 /** `route_to_*` só delega; as ferramentas do sub-agente passam por este mesmo filtro. */
 const ROUTING_TOOL = /^route_to_/;
 
-export function toolRuleFor(toolName: string): ToolRule | null {
+export async function toolRuleFor(toolName: string): Promise<ToolRule | null> {
   if (ROUTING_TOOL.test(toolName)) return OPEN;
-  return loadRules().get(toolName) ?? null;
+  return (await loadRules()).get(toolName) ?? null;
 }
 
 export async function filterToolsByPermission(tools: ToolSet, ctx: AgentContext): Promise<ToolSet> {
   const allowedTools: ToolSet = {};
   for (const [toolName, definition] of Object.entries(tools)) {
-    const rule = toolRuleFor(toolName);
+    const rule = await toolRuleFor(toolName);
     if (!rule) {
       console.warn(`[ASTRO/permission] ferramenta sem permissão declarada, não entregue: ${toolName}`);
       continue;

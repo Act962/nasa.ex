@@ -150,4 +150,21 @@ export function registerRegistryExecutors(): void {
   }
 }
 
-registerRegistryExecutors();
+/**
+ * Este arquivo e o registro de ações importam um ao outro. Registrar na hora do
+ * import lia `ASTRO_ACTIONS` antes de ele existir quando o registro era o primeiro
+ * a carregar, e o Astro inteiro deixava de subir. O registro acontece logo depois
+ * que os módulos terminam de carregar; os executores só são usados em requisição.
+ */
+const MAX_REGISTRATION_ATTEMPTS = 5;
+
+function registerWhenRegistryIsReady(attempt = 1): void {
+  try {
+    registerRegistryExecutors();
+  } catch (registrationError) {
+    if (attempt >= MAX_REGISTRATION_ATTEMPTS) throw registrationError;
+    setTimeout(() => registerWhenRegistryIsReady(attempt + 1), 0);
+  }
+}
+
+queueMicrotask(() => registerWhenRegistryIsReady());
