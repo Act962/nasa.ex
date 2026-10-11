@@ -3,7 +3,7 @@ import { RichNodePreview } from "@/features/editor/components/rich/rich-node-pre
 import { AnimatedOutline, type OutlineTone } from "@/features/editor/components/rich/animated-outline";
 import { hasRichPreview } from "@/features/editor/components/rich/rich-node-types";
 import { editorViewModeAtom } from "@/features/editor/store/atoms";
-import { useNodeFlowDiagnostics } from "@/features/editor/hooks/use-flow-diagnostics";
+import { useIsNodeBlockedByFlowProblem, useNodeFlowDiagnostics } from "@/features/editor/hooks/use-flow-diagnostics";
 
 import {
   ConnectionState,
@@ -80,7 +80,8 @@ export const BaseExecutionNode = memo(
     // Visão "Visual": card do lead nos gatilhos e celular nas mensagens. Na visão de ícones nada muda.
     const viewMode = useAtomValue(editorViewModeAtom);
     const showsRichPreview = viewMode === "rich" && hasRichPreview(nodeType);
-    const outlineTone: OutlineTone = hasFlowError ? "error" : flowNotice ? "warning" : "ok";
+    const isBlockedByFlowProblem = useIsNodeBlockedByFlowProblem(id);
+    const outlineTone: OutlineTone = flowNotice || isBlockedByFlowProblem ? "problem" : "ok";
     const [openSelector, setOpenSelector] = useState(false);
     const connectionInProgress = useConnection(selector);
     const isConnected = useStore((state) =>

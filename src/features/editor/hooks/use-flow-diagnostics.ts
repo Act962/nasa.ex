@@ -13,3 +13,9 @@ export function useNodeFlowDiagnostics(nodeId: string): FlowDiagnostic[] {
 export function useIsEdgeOnFlowError(edgeId: string): boolean {
   return useAtomValue(flowDiagnosticsAtom).errorEdgeIds[edgeId] === true;
 }
+
+/** O quadro vem depois de um passo com problema: se aquele falhar, este não roda. */
+export function useIsNodeBlockedByFlowProblem(nodeId: string): boolean {
+  return useAtomValue(flowDiagnosticsAtom).blockedNodeIds[nodeId] === true;
+}
+

@@ -20,7 +20,7 @@ import { useMemo } from "react";
 import { useAtomValue } from "jotai";
 import { validateNode } from "@/features/workflows/lib/validate-node";
 import { stepByStepStateAtom } from "../store/step-by-step-atoms";
-import { useIsEdgeOnFlowError, useNodeFlowDiagnostics } from "../hooks/use-flow-diagnostics";
+import { useIsEdgeOnFlowError, useIsNodeBlockedByFlowProblem, useNodeFlowDiagnostics } from "../hooks/use-flow-diagnostics";
 import { editorViewModeAtom } from "../store/atoms";
 import { outlineToneColor, type OutlineTone } from "./rich/animated-outline";
 
@@ -61,11 +61,8 @@ export function ValidatedEdge({
   // Visão "Visual": a ligação é grossa e leva a cor do quadro de onde sai.
   const isRichView = useAtomValue(editorViewModeAtom) === "rich";
   const sourceDiagnostics = useNodeFlowDiagnostics(source);
-  const sourceTone: OutlineTone = sourceDiagnostics.some((diagnostic) => diagnostic.severity === "error")
-    ? "error"
-    : sourceDiagnostics.length > 0
-      ? "warning"
-      : "ok";
+  const isSourceBlocked = useIsNodeBlockedByFlowProblem(source);
+  const sourceTone: OutlineTone = sourceDiagnostics.length > 0 || isSourceBlocked ? "problem" : "ok";
 
   // ── Step-by-Step overrides ────────────────────────────────────
   // Quando o modo está ativo, edges ganham cor verde/vermelho/cinza
@@ -108,7 +105,7 @@ export function ValidatedEdge({
     stroke = "var(--muted-foreground)";
     opacity = 0.35;
   } else if (isRichView) {
-    stroke = outlineToneColor(hasFieldError ? "error" : sourceTone);
+    stroke = outlineToneColor(hasFieldError ? "problem" : sourceTone);
     strokeWidth = 4;
   } else if (hasError) {
     stroke = "var(--destructive)";

@@ -1,13 +1,12 @@
 // Contorno tracejado em movimento dos quadros na visão "Visual" (spec 0090): azul quando o passo
-// está certo, âmbar quando pode falhar e vermelho quando vai falhar. Tons pastel, derivados dos
-// tokens do tema, para destacar sem gritar.
+// está certo; vermelho quando tem problema ou vem depois de um passo com problema (e por isso não
+// roda se aquele falhar). Tons pastel, derivados dos tokens do tema, para destacar sem gritar.
 
-export type OutlineTone = "ok" | "warning" | "error";
+export type OutlineTone = "ok" | "problem";
 
 const TONE_COLOR: Record<OutlineTone, string> = {
   ok: "color-mix(in oklab, var(--info) 55%, white)",
-  warning: "color-mix(in oklab, var(--warning) 60%, white)",
-  error: "color-mix(in oklab, var(--destructive) 55%, white)",
+  problem: "color-mix(in oklab, var(--destructive) 55%, white)",
 };
 
 export function outlineToneColor(tone: OutlineTone): string {

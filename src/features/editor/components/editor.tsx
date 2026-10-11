@@ -297,7 +297,7 @@ export function Editor({ workflowId }: { workflowId: string }) {
   );
   useEffect(() => {
     if (instanceLoading) return;
-    setFlowDiagnostics(indexFlowDiagnostics(diagnoseFlow(nodes, edges, { provider: channelProvider })));
+    setFlowDiagnostics(indexFlowDiagnostics(diagnoseFlow(nodes, edges, { provider: channelProvider }), edges));
     // A assinatura já resume nós e ligações: depender deles direto recalcularia a cada arrasto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagnosticsSignature, channelProvider, instanceLoading, setFlowDiagnostics]);

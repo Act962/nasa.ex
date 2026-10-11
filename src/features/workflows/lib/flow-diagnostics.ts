@@ -343,11 +343,16 @@ export interface FlowDiagnosticsIndex {
   byNode: Record<string, FlowDiagnostic[]>;
   /** Só ligações de quadros com ERRO. */
   errorEdgeIds: Record<string, true>;
+  /**
+   * Quadros que vêm DEPOIS de um passo com problema. Nos dois motores, quando um passo falha o que
+   * está ligado depois dele não roda: no modo agente o ramo para ali; no modo clássico o fluxo inteiro para.
+   */
+  blockedNodeIds: Record<string, true>;
 }
 
-export const EMPTY_FLOW_DIAGNOSTICS: FlowDiagnosticsIndex = { all: [], byNode: {}, errorEdgeIds: {} };
+export const EMPTY_FLOW_DIAGNOSTICS: FlowDiagnosticsIndex = { all: [], byNode: {}, errorEdgeIds: {}, blockedNodeIds: {} };
 
-export function indexFlowDiagnostics(diagnostics: FlowDiagnostic[]): FlowDiagnosticsIndex {
+export function indexFlowDiagnostics(diagnostics: FlowDiagnostic[], edges: FlowEdgeInput[] = []): FlowDiagnosticsIndex {
   if (diagnostics.length === 0) return EMPTY_FLOW_DIAGNOSTICS;
   const byNode: Record<string, FlowDiagnostic[]> = {};
   const errorEdgeIds: Record<string, true> = {};
@@ -355,5 +360,16 @@ export function indexFlowDiagnostics(diagnostics: FlowDiagnostic[]): FlowDiagnos
     byNode[diagnostic.nodeId] = [...(byNode[diagnostic.nodeId] ?? []), diagnostic];
     if (diagnostic.severity === "error") for (const edgeId of diagnostic.edgeIds) errorEdgeIds[edgeId] = true;
   }
-  return { all: diagnostics, byNode, errorEdgeIds };
+
+  const targetsBySource = new Map<string, string[]>();
+  for (const edge of edges) targetsBySource.set(edge.source, [...(targetsBySource.get(edge.source) ?? []), edge.target]);
+  const blockedNodeIds: Record<string, true> = {};
+  const pending = Object.keys(byNode).flatMap((nodeId) => targetsBySource.get(nodeId) ?? []);
+  while (pending.length > 0) {
+    const nodeId = pending.pop()!;
+    if (blockedNodeIds[nodeId]) continue;
+    blockedNodeIds[nodeId] = true;
+    pending.push(...(targetsBySource.get(nodeId) ?? []));
+  }
+  return { all: diagnostics, byNode, errorEdgeIds, blockedNodeIds };
 }
