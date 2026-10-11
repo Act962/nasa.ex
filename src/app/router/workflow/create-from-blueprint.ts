@@ -18,6 +18,7 @@
  * Workflow nasce com `isActive: false` e `agentMode: true` (default) pra
  * o user revisar antes de ligar.
  */
+import { AUTOMATION_DENIAL, checkTrackingAutomationsAccess } from "@/features/workflows/server/workflow-access";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -112,6 +113,11 @@ export const createWorkflowFromBlueprintProc = base
       throw errors.BAD_REQUEST({
         message: "Tracking pertence a outra organização",
       });
+    }
+
+    // Criar fluxo pede a permissão de criar Automações do papel da pessoa (spec 0092).
+    if ((await checkTrackingAutomationsAccess(input.trackingId, context.user.id, "canCreate")) !== "allowed") {
+      throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canCreate });
     }
 
     // 1. Resolve tags ANTES da transação principal (idempotente, lê e

@@ -2,15 +2,14 @@
  * Tabela de preço por token dos LLMs usados no NASA. Valores em USD por 1.000
  * tokens (input e output cobrados separado em todos os providers).
  *
- * ⚠️ CONFERIR ANTES DE USAR PARA DECISÃO DE PREÇO.
- * Os modelos marcados com `// conferir` foram adicionados em 2026-09-18 a partir
- * de valores de referência, sem checagem nas páginas oficiais. Antes de basear
- * preço de plano nestes números, confira em:
- *   - OpenAI:    https://openai.com/api/pricing/
- *   - Anthropic: https://www.anthropic.com/pricing
- *   - Google:    https://ai.google.dev/pricing
- * Enquanto não conferidos, o custo apurado a partir deles é ESTIMADO, não MEDIDO
- * (ver docs/BILLING_ARCHITECTURE.md §0).
+ * CONFERIDA em 2026-10-11 nas páginas oficiais (spec 0093):
+ *   - OpenAI:    https://developers.openai.com/api/docs/pricing
+ *   - Anthropic: https://platform.claude.com/docs/en/about-claude/pricing
+ *   - Google:    https://ai.google.dev/gemini-api/docs/pricing
+ * O que NÃO estava nas páginas nesse dia está em `UNVERIFIED_PRICE_MODEL_IDS` e continua sendo
+ * estimativa: os Gemini 2.0 e 1.5, os GPT anteriores ao 4o e os Claude 3 (menos o 3.5 Haiku).
+ * Preço muda: ao mexer aqui, confira de novo e atualize `PRICES_VERIFIED_ON`. O custo apurado é
+ * sempre o da tabela, não o da fatura do provedor (ver docs/BILLING_ARCHITECTURE.md §0).
  *
  * Por que a tabela mora no código e não no banco: preço errado no código é um
  * diff visível em revisão; preço errado no banco é invisível. O câmbio, que é o
@@ -32,11 +31,11 @@ export interface ModelPricing {
  */
 const PRICING: Record<string, ModelPricing> = {
   // ── OpenAI ────────────────────────────────────────────────────
-  "gpt-4.1": { inputPer1k: 0.002, outputPer1k: 0.008 }, // conferir
-  "gpt-4.1-mini": { inputPer1k: 0.0004, outputPer1k: 0.0016 }, // conferir
-  "gpt-4.1-nano": { inputPer1k: 0.0001, outputPer1k: 0.0004 }, // conferir
+  "gpt-4.1": { inputPer1k: 0.002, outputPer1k: 0.008 },
+  "gpt-4.1-mini": { inputPer1k: 0.0004, outputPer1k: 0.0016 },
+  "gpt-4.1-nano": { inputPer1k: 0.0001, outputPer1k: 0.0004 },
   "gpt-4o-mini": { inputPer1k: 0.00015, outputPer1k: 0.0006 },
-  // Voz em tempo real: preço do áudio, que domina a conversa (texto sai mais barato) — conferir.
+  // Voz em tempo real: preço do áudio, que domina a conversa (o texto sai mais barato).
   // Voz econômica: texto entra a US$ 0,60/1M e o áudio sai a US$ 12/1M (~US$ 0,015 por minuto falado).
   "gpt-4o-mini-tts": { inputPer1k: 0.0006, outputPer1k: 0.012 },
   "gpt-realtime-mini": { inputPer1k: 0.01, outputPer1k: 0.02, cachedInputPer1k: 0.0003 },
@@ -49,23 +48,62 @@ const PRICING: Record<string, ModelPricing> = {
   "o1-mini": { inputPer1k: 0.003, outputPer1k: 0.012 },
 
   // ── Anthropic ────────────────────────────────────────────────
-  "claude-opus-4": { inputPer1k: 0.015, outputPer1k: 0.075 }, // conferir
-  "claude-sonnet-4": { inputPer1k: 0.003, outputPer1k: 0.015 }, // conferir
-  "claude-haiku-4": { inputPer1k: 0.001, outputPer1k: 0.005 }, // conferir
+  "claude-opus-5-5": { inputPer1k: 0.004, outputPer1k: 0.02 },
+  "claude-opus-5": { inputPer1k: 0.005, outputPer1k: 0.025 },
+  // Do Opus 4.5 em diante o preço caiu para um terço. Sem estas linhas, o prefixo "claude-opus-4"
+  // (Opus 4 e 4.1) casava com eles e o custo saía três vezes maior que o real.
+  "claude-opus-4-8": { inputPer1k: 0.005, outputPer1k: 0.025 },
+  "claude-opus-4-7": { inputPer1k: 0.005, outputPer1k: 0.025 },
+  "claude-opus-4-6": { inputPer1k: 0.005, outputPer1k: 0.025 },
+  "claude-opus-4-5": { inputPer1k: 0.005, outputPer1k: 0.025 },
+  "claude-opus-4": { inputPer1k: 0.015, outputPer1k: 0.075 },
+  "claude-sonnet-5": { inputPer1k: 0.002, outputPer1k: 0.01 },
+  "claude-sonnet-4": { inputPer1k: 0.003, outputPer1k: 0.015 },
+  // Haiku 5.5: preço para prompts de até 100 mil tokens; acima disso custa cinco vezes mais.
+  "claude-haiku-5-5": { inputPer1k: 0.0001, outputPer1k: 0.0005 },
+  "claude-haiku-4": { inputPer1k: 0.001, outputPer1k: 0.005 },
   "claude-3-5-sonnet": { inputPer1k: 0.003, outputPer1k: 0.015 },
-  "claude-3-5-haiku": { inputPer1k: 0.001, outputPer1k: 0.005 },
+  "claude-3-5-haiku": { inputPer1k: 0.0008, outputPer1k: 0.004 },
   "claude-3-opus": { inputPer1k: 0.015, outputPer1k: 0.075 },
   "claude-3-sonnet": { inputPer1k: 0.003, outputPer1k: 0.015 },
   "claude-3-haiku": { inputPer1k: 0.00025, outputPer1k: 0.00125 },
 
   // ── Google ───────────────────────────────────────────────────
-  "gemini-2.5-pro": { inputPer1k: 0.00125, outputPer1k: 0.01 }, // conferir
-  "gemini-2.5-flash-lite": { inputPer1k: 0.0001, outputPer1k: 0.0004 }, // conferir
-  "gemini-2.5-flash": { inputPer1k: 0.0003, outputPer1k: 0.0025 }, // conferir
-  "gemini-2.0-flash-lite": { inputPer1k: 0.000075, outputPer1k: 0.0003 }, // conferir
+  // Gemini 2.5 Pro: preço para prompts de até 200 mil tokens; acima disso a entrada dobra.
+  "gemini-2.5-pro": { inputPer1k: 0.00125, outputPer1k: 0.01 },
+  "gemini-2.5-flash-lite": { inputPer1k: 0.0001, outputPer1k: 0.0004 },
+  "gemini-2.5-flash": { inputPer1k: 0.0003, outputPer1k: 0.0025 },
+  "gemini-2.0-flash-lite": { inputPer1k: 0.000075, outputPer1k: 0.0003 },
   "gemini-2.0-flash": { inputPer1k: 0.0001, outputPer1k: 0.0004 },
   "gemini-1.5-pro": { inputPer1k: 0.00125, outputPer1k: 0.005 },
   "gemini-1.5-flash": { inputPer1k: 0.000075, outputPer1k: 0.0003 },
+};
+
+/** Dia em que os preços foram conferidos nas páginas dos provedores. */
+export const PRICES_VERIFIED_ON = "2026-10-11";
+
+/** Modelos cujo preço não estava na página do provedor na conferência: continuam sendo estimativa. */
+export const UNVERIFIED_PRICE_MODEL_IDS = new Set([
+  "gpt-4-turbo",
+  "gpt-4",
+  "gpt-3.5-turbo",
+  "o1-preview",
+  "o1-mini",
+  "claude-3-5-sonnet",
+  "claude-3-opus",
+  "claude-3-sonnet",
+  "claude-3-haiku",
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash",
+  "gemini-1.5-pro",
+  "gemini-1.5-flash",
+]);
+
+/** Transcrição cobrada por minuto de áudio, em USD (a página da OpenAI dá o valor por minuto). */
+export const AUDIO_MINUTE_PRICE_USD: Record<string, number> = {
+  "whisper-1": 0.006,
+  "gpt-4o-transcribe": 0.006,
+  "gpt-4o-mini-transcribe": 0.003,
 };
 
 /**

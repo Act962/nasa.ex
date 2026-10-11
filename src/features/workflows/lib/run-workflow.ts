@@ -19,6 +19,7 @@
  * de cada node-execution (enviar msg, chamar Stripe, etc) são delegados ao
  * `executor-registry.ts` existente (Fase 2 estende com os novos NodeTypes).
  */
+import { RESUME_BY_BUTTON_REPLY, chooseButtonReplyOutput } from "./button-reply-flow";
 import prisma from "@/lib/prisma";
 import {
   createInitialContext,
@@ -50,7 +51,7 @@ export type RunWorkflowInput = {
    * passando esses campos pra continuar do ponto.
    */
   resumeFromRunId?: string;
-  resumeQueue?: Array<{ nodeId: string }>;
+  resumeQueue?: QueueItem[];
   resumeContext?: WorkflowContext;
   resumeExecutions?: number;
   resumeStars?: number;
@@ -60,6 +61,12 @@ export type RunWorkflowInput = {
  * Estado serializável retornado quando o workflow suspende em
  * WAIT_FOR_EVENT. Caller usa pra retomar via `resumeFromRunId`.
  */
+/** Item da fila do motor. `buttonReplyIds` marca um menu de botões que volta só para escolher a saída. */
+export interface QueueItem {
+  nodeId: string;
+  buttonReplyIds?: string[];
+}
+
 export type SuspendedState = {
   runId: string;
   suspendedAtNodeId: string;
@@ -76,7 +83,7 @@ export type SuspendedState = {
   eventNames: string[];
   timeoutMinutes: number;
   /** Nodes que ainda precisam ser executados após o resume. */
-  pendingQueue: Array<{ nodeId: string }>;
+  pendingQueue: QueueItem[];
   /** Contexto serializado pra reidratar no resume. */
   contextSnapshot: WorkflowContext;
   executions: number;
@@ -291,7 +298,7 @@ export async function runWorkflow(
   }> = [];
 
   // Queue de pares (nodeId, contexto-no-momento). BFS pra evitar recursão profunda.
-  const queue: Array<{ nodeId: string }> = isResume
+  const queue: QueueItem[] = isResume
     ? resumeQueue!
     : triggerNodes.map((n) => ({ nodeId: n.id }));
 
@@ -329,6 +336,20 @@ export async function runWorkflow(
     const cur = queue.shift()!;
     const node = nodeById.get(cur.nodeId);
     if (!node) continue;
+
+    // Menu de botões que esperou o clique (spec 0090, seção F): o quadro já rodou antes da espera;
+    // agora só escolhe por qual saída seguir, sem enviar de novo.
+    if (cur.buttonReplyIds) {
+      const vars = (ctx.vars as Record<string, unknown> | undefined) ?? {};
+      const replyOutput = chooseButtonReplyOutput({
+        sentButtonIds: cur.buttonReplyIds,
+        hasTimedOut: vars.lastWaitTimedOut === true,
+        clickedButtonId: (vars.lastEvent as { interactiveReplyId?: unknown } | undefined)?.interactiveReplyId,
+      });
+      log.push({ nodeId: node.id, type: node.type, chosenOutput: replyOutput, output: { resumedBy: replyOutput }, status: "SUCCESS" });
+      for (const nextId of adjBy.get(node.id)?.get(replyOutput) ?? []) queue.push({ nodeId: nextId });
+      continue;
+    }
 
     executions++;
     const result = await executeNode({
@@ -382,7 +403,15 @@ export async function runWorkflow(
           nextAfterWait.push({ nodeId: nextId });
         }
       }
-      const remainingQueue = [...nextAfterWait, ...queue];
+      const waitOutput = (result.output && typeof result.output === "object" ? result.output : {}) as Record<string, unknown>;
+      const buttonReplyIds =
+        waitOutput.resumeOutputFrom === RESUME_BY_BUTTON_REPLY && Array.isArray(waitOutput.buttonIds)
+          ? (waitOutput.buttonIds as unknown[]).map(String)
+          : null;
+      // Com espera de clique, quem volta para a fila é o próprio quadro, marcado para só escolher a saída.
+      const remainingQueue: QueueItem[] = buttonReplyIds
+        ? [{ nodeId: node.id, buttonReplyIds }, ...queue]
+        : [...nextAfterWait, ...queue];
       const pendingCtx = mergeOutputInto(ctx, node.id, result.output);
 
       // Prioriza valores que o executor retornou no output (caso do nó WAIT

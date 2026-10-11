@@ -1,6 +1,7 @@
 import { orpc } from "@/lib/orpc";
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -292,6 +293,33 @@ export const useExecuteWorkflow = () => {
       onError: (error) => {
         toast.error(`Falha ao executar o workflow: ${error.message}`);
       },
+    }),
+  );
+};
+
+/** Fluxos do funil sem suspender a tela: para seletores (ex.: escolher o fluxo de destino). */
+export const useWorkflowsList = (trackingId: string | undefined) => {
+  return useQuery({
+    ...orpc.workflow.list.queryOptions({ input: { trackingId: trackingId ?? "" } }),
+    enabled: Boolean(trackingId),
+  });
+};
+
+/** Liga dois fluxos do funil: terminou um, roda o outro (spec 0092). */
+export const useLinkFlows = (trackingId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workflow.linkFlows.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.workflow.list.queryKey({ input: { trackingId } }) }),
+    }),
+  );
+};
+
+export const useUnlinkFlows = (trackingId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.workflow.unlinkFlows.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.workflow.list.queryKey({ input: { trackingId } }) }),
     }),
   );
 };

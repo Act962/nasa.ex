@@ -35,9 +35,9 @@ import {
   lastSavedSnapshotAtom,
   workflowDirtyAtom,
   flowDiagnosticsAtom,
+  editorReadOnlyAtom,
   connectionHoverAtom,
   insertOnEdgeIdAtom,
-  sparkRouteAtom,
 } from "../store/atoms";
 import { NodeType } from "@/generated/prisma/enums";
 import { ExecuteWorkflowButton } from "./execute-workflow-button";
@@ -45,9 +45,12 @@ import { NodeSelector } from "@/components/node-selector";
 import { MenuOptions } from "../../../components/menu-options";
 import { nearestSide, oppositeSide, readNodeSides } from "../lib/node-sides";
 import { REFUSAL_MESSAGES, refuseConnection } from "../lib/connection-rules";
-import { validateNode } from "@/features/workflows/lib/validate-node";
+import { collectFlowProblems } from "@/features/workflows/lib/flow-problems";
+import { InspectorMode } from "./inspector-mode";
+import { useAutomationPermissions } from "@/features/workflows/hooks/use-automation-permissions";
+import { StageSectionsLayer } from "./stage-sections-layer";
+import { PauseAnimationsWhenAway } from "./pause-animations-when-away";
 import { resolveOverlaps } from "../lib/resolve-overlaps";
-import { orderSparkRoute } from "../lib/spark-route";
 import { triggerNodes } from "@/features/tracking-executions/lib/node-options";
 import { WorkflowAgentModeProvider } from "@/features/workflows/lib/agent-mode-context";
 import { AgentDetailButton } from "@/features/workflows/components/agent-detail-button";
@@ -61,7 +64,7 @@ import { ValidatedEdge } from "./validated-edge";
 import { SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
-import { EMPTY_FLOW_DIAGNOSTICS, diagnoseFlow, indexFlowDiagnostics, type FlowChannelProvider, type FlowDiagnostic } from "@/features/workflows/lib/flow-diagnostics";
+import { EMPTY_FLOW_DIAGNOSTICS, type FlowChannelProvider } from "@/features/workflows/lib/flow-diagnostics";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
 import { useParams } from "next/navigation";
 import { WorkflowClipboardButton } from "@/features/workflow-clipboard/components/workflow-clipboard-button";
@@ -77,6 +80,13 @@ const edgeTypes = {
 
 export function Editor({ workflowId }: { workflowId: string }) {
   const [openSelector, setOpenSelector] = useState(false);
+  const { canEdit } = useAutomationPermissions();
+  const isReadOnly = !canEdit;
+  const setEditorReadOnly = useSetAtom(editorReadOnlyAtom);
+  useEffect(() => {
+    setEditorReadOnly(isReadOnly);
+    return () => setEditorReadOnly(false);
+  }, [isReadOnly, setEditorReadOnly]);
 
   const { data } = useSuspenseQuery(
     orpc.workflow.getOne.queryOptions({
@@ -299,8 +309,10 @@ export function Editor({ workflowId }: { workflowId: string }) {
     [nodes],
   );
   useEffect(() => {
+    // Em somente leitura ninguém salva: mexer nas posições só deixaria um "alteração não salva" falso.
+    if (isReadOnly) return;
     spreadOverlappingNodes();
-  }, [measuredSizesSignature, spreadOverlappingNodes]);
+  }, [measuredSizesSignature, spreadOverlappingNodes, isReadOnly]);
 
   const [insertOnEdgeId, setInsertOnEdgeId] = useAtom(insertOnEdgeIdAtom);
   useEffect(() => {
@@ -432,7 +444,6 @@ export function Editor({ workflowId }: { workflowId: string }) {
   const channelProvider: FlowChannelProvider = !instance ? "none" : instance.provider === "META_CLOUD" ? "meta" : "uazapi";
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const setFlowDiagnostics = useSetAtom(flowDiagnosticsAtom);
-  const setSparkRoute = useSetAtom(sparkRouteAtom);
   const diagnosticsSignature = useMemo(
     () =>
       JSON.stringify({
@@ -443,50 +454,28 @@ export function Editor({ workflowId }: { workflowId: string }) {
   );
   useEffect(() => {
     if (instanceLoading) return;
-    // Passo sem configurar (ou marcado pela IA para revisão) não roda direito: entra na mesma conta,
-    // para o vermelho seguir pelo contorno, pelas linhas e pelo que vem depois.
-    const incompleteSteps: FlowDiagnostic[] = nodes.flatMap((node) => {
-      const nodeData = node.data as Record<string, unknown> | undefined;
-      const validation = node.type ? validateNode(node.type, nodeData) : undefined;
-      const isInvalid = Boolean(validation && !validation.skip && !validation.valid);
-      const needsReview = nodeData?.needsReview === true;
-      if (!isInvalid && !needsReview) return [];
-      return [
-        {
-          nodeId: node.id,
-          edgeIds: edges.filter((edge) => edge.source === node.id || edge.target === node.id).map((edge) => edge.id),
-          severity: "error" as const,
-          code: "NODE_INCOMPLETE" as const,
-          title: "Passo incompleto",
-          message: validation?.errors.join(" ") || String(nodeData?.reviewReason ?? "Falta configurar este passo."),
-          fixHint: "Abrir a configuração",
-        },
-      ];
-    });
-    const flowDiagnostics = indexFlowDiagnostics(
-      [...diagnoseFlow(nodes, edges, { provider: channelProvider }), ...incompleteSteps],
-      edges,
-    );
+    const flowDiagnostics = collectFlowProblems(nodes, edges, channelProvider);
     setFlowDiagnostics(flowDiagnostics);
-    setSparkRoute(orderSparkRoute(nodes, edges, flowDiagnostics, Date.now()));
     // A assinatura já resume nós e ligações: depender deles direto recalcularia a cada arrasto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diagnosticsSignature, channelProvider, instanceLoading, setFlowDiagnostics, setSparkRoute]);
+  }, [diagnosticsSignature, channelProvider, instanceLoading, setFlowDiagnostics]);
   useEffect(
     () => () => {
       setFlowDiagnostics(EMPTY_FLOW_DIAGNOSTICS);
-      setSparkRoute({});
     },
-    [setFlowDiagnostics, setSparkRoute],
+    [setFlowDiagnostics],
   );
 
   return (
     <WorkflowAgentModeProvider workflowId={workflowId} agentMode={agentMode}>
+      <InspectorMode />
+      <PauseAnimationsWhenAway />
      <WorkflowIssuesProvider value={issuesContextValue}>
       <div className="size-full">
         <MenuOptions
           handelOpenSelector={setOpenSelector}
           workflowId={workflowId}
+          isDisabled={isReadOnly}
         >
           <ReactFlow
             nodes={nodes}
@@ -495,6 +484,11 @@ export function Editor({ workflowId }: { workflowId: string }) {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onReconnect={onReconnect}
+            // Sem a permissão de editar Automações o desenho fica travado: dá para olhar e navegar, não mexer.
+            nodesDraggable={!isReadOnly}
+            nodesConnectable={!isReadOnly}
+            edgesReconnectable={!isReadOnly}
+            deleteKeyCode={isReadOnly ? null : undefined}
             onNodeDragStop={(_event, node) => spreadOverlappingNodes(node.id)}
             isValidConnection={isValidConnection}
             onConnectStart={(_event, params) => {
@@ -532,6 +526,7 @@ export function Editor({ workflowId }: { workflowId: string }) {
             // selectionOnDrag
           >
             <Background variant={BackgroundVariant.Dots} />
+            <StageSectionsLayer />
             <MiniMap position="bottom-right" className="bg-background!" />
             <Controls
               position="bottom-left"
@@ -562,7 +557,8 @@ export function Editor({ workflowId }: { workflowId: string }) {
               </div>
               {/* Auto-layout via Dagre — recalcula positions pra eliminar
                   sobreposições. Marca workflow como dirty pra user salvar. */}
-              <OptimizeLayoutButton />
+              {!isReadOnly && <OptimizeLayoutButton />}
+              {!isReadOnly && (
               <Button
                 variant={isToolsOpen ? "secondary" : "outline"}
                 size="icon"
@@ -575,6 +571,7 @@ export function Editor({ workflowId }: { workflowId: string }) {
               >
                 <SettingsIcon className="size-4" />
               </Button>
+              )}
             </Panel>
             {hasManuelTrigger && (
               <Panel position="bottom-center">

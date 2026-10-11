@@ -161,6 +161,35 @@ export const TRACKING_GUIDES: GuideDef[] = [
       message: "Dá para voltar aqui e mudar quando quiser.",
     },
   },
+  // Mais específico que criar: vem antes, para "como altero um fluxo" não cair no guia de criar.
+  {
+    key: "tracking.astro-flow-edit",
+    app: "tracking",
+    title: "Alterar um fluxo com o Astro",
+    summary: "Com o fluxo aberto, diga o que inserir, tirar ou trocar. O Astro pergunta o que faltar e mostra a mudança antes de gravar.",
+    topicPattern: /\b(como|onde|ensin\w*|mostr\w*)\b.*\b(alter\w*|edit\w*|mud\w*|inser\w*|adicion\w*|tir\w*|troc\w*)\b.*\b(fluxos?(?! de caixa)|gatilhos?|automac\w*)\b/,
+    steps: [
+      {
+        anchor: "astroFlowEditButton",
+        title: "Clique em Pedir ao ASTRO",
+        message: "Fica na barra do editor do fluxo e abre um campo na base da tela.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: "Abra um fluxo em Gatilhos Automáticos para ver este botão. Ele só aparece para quem pode editar Automações.",
+      },
+      {
+        anchor: "astroFlowEditField",
+        title: "Diga o que mudar",
+        message: "Por exemplo: insira o envio da agenda depois das boas-vindas. Se faltar uma escolha, o Astro pergunta com opções para tocar.",
+        position: "top",
+        advanceOn: "next",
+      },
+    ],
+    finish: {
+      title: "Mudança pedida ✨",
+      message: "O Astro mostra o que vai mudar e só grava depois do seu sim. Ele nunca liga um fluxo sozinho.",
+    },
+  },
   {
     key: "tracking.astro-flow",
     app: "tracking",

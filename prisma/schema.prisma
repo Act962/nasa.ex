@@ -255,6 +255,9 @@ model Organization {
   astroCommanderPausedAt DateTime?    @map("astro_commander_paused_at")
   /// IA do ASTRO (spec 0053): PLATFORM = modelo ÓRBITA; OWN = chave da org nos Satélites; null = ainda não escolheu.
   astroAiMode            AstroAiMode? @map("astro_ai_mode")
+  /// Preferências de IA da empresa (spec 0093, etapa 2): em quais recursos a chave própria vale e a
+  /// faixa do modelo por uso. Vazio = cada recurso escolhe como sempre escolheu.
+  aiPreferences          Json         @default("{}") @map("ai_preferences")
   // Anti-spam de notificações pós-débito (1 dispatch/dia/severidade).
   starsLastAlertAt       DateTime?    @map("stars_last_alert_at")
   starsAlertConfig       Json         @default("{}") @map("stars_alert_config")

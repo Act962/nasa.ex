@@ -1,3 +1,4 @@
+import { AUTOMATION_DENIAL, checkTrackingAutomationsAccess } from "@/features/workflows/server/workflow-access";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
@@ -15,6 +16,11 @@ export const createFolder = base
     }),
   )
   .handler(async ({ input, context, errors }) => {
+
+    // Ser da empresa não basta: vale a permissão de Automações do papel da pessoa (spec 0092).
+    const access = await checkTrackingAutomationsAccess(input.trackingId, context.user.id, "canCreate");
+    if (access === "not-found") throw errors.NOT_FOUND({ message: "Tracking não encontrado" });
+    if (access === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canCreate });
     const tracking = await prisma.tracking.findUnique({
       where: { id: input.trackingId },
       select: { id: true },

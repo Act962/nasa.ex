@@ -4,7 +4,7 @@ import { IconNodeCaption, IconNodeGlyph, hasIconCaption, hasIconGlyph } from "@/
 import { FlowNoticeBadge } from "@/features/editor/components/rich/flow-notice-badge";
 import { AnimatedOutline, type OutlineTone } from "@/features/editor/components/rich/animated-outline";
 import { hasRichPreview } from "@/features/editor/components/rich/rich-node-types";
-import { connectionHoverAtom, editorViewModeAtom } from "@/features/editor/store/atoms";
+import { connectionHoverAtom, editorReadOnlyAtom, editorViewModeAtom } from "@/features/editor/store/atoms";
 import { useIsNodeBlockedByFlowProblem, useNodeFlowDiagnostics } from "@/features/editor/hooks/use-flow-diagnostics";
 
 import {
@@ -81,7 +81,8 @@ export const BaseTriggerNode = memo(
       ),
     );
 
-    const shouldShowButton = !connectionInProgress && !isConnected;
+    const isReadOnly = useAtomValue(editorReadOnlyAtom);
+    const shouldShowButton = !connectionInProgress && !isConnected && !isReadOnly;
 
     const handleDelete = () => {
       setNodes((currentNodes) => {
@@ -177,8 +178,9 @@ export const BaseTriggerNode = memo(
       <WorkflowNode
         name={name}
         description={description}
+        showToolbar={!isReadOnly}
         onDelete={handleDelete}
-        onSettings={onSettings}
+        onSettings={isReadOnly ? undefined : onSettings}
         notice={isRichView ? undefined : flowNotice}
         onDuplicate={handleDuplicate}
         caption={!isRichView && nodeType && hasIconCaption(nodeType) ? <IconNodeCaption nodeType={nodeType} data={nodeData} /> : undefined}
@@ -211,7 +213,7 @@ export const BaseTriggerNode = memo(
                   ]
                 : []),
             ]}
-            onDoubleClick={onDoubleClick}
+            onDoubleClick={isReadOnly ? undefined : onDoubleClick}
             className="relative group rounded-2xl border-transparent outline-none hover:bg-card hover:ring-0 focus:ring-0"
           >
             <BaseNodeContent className={showsRichPreview ? "relative p-1" : "relative"}>
@@ -223,7 +225,7 @@ export const BaseTriggerNode = memo(
                   </span>
                 </span>
               )}
-              {isRichView && flowNotice && <FlowNoticeBadge notice={flowNotice} onFix={onSettings} />}
+              {isRichView && flowNotice && <FlowNoticeBadge notice={flowNotice} onFix={isReadOnly ? undefined : onSettings} />}
               {showsRichPreview && nodeType ? (
                 <RichNodePreview nodeType={nodeType} data={nodeData} name={name} icon={Icon} isUndelivered={hasFlowError} />
               ) : !isRichView && nodeType && hasIconGlyph(nodeType) ? (

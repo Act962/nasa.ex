@@ -75,7 +75,7 @@ export const HttpRequestDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>HTTP Request</DialogTitle>
           <DialogDescription>Configure the HTTP request</DialogDescription>

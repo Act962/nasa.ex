@@ -1,3 +1,4 @@
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -103,11 +104,12 @@ export async function parseCommandIntent(
     if (apiKey) {
       try {
         const anthropic = createAnthropic({ apiKey });
-        const { text } = await generateText({
+        const { text, usage } = await generateText({
           model: anthropic("claude-haiku-4-5-20251001"),
           system: SYSTEM_PROMPT,
           prompt: command,
         });
+        await recordAiUsage({ resourceId: "explorer.command", organizationId: orgId, provider: "anthropic", modelId: "claude-haiku-4-5-20251001", keySource: "organization", usage: usage });
         const parsed = safeParseIntent(text);
         if (parsed) return parsed;
       } catch {
@@ -116,11 +118,12 @@ export async function parseCommandIntent(
           const apiKey2 = readIntegrationApiKey(anthropicIntegration.config as Record<string, unknown> | null);
           if (apiKey2) {
             const anthropic2 = createAnthropic({ apiKey: apiKey2 });
-            const { text: text2 } = await generateText({
+            const { text: text2, usage: usage2 } = await generateText({
               model: anthropic2("claude-3-haiku-20240307"),
               system: SYSTEM_PROMPT,
               prompt: command,
                 });
+                await recordAiUsage({ resourceId: "explorer.command", organizationId: orgId, provider: "anthropic", modelId: "claude-3-haiku-20240307", keySource: "organization", usage: usage2 });
             const parsed2 = safeParseIntent(text2);
             if (parsed2) return parsed2;
           }
@@ -138,11 +141,12 @@ export async function parseCommandIntent(
     if (apiKey) {
       try {
         const openai = createOpenAI({ apiKey });
-        const { text } = await generateText({
+        const { text, usage } = await generateText({
           model: openai("gpt-4o-mini"),
           system: SYSTEM_PROMPT,
           prompt: command,
         });
+        await recordAiUsage({ resourceId: "explorer.command", organizationId: orgId, provider: "openai", modelId: "gpt-4o-mini", keySource: "organization", usage: usage });
         const parsed = safeParseIntent(text);
         if (parsed) return parsed;
       } catch {
@@ -158,11 +162,12 @@ export async function parseCommandIntent(
     if (apiKey) {
       try {
         const google = createGoogleGenerativeAI({ apiKey });
-        const { text } = await generateText({
+        const { text, usage } = await generateText({
           model: google("gemini-2.0-flash"),
           system: SYSTEM_PROMPT,
           prompt: command,
         });
+        await recordAiUsage({ resourceId: "explorer.command", organizationId: orgId, provider: "google", modelId: "gemini-2.0-flash", keySource: "organization", usage: usage });
         const parsed = safeParseIntent(text);
         if (parsed) return parsed;
       } catch {

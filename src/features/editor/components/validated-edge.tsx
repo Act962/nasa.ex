@@ -24,11 +24,9 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { validateNode } from "@/features/workflows/lib/validate-node";
 import { stepByStepStateAtom } from "../store/step-by-step-atoms";
 import { useIsEdgeOnFlowError, useIsNodeBlockedByFlowProblem, useNodeFlowDiagnostics } from "../hooks/use-flow-diagnostics";
-import { flowIsActiveAtom, insertOnEdgeIdAtom, sparkRouteAtom } from "../store/atoms";
-import { sparkKeyframes } from "../lib/spark-route";
-import { DASH_GAP, DASH_LENGTH, DASH_MARCH_ANIMATION, FlowSpark, outlineToneColor, type OutlineTone } from "./rich/animated-outline";
+import { editorReadOnlyAtom, insertOnEdgeIdAtom } from "../store/atoms";
+import { DASH_GAP, DASH_LENGTH, outlineToneColor, type OutlineTone } from "./rich/animated-outline";
 
-const SPARK_SECONDS_PER_EDGE = 1.4;
 const END_PLUS_OFFSET = 14;
 /** Ângulo de quem SAI do quadro por cada lado. */
 const LEAVING_ANGLE: Record<Position, number> = {
@@ -68,6 +66,7 @@ export function ValidatedEdge({
 }: EdgeProps) {
   const { setEdges } = useReactFlow();
   const requestInsertOnEdge = useSetAtom(insertOnEdgeIdAtom);
+  const isReadOnly = useAtomValue(editorReadOnlyAtom);
   const nodes = useNodes();
   const stepState = useAtomValue(stepByStepStateAtom);
 
@@ -92,9 +91,6 @@ export function ValidatedEdge({
   const sourceDiagnostics = useNodeFlowDiagnostics(source);
   const isSourceBlocked = useIsNodeBlockedByFlowProblem(source);
   const sourceTone: OutlineTone = sourceDiagnostics.length > 0 || isSourceBlocked ? "problem" : "ok";
-  const isFlowActive = useAtomValue(flowIsActiveAtom);
-  const sparkSlot = useAtomValue(sparkRouteAtom)[id];
-  const sparkCycleSeconds = sparkSlot ? 2 * sparkSlot.total * SPARK_SECONDS_PER_EDGE : 0;
 
   // ── Step-by-Step overrides ────────────────────────────────────
   // Quando o modo está ativo, edges ganham cor verde/vermelho/cinza
@@ -126,7 +122,6 @@ export function ValidatedEdge({
   let animation: string | undefined;
   let opacity: number | undefined;
   let strokeDasharray: string | undefined;
-  let showsSpark = false;
 
   if (stepEdgeStatus === "passed") {
     stroke = "var(--success)";
@@ -142,11 +137,6 @@ export function ValidatedEdge({
     stroke = outlineToneColor(hasFieldError ? "problem" : sourceTone);
     strokeWidth = 4;
     strokeDasharray = `${DASH_LENGTH} ${DASH_GAP}`;
-    // Trecho com problema fica tracejado e parado: o que não roda não se move.
-    const isProblemEdge = hasFieldError || sourceTone === "problem";
-    animation = isProblemEdge ? undefined : DASH_MARCH_ANIMATION;
-    // A luz só anda em fluxo ligado e em trecho que de fato roda.
-    showsSpark = isFlowActive && !hasFieldError && sourceTone === "ok" && Boolean(sparkSlot);
   }
 
   return (
@@ -155,36 +145,23 @@ export function ValidatedEdge({
         id={id}
         path={edgePath}
         markerEnd={markerEnd}
+        // Trecho que roda se move com o mouse em cima; trecho com problema só pulsa, parado.
+        className={strokeDasharray && !hasFieldError && sourceTone === "ok" ? "orbita-edge-ok" : undefined}
         style={{ stroke, strokeWidth, animation, opacity, strokeDasharray, strokeLinecap: strokeDasharray ? "round" : undefined }}
       />
-      {showsSpark && stroke && sparkSlot && (
-        <>
-          <style>{sparkKeyframes(`orbita-spark-${sparkSlot.index}-${sparkSlot.total}`, sparkSlot)}</style>
-          {/* A chave muda junto em todas as ligações: recomeçam no mesmo instante e a nave passa de uma para a outra. */}
-          <g
-            key={sparkSlot.routeVersion}
-            className="orbita-flow-spark"
-            style={{
-              offsetPath: `path("${edgePath}")`,
-              animation: `orbita-spark-${sparkSlot.index}-${sparkSlot.total} ${sparkCycleSeconds}s linear infinite`,
-            }}
-          >
-            <FlowSpark color={stroke} />
-          </g>
-        </>
-      )}
       <EdgeEndPlus x={sourceX} y={sourceY} side={sourcePosition} color={stroke ?? "var(--info)"} />
       <EdgeEndPlus x={targetX} y={targetY} side={targetPosition} color={stroke ?? "var(--info)"} />
       <style>{`.orbita-edge-end { opacity: 0; pointer-events: none; transition: opacity .15s; }
 .react-flow__edge:hover .orbita-edge-end, .react-flow__edge.selected .orbita-edge-end { opacity: 1; }
-.react-flow__edge:hover .react-flow__edge-path { filter: drop-shadow(0 0 5px var(--info)); animation: orbita-edge-select 0.9s ease-in-out infinite; }
+.orbita-edge-ok { animation: orbita-outline-march 1.1s linear infinite; }
+.react-flow__edge:hover .react-flow__edge-path { animation: orbita-edge-select 0.9s ease-in-out infinite; }
+.react-flow__edge:hover .orbita-edge-ok { animation: orbita-outline-march 1.1s linear infinite, orbita-edge-select 0.9s ease-in-out infinite; }
 @keyframes orbita-edge-select { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .react-flow__edge:hover .react-flow__edge-path { animation: none; } }`}</style>
       {strokeDasharray && (
-        <style>{`@keyframes orbita-outline-march { to { stroke-dashoffset: -${DASH_LENGTH + DASH_GAP}; } }
-@media (prefers-reduced-motion: reduce) { .orbita-flow-spark { display: none; } }`}</style>
+        <style>{`@keyframes orbita-outline-march { to { stroke-dashoffset: -${DASH_LENGTH + DASH_GAP}; } }`}</style>
       )}
-      {animation && animation !== DASH_MARCH_ANIMATION && (
+      {animation && (
         <style>{`
           @keyframes edge-pulse {
             0%, 100% { opacity: 1; }
@@ -192,7 +169,7 @@ export function ValidatedEdge({
           }
         `}</style>
       )}
-      {selected && (
+      {selected && !isReadOnly && (
         <EdgeLabelRenderer>
           <div
             style={{

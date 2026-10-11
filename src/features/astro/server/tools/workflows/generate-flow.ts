@@ -1,6 +1,7 @@
+import { resolveAiFor } from "@/features/ia/server/resolve-ai-for";
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import "server-only";
 import { generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import {
@@ -80,9 +81,14 @@ export async function generateFlowBlueprint(params: {
   intent: string;
   name?: string;
   provider: FlowChannelProvider;
+  /** Quem pediu, para o registro de uso de IA (spec 0093). */
+  organizationId: string;
+  userId?: string;
+  trackingId?: string;
 }): Promise<GeneratedBlueprint> {
+  const resolvedAi = await resolveAiFor({ resourceId: "astro.build-flow", organizationId: params.organizationId, provider: "openai", modelId: "gpt-4o" });
   const result = await generateObject({
-    model: openai("gpt-4o"),
+    model: resolvedAi.model,
     schema: GeneratedBlueprintSchema,
     system: BLUEPRINT_GENERATION_PROMPT,
     prompt: [
@@ -97,6 +103,16 @@ export async function generateFlowBlueprint(params: {
     temperature: 0.4,
     // Campos opcionais e `data` livre por nó: o modo estrito da OpenAI recusa.
     providerOptions: { openai: { strictJsonSchema: false } },
+  });
+  await recordAiUsage({
+    resourceId: "astro.build-flow",
+    organizationId: params.organizationId,
+    userId: params.userId,
+    provider: "openai",
+    modelId: resolvedAi.modelId,
+    keySource: resolvedAi.keySource,
+    usage: result.usage,
+    trackingId: params.trackingId,
   });
   return result.object;
 }

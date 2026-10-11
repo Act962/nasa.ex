@@ -1,3 +1,5 @@
+import { anthropicKeySourceOf } from "@/lib/anthropic-key";
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import { auth } from "@/lib/auth";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
@@ -58,7 +60,7 @@ Para Google Calendar, explique:
 Seja específico, direto, sem textos longos. Use emojis para tornar visual. Máximo 300 palavras. Não use markdown com # ou **, use apenas emojis e listas simples.`;
 
   try {
-    const { text } = await generateText({
+    const { text, usage } = await generateText({
       model: anthropic("claude-haiku-4-5-20251001"),
       prompt,
       maxOutputTokens: 600,
@@ -67,6 +69,16 @@ Seja específico, direto, sem textos longos. Use emojis para tornar visual. Máx
         functionId: "generate-guide",
         metadata: { posthog_distinct_id: session.user.id },
       },
+    });
+
+    await recordAiUsage({
+      resourceId: "brand.extract",
+      organizationId: session.session.activeOrganizationId,
+      userId: session.user.id,
+      provider: "anthropic",
+      modelId: "claude-haiku-4-5",
+      keySource: anthropicKeySourceOf(apiKey),
+      usage,
     });
 
     return NextResponse.json({ guide: text });

@@ -120,7 +120,7 @@ export const executeWorkflow = inngest.createFunction(
              */
             eventNames: string[];
             timeoutMinutes: number;
-            pendingQueue: Array<{ nodeId: string }>;
+            pendingQueue: Array<{ nodeId: string; buttonReplyIds?: string[] }>;
             contextSnapshot: Record<string, unknown>;
             executions: number;
             starsSpent: number;
@@ -183,6 +183,12 @@ export const executeWorkflow = inngest.createFunction(
         // pra que AI_DECISION + fallback heurístico + SEND_MESSAGE possam
         // usá-los via interpolação.
         const enrichedContext = { ...sus.contextSnapshot };
+        // Variável nova e à parte: diz se ESTA espera venceu sem evento. As demais (`lastEvent`,
+        // `lastEventName`) continuam como sempre, para não mudar fluxos que já rodam.
+        enrichedContext.vars = {
+          ...((enrichedContext.vars as Record<string, unknown> | undefined) ?? {}),
+          lastWaitTimedOut: !(resumeEvent && resumeEvent.data),
+        };
         if (resumeEvent && resumeEvent.data) {
           const vars =
             (enrichedContext.vars as Record<string, unknown> | undefined) ??

@@ -138,6 +138,11 @@ export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
    */
   intentPatterns?: RegExp[];
   /**
+   * A ação reconhece a mensagem inteira sozinha, pelo texto original (ex.: um roteiro longo colado).
+   * Vence os padrões de frase: num texto de várias páginas, palavras soltas casariam com muitos verbos.
+   */
+  claimsText?: (text: string) => boolean;
+  /**
    * Como perguntar cada campo que faltar: título, pergunta e seletor. Sem
    * isto, o ciclo guiado perguntava "me diga: leadName" em texto aberto — e
    * a resposta livre voltava ao classificador (spec 0033, RF-9).

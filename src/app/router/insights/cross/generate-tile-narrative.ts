@@ -1,9 +1,10 @@
+import { resolveAiFor } from "@/features/ia/server/resolve-ai-for";
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { z } from "zod";
 import { generateText } from "ai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { ORPCError } from "@orpc/server";
 
 const severityEnum = z.enum(["good", "warn", "bad", "neutral"]);
@@ -25,14 +26,12 @@ export const generateTileNarrative = base
     }),
   )
   .handler(async ({ input, context }) => {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
+    const resolvedAi = await resolveAiFor({ resourceId: "insights.narrative", organizationId: context.org.id, provider: "anthropic", modelId: "claude-haiku-4-5-20251001" }).catch(() => null);
+    if (!resolvedAi) {
       throw new ORPCError("INTERNAL_SERVER_ERROR", {
         message: "ANTHROPIC_API_KEY não configurada",
       });
     }
-
-    const anthropic = createAnthropic({ apiKey });
 
     const fmt = (v: number) => {
       if (input.unit === "currency") {
@@ -75,14 +74,16 @@ Gere 2 linhas em português do Brasil:
 
 Sem títulos, sem markdown. Direto, profissional e específico.`;
 
-    const { text } = await generateText({
-      model: anthropic("claude-haiku-4-5-20251001"),
+    const { text, usage } = await generateText({
+      model: resolvedAi.model,
       system:
         "Você é um analista operacional sênior. Gera diagnósticos curtos, específicos e acionáveis a partir de indicadores cruzados de uma empresa.",
       prompt,
       maxOutputTokens: 220,
       temperature: 0.4,
     });
+
+    await recordAiUsage({ resourceId: "insights.narrative", organizationId: context.org.id, userId: context.user.id, provider: "anthropic", modelId: "claude-haiku-4-5", keySource: resolvedAi.keySource, usage });
 
     return { narrative: text.trim() };
   });

@@ -7,9 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAstroWidgetStore } from "@/features/astro/voice/use-astro-widget-store";
 import { useAutomationsOverview } from "@/features/automations-hub/hooks/use-automations-hub";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { IS_ASTRO_FLOW_EDIT_ON } from "./astro-flow-edit-bar";
 
 // "Criar fluxo com ASTRO" (spec 0090, RF-22): o botão abre um campo de mensagem preso na base da
 // página. O pedido segue para a conversa do Astro, que mostra o roteiro e pede confirmação.
+
+const ASKS_TO_EDIT = /\b(n?es[st]e fluxo|no fluxo|do fluxo)\b/i;
+const ASKS_TO_CREATE = /\b(crie|criar|cria|monte|montar|gere|gerar)\b/i;
 
 const EXAMPLES = [
   "Quando o lead receber a tag Orçamento, enviar boas-vindas e lembrar em 2 horas se não responder",
@@ -33,7 +37,10 @@ export function AstroFlowBar({ trackingId }: AstroFlowBarProps) {
     const trimmedRequest = flowRequest.trim();
     if (trimmedRequest.length < 10) return;
     const target = trackingName ? ` no funil "${trackingName}"` : "";
-    openAstro({ text: `Crie um fluxo de automação${target}: ${trimmedRequest}`, fromVoice: false });
+    // "Insira agendamento nesse fluxo" não é criar: o Astro pergunta qual fluxo (spec 0094, RF-3).
+    const isEditRequest = IS_ASTRO_FLOW_EDIT_ON && ASKS_TO_EDIT.test(trimmedRequest) && !ASKS_TO_CREATE.test(trimmedRequest);
+    const opening = isEditRequest ? `Edite um fluxo${target}` : `Crie um fluxo de automação${target}`;
+    openAstro({ text: `${opening}: ${trimmedRequest}`, fromVoice: false });
     setFlowRequest("");
     setIsOpen(false);
   }

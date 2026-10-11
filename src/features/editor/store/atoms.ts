@@ -1,5 +1,4 @@
 import type { ReactFlowInstance } from "@xyflow/react";
-import type { SparkRoute } from "../lib/spark-route";
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { EMPTY_FLOW_DIAGNOSTICS, type FlowDiagnosticsIndex } from "@/features/workflows/lib/flow-diagnostics";
@@ -30,12 +29,6 @@ export const workflowDirtyAtom = atom<boolean>(false);
  */
 export const flowDiagnosticsAtom = atom<FlowDiagnosticsIndex>(EMPTY_FLOW_DIAGNOSTICS);
 
-/** O fluxo aberto está ligado: só então a luz percorre o desenho na visão "Visual". */
-export const flowIsActiveAtom = atom(false);
-
-/** Vez de cada ligação no caminho da navezinha (uma só no fluxo). */
-export const sparkRouteAtom = atom<SparkRoute>({});
-
 /** Ligação em que a pessoa pediu para encaixar um passo novo no meio (botão "+" da ligação). */
 export const insertOnEdgeIdAtom = atom<string | null>(null);
 
@@ -44,6 +37,12 @@ export const insertOnEdgeIdAtom = atom<string | null>(null);
  * O quadro mostra um "+" quando dá; a linha fica vermelha quando não dá.
  */
 export const connectionHoverAtom = atom<{ nodeId: string; isAllowed: boolean } | null>(null);
+
+/**
+ * Fluxo aberto só para olhar: a pessoa não tem a permissão de editar Automações (spec 0092).
+ * Os quadros não se movem, não abrem configuração e não mostram botões de mexer.
+ */
+export const editorReadOnlyAtom = atom(false);
 
 export type EditorViewMode = "icon" | "rich";
 

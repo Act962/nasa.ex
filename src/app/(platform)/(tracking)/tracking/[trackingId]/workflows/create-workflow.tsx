@@ -1,5 +1,6 @@
 "use client";
 
+import { useAutomationPermissions } from "@/features/workflows/hooks/use-automation-permissions";
 import { Button } from "@/components/ui/button";
 import { useCreateWorkflow } from "@/features/workflows/hooks/use-workflows";
 import { PlusIcon } from "lucide-react";
@@ -25,6 +26,7 @@ export function CreateWorkflowButton({
   const router = useRouter();
   const { trackingId } = useParams<{ trackingId: string }>();
   const createWorkflow = useCreateWorkflow();
+  const { canCreate } = useAutomationPermissions();
 
   const onCreate = () =>
     createWorkflow.mutate(
@@ -39,6 +41,9 @@ export function CreateWorkflowButton({
         },
       },
     );
+
+  // Sem a permissão de criar Automações o botão não aparece (o servidor também recusa).
+  if (!canCreate) return null;
 
   return (
     <Button onClick={onCreate} size={size} variant={variant}>

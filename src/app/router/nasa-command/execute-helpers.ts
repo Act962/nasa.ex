@@ -1,3 +1,4 @@
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -196,11 +197,12 @@ export async function generateWithAI(
     if (apiKey) {
       try {
         const anthropic = createAnthropic({ apiKey });
-        const { text } = await generateText({
+        const { text, usage } = await generateText({
           model: anthropic("claude-3-haiku-20240307"),
           system: systemPrompt,
           prompt: userPrompt,
         });
+        await recordAiUsage({ resourceId: "explorer.command", organizationId: orgId, provider: "anthropic", modelId: "claude-3-haiku-20240307", keySource: "organization", usage: usage });
         return text;
       } catch { /* continue */ }
     }
@@ -213,11 +215,12 @@ export async function generateWithAI(
     if (apiKey) {
       try {
         const openai = createOpenAI({ apiKey });
-        const { text } = await generateText({
+        const { text, usage } = await generateText({
           model: openai("gpt-4o-mini"),
           system: systemPrompt,
           prompt: userPrompt,
         });
+        await recordAiUsage({ resourceId: "explorer.command", organizationId: orgId, provider: "openai", modelId: "gpt-4o-mini", keySource: "organization", usage: usage });
         return text;
       } catch { /* continue */ }
     }
@@ -230,11 +233,12 @@ export async function generateWithAI(
     if (apiKey) {
       try {
         const google = createGoogleGenerativeAI({ apiKey });
-        const { text } = await generateText({
+        const { text, usage } = await generateText({
           model: google("gemini-2.0-flash"),
           system: systemPrompt,
           prompt: userPrompt,
         });
+        await recordAiUsage({ resourceId: "explorer.command", organizationId: orgId, provider: "google", modelId: "gemini-2.0-flash", keySource: "organization", usage: usage });
         return text;
       } catch { /* continue */ }
     }

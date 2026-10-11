@@ -810,6 +810,7 @@ async function dispatchAgentMessageIncoming(args: DispatchArgs): Promise<void> {
       ...(mediaType ? { mediaType } : {}),
       ...(mimetype ? { mimetype } : {}),
       ...(fileName ? { fileName } : {}),
+      ...(args.canonical.replyId ? { interactiveReplyId: args.canonical.replyId } : {}),
     });
   } catch (err) {
     console.error("[persist-canonical-inbound] agent_dispatch_failed", err);

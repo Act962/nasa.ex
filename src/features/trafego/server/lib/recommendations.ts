@@ -1,3 +1,4 @@
+import { recordTrafegoAiUsage } from "@/features/trafego/server/lib/record-trafego-ai-usage";
 import "server-only";
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
@@ -119,7 +120,7 @@ export async function buildTrafegoRecommendations(
   let narrative: z.infer<typeof narrativeSchema> | null = null;
   if (process.env.OPENAI_API_KEY) {
     try {
-      const { object } = await generateObject({
+      const { object, usage } = await generateObject({
         model: openai("gpt-4o-mini"),
         schema: narrativeSchema,
         system: [
@@ -145,6 +146,7 @@ export async function buildTrafegoRecommendations(
         }),
         maxRetries: 1,
       });
+      await recordTrafegoAiUsage({ feature: "trafego.recommendations", provider: "openai", modelId: "gpt-4o-mini", usage });
       narrative = object;
     } catch (error) {
       console.warn(

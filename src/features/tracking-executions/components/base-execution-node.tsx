@@ -4,7 +4,7 @@ import { IconNodeCaption, IconNodeGlyph, hasIconCaption, hasIconGlyph } from "@/
 import { FlowNoticeBadge } from "@/features/editor/components/rich/flow-notice-badge";
 import { AnimatedOutline, type OutlineTone } from "@/features/editor/components/rich/animated-outline";
 import { hasRichPreview } from "@/features/editor/components/rich/rich-node-types";
-import { connectionHoverAtom, editorViewModeAtom } from "@/features/editor/store/atoms";
+import { connectionHoverAtom, editorReadOnlyAtom, editorViewModeAtom } from "@/features/editor/store/atoms";
 import { useIsNodeBlockedByFlowProblem, useNodeFlowDiagnostics } from "@/features/editor/hooks/use-flow-diagnostics";
 
 import {
@@ -36,6 +36,7 @@ import { NodeSelector } from "@/components/node-selector";
 import { nextSide, readNodeSides, toPosition } from "@/features/editor/lib/node-sides";
 import { formatWaitLabel } from "@/features/editor/lib/wait-label";
 import { cn } from "@/lib/utils";
+import { NO_CLICK_OUTPUT, buttonReplyOutputs } from "@/features/workflows/lib/button-reply-flow";
 import { ButtonHandle } from "@/components/react-flow/button-handle";
 import { AddNextNodeButton } from "@/features/editor/components/add-next-node-button";
 
@@ -86,6 +87,8 @@ export const BaseExecutionNode = memo(
     // Visão "Visual": card do lead nos gatilhos e celular nas mensagens. Na visão de ícones nada muda.
     const viewMode = useAtomValue(editorViewModeAtom);
     const isRichView = viewMode === "rich";
+    const isReadOnly = useAtomValue(editorReadOnlyAtom);
+    const replyOutputs = useMemo(() => buttonReplyOutputs(nodeData), [nodeData]);
     // O contorno tracejado faz o papel da borda nas duas visões; do andamento só fica o que está acontecendo agora.
     const runStatus = status === "loading" || status === "success" ? status : "initial";
     const connectionHover = useAtomValue(connectionHoverAtom);
@@ -116,7 +119,7 @@ export const BaseExecutionNode = memo(
       ),
     );
 
-    const shouldShowButton = !connectionInProgress && !isConnected;
+    const shouldShowButton = !connectionInProgress && !isConnected && !isReadOnly;
 
     const handleDelete = () => {
       setNodes((currentNodes) => {
@@ -192,8 +195,9 @@ export const BaseExecutionNode = memo(
       <WorkflowNode
         name={name}
         description={description}
+        showToolbar={!isReadOnly}
         onDelete={handleDelete}
-        onSettings={onSettings}
+        onSettings={isReadOnly ? undefined : onSettings}
         notice={isRichView ? undefined : flowNotice}
         onDuplicate={handleDuplicate}
         caption={!isRichView && nodeType && hasIconCaption(nodeType) ? <IconNodeCaption nodeType={nodeType} data={nodeData} /> : undefined}
@@ -204,7 +208,7 @@ export const BaseExecutionNode = memo(
         <StepRocketOverlay status={stepNodeStatus} onClick={handleRocketClick} />
         <NodeStatusIndicator status={runStatus} variant="border">
           <BaseNode
-            onDoubleClick={onDoubleClick}
+            onDoubleClick={isReadOnly ? undefined : onDoubleClick}
             // Na visão "Visual" o contorno tracejado faz o papel da borda: a do quadro some para não brigarem.
             className="rounded-2xl border-transparent outline-none hover:bg-card hover:ring-0 focus:ring-0"
             status={status}
@@ -244,7 +248,7 @@ export const BaseExecutionNode = memo(
                   </span>
                 </span>
               )}
-              {isRichView && flowNotice && <FlowNoticeBadge notice={flowNotice} onFix={onSettings} />}
+              {isRichView && flowNotice && <FlowNoticeBadge notice={flowNotice} onFix={isReadOnly ? undefined : onSettings} />}
               {showsRichPreview && nodeType ? (
                 <RichNodePreview nodeType={nodeType} data={nodeData} name={name} description={description} icon={Icon} isUndelivered={hasFlowError} />
               ) : !isRichView && nodeType && hasIconGlyph(nodeType) ? (
@@ -261,20 +265,50 @@ export const BaseExecutionNode = memo(
                 type="target"
                 position={toPosition(inputSide)}
               />
-              <NodeSelector
-                open={openSelector}
-                onOpenChange={setOpenSelector}
-                sourceId={id}
-              >
-                <ButtonHandle
-                  id="source-1"
-                  type="source"
-                  position={toPosition(outputSide)}
-                  showButton={shouldShowButton}
+              {replyOutputs ? (
+                // Menu que espera o clique: uma saída por botão, mais "Sem clique" (spec 0090, seção F).
+                replyOutputs.map((replyOutput, outputIndex) => {
+                  const offsetPercent = ((outputIndex + 1) / (replyOutputs.length + 1)) * 100;
+                  const isSideways = outputSide === "left" || outputSide === "right";
+                  return (
+                    <BaseHandle
+                      key={replyOutput.id}
+                      id={replyOutput.id}
+                      type="source"
+                      position={toPosition(outputSide)}
+                      style={isSideways ? { top: `${offsetPercent}%` } : { left: `${offsetPercent}%` }}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none absolute whitespace-nowrap rounded-full border bg-background px-1.5 py-0.5 text-[9px] font-medium leading-none",
+                          outputSide === "right" && "left-3 top-1/2 -translate-y-1/2",
+                          outputSide === "left" && "right-3 top-1/2 -translate-y-1/2",
+                          outputSide === "bottom" && "left-1/2 top-3 -translate-x-1/2",
+                          outputSide === "top" && "bottom-3 left-1/2 -translate-x-1/2",
+                          replyOutput.id === NO_CLICK_OUTPUT && "text-muted-foreground",
+                        )}
+                      >
+                        {replyOutput.label}
+                      </span>
+                    </BaseHandle>
+                  );
+                })
+              ) : (
+                <NodeSelector
+                  open={openSelector}
+                  onOpenChange={setOpenSelector}
+                  sourceId={id}
                 >
-                  <AddNextNodeButton />
-                </ButtonHandle>
-              </NodeSelector>
+                  <ButtonHandle
+                    id="source-1"
+                    type="source"
+                    position={toPosition(outputSide)}
+                    showButton={shouldShowButton}
+                  >
+                    <AddNextNodeButton />
+                  </ButtonHandle>
+                </NodeSelector>
+              )}
             </BaseNodeContent>
           </BaseNode>
         </NodeStatusIndicator>

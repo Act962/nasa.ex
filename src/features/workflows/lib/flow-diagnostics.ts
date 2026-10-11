@@ -12,6 +12,10 @@ export type FlowChannelProvider = "meta" | "uazapi" | "none";
 
 export interface FlowChannelFacts {
   provider: FlowChannelProvider;
+  /** A automação envia botões pela API oficial (interruptor da seção F ligado). */
+  canSendOfficialMenu?: boolean;
+  /** Em número fora da API oficial o menu sai como texto numerado (spec 0095). */
+  sendsMenuAsNumberedText?: boolean;
 }
 
 export interface FlowNodeInput {
@@ -32,6 +36,7 @@ export type FlowDiagnosticCode =
   | "META_WINDOW_MAY_BE_CLOSED"
   | "META_WINDOW_CLOSED_IF_NO_REPLY"
   | "META_BUTTONS_BLOCKED"
+  | "UNOFFICIAL_MENU_AS_TEXT"
   | "META_VOICE_UNSUPPORTED"
   | "TEMPLATE_NEEDS_OFFICIAL_NUMBER"
   | "NO_NUMBER_CONNECTED"
@@ -277,13 +282,48 @@ export function diagnoseFlow(nodes: FlowNodeInput[], edges: FlowEdgeInput[], fac
 
     if (payloadType === "BUTTONS") {
       const buttons = Array.isArray(payload.buttons) ? (payload.buttons as Fields[]) : [];
-      if (isMeta) {
+      if (isMeta && facts.canSendOfficialMenu && payload.mode !== "preset") {
+        const isList = payload.menuFormat === "LIST";
+        const maxOptions = isList ? OFFICIAL_API_LIMITS.maxListRows : OFFICIAL_API_LIMITS.maxButtons;
+        const maxTitleChars = isList ? OFFICIAL_API_LIMITS.listRowTitleChars : OFFICIAL_API_LIMITS.buttonTitleChars;
+        const longOption = buttons.find((button) => String(button.text ?? "").length > maxTitleChars);
+        if (buttons.length > maxOptions) {
+          report(node, {
+            severity: "error",
+            code: "TOO_MANY_OPTIONS",
+            title: "Opções demais para a API oficial",
+            message: `A API oficial aceita no máximo ${maxOptions} ${isList ? "itens na lista" : "botões"}; este menu tem ${buttons.length}. O envio é recusado.`,
+            fixHint: isList ? "Reduza os itens." : "Reduza para 3 botões ou troque o formato para lista (até 10).",
+          });
+        } else if (longOption) {
+          report(node, {
+            severity: "error",
+            code: "OPTION_TITLE_TOO_LONG",
+            title: "Texto da opção longo demais",
+            message: `"${String(longOption.text).slice(0, 40)}" passa de ${maxTitleChars} caracteres, o limite da API oficial. O envio é recusado.`,
+            fixHint: "Encurte o texto da opção.",
+          });
+        }
+        continue;
+      }
+      if (isMeta && !(facts.canSendOfficialMenu && payload.mode === "preset")) {
         report(node, {
           severity: "error",
           code: "META_BUTTONS_BLOCKED",
           title: "Menu de botões não sai na API oficial",
           message: "Hoje a automação não envia menu de botões em número da API oficial. Este passo falha.",
           fixHint: "Use uma mensagem de texto com as opções, ou o menu de botões do Fluxo de atendimento.",
+        });
+        continue;
+      }
+      if (facts.provider === "uazapi" && facts.sendsMenuAsNumberedText) {
+        // Aviso, não erro: o fluxo continua rodando, só que o menu chega como texto (spec 0095, RF-7).
+        report(node, {
+          severity: "warning",
+          code: "UNOFFICIAL_MENU_AS_TEXT",
+          title: "Sai como lista numerada",
+          message: "Este funil usa um número fora da API oficial. Botões e listas só existem na API oficial: aqui o menu chega como texto numerado e o cliente responde com o número.",
+          fixHint: "Para enviar botões de verdade, conecte um número com API oficial.",
         });
         continue;
       }

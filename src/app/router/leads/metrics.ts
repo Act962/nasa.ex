@@ -59,7 +59,7 @@ export const auditLead = base
         notice = "Sem Stars para a auditoria por IA: mostrando só o que os dados dizem.";
       } else {
         try {
-          aiAudit = await auditLeadWithAi({ organizationId, leadId: input.leadId });
+          aiAudit = await auditLeadWithAi({ organizationId, leadId: input.leadId, userId: context.user.id, starsCharged: charge.cost });
         } catch (error) {
           console.error("[leads.auditLead] IA falhou", error);
           notice = "A auditoria por IA não respondeu: mostrando só o que os dados dizem.";

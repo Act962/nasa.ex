@@ -1,5 +1,7 @@
 "use client";
 
+import { AstroFlowEditBar } from "@/features/automations-hub/components/astro-flow-edit-bar";
+import { useAutomationPermissions } from "@/features/workflows/hooks/use-automation-permissions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +38,6 @@ import {
   lastSavedSnapshotAtom,
   workflowDirtyAtom,
   flowDiagnosticsAtom,
-  flowIsActiveAtom,
 } from "../store/atoms";
 import { ViewModeToggle } from "./view-mode-toggle";
 import { UnsavedChangesDialog } from "./unsaved-changes-dialog";
@@ -55,6 +56,7 @@ export const EditorOptions = ({ workflowId }: { workflowId: string }) => {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const deleteWorkflow = useDeleteWorkflow();
+  const { canDelete } = useAutomationPermissions();
 
   const handleDelete = () => {
     deleteWorkflow.mutate(
@@ -67,6 +69,8 @@ export const EditorOptions = ({ workflowId }: { workflowId: string }) => {
       },
     );
   };
+
+  if (!canDelete) return null;
 
   return (
     <>
@@ -141,6 +145,7 @@ const computeWorkflowSignature = (
 };
 
 export const EditorSaveButton = ({ workflowId }: { workflowId: string }) => {
+  const { canEdit } = useAutomationPermissions();
   const editor = useAtomValue(editorAtom);
   const setLastSavedSnapshot = useSetAtom(lastSavedSnapshotAtom);
   const setDirty = useSetAtom(workflowDirtyAtom);
@@ -172,6 +177,11 @@ export const EditorSaveButton = ({ workflowId }: { workflowId: string }) => {
       },
     );
   };
+
+  // Quem não pode editar Automações vê o fluxo, mas não salva.
+  if (!canEdit) {
+    return <span className="rounded-full border px-3 py-1 text-xs text-muted-foreground">Somente leitura</span>;
+  }
 
   return (
     <Button onClick={handleSave} size={"sm"} disabled={saveWorkflow.isPending}>
@@ -329,12 +339,8 @@ const EditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
   const { trackingId } = useParams<{ trackingId: string }>();
   const { data } = useSuspenseWorkflow(workflowId);
   const isActive = data.workflow.isActive;
-  const setFlowIsActive = useSetAtom(flowIsActiveAtom);
-  useEffect(() => {
-    setFlowIsActive(isActive);
-    return () => setFlowIsActive(false);
-  }, [isActive, setFlowIsActive]);
   const updateIsActive = useUpdateWorkflowIsActive(trackingId);
+  const { canEdit: canEditAutomations } = useAutomationPermissions();
   // Erros previstos no desenho (spec 0090, RF-20): com erro, o fluxo não liga por aqui. Desligar é sempre
   // permitido, e fluxo que já estava ligado continua ligado (RF-21).
   const predictedErrors = useAtomValue(flowDiagnosticsAtom).all.filter((diagnostic) => diagnostic.severity === "error");
@@ -353,7 +359,7 @@ const EditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
       <span>{isActive ? "Ativa" : "Inativa"}</span>
       <Switch
         checked={isActive}
-        disabled={updateIsActive.isPending}
+        disabled={updateIsActive.isPending || !canEditAutomations}
         onCheckedChange={handleToggle}
         aria-label={isActive ? "Desativar automação" : "Ativar automação"}
       />
@@ -383,6 +389,7 @@ export const EditorHeader = ({ workflowId }: { workflowId: string }) => {
       <EditorBreadcrumbs workflowId={workflowId} />
       <div className="flex items-center gap-2">
         <EditorActiveToggle workflowId={workflowId} />
+        <AstroFlowEditBar workflowId={workflowId} />
         <EditorOptions workflowId={workflowId} />
         <ViewModeToggle />
         <EditorSaveButton workflowId={workflowId} />

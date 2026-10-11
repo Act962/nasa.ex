@@ -63,6 +63,10 @@ export const GUIDE_ANCHORS = {
     id: "workflow-editor.view-mode",
     description: "Chave \"Ícones / Visual\" ao lado do botão Salvar no editor de Gatilhos Automáticos, que troca o desenho dos quadros",
   },
+  workflowsViewToggle: {
+    id: "workflows.view-toggle",
+    description: "Chave \"Lista / Mapa\" na página de Gatilhos Automáticos do funil; o Mapa mostra todos os fluxos numa tela só",
+  },
   workflowToolsButton: {
     id: "workflow-editor.tools-button",
     description: "Botão de engrenagem \"Configurações\" no editor de Gatilhos Automáticos, que mostra Histórico, Testar passo a passo e Clipboard",
@@ -74,6 +78,14 @@ export const GUIDE_ANCHORS = {
   astroFlowButton: {
     id: "automations-hub.astro-flow-button",
     description: "Botão \"Criar fluxo com ASTRO\" nos Gatilhos Automáticos, que abre o campo para descrever a automação",
+  },
+  astroFlowEditButton: {
+    id: "automations-hub.astro-flow-edit-button",
+    description: "Botão \"Pedir ao ASTRO\" no editor de um fluxo, que abre o campo para pedir uma mudança naquele fluxo",
+  },
+  astroFlowEditField: {
+    id: "automations-hub.astro-flow-edit-field",
+    description: "Campo na base do editor de fluxo onde a pessoa diz o que o Astro deve inserir, tirar ou trocar",
   },
   astroFlowField: {
     id: "automations-hub.astro-flow-field",
@@ -702,6 +714,10 @@ export const GUIDE_ANCHORS = {
   integrationsConnectButton: {
     id: "integrations.connect",
     description: "Botão \"Conectar\" de um card de integração",
+  },
+  integrationsAiCompany: {
+    id: "integrations.ai-company",
+    description: "Seção IA da empresa em Satélites: consumo de IA, chaves e modelo de cada uso",
   },
   integrationsConfigDialog: {
     id: "integrations.config-dialog",

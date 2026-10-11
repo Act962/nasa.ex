@@ -114,7 +114,7 @@ export const LeadTaggedTriggerDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent data-node-config className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Lead com Tags</DialogTitle>
           <DialogDescription>

@@ -45,7 +45,7 @@ export function OpenFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent data-node-config className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Abrir Formulário</DialogTitle>
           <DialogDescription>

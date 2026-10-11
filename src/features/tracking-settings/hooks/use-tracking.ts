@@ -23,11 +23,13 @@ export const useQueryAiUsage = (
   days = 30,
   provider: AiUsageProviderFilter = "all",
 ) => {
-  const { data, isLoading } = useQuery(
-    orpc.ia.usage.get.queryOptions({
+  const { data, isLoading } = useQuery({
+    ...orpc.ia.usage.get.queryOptions({
       input: { trackingId, days, provider },
     }),
-  );
+    // Recusado para quem não é dono nem admin: repetir não muda a resposta.
+    retry: false,
+  });
   return {
     usage: data,
     isLoadingUsage: isLoading,

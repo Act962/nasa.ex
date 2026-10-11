@@ -1,5 +1,6 @@
 "use client";
 
+import { useAutomationPermissions } from "@/features/workflows/hooks/use-automation-permissions";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,11 @@ import { CreateWorkflowButton } from "./create-workflow";
 import { useSuspenseWorkflows } from "@/features/workflows/hooks/use-workflows";
 import { useWorkflowFolders } from "@/features/workflows/hooks/use-workflow-folders";
 import { FolderGroup } from "@/features/workflows/components/folder-group";
+import { useAtomValue } from "jotai";
+import { OperationMap } from "@/features/workflows/components/operation-map/operation-map";
+import { AiStatusBadge } from "@/features/ia/components/ai-status-badge";
+import { WorkflowsViewToggle, workflowsViewAtom } from "@/features/workflows/components/operation-map/workflows-view-toggle";
+import type { MapWorkflowInput } from "@/features/workflows/lib/operation-map-graph";
 import { FolderCreateDialog } from "@/features/workflows/components/folder-create-dialog";
 
 export function WorkflowContainer() {
@@ -24,6 +30,8 @@ export function WorkflowContainer() {
 
   const { data } = useSuspenseWorkflows(trackingId);
   const { data: foldersData } = useWorkflowFolders(trackingId);
+  const workflowsView = useAtomValue(workflowsViewAtom);
+  const { canCreate } = useAutomationPermissions();
 
   /**
    * Agrupa workflows por folderId. `null` = "Sem pasta".
@@ -67,15 +75,35 @@ export function WorkflowContainer() {
   return (
     <div className="space-y-3 mb-8">
       <div className="flex items-center justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCreateFolderOpen(true)}
-        >
-          <FolderPlusIcon className="size-4" />
-          <span className="hidden sm:inline">Nova pasta</span>
-        </Button>
+        <AiStatusBadge resourceId="workflows.ai-steps" className="mr-auto" />
+        <WorkflowsViewToggle />
+        {canCreate && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCreateFolderOpen(true)}
+          >
+            <FolderPlusIcon className="size-4" />
+            <span className="hidden sm:inline">Nova pasta</span>
+          </Button>
+        )}
       </div>
+
+      {workflowsView === "map" ? (
+        <>
+          <OperationMap
+            trackingId={trackingId}
+            workflows={data.workflows as unknown as MapWorkflowInput[]}
+            folders={folders}
+          />
+          <FolderCreateDialog
+            open={createFolderOpen}
+            onOpenChange={setCreateFolderOpen}
+            trackingId={trackingId}
+          />
+        </>
+      ) : (
+        <>
 
       {folders.map((f) => (
         <FolderGroup
@@ -102,6 +130,8 @@ export function WorkflowContainer() {
         onOpenChange={setCreateFolderOpen}
         trackingId={trackingId}
       />
+        </>
+      )}
     </div>
   );
 }

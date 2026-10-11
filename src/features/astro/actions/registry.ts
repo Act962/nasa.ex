@@ -13,6 +13,8 @@ import { createTrackingAction } from "./tracking/create-tracking";
 import { createAgendaAction } from "./agenda/create-agenda";
 import { setupAttendanceFromSiteAction } from "./tracking/setup-attendance-from-site";
 import { createFlowAction } from "./tracking/create-flow";
+import { IS_ASTRO_FLOW_EDIT_ON, editFlowAction } from "./tracking/edit-flow";
+import { setupAttendanceFromScriptAction } from "./tracking/setup-attendance-from-script";
 import { createAppointmentAction } from "./agenda/create-appointment";
 import { createWorkspaceAction } from "./workspace/create-workspace";
 import { createWorkspaceActionItem } from "./workspace/create-action";
@@ -64,6 +66,9 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   createAgendaAction,
   setupAttendanceFromSiteAction,
   createFlowAction,
+  // Editar fluxo existente (spec 0094): fora do registro enquanto a flag está desligada, para nada mudar.
+  ...(IS_ASTRO_FLOW_EDIT_ON ? [editFlowAction] : []),
+  setupAttendanceFromScriptAction,
   createAppointmentAction,
   createWorkspaceAction,
   createWorkspaceActionItem,

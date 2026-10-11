@@ -1,3 +1,5 @@
+import { sendText } from "@/http/uazapi/send-text";
+import { formatNumberedMenu, isButtonsOfficialOnly, numberedMenuMetadata } from "@/features/tracking-chat/lib/numbered-menu";
 import { tool } from "ai";
 import { z } from "zod";
 import { sendButtons, sendItemsAsList } from "@/http/uazapi/send-menu";
@@ -85,6 +87,27 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
         }
         const uazapiToken = resolved.uazapiToken;
         const uazapiBaseUrl = resolved.uazapiBaseUrl;
+        // Número fora da API oficial (spec 0095): o menu sai como texto numerado, e a resposta com o
+        // número vale como clique (o webhook lê `numberedOptions` da mensagem).
+        if (isButtonsOfficialOnly()) {
+          const numberedOptions = buttons.filter((button) => button.id).map((button) => ({ id: button.id, title: button.text }));
+          const numberedText = formatNumberedMenu({ body: preset.bodyText, options: numberedOptions, footer: preset.footerText });
+          const sentText = await sendText(uazapiToken, { number: ctx.lead.phone, text: numberedText, readchat: true, readmessages: true }, uazapiBaseUrl);
+          const numberedTagMap: Record<string, string> = {};
+          for (const button of buttons) {
+            if (button.id && button.tagId) numberedTagMap[button.id] = button.tagId;
+          }
+          await persistOutboundMessage({
+            conversationId: ctx.conversation.id,
+            leadId: ctx.lead.id,
+            trackingId: ctx.trackingId,
+            body: numberedText,
+            senderName: ctx.settings?.assistantName ?? "IA",
+            externalMessageId: sentText.messageid,
+            metadata: { ...numberedMenuMetadata(numberedOptions), ...(Object.keys(numberedTagMap).length > 0 ? { buttonTagMap: numberedTagMap } : {}) },
+          });
+          return { ok: true, presetName: preset.name };
+        }
         const result = asList
           ? await sendItemsAsList(
               uazapiToken,

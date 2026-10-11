@@ -1,3 +1,4 @@
+import { AUTOMATION_DENIAL, checkWorkflowAccess } from "@/features/workflows/server/workflow-access";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { logActivity } from "@/features/admin/lib/activity-logger";
@@ -44,20 +45,11 @@ export const updateIsActive = base
       throw errors.NOT_FOUND({ message: "Workflow not found" });
     }
 
-    // Ligar ou desligar um fluxo exige ser da empresa dele: o id sozinho não basta (spec 0090, S-2).
-    const workflowOrganizationId =
-      workflow.tracking?.organizationId ??
-      (workflow.workspaceId
-        ? (await prisma.workspace.findUnique({ where: { id: workflow.workspaceId }, select: { organizationId: true } }))?.organizationId
-        : undefined);
-    // Fluxo sem tracking nem workspace (legado) não tem empresa a conferir: segue como sempre foi.
-    if (workflowOrganizationId) {
-      const membership = await prisma.member.findFirst({
-        where: { organizationId: workflowOrganizationId, userId: context.user.id },
-        select: { id: true },
-      });
-      if (!membership) throw errors.NOT_FOUND({ message: "Workflow not found" });
-    }
+    // Ligar ou desligar exige ser da empresa do fluxo e ter a permissão de editar Automações
+    // (spec 0090, S-2; spec 0092). Fluxo solto, sem funil nem workspace, só quem criou.
+    const access = await checkWorkflowAccess(input.workflowId, context.user.id, "canEdit");
+    if (access === "not-found") throw errors.NOT_FOUND({ message: "Workflow not found" });
+    if (access === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canEdit });
 
     // Quando ATIVANDO em Modo Agente IA, checa colisão com outros workflows
     // ativos. Retorna warnings — front decide se mostra dialog de confirmação.

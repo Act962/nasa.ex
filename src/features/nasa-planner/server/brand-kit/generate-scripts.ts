@@ -1,3 +1,4 @@
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import "server-only";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -58,6 +59,7 @@ export async function generatePlannerScripts(input: {
   }
 
   // Chave da plataforma cobra como um prompt do Astro; chave da própria empresa não cobra.
+  let starsCharged = 0;
   if (resolved.keySource !== "organization") {
     const charge = await chargeStarsByAction(input.organizationId, "astro_prompt", {
       userId: input.userId,
@@ -65,6 +67,7 @@ export async function generatePlannerScripts(input: {
       appSlug: "nasa-planner",
     });
     if (!charge.skipped && !charge.success) throw new ORPCError("BAD_REQUEST", { message: "Saldo de Stars insuficiente para gerar com o Astro." });
+    starsCharged = charge.cost;
   }
 
   const result = await generateObject({
@@ -81,6 +84,16 @@ export async function generatePlannerScripts(input: {
       ...input.formats.map((format) => `- ${format}: ${FORMAT_GUIDE[format]}`),
     ].join("\n"),
     temperature: 0.7,
+  });
+  await recordAiUsage({
+    resourceId: "planner.scripts",
+    organizationId: input.organizationId,
+    userId: input.userId,
+    provider: resolved.provider,
+    modelId: resolved.modelId,
+    keySource: resolved.keySource,
+    usage: result.usage,
+    starsCharged,
   });
 
   const generatedByFormat = result.object as Partial<Record<NasaPlannerPostType, z.infer<typeof formatScriptSchema>>>;

@@ -135,7 +135,7 @@ export function buildWorkflowTools(
           if (!tracking) return { success: false, error: "Funil não encontrado nesta empresa." };
           const provider = tracking.provider;
 
-          const blueprint = await generateFlowBlueprint({ intent, name, provider });
+          const blueprint = await generateFlowBlueprint({ intent, name, provider, organizationId: ctx.organizationId, userId: ctx.userId, trackingId: tracking.id });
 
           // ── 2. Resolve tags (cria novas ou reusa similares) ───────
           const tagResult = await findOrCreateTags(

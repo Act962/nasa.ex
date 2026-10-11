@@ -8,7 +8,7 @@ import { parseAiCapabilities } from "./capabilities";
 import { toModelConfig } from "./context";
 import { runGuidedMenuTest, type GuidedMenuChannel, type GuidedMenuContext } from "./guided-menu/guided-menu";
 import { resolveModel } from "./model";
-import { splitForWhatsapp } from "./split-message";
+import { joinAsSingleMessage, splitForWhatsapp } from "./split-message";
 import { buildSystemPrompt } from "./system-prompt";
 import { buildLeadAgendaScope } from "../server/tools";
 import { makeLeadAgendaTools } from "../server/tools/agenda";
@@ -217,6 +217,6 @@ export async function runAttendanceTest(params: {
   }).catch(() => undefined);
 
   const replyText = result.text.trim() || "A assistente não respondeu a essa mensagem.";
-  for (const part of splitForWhatsapp(replyText)) messages.push({ body: part, options: [], kind: "assistant" });
+  for (const part of capabilities.singleMessageReply ? joinAsSingleMessage(replyText) : splitForWhatsapp(replyText)) messages.push({ body: part, options: [], kind: "assistant" });
   return { messages };
 }

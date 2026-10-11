@@ -55,7 +55,7 @@ export const MoveLeadStatusTriggerNode = memo(
         <BaseTriggerNode
           {...props}
           icon={MoveHorizontalIcon}
-          name="Mover Lead para Status"
+          name="Lead entrou na coluna"
           description="Quando um lead é movido para o status configurado"
           status={nodeStatus}
           onSettings={handleOpenSettings}

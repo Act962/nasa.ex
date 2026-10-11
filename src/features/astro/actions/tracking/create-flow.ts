@@ -149,7 +149,7 @@ export const createFlowAction: AstroAction<typeof inputSchema> = {
     let blueprint = parseBlueprint(input.blueprintJson);
     if (!blueprint) {
       try {
-        blueprint = await generateFlowBlueprint({ intent: input.flowRequest, provider: tracking.provider });
+        blueprint = await generateFlowBlueprint({ intent: input.flowRequest, provider: tracking.provider, organizationId: ctx.organizationId, userId: ctx.userId, trackingId: tracking.id });
       } catch (generationError) {
         console.warn("[create-flow] geração falhou", generationError instanceof Error ? generationError.message : "erro");
         return failure("Não consegui montar o fluxo", "Tente descrever de novo, dizendo quando o fluxo começa e o que ele faz.");

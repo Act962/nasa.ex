@@ -1,3 +1,4 @@
+import { MENU_PRESET_NAME } from "../attendance-setup/script-draft";
 import "server-only";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -512,6 +513,10 @@ export async function handleGuidedMenu(
   if (!replyId && NUMBERED_ANSWER.test(text.trim())) replyId = await resolveNumberedAnswer(ctx.conversation.id, text.trim());
   const target = resolveTarget({ text, replyId });
   if (target === "not_menu") return { handled: false };
+  // Funil com menu do roteiro (spec 0091): a saudação é dele, que já leva "Agendar" e "Meus horários".
+  // Este menu fica com os cliques. Um clique em "Voltar ao menu" continua abrindo o menu daqui.
+  const isGreetingText = !replyId && target !== "invalid" && target.step === "menu";
+  if (isGreetingText && ctx.availableButtonPresets.some((preset) => preset.name === MENU_PRESET_NAME)) return { handled: false };
 
   const clicksLastHour = await prisma.message.count({
     where: {
