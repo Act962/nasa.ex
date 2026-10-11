@@ -37,6 +37,7 @@ import {
   lastSavedSnapshotAtom,
   workflowDirtyAtom,
   flowDiagnosticsAtom,
+  flowIsActiveAtom,
 } from "../store/atoms";
 import { UnsavedChangesDialog } from "./unsaved-changes-dialog";
 import {
@@ -328,6 +329,11 @@ const EditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
   const { trackingId } = useParams<{ trackingId: string }>();
   const { data } = useSuspenseWorkflow(workflowId);
   const isActive = data.workflow.isActive;
+  const setFlowIsActive = useSetAtom(flowIsActiveAtom);
+  useEffect(() => {
+    setFlowIsActive(isActive);
+    return () => setFlowIsActive(false);
+  }, [isActive, setFlowIsActive]);
   const updateIsActive = useUpdateWorkflowIsActive(trackingId);
   // Erros previstos no desenho (spec 0090, RF-20): ativar continua permitido, mas a pessoa é avisada antes.
   const predictedErrors = useAtomValue(flowDiagnosticsAtom).all.filter((diagnostic) => diagnostic.severity === "error");

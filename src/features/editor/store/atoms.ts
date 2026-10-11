@@ -29,6 +29,9 @@ export const workflowDirtyAtom = atom<boolean>(false);
  */
 export const flowDiagnosticsAtom = atom<FlowDiagnosticsIndex>(EMPTY_FLOW_DIAGNOSTICS);
 
+/** O fluxo aberto está ligado: só então a luz percorre o desenho na visão "Visual". */
+export const flowIsActiveAtom = atom(false);
+
 export type EditorViewMode = "icon" | "rich";
 
 /**

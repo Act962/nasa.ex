@@ -1,8 +1,9 @@
 "use client";
 import { RichNodePreview } from "@/features/editor/components/rich/rich-node-preview";
+import { FlowNoticeBadge } from "@/features/editor/components/rich/flow-notice-badge";
 import { AnimatedOutline, type OutlineTone } from "@/features/editor/components/rich/animated-outline";
 import { hasRichPreview } from "@/features/editor/components/rich/rich-node-types";
-import { editorViewModeAtom } from "@/features/editor/store/atoms";
+import { editorViewModeAtom, flowIsActiveAtom } from "@/features/editor/store/atoms";
 import { useIsNodeBlockedByFlowProblem, useNodeFlowDiagnostics } from "@/features/editor/hooks/use-flow-diagnostics";
 
 import {
@@ -81,6 +82,7 @@ export const BaseExecutionNode = memo(
     const viewMode = useAtomValue(editorViewModeAtom);
     const showsRichPreview = viewMode === "rich" && hasRichPreview(nodeType);
     const isBlockedByFlowProblem = useIsNodeBlockedByFlowProblem(id);
+    const isFlowActive = useAtomValue(flowIsActiveAtom);
     const outlineTone: OutlineTone = flowNotice || isBlockedByFlowProblem ? "problem" : "ok";
     const [openSelector, setOpenSelector] = useState(false);
     const connectionInProgress = useConnection(selector);
@@ -168,7 +170,7 @@ export const BaseExecutionNode = memo(
         description={description}
         onDelete={handleDelete}
         onSettings={onSettings}
-        notice={flowNotice}
+        notice={showsRichPreview ? undefined : flowNotice}
         onDuplicate={handleDuplicate}
         onAddNext={handleAddNext}
       >
@@ -200,7 +202,8 @@ export const BaseExecutionNode = memo(
             ]}
           >
             <BaseNodeContent className={showsRichPreview ? "relative p-1" : undefined}>
-              {showsRichPreview && <AnimatedOutline tone={outlineTone} />}
+              {showsRichPreview && <AnimatedOutline tone={outlineTone} showsSpark={isFlowActive && outlineTone === "ok"} />}
+              {showsRichPreview && flowNotice && <FlowNoticeBadge notice={flowNotice} onFix={onSettings} />}
               {showsRichPreview && nodeType ? (
                 <RichNodePreview nodeType={nodeType} data={nodeData} name={name} icon={Icon} isUndelivered={hasFlowError} />
               ) : typeof Icon === "string" ? (

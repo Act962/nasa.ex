@@ -21,8 +21,10 @@ import { useAtomValue } from "jotai";
 import { validateNode } from "@/features/workflows/lib/validate-node";
 import { stepByStepStateAtom } from "../store/step-by-step-atoms";
 import { useIsEdgeOnFlowError, useIsNodeBlockedByFlowProblem, useNodeFlowDiagnostics } from "../hooks/use-flow-diagnostics";
-import { editorViewModeAtom } from "../store/atoms";
-import { outlineToneColor, type OutlineTone } from "./rich/animated-outline";
+import { editorViewModeAtom, flowIsActiveAtom } from "../store/atoms";
+import { DASH_GAP, DASH_LENGTH, DASH_MARCH_ANIMATION, FlowSpark, outlineToneColor, type OutlineTone } from "./rich/animated-outline";
+
+const EDGE_SPARK_ROUND_TRIP_SECONDS = 3.2;
 
 export function ValidatedEdge({
   id,
@@ -63,6 +65,7 @@ export function ValidatedEdge({
   const sourceDiagnostics = useNodeFlowDiagnostics(source);
   const isSourceBlocked = useIsNodeBlockedByFlowProblem(source);
   const sourceTone: OutlineTone = sourceDiagnostics.length > 0 || isSourceBlocked ? "problem" : "ok";
+  const isFlowActive = useAtomValue(flowIsActiveAtom);
 
   // ── Step-by-Step overrides ────────────────────────────────────
   // Quando o modo está ativo, edges ganham cor verde/vermelho/cinza
@@ -93,6 +96,8 @@ export function ValidatedEdge({
   let strokeWidth: number | undefined;
   let animation: string | undefined;
   let opacity: number | undefined;
+  let strokeDasharray: string | undefined;
+  let showsSpark = false;
 
   if (stepEdgeStatus === "passed") {
     stroke = "var(--success)";
@@ -107,6 +112,10 @@ export function ValidatedEdge({
   } else if (isRichView) {
     stroke = outlineToneColor(hasFieldError ? "problem" : sourceTone);
     strokeWidth = 4;
+    strokeDasharray = `${DASH_LENGTH} ${DASH_GAP}`;
+    animation = DASH_MARCH_ANIMATION;
+    // A luz só anda em fluxo ligado e em trecho que de fato roda.
+    showsSpark = isFlowActive && !hasFieldError && sourceTone === "ok";
   } else if (hasError) {
     stroke = "var(--destructive)";
     strokeWidth = 2.5;
@@ -119,10 +128,40 @@ export function ValidatedEdge({
         id={id}
         path={edgePath}
         markerEnd={markerEnd}
-        style={{ stroke, strokeWidth, animation, opacity }}
+        style={{ stroke, strokeWidth, animation, opacity, strokeDasharray, strokeLinecap: strokeDasharray ? "round" : undefined }}
       />
+      {showsSpark && stroke && (
+        <g className="orbita-flow-spark">
+          {/* Vira a nave na volta, para ela nunca voar de ré. */}
+          <g>
+            <FlowSpark color={stroke} />
+            <animateTransform
+              attributeName="transform"
+              type="scale"
+              values="1 1;-1 1"
+              keyTimes="0;0.5"
+              calcMode="discrete"
+              dur={`${EDGE_SPARK_ROUND_TRIP_SECONDS}s`}
+              repeatCount="indefinite"
+            />
+          </g>
+          <animateMotion
+            dur={`${EDGE_SPARK_ROUND_TRIP_SECONDS}s`}
+            repeatCount="indefinite"
+            path={edgePath}
+            calcMode="linear"
+            keyPoints="0;1;0"
+            keyTimes="0;0.5;1"
+            rotate="auto"
+          />
+        </g>
+      )}
       {/* Animação CSS local — sem precisar de tailwind config */}
-      {animation && (
+      {strokeDasharray && (
+        <style>{`@keyframes orbita-outline-march { to { stroke-dashoffset: -${DASH_LENGTH + DASH_GAP}; } }
+@media (prefers-reduced-motion: reduce) { .orbita-flow-spark { display: none; } }`}</style>
+      )}
+      {animation && animation !== DASH_MARCH_ANIMATION && (
         <style>{`
           @keyframes edge-pulse {
             0%, 100% { opacity: 1; }

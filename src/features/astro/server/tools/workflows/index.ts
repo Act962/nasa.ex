@@ -39,6 +39,13 @@ import {
   type TagRequest,
 } from "@/features/workflows/lib/agent-presets/find-or-create-tags";
 import { BLUEPRINT_GENERATION_PROMPT } from "./blueprint-system-prompt";
+import { diagnoseFlow, type FlowChannelProvider } from "@/features/workflows/lib/flow-diagnostics";
+
+const CHANNEL_LABEL: Record<FlowChannelProvider, string> = {
+  meta: "API oficial do WhatsApp",
+  uazapi: "WhatsApp não oficial",
+  none: "sem número conectado",
+};
 
 // ── Schema do blueprint gerado pelo LLM ────────────────────────────
 // Compatível com o do `create-from-blueprint.ts` mas declarado aqui pra
@@ -167,6 +174,18 @@ export function buildWorkflowTools(
       }),
       execute: async ({ intent, trackingId, name }) => {
         try {
+          // O id do funil vem do modelo: confere a empresa antes de qualquer escrita.
+          const tracking = await prisma.tracking.findFirst({
+            where: { id: trackingId, organizationId: ctx.organizationId },
+            select: { whatsappInstance: { select: { provider: true } } },
+          });
+          if (!tracking) return { success: false, error: "Funil não encontrado nesta empresa." };
+          const provider: FlowChannelProvider = !tracking.whatsappInstance
+            ? "none"
+            : tracking.whatsappInstance.provider === "META_CLOUD"
+              ? "meta"
+              : "uazapi";
+
           // ── 1. LLM gera o blueprint (gpt-4o — modelo grande pra
           // estrutura complexa). Schema strict via generateObject.
           const result = await generateObject({
@@ -176,6 +195,7 @@ export function buildWorkflowTools(
             prompt: [
               `Intent do user: ${intent}`,
               name ? `Nome desejado: "${name}"` : "",
+              `Canal do funil: ${CHANNEL_LABEL[provider]}`,
               "",
               "Gere o blueprint JSON correspondente.",
             ]
@@ -213,8 +233,25 @@ export function buildWorkflowTools(
             (n) => (n.data as { needsReview?: boolean })?.needsReview === true,
           ).length;
 
+          // ── 5. Previsão de erros do canal sobre o que foi gerado (spec 0090, RF-24)
+          const predictedProblems = diagnoseFlow(
+            blueprint.nodes,
+            blueprint.edges.map((edge, index) => ({
+              id: `edge-${index}`,
+              source: edge.fromNodeId,
+              target: edge.toNodeId,
+              sourceHandle: edge.fromOutput,
+            })),
+            { provider },
+          ).map((diagnostic) => ({ severity: diagnostic.severity, title: diagnostic.title, message: diagnostic.message }));
+
           return {
             success: true,
+            predictedProblems,
+            predictedProblemsHint:
+              predictedProblems.length > 0
+                ? "Conte ao usuário, em linguagem simples, cada problema previsto e que o quadro aparece em vermelho no editor até ser corrigido."
+                : undefined,
             workflowId: created.workflowId,
             workflowName: blueprint.name,
             workflowDescription: blueprint.description,
