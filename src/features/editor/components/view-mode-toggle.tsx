@@ -14,7 +14,7 @@ const VIEW_MODES: { value: EditorViewMode; label: string; title: string }[] = [
 export function ViewModeToggle() {
   const [viewMode, setViewMode] = useAtom(editorViewModeAtom);
   return (
-    <div className="flex overflow-hidden rounded-full border bg-background text-xs" data-guide={GUIDE_ANCHORS.workflowViewModeToggle.id}>
+    <div className="flex h-8 overflow-hidden rounded-full border bg-background text-xs" data-guide={GUIDE_ANCHORS.workflowViewModeToggle.id}>
       {VIEW_MODES.map((mode) => (
         <button
           key={mode.value}
@@ -23,7 +23,7 @@ export function ViewModeToggle() {
           aria-pressed={viewMode === mode.value}
           onClick={() => setViewMode(mode.value)}
           className={cn(
-            "px-3 py-1.5 transition",
+            "h-full px-3 transition",
             viewMode === mode.value ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground hover:bg-muted",
           )}
         >

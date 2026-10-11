@@ -161,4 +161,33 @@ export const TRACKING_GUIDES: GuideDef[] = [
       message: "Dá para voltar aqui e mudar quando quiser.",
     },
   },
+  {
+    key: "tracking.astro-flow",
+    app: "tracking",
+    title: "Criar um fluxo com o Astro",
+    summary: "Descreva a automação e o Astro monta o fluxo, desligado, para você revisar.",
+    topicPattern: /\b(como|onde|ensin\w*|mostr\w*)\b.*\b(cri\w*|mont\w*|faz\w*|faco)\b.*\b(fluxos?(?! de caixa)|gatilhos?|automac\w*)\b/,
+    steps: [
+      {
+        anchor: "astroFlowButton",
+        route: "/gatilhos",
+        title: "Clique em Criar fluxo com ASTRO",
+        message: "Abre um campo na base da página para você descrever a automação.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: "Criar fluxos pede a permissão de Automações do Tracking. Peça a quem administra a empresa.",
+      },
+      {
+        anchor: "astroFlowField",
+        title: "Descreva o fluxo",
+        message: "Diga quando começa, o que envia ou muda, e os prazos. O Astro mostra o roteiro e só cria depois do seu sim.",
+        position: "top",
+        advanceOn: "next",
+      },
+    ],
+    finish: {
+      title: "Pronto para pedir ✨",
+      message: "O fluxo nasce desligado. Revise no editor e ligue quando estiver certo.",
+    },
+  },
 ];

@@ -7,7 +7,9 @@ import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-bu
 import { useTrackingStatusNames } from "@/features/trackings/hooks/use-tracking-status-names";
 import { LeadCardPreview, type LeadCardTag } from "./lead-card-preview";
 import { MessagePhonePreview, type PhoneMessage } from "./message-phone-preview";
-import { RICH_MESSAGE_TYPES, RICH_TRIGGER_TYPES } from "./rich-node-types";
+import { RICH_ACTION_TYPES, RICH_MESSAGE_TYPES, RICH_TRIGGER_TYPES } from "./rich-node-types";
+import { ActionCardPreview } from "./action-card-preview";
+import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
 
 // Desenho dos quadros na visão "Visual" (spec 0090, seção B): um lugar só decide o que cada tipo
 // mostra, a partir do `type` e do `data` do quadro. Os arquivos de cada quadro não mudam.
@@ -35,16 +37,31 @@ function toPhoneMessage(nodeType: string, config: Fields, presetById: Map<string
   if (nodeType === "SEND_VOICE") return { kind: "voice", text: withLeadPlaceholder(config.text) };
   if (nodeType === "SEND_MEDIA") {
     const isDocument = String(config.mediaType ?? "IMAGE").toUpperCase() === "DOCUMENT";
-    return { kind: isDocument ? "document" : "image", text: withLeadPlaceholder(config.caption), label: String(config.fileName ?? "") };
+    return {
+      kind: isDocument ? "document" : "image",
+      text: withLeadPlaceholder(config.caption),
+      label: String(config.fileName ?? ""),
+      mediaUrl: String(config.url ?? ""),
+    };
   }
   const payload = asFields(config.payload);
   switch (String(payload.type ?? "TEXT")) {
     case "IMAGE":
-      return { kind: "image", text: withLeadPlaceholder(payload.caption) };
+      return { kind: "image", text: withLeadPlaceholder(payload.caption), mediaUrl: String(payload.imageUrl ?? "") };
     case "DOCUMENT":
-      return { kind: "document", text: withLeadPlaceholder(payload.caption), label: String(payload.fileName ?? "") };
+      return {
+        kind: "document",
+        text: withLeadPlaceholder(payload.caption),
+        label: String(payload.fileName ?? ""),
+        mediaUrl: String(payload.documentUrl ?? ""),
+      };
     case "TEMPLATE":
-      return { kind: "template", text: "Mensagem de modelo aprovado pela Meta.", label: String(payload.templateName ?? "") };
+      return {
+        kind: "template",
+        text: String(payload.bodyText ?? "") || "Mensagem de modelo aprovado pela Meta.",
+        label: String(payload.templateName ?? ""),
+        headerText: String(payload.headerText ?? ""),
+      };
     case "BUTTONS": {
       const preset = payload.mode === "preset" ? presetById.get(String(payload.presetId ?? "")) : undefined;
       const source = preset ?? payload;
@@ -58,6 +75,15 @@ function toPhoneMessage(nodeType: string, config: Fields, presetById: Map<string
     default:
       return { kind: "text", text: withLeadPlaceholder(payload.message) };
   }
+}
+
+/** "+55 86 9982-1810 · Clínica" ou "… · API oficial": por qual número a mensagem sai. */
+function describeChannel(instance: unknown): string | undefined {
+  if (!instance) return undefined;
+  const channel = instance as { phoneNumber?: string | null; profileName?: string | null; instanceName?: string | null; provider?: string | null };
+  const channelName = channel.provider === "META_CLOUD" ? "API oficial" : channel.profileName || channel.instanceName || "";
+  const phoneNumber = channel.phoneNumber ? `+${String(channel.phoneNumber).replace(/\D/g, "")}` : "";
+  return [phoneNumber, channelName].filter(Boolean).join(" · ") || undefined;
 }
 
 function triggerTagIds(config: Fields): string[] {
@@ -74,12 +100,15 @@ export function RichNodePreview({
   nodeType,
   data,
   name,
+  description,
   icon: Icon,
   isUndelivered,
 }: {
   nodeType: string;
   data: unknown;
   name: string;
+  /** Resumo que o próprio quadro já calcula (ex.: "2 produto(s)"), usado nos cartões dos Apps. */
+  description?: string;
   icon?: LucideIcon | string;
   /** Erro previsto de entrega: o balão aparece esmaecido. */
   isUndelivered?: boolean;
@@ -92,6 +121,8 @@ export function RichNodePreview({
   const { tags: allTags } = useTags({ trackingId: "ALL", includeArchived: true });
   const { data: statusData } = useTrackingStatusNames(trackingId);
   const { presets } = useAiButtonPresets(trackingId);
+  // A mesma consulta que o editor já faz para as regras do canal: sai do cache.
+  const { instance } = useQueryInstances(trackingId);
 
   if (isTrigger) {
     const tags: LeadCardTag[] =
@@ -115,7 +146,16 @@ export function RichNodePreview({
 
   if (isMessage) {
     const presetById = new Map(presets.map((preset) => [String((preset as Fields).id), preset as Fields]));
-    return <MessagePhonePreview message={toPhoneMessage(nodeType, config, presetById)} isUndelivered={isUndelivered} />;
+    return (
+      <MessagePhonePreview
+        message={toPhoneMessage(nodeType, config, presetById)}
+        isUndelivered={isUndelivered}
+        channelLabel={describeChannel(instance)}
+      />
+    );
+  }
+  if (RICH_ACTION_TYPES.has(nodeType)) {
+    return <ActionCardPreview nodeType={nodeType} config={config} name={name} description={description} icon={Icon} />;
   }
   return null;
 }

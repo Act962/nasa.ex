@@ -21,8 +21,6 @@
 import "server-only";
 import { tool } from "ai";
 import { z } from "zod";
-import { generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import prisma from "@/lib/prisma";
 import {
@@ -38,52 +36,10 @@ import {
   findOrCreateTags,
   type TagRequest,
 } from "@/features/workflows/lib/agent-presets/find-or-create-tags";
-import { BLUEPRINT_GENERATION_PROMPT } from "./blueprint-system-prompt";
-import { diagnoseFlow, type FlowChannelProvider } from "@/features/workflows/lib/flow-diagnostics";
+import { findFlowTracking, generateFlowBlueprint, predictBlueprintProblems } from "./generate-flow";
 
-const CHANNEL_LABEL: Record<FlowChannelProvider, string> = {
-  meta: "API oficial do WhatsApp",
-  uazapi: "WhatsApp não oficial",
-  none: "sem número conectado",
-};
+export { GeneratedBlueprintSchema } from "./generate-flow";
 
-// ── Schema do blueprint gerado pelo LLM ────────────────────────────
-// Compatível com o do `create-from-blueprint.ts` mas declarado aqui pra
-// usar com generateObject (que faz validação estrita do output do LLM).
-
-const BlueprintNodeSchema = z.object({
-  id: z.string(),
-  type: z.string(),
-  position: z.object({ x: z.number(), y: z.number() }),
-  data: z.record(z.string(), z.unknown()),
-  name: z.string().optional(),
-});
-
-const BlueprintEdgeSchema = z.object({
-  fromNodeId: z.string(),
-  toNodeId: z.string(),
-  fromOutput: z.string().optional(),
-  toInput: z.string().optional(),
-});
-
-const SuggestedTagSchema = z.object({
-  slug: z.string().regex(/^[a-z0-9-]+$/),
-  name: z.string(),
-  color: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/)
-    .optional(),
-  reason: z.string().optional(),
-  aiDescription: z.string().max(300).optional(),
-});
-
-export const GeneratedBlueprintSchema = z.object({
-  name: z.string(),
-  description: z.string().optional(),
-  suggestedTags: z.array(SuggestedTagSchema).default([]),
-  nodes: z.array(BlueprintNodeSchema),
-  edges: z.array(BlueprintEdgeSchema),
-});
 
 export function buildWorkflowTools(
   ctx: AgentContext & { trackingId?: string | null },
@@ -175,38 +131,11 @@ export function buildWorkflowTools(
       execute: async ({ intent, trackingId, name }) => {
         try {
           // O id do funil vem do modelo: confere a empresa antes de qualquer escrita.
-          const tracking = await prisma.tracking.findFirst({
-            where: { id: trackingId, organizationId: ctx.organizationId },
-            select: { whatsappInstance: { select: { provider: true } } },
-          });
+          const tracking = await findFlowTracking(trackingId, ctx.organizationId);
           if (!tracking) return { success: false, error: "Funil não encontrado nesta empresa." };
-          const provider: FlowChannelProvider = !tracking.whatsappInstance
-            ? "none"
-            : tracking.whatsappInstance.provider === "META_CLOUD"
-              ? "meta"
-              : "uazapi";
+          const provider = tracking.provider;
 
-          // ── 1. LLM gera o blueprint (gpt-4o — modelo grande pra
-          // estrutura complexa). Schema strict via generateObject.
-          const result = await generateObject({
-            model: openai("gpt-4o"),
-            schema: GeneratedBlueprintSchema,
-            system: BLUEPRINT_GENERATION_PROMPT,
-            prompt: [
-              `Intent do user: ${intent}`,
-              name ? `Nome desejado: "${name}"` : "",
-              `Canal do funil: ${CHANNEL_LABEL[provider]}`,
-              "",
-              "Gere o blueprint JSON correspondente.",
-            ]
-              .filter(Boolean)
-              .join("\n"),
-            temperature: 0.4,
-            // Campos opcionais e `data` livre por nó: o modo estrito da OpenAI recusa.
-            providerOptions: { openai: { strictJsonSchema: false } },
-          });
-
-          const blueprint = result.object;
+          const blueprint = await generateFlowBlueprint({ intent, name, provider });
 
           // ── 2. Resolve tags (cria novas ou reusa similares) ───────
           const tagResult = await findOrCreateTags(
@@ -234,16 +163,11 @@ export function buildWorkflowTools(
           ).length;
 
           // ── 5. Previsão de erros do canal sobre o que foi gerado (spec 0090, RF-24)
-          const predictedProblems = diagnoseFlow(
-            blueprint.nodes,
-            blueprint.edges.map((edge, index) => ({
-              id: `edge-${index}`,
-              source: edge.fromNodeId,
-              target: edge.toNodeId,
-              sourceHandle: edge.fromOutput,
-            })),
-            { provider },
-          ).map((diagnostic) => ({ severity: diagnostic.severity, title: diagnostic.title, message: diagnostic.message }));
+          const predictedProblems = predictBlueprintProblems(blueprint, provider).map((diagnostic) => ({
+            severity: diagnostic.severity,
+            title: diagnostic.title,
+            message: diagnostic.message,
+          }));
 
           return {
             success: true,

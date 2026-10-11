@@ -36,7 +36,10 @@ export type FlowDiagnosticCode =
   | "TEMPLATE_NEEDS_OFFICIAL_NUMBER"
   | "NO_NUMBER_CONNECTED"
   | "TOO_MANY_OPTIONS"
-  | "OPTION_TITLE_TOO_LONG";
+  | "OPTION_TITLE_TOO_LONG"
+  | "NODE_DISCONNECTED"
+  | "TRIGGER_LEADS_NOWHERE"
+  | "NODE_INCOMPLETE";
 
 export interface FlowDiagnostic {
   nodeId: string;
@@ -75,6 +78,8 @@ const TRIGGER_TYPES = new Set([
   "SCHEDULE_TRIGGER",
   "COMPLIANCE_ITEM_DUE",
 ]);
+/** Quadros que não são passo do fluxo: não entram na conferência de ligações. */
+const NON_STEP_TYPES = new Set(["INITIAL", "STICKY_NOTE", "NOTE", "GROUP"]);
 const FREE_FORM_PAYLOADS = new Set(["TEXT", "IMAGE", "DOCUMENT"]);
 const MINUTES_PER_UNIT: Record<string, number> = { minutes: 1, hours: 60, days: 1440, weeks: 10_080, months: 43_200 };
 const MAX_PASSES_PER_NODE = 6;
@@ -335,6 +340,33 @@ export function diagnoseFlow(nodes: FlowNodeInput[], edges: FlowEdgeInput[], fac
       });
     }
   }
+  // Ligações: quadro que o fluxo não alcança nunca roda; gatilho sem saída não faz nada.
+  for (const node of nodes) {
+    const nodeType = String(node.type ?? "");
+    if (!nodeType || NON_STEP_TYPES.has(nodeType)) continue;
+    if (TRIGGER_TYPES.has(nodeType)) {
+      if (nodes.length > 1 && (outgoing.get(node.id) ?? []).length === 0) {
+        report(node, {
+          severity: "error",
+          code: "TRIGGER_LEADS_NOWHERE",
+          title: "Gatilho sem continuação",
+          message: "Este gatilho não está ligado a nenhum passo. Quando ele disparar, nada acontece.",
+          fixHint: "Arraste a saída do gatilho até o primeiro passo.",
+        });
+      }
+      continue;
+    }
+    if (!arrival.has(node.id)) {
+      report(node, {
+        severity: "error",
+        code: "NODE_DISCONNECTED",
+        title: "Passo desligado do fluxo",
+        message: "Nenhum gatilho chega até este passo, então ele nunca roda.",
+        fixHint: "Ligue a saída de um passo anterior na entrada deste.",
+      });
+    }
+  }
+
   return diagnostics;
 }
 

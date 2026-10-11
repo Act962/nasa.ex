@@ -2,6 +2,7 @@
 
 import { PlusIcon, ZapIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AstroFlowBar } from "@/features/automations-hub/components/astro-flow-bar";
 import { AutomationsList } from "@/features/automations-hub/components/automations-list";
 import { useAutomationsHubStore } from "@/features/automations-hub/store";
 
@@ -22,10 +23,13 @@ export default function GatilhosPage() {
             As automações da empresa em um lugar: o que está ligado, o que tem problema e onde criar.
           </p>
         </div>
-        <Button onClick={() => openHub("new")}>
-          <PlusIcon />
-          Criar
-        </Button>
+        <div className="flex items-center gap-2">
+          <AstroFlowBar />
+          <Button onClick={() => openHub("new")}>
+            <PlusIcon />
+            Criar
+          </Button>
+        </div>
       </div>
       <AutomationsList />
     </div>

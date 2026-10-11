@@ -13,18 +13,43 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   type EdgeProps,
+  Position,
   getBezierPath,
   useNodes,
+  useReactFlow,
 } from "@xyflow/react";
+import { PlusIcon, Trash2Icon } from "lucide-react";
 import { useMemo } from "react";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { validateNode } from "@/features/workflows/lib/validate-node";
 import { stepByStepStateAtom } from "../store/step-by-step-atoms";
 import { useIsEdgeOnFlowError, useIsNodeBlockedByFlowProblem, useNodeFlowDiagnostics } from "../hooks/use-flow-diagnostics";
-import { editorViewModeAtom, flowIsActiveAtom } from "../store/atoms";
+import { flowIsActiveAtom, insertOnEdgeIdAtom, sparkRouteAtom } from "../store/atoms";
+import { sparkKeyframes } from "../lib/spark-route";
 import { DASH_GAP, DASH_LENGTH, DASH_MARCH_ANIMATION, FlowSpark, outlineToneColor, type OutlineTone } from "./rich/animated-outline";
 
-const EDGE_SPARK_ROUND_TRIP_SECONDS = 3.2;
+const SPARK_SECONDS_PER_EDGE = 1.4;
+const END_PLUS_OFFSET = 14;
+/** Ângulo de quem SAI do quadro por cada lado. */
+const LEAVING_ANGLE: Record<Position, number> = {
+  [Position.Right]: 0,
+  [Position.Bottom]: 90,
+  [Position.Left]: 180,
+  [Position.Top]: 270,
+};
+
+/** "+" pequeno numa ponta da ligação: aparece ao passar o mouse e indica que a ponta pode ser arrastada. */
+function EdgeEndPlus({ x, y, side, color }: { x: number; y: number; side: Position; color: string }) {
+  const radians = (LEAVING_ANGLE[side] * Math.PI) / 180;
+  const centerX = x + Math.cos(radians) * END_PLUS_OFFSET;
+  const centerY = y + Math.sin(radians) * END_PLUS_OFFSET;
+  return (
+    <g className="orbita-edge-end" transform={`translate(${centerX} ${centerY})`}>
+      <circle r={7} fill={color} stroke="white" strokeWidth={1.5} />
+      <path d="M-3.2 0 H3.2 M0 -3.2 V3.2" stroke="white" strokeWidth={1.8} strokeLinecap="round" />
+    </g>
+  );
+}
 
 export function ValidatedEdge({
   id,
@@ -39,7 +64,10 @@ export function ValidatedEdge({
   label,
   data,
   markerEnd,
+  selected,
 }: EdgeProps) {
+  const { setEdges } = useReactFlow();
+  const requestInsertOnEdge = useSetAtom(insertOnEdgeIdAtom);
   const nodes = useNodes();
   const stepState = useAtomValue(stepByStepStateAtom);
 
@@ -60,12 +88,13 @@ export function ValidatedEdge({
     return check(src as never) || check(tgt as never);
   }, [nodes, source, target]);
   const hasError = hasFieldError || isOnFlowError;
-  // Visão "Visual": a ligação é grossa e leva a cor do quadro de onde sai.
-  const isRichView = useAtomValue(editorViewModeAtom) === "rich";
+  // A ligação é grossa e leva a cor do quadro de onde sai, nas duas visões.
   const sourceDiagnostics = useNodeFlowDiagnostics(source);
   const isSourceBlocked = useIsNodeBlockedByFlowProblem(source);
   const sourceTone: OutlineTone = sourceDiagnostics.length > 0 || isSourceBlocked ? "problem" : "ok";
   const isFlowActive = useAtomValue(flowIsActiveAtom);
+  const sparkSlot = useAtomValue(sparkRouteAtom)[id];
+  const sparkCycleSeconds = sparkSlot ? 2 * sparkSlot.total * SPARK_SECONDS_PER_EDGE : 0;
 
   // ── Step-by-Step overrides ────────────────────────────────────
   // Quando o modo está ativo, edges ganham cor verde/vermelho/cinza
@@ -109,17 +138,15 @@ export function ValidatedEdge({
   } else if (stepEdgeStatus === "skipped") {
     stroke = "var(--muted-foreground)";
     opacity = 0.35;
-  } else if (isRichView) {
+  } else {
     stroke = outlineToneColor(hasFieldError ? "problem" : sourceTone);
     strokeWidth = 4;
     strokeDasharray = `${DASH_LENGTH} ${DASH_GAP}`;
-    animation = DASH_MARCH_ANIMATION;
+    // Trecho com problema fica tracejado e parado: o que não roda não se move.
+    const isProblemEdge = hasFieldError || sourceTone === "problem";
+    animation = isProblemEdge ? undefined : DASH_MARCH_ANIMATION;
     // A luz só anda em fluxo ligado e em trecho que de fato roda.
-    showsSpark = isFlowActive && !hasFieldError && sourceTone === "ok";
-  } else if (hasError) {
-    stroke = "var(--destructive)";
-    strokeWidth = 2.5;
-    animation = "edge-pulse 1.5s ease-in-out infinite";
+    showsSpark = isFlowActive && !hasFieldError && sourceTone === "ok" && Boolean(sparkSlot);
   }
 
   return (
@@ -130,33 +157,29 @@ export function ValidatedEdge({
         markerEnd={markerEnd}
         style={{ stroke, strokeWidth, animation, opacity, strokeDasharray, strokeLinecap: strokeDasharray ? "round" : undefined }}
       />
-      {showsSpark && stroke && (
-        <g className="orbita-flow-spark">
-          {/* Vira a nave na volta, para ela nunca voar de ré. */}
-          <g>
+      {showsSpark && stroke && sparkSlot && (
+        <>
+          <style>{sparkKeyframes(`orbita-spark-${sparkSlot.index}-${sparkSlot.total}`, sparkSlot)}</style>
+          {/* A chave muda junto em todas as ligações: recomeçam no mesmo instante e a nave passa de uma para a outra. */}
+          <g
+            key={sparkSlot.routeVersion}
+            className="orbita-flow-spark"
+            style={{
+              offsetPath: `path("${edgePath}")`,
+              animation: `orbita-spark-${sparkSlot.index}-${sparkSlot.total} ${sparkCycleSeconds}s linear infinite`,
+            }}
+          >
             <FlowSpark color={stroke} />
-            <animateTransform
-              attributeName="transform"
-              type="scale"
-              values="1 1;-1 1"
-              keyTimes="0;0.5"
-              calcMode="discrete"
-              dur={`${EDGE_SPARK_ROUND_TRIP_SECONDS}s`}
-              repeatCount="indefinite"
-            />
           </g>
-          <animateMotion
-            dur={`${EDGE_SPARK_ROUND_TRIP_SECONDS}s`}
-            repeatCount="indefinite"
-            path={edgePath}
-            calcMode="linear"
-            keyPoints="0;1;0"
-            keyTimes="0;0.5;1"
-            rotate="auto"
-          />
-        </g>
+        </>
       )}
-      {/* Animação CSS local — sem precisar de tailwind config */}
+      <EdgeEndPlus x={sourceX} y={sourceY} side={sourcePosition} color={stroke ?? "var(--info)"} />
+      <EdgeEndPlus x={targetX} y={targetY} side={targetPosition} color={stroke ?? "var(--info)"} />
+      <style>{`.orbita-edge-end { opacity: 0; pointer-events: none; transition: opacity .15s; }
+.react-flow__edge:hover .orbita-edge-end, .react-flow__edge.selected .orbita-edge-end { opacity: 1; }
+.react-flow__edge:hover .react-flow__edge-path { filter: drop-shadow(0 0 5px var(--info)); animation: orbita-edge-select 0.9s ease-in-out infinite; }
+@keyframes orbita-edge-select { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .react-flow__edge:hover .react-flow__edge-path { animation: none; } }`}</style>
       {strokeDasharray && (
         <style>{`@keyframes orbita-outline-march { to { stroke-dashoffset: -${DASH_LENGTH + DASH_GAP}; } }
 @media (prefers-reduced-motion: reduce) { .orbita-flow-spark { display: none; } }`}</style>
@@ -168,6 +191,37 @@ export function ValidatedEdge({
             50% { opacity: 0.35; }
           }
         `}</style>
+      )}
+      {selected && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: "absolute",
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - (visibleLabel ? 30 : 0)}px)`,
+              pointerEvents: "all",
+            }}
+            className="nodrag nopan flex items-center gap-0.5 rounded-full border bg-background p-0.5 shadow-md"
+          >
+            <button
+              type="button"
+              title="Encaixar um passo no meio desta ligação"
+              aria-label="Encaixar um passo no meio desta ligação"
+              className="grid size-7 place-items-center rounded-full hover:bg-muted"
+              onClick={() => requestInsertOnEdge(id)}
+            >
+              <PlusIcon className="size-4" />
+            </button>
+            <button
+              type="button"
+              title="Excluir ligação"
+              aria-label="Excluir ligação"
+              className="grid size-7 place-items-center rounded-full text-destructive hover:bg-destructive/10"
+              onClick={() => setEdges((currentEdges) => currentEdges.filter((edge) => edge.id !== id))}
+            >
+              <Trash2Icon className="size-4" />
+            </button>
+          </div>
+        </EdgeLabelRenderer>
       )}
       {visibleLabel && (
         <EdgeLabelRenderer>

@@ -22,7 +22,11 @@ import { ChannelLogo, type AutomationChannel } from "./channel-logo";
 
 type StateFilter = "all" | "active" | "problem";
 
-const STEP_LABELS = new Map<string, string>([...triggerNodes, ...executionNodes].map((option) => [String(option.type), option.label]));
+// Mais de uma opção do painel usa o mesmo tipo (Enviar Mensagem e Menu de Botões): vale a primeira.
+const STEP_LABELS = new Map<string, string>();
+for (const option of [...triggerNodes, ...executionNodes]) {
+  if (!STEP_LABELS.has(String(option.type))) STEP_LABELS.set(String(option.type), option.label);
+}
 const ORIGIN_LABEL = { tracking: "Tracking", workspace: "Workspace", comments: "Comments" } as const;
 
 interface HubAutomationRow {

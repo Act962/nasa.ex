@@ -4,9 +4,7 @@ import { WorkflowContainer } from "./workflow-container";
 import { Suspense } from "react";
 import { prefetchWorkflows } from "@/features/workflows/server/prefetch";
 import { QuickWorkflowButton } from "@/features/workflows/components/quick-builder/quick-workflow-button";
-import { AiLeadButton } from "@/features/trackings/components/modal/ai-lead-button";
-import { Button } from "@/components/ui/button";
-import { SparklesIcon } from "lucide-react";
+import { AstroFlowBar } from "@/features/automations-hub/components/astro-flow-bar";
 
 interface WorkflowPageProps {
   params: Promise<{
@@ -34,14 +32,7 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <AiLeadButton trackingId={trackingId}>
-            <Button variant="outline" size="sm">
-              <SparklesIcon className="size-4 text-info" />
-              <span className="hidden sm:inline bg-linear-to-r from-info to-info bg-clip-text text-transparent font-semibold">
-                Agente de Gatilhos Automáticos
-              </span>
-            </Button>
-          </AiLeadButton>
+          <AstroFlowBar trackingId={trackingId} />
           <QuickWorkflowButton trackingId={trackingId} />
           <CreateWorkflowButton />
         </div>

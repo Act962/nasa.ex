@@ -17,7 +17,6 @@ const OUTLINE_WIDTH = 4;
 export const DASH_LENGTH = 14;
 export const DASH_GAP = 8;
 export const DASH_MARCH_ANIMATION = "orbita-outline-march 1.1s linear infinite";
-const OUTLINE_LAP_SECONDS = 7;
 
 const SHIP_COLOR = "var(--info)";
 
@@ -49,13 +48,7 @@ export function FlowSpark({ color }: { color: string }) {
   );
 }
 
-export function AnimatedOutline({
-  tone,
-  showsSpark = false,
-}: {
-  tone: OutlineTone;
-  showsSpark?: boolean;
-}) {
+export function AnimatedOutline({ tone, radius = 16 }: { tone: OutlineTone; radius?: number }) {
   return (
     <>
       <svg
@@ -63,43 +56,30 @@ export function AnimatedOutline({
         className="pointer-events-none absolute -inset-1.5 size-[calc(100%+0.75rem)] overflow-visible"
       >
         <rect
-          className="orbita-outline-rect"
+          className={tone === "ok" ? "orbita-outline-rect orbita-outline-ok" : "orbita-outline-rect"}
           x={OUTLINE_WIDTH / 2}
           y={OUTLINE_WIDTH / 2}
-          rx={16}
+          rx={radius}
           fill="none"
-          stroke={TONE_COLOR[tone]}
+          stroke="currentColor"
           strokeWidth={OUTLINE_WIDTH}
           strokeLinecap="round"
           strokeDasharray={`${DASH_LENGTH} ${DASH_GAP}`}
           // Largura e altura por CSS: o atributo do SVG não aceita `calc()`.
           style={{
+            color: TONE_COLOR[tone],
             width: `calc(100% - ${OUTLINE_WIDTH}px)`,
             height: `calc(100% - ${OUTLINE_WIDTH}px)`,
-            animation: DASH_MARCH_ANIMATION,
+            // Quadro com problema fica com o contorno parado: o que não roda não se move.
+            animation: tone === "ok" ? DASH_MARCH_ANIMATION : undefined,
           }}
         />
         <style>{`@keyframes orbita-outline-march { to { stroke-dashoffset: -${DASH_LENGTH + DASH_GAP}; } }
-@keyframes orbita-outline-lap { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+@keyframes orbita-outline-pulse { 0%, 100% { filter: drop-shadow(0 0 0 currentColor); stroke-opacity: 1; } 50% { filter: drop-shadow(0 0 7px currentColor); stroke-opacity: .6; } }
+.react-flow__node:hover .orbita-outline-rect { animation: orbita-outline-pulse 1.6s ease-in-out infinite !important; }
+.react-flow__node:hover .orbita-outline-ok { animation: orbita-outline-march 1.1s linear infinite, orbita-outline-pulse 1.6s ease-in-out infinite !important; }
 @media (prefers-reduced-motion: reduce) { .orbita-outline-rect { animation: none !important; } .orbita-flow-spark { display: none; } }`}</style>
       </svg>
-      {showsSpark && (
-        // Em HTML, `offset-path: inset()` acompanha o tamanho real do quadro, que o SVG não conhece.
-        <div aria-hidden className="pointer-events-none absolute -inset-1.5">
-          <div
-            className="orbita-flow-spark absolute left-0 top-0 size-0"
-            style={{
-              offsetPath: `inset(${OUTLINE_WIDTH / 2}px round 16px)`,
-              offsetRotate: "auto",
-              animation: `orbita-outline-lap ${OUTLINE_LAP_SECONDS}s linear infinite`,
-            }}
-          >
-            <svg className="overflow-visible" width={0} height={0}>
-              <FlowSpark color={TONE_COLOR[tone]} />
-            </svg>
-          </div>
-        </div>
-      )}
     </>
   );
 }

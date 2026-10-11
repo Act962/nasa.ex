@@ -1,5 +1,7 @@
-import { FileTextIcon, ImageIcon, MicIcon } from "lucide-react";
+import { ImageIcon, MicIcon } from "lucide-react";
 import { WhatsappIcon } from "@/components/whatsapp";
+import { MetaLogo } from "@/features/meta-guide/components/meta-logo";
+import { useConstructUrl } from "@/hooks/use-construct-url";
 import { cn } from "@/lib/utils";
 
 // Celular com a mensagem como o cliente vê, para os quadros de envio (spec 0090, RF-9).
@@ -11,12 +13,79 @@ export interface PhoneMessage {
   options?: string[];
   /** Nome do arquivo ou do modelo. */
   label?: string;
+  /** Imagem ou arquivo enviado: endereço completo ou chave do armazenamento. */
+  mediaUrl?: string;
+  /** Título do modelo, quando ele tem. */
+  headerText?: string;
+}
+
+const DOCUMENT_BADGE_COLORS: Record<string, string> = {
+  PDF: "#dc2626",
+  DOC: "#2563eb",
+  DOCX: "#2563eb",
+  XLS: "#16a34a",
+  XLSX: "#16a34a",
+  CSV: "#16a34a",
+  PPT: "#ea580c",
+  PPTX: "#ea580c",
+  TXT: "#52525b",
+  MD: "#52525b",
+  ZIP: "#a16207",
+};
+const DEFAULT_DOCUMENT_BADGE_COLOR = "#52525b";
+const MAX_EXTENSION_CHARS = 4;
+
+/** "contrato.PDF" ou ".../tabela.csv?x=1" → "PDF", "CSV". Sem extensão reconhecível, "ARQ". */
+function documentExtension(fileName: string | undefined, mediaUrl: string | undefined): string {
+  for (const source of [fileName, mediaUrl]) {
+    const extension = (source ?? "").split(/[?#]/)[0].match(/\.([a-z0-9]+)$/i)?.[1];
+    if (extension && extension.length <= MAX_EXTENSION_CHARS) return extension.toUpperCase();
+  }
+  return "ARQ";
+}
+
+function DocumentBadge({ fileName, mediaUrl }: { fileName?: string; mediaUrl?: string }) {
+  const extension = documentExtension(fileName, mediaUrl);
+  return (
+    <span className="mb-1 flex items-center gap-1.5 rounded-md bg-muted px-1.5 py-1">
+      <span
+        className="flex h-7 w-6 shrink-0 items-end justify-center rounded-[3px] pb-0.5 text-[7px] font-bold leading-none text-white"
+        style={{ backgroundColor: DOCUMENT_BADGE_COLORS[extension] ?? DEFAULT_DOCUMENT_BADGE_COLOR }}
+      >
+        {extension}
+      </span>
+      <span className="truncate text-muted-foreground">{fileName || "arquivo"}</span>
+    </span>
+  );
+}
+
+function ImageAttachment({ mediaUrl }: { mediaUrl?: string }) {
+  const imageUrl = useConstructUrl(mediaUrl ?? "");
+  if (!imageUrl) {
+    return (
+      <span className="mb-1 flex h-16 items-center justify-center rounded-md bg-muted text-muted-foreground">
+        <ImageIcon className="size-4" />
+      </span>
+    );
+  }
+  // Prévia pequena de arquivo já enviado pela própria empresa; não passa pelo otimizador de imagens.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={imageUrl} alt="" loading="lazy" className="mb-1 h-20 w-full rounded-md bg-muted object-cover" />;
 }
 
 const MAX_BUTTONS = 3;
 const MAX_VISIBLE_OPTIONS = 5;
 
-export function MessagePhonePreview({ message, isUndelivered }: { message: PhoneMessage; isUndelivered?: boolean }) {
+export function MessagePhonePreview({
+  message,
+  isUndelivered,
+  channelLabel,
+}: {
+  message: PhoneMessage;
+  isUndelivered?: boolean;
+  /** Número e nome da conexão por onde a mensagem sai. */
+  channelLabel?: string;
+}) {
   const options = message.options ?? [];
   const isList = options.length > MAX_BUTTONS;
   return (
@@ -28,21 +97,15 @@ export function MessagePhonePreview({ message, isUndelivered }: { message: Phone
         <span className="flex size-4 items-center justify-center rounded-full bg-brand-whatsapp text-white">
           <WhatsappIcon className="size-2.5" />
         </span>
-        WhatsApp
+        <span className="min-w-0">
+          <span className="block leading-tight">WhatsApp</span>
+          {channelLabel && <span className="block truncate text-[8.5px] font-normal leading-tight text-muted-foreground">{channelLabel}</span>}
+        </span>
       </div>
       <div className="min-h-[92px] space-y-1 bg-muted/40 bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:12px_12px] p-2">
         <div className={cn("rounded-lg bg-card px-2 py-1.5 text-[10.5px] leading-snug shadow-sm", isUndelivered && "opacity-60")}>
-          {message.kind === "image" && (
-            <span className="mb-1 flex h-12 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              <ImageIcon className="size-4" />
-            </span>
-          )}
-          {message.kind === "document" && (
-            <span className="mb-1 flex items-center gap-1 rounded-md bg-muted px-1.5 py-1 text-muted-foreground">
-              <FileTextIcon className="size-3 shrink-0" />
-              <span className="truncate">{message.label || "arquivo"}</span>
-            </span>
-          )}
+          {message.kind === "image" && <ImageAttachment mediaUrl={message.mediaUrl} />}
+          {message.kind === "document" && <DocumentBadge fileName={message.label} mediaUrl={message.mediaUrl} />}
           {message.kind === "voice" && (
             <span className="mb-1 flex items-center gap-1 text-muted-foreground">
               <MicIcon className="size-3" />
@@ -50,11 +113,15 @@ export function MessagePhonePreview({ message, isUndelivered }: { message: Phone
             </span>
           )}
           {message.kind === "template" && (
-            <span className="mb-1 block truncate text-[9.5px] font-semibold uppercase tracking-wide text-info">
-              Template · {message.label || "sem nome"}
-            </span>
+            <>
+              <span className="mb-1 flex items-center gap-1 text-[9.5px] font-semibold uppercase tracking-wide text-brand-facebook">
+                <MetaLogo className="size-3.5" />
+                <span className="truncate">Template · {message.label || "sem nome"}</span>
+              </span>
+              {message.headerText && <span className="mb-0.5 block font-semibold">{message.headerText}</span>}
+            </>
           )}
-          <span className="line-clamp-6 whitespace-pre-line break-words">{message.text || "Mensagem sem texto"}</span>
+          <span className="line-clamp-6 whitespace-pre-line break-words">{message.text || (message.kind === "image" || message.kind === "document" ? "" : "Mensagem sem texto")}</span>
         </div>
         {options.length > 0 && (
           <div className={cn(isList ? "overflow-hidden rounded-lg bg-card shadow-sm" : "grid gap-0.5")}>

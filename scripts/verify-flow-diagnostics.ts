@@ -41,7 +41,10 @@ async function main() {
   check("voz na API oficial é erro", codes([messageTrigger, { id: "v", type: "SEND_VOICE", data: { text: "oi" } }], chain("t", "v"), "meta"), ["v:error:META_VOICE_UNSUPPORTED"]);
   check("mensagem para outro número não entra na regra das 24 h", codes([tagTrigger, text("a", { target: { sendMode: "CUSTOM", phone: "8699" } })], chain("t", "a"), "meta"), []);
   check("funil sem número: um aviso só", codes([tagTrigger, text("a"), text("b")], chain("t", "a", "b"), "none"), ["a:warning:NO_NUMBER_CONNECTED"]);
-  check("quadro solto (sem gatilho antes) não gera regra de janela", codes([text("a")], [], "meta"), []);
+  check("quadro solto (sem gatilho antes) não gera regra de janela, só o aviso de desligado", codes([text("a")], [], "meta"), ["a:error:NODE_DISCONNECTED"]);
+  check("passo desligado da linha fica marcado, e o gatilho sem saída também", codes([messageTrigger, text("a")], [], "uazapi"), ["t:error:TRIGGER_LEADS_NOWHERE", "a:error:NODE_DISCONNECTED"]);
+  check("o que vem depois de um passo desligado também não roda", codes([messageTrigger, text("a"), text("b"), text("c")], [...chain("t", "a"), ...chain("b", "c")], "uazapi"), ["b:error:NODE_DISCONNECTED", "c:error:NODE_DISCONNECTED"]);
+  check("gatilho sozinho num fluxo recém-criado não é erro", codes([messageTrigger], [], "uazapi"), []);
   check("laço termina", codes([messageTrigger, text("a"), wait("w", { type: "hours", hours: 30 })], [...chain("t", "a", "w"), { id: "back", source: "w", target: "a" }], "meta"), ["a:error:META_WINDOW_NEEDS_TEMPLATE"]);
 
   const erroDeLinha = diagnoseFlow([messageTrigger, wait("w", { type: "days", days: 2 }), text("b"), text("c")], chain("t", "w", "b", "c"), { provider: "meta" });

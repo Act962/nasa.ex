@@ -61,11 +61,23 @@ export const GUIDE_ANCHORS = {
   },
   workflowViewModeToggle: {
     id: "workflow-editor.view-mode",
-    description: "Chave \"Ícones / Visual\" na barra do editor de Gatilhos Automáticos, que troca o desenho dos quadros",
+    description: "Chave \"Ícones / Visual\" ao lado do botão Salvar no editor de Gatilhos Automáticos, que troca o desenho dos quadros",
+  },
+  workflowToolsButton: {
+    id: "workflow-editor.tools-button",
+    description: "Botão de engrenagem \"Configurações\" no editor de Gatilhos Automáticos, que mostra Histórico, Testar passo a passo e Clipboard",
   },
   automationsHubButton: {
     id: "automations-hub.button",
     description: "Botão \"Gatilhos Automáticos\" no rodapé da barra lateral, que abre a central de automações",
+  },
+  astroFlowButton: {
+    id: "automations-hub.astro-flow-button",
+    description: "Botão \"Criar fluxo com ASTRO\" nos Gatilhos Automáticos, que abre o campo para descrever a automação",
+  },
+  astroFlowField: {
+    id: "automations-hub.astro-flow-field",
+    description: "Campo na base da página dos Gatilhos Automáticos onde a pessoa descreve o fluxo para o Astro montar",
   },
   automationsHubList: {
     id: "automations-hub.list",

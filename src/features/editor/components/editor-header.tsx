@@ -3,7 +3,6 @@
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -39,6 +38,7 @@ import {
   flowDiagnosticsAtom,
   flowIsActiveAtom,
 } from "../store/atoms";
+import { ViewModeToggle } from "./view-mode-toggle";
 import { UnsavedChangesDialog } from "./unsaved-changes-dialog";
 import {
   Dialog,
@@ -335,7 +335,8 @@ const EditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
     return () => setFlowIsActive(false);
   }, [isActive, setFlowIsActive]);
   const updateIsActive = useUpdateWorkflowIsActive(trackingId);
-  // Erros previstos no desenho (spec 0090, RF-20): ativar continua permitido, mas a pessoa é avisada antes.
+  // Erros previstos no desenho (spec 0090, RF-20): com erro, o fluxo não liga por aqui. Desligar é sempre
+  // permitido, e fluxo que já estava ligado continua ligado (RF-21).
   const predictedErrors = useAtomValue(flowDiagnosticsAtom).all.filter((diagnostic) => diagnostic.severity === "error");
   const [isConfirmingActivation, setIsConfirmingActivation] = useState(false);
 
@@ -360,17 +361,15 @@ const EditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Este fluxo tem {predictedErrors.length} {predictedErrors.length === 1 ? "passo que vai falhar" : "passos que vão falhar"}
+              Corrija {predictedErrors.length === 1 ? "o passo em vermelho" : `os ${predictedErrors.length} pontos em vermelho`} antes de ligar
             </AlertDialogTitle>
             <AlertDialogDescription>
               {predictedErrors[0]?.title}: {predictedErrors[0]?.message}
+              {predictedErrors.length > 1 ? ` E mais ${predictedErrors.length - 1}. Veja a lista em Problemas.` : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Corrigir antes</AlertDialogCancel>
-            <AlertDialogAction onClick={() => updateIsActive.mutate({ workflowId, isActive: true })}>
-              Ativar mesmo assim
-            </AlertDialogAction>
+            <AlertDialogAction>Entendi</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -385,6 +384,7 @@ export const EditorHeader = ({ workflowId }: { workflowId: string }) => {
       <div className="flex items-center gap-2">
         <EditorActiveToggle workflowId={workflowId} />
         <EditorOptions workflowId={workflowId} />
+        <ViewModeToggle />
         <EditorSaveButton workflowId={workflowId} />
       </div>
     </div>
