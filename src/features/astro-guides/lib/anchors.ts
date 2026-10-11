@@ -59,6 +59,14 @@ export const GUIDE_ANCHORS = {
     id: "comments.connect-with-meta",
     description: "Botão \"Usar @conta\" que conecta o Instagram já ligado na Meta",
   },
+  automationsHubButton: {
+    id: "automations-hub.button",
+    description: "Botão \"Gatilhos Automáticos\" no rodapé da barra lateral, que abre a central de automações",
+  },
+  automationsHubList: {
+    id: "automations-hub.list",
+    description: "Lista das automações da empresa na central de Gatilhos Automáticos, com busca, filtros e interruptor de ligar",
+  },
   chatbotIaKnowledgePicker: {
     id: "tracking.chatbot-ia.knowledge-picker",
     description: "Seletor \"Documentos que o atendimento pode usar\" na aba \"O que o Astro pode fazer\" do Fluxo de atendimento",

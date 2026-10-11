@@ -116,3 +116,4 @@
 - 2026-10-02 — Primeira versão, consolidando Formulários, Campanhas, Agenda, Forge e STAR FRIENDS.
 - 2026-10-08 — Fichas dos Formulários (lista, painel e fechamento): cartões no celular no lugar da tabela, filtros em linha que rola, KPIs em 2 colunas e menu de baixo da tela (Painel · Fichas · Fechamento · Preencher). Formulário e visão rápida passam a fixar o tema dos campos pela cor de fundo do formulário.
 - 2026-10-08 — Fichas dos Formulários: tela inicial como app (uma ação principal, dois atalhos, lista Pendentes/Prontas) e menu de baixo Início · Fichas · **Nova** (centro) · Fechamento · Links. Barra de cima do preenchimento com voltar, cliente e menu "⋯".
+- 2026-10-11 — Gatilhos Automáticos (central, spec 0090): página `/gatilhos` em coluna única, com busca, filtros em pílulas, linhas com logo do canal e interruptor, e atalhos em grade de 2 colunas no celular. A mesma lista abre numa janela pelo botão da barra lateral. Ainda sem menu de baixo próprio.

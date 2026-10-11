@@ -44,6 +44,21 @@ export const updateIsActive = base
       throw errors.NOT_FOUND({ message: "Workflow not found" });
     }
 
+    // Ligar ou desligar um fluxo exige ser da empresa dele: o id sozinho não basta (spec 0090, S-2).
+    const workflowOrganizationId =
+      workflow.tracking?.organizationId ??
+      (workflow.workspaceId
+        ? (await prisma.workspace.findUnique({ where: { id: workflow.workspaceId }, select: { organizationId: true } }))?.organizationId
+        : undefined);
+    // Fluxo sem tracking nem workspace (legado) não tem empresa a conferir: segue como sempre foi.
+    if (workflowOrganizationId) {
+      const membership = await prisma.member.findFirst({
+        where: { organizationId: workflowOrganizationId, userId: context.user.id },
+        select: { id: true },
+      });
+      if (!membership) throw errors.NOT_FOUND({ message: "Workflow not found" });
+    }
+
     // Quando ATIVANDO em Modo Agente IA, checa colisão com outros workflows
     // ativos. Retorna warnings — front decide se mostra dialog de confirmação.
     if (

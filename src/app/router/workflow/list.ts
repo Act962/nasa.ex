@@ -21,14 +21,26 @@ export const listWorkflows = base
       workflows: z.array(z.custom<WorkflowWithGraph>()),
     })
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const trackingExists = await prisma.tracking.findUnique({
       where: {
         id: input.trackingId,
       },
+      select: { id: true, organizationId: true },
     });
 
     if (!trackingExists) {
+      throw errors.NOT_FOUND({
+        message: "Tracking não encontrado",
+      });
+    }
+
+    // Sem esta checagem, o id de um tracking de outra empresa bastava para ler os fluxos dele (spec 0090, S-2).
+    const membership = await prisma.member.findFirst({
+      where: { organizationId: trackingExists.organizationId, userId: context.user.id },
+      select: { id: true },
+    });
+    if (!membership) {
       throw errors.NOT_FOUND({
         message: "Tracking não encontrado",
       });

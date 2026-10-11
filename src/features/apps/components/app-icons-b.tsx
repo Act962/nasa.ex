@@ -386,3 +386,10 @@ export const SpaceStationIcon = () => (
     <circle cx="36" cy="35" r="1.4" fill="white" fillOpacity="0.7" />
   </svg>
 );
+
+export const GatilhosIcon = () => (
+  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={S}>
+    <rect width="48" height="48" rx="12" fill="#7C3AED" />
+    <path d="M26.5 9 14 27h8.5L21 39l13-18.5h-8.5L26.5 9Z" fill="white" />
+  </svg>
+);
