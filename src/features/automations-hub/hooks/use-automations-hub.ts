@@ -23,7 +23,7 @@ export function useToggleTrackingFlow() {
 
 export function useToggleWorkspaceFlow() {
   const invalidate = useInvalidateAutomationsOverview();
-  return useMutation(orpc.workspaceWorkflow.updateIsActive.mutationOptions({ onSuccess: invalidate }));
+  return useMutation(orpc.workspaceWorkflow.update.updateIsActive.mutationOptions({ onSuccess: invalidate }));
 }
 
 export function useToggleCommentsAutomation() {
