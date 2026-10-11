@@ -1,4 +1,5 @@
 "use client";
+import { useNodeFlowDiagnostics } from "@/features/editor/hooks/use-flow-diagnostics";
 
 import {
   ConnectionState,
@@ -67,6 +68,11 @@ export const BaseExecutionNode = memo(
     // tem severity error, força borda vermelha mesmo que validateNode passe.
     const graphIssues = useNodeIssues(id);
     const hasGraphError = graphIssues.some((i) => i.severity === "error");
+    // Erros previstos sobre o desenho da tela (regras do canal). O erro vem antes do aviso.
+    const flowDiagnostics = useNodeFlowDiagnostics(id);
+    const flowNotice =
+      flowDiagnostics.find((diagnostic) => diagnostic.severity === "error") ?? flowDiagnostics[0];
+    const hasFlowError = flowNotice?.severity === "error";
     const [openSelector, setOpenSelector] = useState(false);
     const connectionInProgress = useConnection(selector);
     const isConnected = useStore((state) =>
@@ -132,7 +138,7 @@ export const BaseExecutionNode = memo(
     const nodeInvalid = !!(validation && !validation.valid && !validation.skip);
     const needsReview = !!(nodeData?.needsReview === true);
     const effectiveStatus: typeof status =
-      nodeInvalid || hasGraphError || needsReview ? "error" : status;
+      nodeInvalid || hasGraphError || hasFlowError || needsReview ? "error" : status;
 
     // ── Step-by-Step overlay (foguete pulsando ou check/erro) ───
     const stepState = useAtomValue(stepByStepStateAtom);
@@ -153,6 +159,7 @@ export const BaseExecutionNode = memo(
         description={description}
         onDelete={handleDelete}
         onSettings={onSettings}
+        notice={flowNotice}
         onDuplicate={handleDuplicate}
         onAddNext={handleAddNext}
       >
@@ -166,6 +173,9 @@ export const BaseExecutionNode = memo(
               ...graphIssues
                 .filter((i) => i.severity === "error")
                 .map((i) => i.message),
+              ...flowDiagnostics
+                .filter((diagnostic) => diagnostic.severity === "error")
+                .map((diagnostic) => diagnostic.message),
               // needsReview vira mensagem extra no tooltip da borda
               // vermelha — explica pro user o que IA generativa marcou
               // como pendente. Aparece junto com graph errors.

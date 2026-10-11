@@ -1,6 +1,16 @@
 "use client";
 
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -26,6 +36,7 @@ import {
   editorAtom,
   lastSavedSnapshotAtom,
   workflowDirtyAtom,
+  flowDiagnosticsAtom,
 } from "../store/atoms";
 import { UnsavedChangesDialog } from "./unsaved-changes-dialog";
 import {
@@ -318,6 +329,17 @@ const EditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
   const { data } = useSuspenseWorkflow(workflowId);
   const isActive = data.workflow.isActive;
   const updateIsActive = useUpdateWorkflowIsActive(trackingId);
+  // Erros previstos no desenho (spec 0090, RF-20): ativar continua permitido, mas a pessoa é avisada antes.
+  const predictedErrors = useAtomValue(flowDiagnosticsAtom).all.filter((diagnostic) => diagnostic.severity === "error");
+  const [isConfirmingActivation, setIsConfirmingActivation] = useState(false);
+
+  const handleToggle = (checked: boolean) => {
+    if (checked && predictedErrors.length > 0) {
+      setIsConfirmingActivation(true);
+      return;
+    }
+    updateIsActive.mutate({ workflowId, isActive: checked });
+  };
 
   return (
     <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -325,11 +347,27 @@ const EditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
       <Switch
         checked={isActive}
         disabled={updateIsActive.isPending}
-        onCheckedChange={(checked) =>
-          updateIsActive.mutate({ workflowId, isActive: checked })
-        }
+        onCheckedChange={handleToggle}
         aria-label={isActive ? "Desativar automação" : "Ativar automação"}
       />
+      <AlertDialog open={isConfirmingActivation} onOpenChange={setIsConfirmingActivation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Este fluxo tem {predictedErrors.length} {predictedErrors.length === 1 ? "passo que vai falhar" : "passos que vão falhar"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {predictedErrors[0]?.title}: {predictedErrors[0]?.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Corrigir antes</AlertDialogCancel>
+            <AlertDialogAction onClick={() => updateIsActive.mutate({ workflowId, isActive: true })}>
+              Ativar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </label>
   );
 };

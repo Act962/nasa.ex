@@ -20,6 +20,7 @@ import { useMemo } from "react";
 import { useAtomValue } from "jotai";
 import { validateNode } from "@/features/workflows/lib/validate-node";
 import { stepByStepStateAtom } from "../store/step-by-step-atoms";
+import { useIsEdgeOnFlowError } from "../hooks/use-flow-diagnostics";
 
 export function ValidatedEdge({
   id,
@@ -38,8 +39,10 @@ export function ValidatedEdge({
   const nodes = useNodes();
   const stepState = useAtomValue(stepByStepStateAtom);
 
+  // Quadro com erro previsto (regras do canal) também pinta as ligações que tocam nele.
+  const isOnFlowError = useIsEdgeOnFlowError(id);
   // Verifica se algum dos endpoints tem validação falhando
-  const hasError = useMemo(() => {
+  const hasFieldError = useMemo(() => {
     const src = nodes.find((n) => n.id === source);
     const tgt = nodes.find((n) => n.id === target);
     const check = (n?: { type?: string; data: unknown }) => {
@@ -52,6 +55,7 @@ export function ValidatedEdge({
     };
     return check(src as never) || check(tgt as never);
   }, [nodes, source, target]);
+  const hasError = hasFieldError || isOnFlowError;
 
   // ── Step-by-Step overrides ────────────────────────────────────
   // Quando o modo está ativo, edges ganham cor verde/vermelho/cinza

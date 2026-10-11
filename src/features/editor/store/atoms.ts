@@ -1,5 +1,6 @@
 import type { ReactFlowInstance } from "@xyflow/react";
 import { atom } from "jotai";
+import { EMPTY_FLOW_DIAGNOSTICS, type FlowDiagnosticsIndex } from "@/features/workflows/lib/flow-diagnostics";
 
 export const editorAtom = atom<ReactFlowInstance | null>(null);
 
@@ -20,3 +21,9 @@ export const lastSavedSnapshotAtom = atom<string>("");
  * `beforeunload` (alerta nativo no refresh/close).
  */
 export const workflowDirtyAtom = atom<boolean>(false);
+
+/**
+ * Erros e avisos previstos para o fluxo que está na tela (spec 0090, seção C).
+ * Recalculado pelo editor a cada alteração do desenho, sem esperar o salvar.
+ */
+export const flowDiagnosticsAtom = atom<FlowDiagnosticsIndex>(EMPTY_FLOW_DIAGNOSTICS);

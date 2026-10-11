@@ -33,6 +33,7 @@ import {
   editorAtom,
   lastSavedSnapshotAtom,
   workflowDirtyAtom,
+  flowDiagnosticsAtom,
 } from "../store/atoms";
 import { NodeType } from "@/generated/prisma/enums";
 import { ExecuteWorkflowButton } from "./execute-workflow-button";
@@ -49,6 +50,9 @@ import { WorkflowIssuesProvider } from "@/features/workflows/components/workflow
 import { useWorkflowValidation } from "@/features/workflows/hooks/use-workflow-validation";
 import type { GraphIssue } from "@/features/workflows/lib/validate-workflow-graph";
 import { ValidatedEdge } from "./validated-edge";
+import { EMPTY_FLOW_DIAGNOSTICS, diagnoseFlow, indexFlowDiagnostics, type FlowChannelProvider } from "@/features/workflows/lib/flow-diagnostics";
+import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
+import { useParams } from "next/navigation";
 import { WorkflowClipboardButton } from "@/features/workflow-clipboard/components/workflow-clipboard-button";
 
 const edgeTypes = {
@@ -276,6 +280,28 @@ export function Editor({ workflowId }: { workflowId: string }) {
     }),
     [validationData],
   );
+
+  // Previsão de erros sobre o desenho da tela (spec 0090): recalcula quando o conteúdo ou as
+  // ligações mudam, não a cada arrasto. O tipo de número do funil decide quais regras valem.
+  const { trackingId } = useParams<{ trackingId: string }>();
+  const { instance, instanceLoading } = useQueryInstances(trackingId);
+  const channelProvider: FlowChannelProvider = !instance ? "none" : instance.provider === "META_CLOUD" ? "meta" : "uazapi";
+  const setFlowDiagnostics = useSetAtom(flowDiagnosticsAtom);
+  const diagnosticsSignature = useMemo(
+    () =>
+      JSON.stringify({
+        nodes: nodes.map((node) => [node.id, node.type, node.data]),
+        edges: edges.map((edge) => [edge.id, edge.source, edge.target, edge.sourceHandle]),
+      }),
+    [nodes, edges],
+  );
+  useEffect(() => {
+    if (instanceLoading) return;
+    setFlowDiagnostics(indexFlowDiagnostics(diagnoseFlow(nodes, edges, { provider: channelProvider })));
+    // A assinatura já resume nós e ligações: depender deles direto recalcularia a cada arrasto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diagnosticsSignature, channelProvider, instanceLoading, setFlowDiagnostics]);
+  useEffect(() => () => setFlowDiagnostics(EMPTY_FLOW_DIAGNOSTICS), [setFlowDiagnostics]);
 
   return (
     <WorkflowAgentModeProvider workflowId={workflowId} agentMode={agentMode}>

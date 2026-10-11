@@ -1,4 +1,5 @@
 "use client";
+import { useNodeFlowDiagnostics } from "@/features/editor/hooks/use-flow-diagnostics";
 
 import {
   ConnectionState,
@@ -114,6 +115,11 @@ export const BaseTriggerNode = memo(
     // sem aresta de saída ficava verde.
     const graphIssues = useNodeIssues(id);
     const hasGraphError = graphIssues.some((i) => i.severity === "error");
+    // Erros previstos sobre o desenho da tela (regras do canal). O erro vem antes do aviso.
+    const flowDiagnostics = useNodeFlowDiagnostics(id);
+    const flowNotice =
+      flowDiagnostics.find((diagnostic) => diagnostic.severity === "error") ?? flowDiagnostics[0];
+    const hasFlowError = flowNotice?.severity === "error";
     const nodeInvalid = !!(validation && !validation.valid && !validation.skip);
     // `needsReview` no node.data sinaliza pendência da IA generativa —
     // user precisa abrir o nó pra completar (ex: escolher produto/agenda).
@@ -122,7 +128,7 @@ export const BaseTriggerNode = memo(
     // Sobrescreve status quando validação falha — borda vermelha pulsante
     // sinaliza que o trigger não está pronto pra ativar.
     const effectiveStatus: typeof status =
-      nodeInvalid || hasGraphError || needsReview ? "error" : status;
+      nodeInvalid || hasGraphError || hasFlowError || needsReview ? "error" : status;
 
     // ── Step-by-Step overlay ───────────────────────────────────
     const stepState = useAtomValue(stepByStepStateAtom);
@@ -141,6 +147,7 @@ export const BaseTriggerNode = memo(
         description={description}
         onDelete={handleDelete}
         onSettings={onSettings}
+        notice={flowNotice}
         onDuplicate={handleDuplicate}
         onAddNext={handleAddNext}
       >
@@ -157,6 +164,9 @@ export const BaseTriggerNode = memo(
               ...graphIssues
                 .filter((i) => i.severity === "error")
                 .map((i) => i.message),
+              ...flowDiagnostics
+                .filter((diagnostic) => diagnostic.severity === "error")
+                .map((diagnostic) => diagnostic.message),
               ...(needsReview
                 ? [
                     `🤖 IA marcou pra revisão: ${
