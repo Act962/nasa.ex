@@ -5,20 +5,24 @@ import "@xyflow/react/dist/style.css";
 import { useCallback, useMemo, useState } from "react";
 import { Background, BackgroundVariant, Controls, Panel, ReactFlow, type Edge, type Node, type NodeChange } from "@xyflow/react";
 import { useRouter } from "next/navigation";
-import { useAtom, useAtomValue } from "jotai";
-import { atomWithStorage } from "jotai/utils";
+import { useAtomValue } from "jotai";
 import { LayoutDashboardIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ViewModeToggle } from "@/features/editor/components/view-mode-toggle";
 import { richNodeSize } from "@/features/editor/components/rich/rich-node-types";
 import { editorViewModeAtom } from "@/features/editor/store/atoms";
+import { MENU_PRESET_NAME } from "@/features/tracking-chat-ai/lib/attendance-setup/script-draft";
+import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-button-presets";
+import { useAiCapabilities } from "@/features/tracking-settings/hooks/use-ai-capabilities";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
+import { CENTER_STACK, LEFT_COLUMN_RIGHT_EDGE, buildAttendanceMap, centerStackHeight, placeAttendance } from "@/features/workflows/lib/operation-map-attendance";
 import type { FlowChannelProvider } from "@/features/workflows/lib/flow-diagnostics";
 import { collectFlowProblems } from "@/features/workflows/lib/flow-problems";
-import { MAP_FLOW_ID_PREFIX, buildOperationMap, type MapSize, type MapWorkflowInput } from "@/features/workflows/lib/operation-map-graph";
+import { MAP_FLOW_ID_PREFIX, layoutOperationMap, type MapSize, type MapWorkflowInput } from "@/features/workflows/lib/operation-map-graph";
 import { useLinkFlows, useUnlinkFlows } from "@/features/workflows/hooks/use-workflows";
 import { LINK_REFUSAL_MESSAGES, listFlowLinks, refuseFlowLink } from "@/features/workflows/lib/flow-links";
 import { toast } from "sonner";
+import { FLOW_RIGHT_ENTRY_HANDLE, InfoBlockNode, MenuGroupNode, TagLinkEdge, menuHandleId, type InfoBlockData, type MenuGroupData } from "./attendance-map-nodes";
 import { FlowGroupNode, type FlowGroupData } from "./flow-group-node";
 import { FlowLinkEdge } from "./flow-link-edge";
 import { MapFlowEditor } from "./map-flow-editor";
@@ -27,18 +31,18 @@ import { MapStepNode, type MapStepData } from "./map-step-node";
 import { StageFrameNode, type StageFrameData } from "./stage-frame-node";
 
 // Mapa da operação (spec 0092): todos os fluxos do funil numa tela só. Os retângulos podem ser
-// arrastados e a posição fica guardada no navegador; os passos são somente leitura.
+// arrastados enquanto a pessoa está na tela (ao voltar, o mapa abre organizado); os passos são somente leitura.
 
-const nodeTypes = { flowGroup: FlowGroupNode, stageFrame: StageFrameNode, mapStep: MapStepNode };
-const edgeTypes = { mapEdge: MapEdge, flowLink: FlowLinkEdge };
+const nodeTypes = { flowGroup: FlowGroupNode, stageFrame: StageFrameNode, mapStep: MapStepNode, menuGroup: MenuGroupNode, infoBlock: InfoBlockNode };
+const edgeTypes = { mapEdge: MapEdge, flowLink: FlowLinkEdge, tagLink: TagLinkEdge };
+const BOOKING_BLOCK_ID = "attendance:booking";
+const ASSISTANT_BLOCK_ID = "attendance:assistant";
 /** Etapa 2 (spec 0092): ligar fluxos pelo mapa. Desligado, o mapa é só leitura. */
 const IS_MAP_EDIT_ON = process.env.NEXT_PUBLIC_WORKFLOW_MAP_EDIT === "true";
 const ICON_STEP_SIZE: MapSize = { width: 64, height: 64 };
 
 type SavedPositions = Record<string, { x: number; y: number }>;
 
-/** Onde cada pessoa deixou os retângulos, por funil e por visão. Fica no navegador dela. */
-const savedPositionsAtom = atomWithStorage<Record<string, SavedPositions>>("orbita:operation-map", {});
 const NO_POSITIONS: SavedPositions = {};
 
 interface OperationMapProps {
@@ -52,7 +56,8 @@ export function OperationMap({ trackingId, workflows, folders }: OperationMapPro
   const isRichView = useAtomValue(editorViewModeAtom) === "rich";
   const { instance } = useQueryInstances(trackingId);
   const provider: FlowChannelProvider = !instance ? "none" : instance.provider === "META_CLOUD" ? "meta" : "uazapi";
-  const [positionsByTracking, setPositionsByTracking] = useAtom(savedPositionsAtom);
+  // O que a pessoa arrasta vale só enquanto ela está na tela: ao sair e voltar, o mapa volta organizado.
+  const [positionsByTracking, setPositionsByTracking] = useState<Record<string, SavedPositions>>({});
   // Cada visão guarda a sua disposição: os retângulos têm tamanhos diferentes em Ícones e em Visual.
   const positionsKey = isRichView ? `${trackingId}:rich` : trackingId;
   const savedPositions = positionsByTracking[positionsKey] ?? NO_POSITIONS;
@@ -88,13 +93,31 @@ export function OperationMap({ trackingId, workflows, folders }: OperationMapPro
     [unlinkFlows],
   );
 
+  // Menu do atendimento e ligações por tag: mostram por que cada fluxo começa (spec 0092).
+  const { presets } = useAiButtonPresets(trackingId);
+  const { data: aiCapabilities } = useAiCapabilities(trackingId);
+  const hasBookingMenu = Boolean(aiCapabilities?.capabilities.guidedMenu && aiCapabilities.capabilities.agenda.isEnabled && aiCapabilities.availableAgendas.length > 0);
+  const attendance = useMemo(
+    () => buildAttendanceMap({ menus: presets, workflows, scriptMenuName: MENU_PRESET_NAME, hasBookingMenu }),
+    [presets, workflows, hasBookingMenu],
+  );
+
   const graph = useMemo(() => {
     const folderNameById = new Map(folders.map((folder) => [folder.id, folder.name]));
-    const groups = buildOperationMap({
+    const { groups, centerY } = layoutOperationMap({
       workflows,
       folderOrder: folders.map((folder) => folder.id),
       sizeOfStep: (stepType) => (isRichView ? (richNodeSize(stepType) ?? ICON_STEP_SIZE) : ICON_STEP_SIZE),
       savedPositions,
+      preferredOrder: attendance.linkedWorkflowOrder,
+      menuColumns: {
+        right: attendance.rightWorkflowOrder,
+        left: attendance.leftWorkflowOrder,
+        leftColumnRightEdge: LEFT_COLUMN_RIGHT_EDGE,
+        centerStackHeight: centerStackHeight(attendance),
+        centerStackLeft: CENTER_STACK.left,
+        centerStackWidth: CENTER_STACK.width,
+      },
     });
     const workflowById = new Map(workflows.map((workflow) => [workflow.id, workflow]));
     const nodes: Node[] = [];
@@ -184,8 +207,57 @@ export function OperationMap({ trackingId, workflows, folders }: OperationMapPro
         data: { onUnlink: canEditOnMap ? () => requestUnlink(link.fromWorkflowId, link.toWorkflowId) : undefined },
       });
     }
+    // Menu do atendimento no meio, entre as duas colunas de fluxos, com uma linha reta por opção.
+    const placedAttendance = placeAttendance(attendance, groups, centerY);
+    const settingsHref = (iaTab: string) => `/tracking/${trackingId}/settings?tab=chatbot-ia&iaTab=${iaTab}`;
+    const fixedNode = { draggable: false, connectable: false, selectable: false } as const;
+    const infoBlock = (id: string, box: { x: number; y: number; width: number; height: number }, data: InfoBlockData): Node => ({
+      id,
+      type: "infoBlock",
+      position: { x: box.x, y: box.y },
+      data,
+      style: { width: box.width, height: box.height },
+      ...fixedNode,
+    });
+    for (const menu of placedAttendance.menus) {
+      const menuData: MenuGroupData = { name: menu.name, href: settingsHref("buttons"), options: menu.options };
+      nodes.push({ id: `menu:${menu.id}`, type: "menuGroup", position: { x: menu.x, y: menu.y }, data: menuData, style: { width: menu.width, height: menu.height }, ...fixedNode });
+    }
+    if (placedAttendance.bookingBlock) {
+      nodes.push(infoBlock(BOOKING_BLOCK_ID, placedAttendance.bookingBlock, { title: "Agendamento por botões", lines: ["Escolhe agenda, dia e horário e marca, sem IA.", "Não é um fluxo: abre o atendimento."], tone: "booking", href: settingsHref("capabilities") }));
+    }
+    if (placedAttendance.assistantBlock) {
+      nodes.push(infoBlock(ASSISTANT_BLOCK_ID, placedAttendance.assistantBlock, { title: "Assistente (IA)", lines: ["Responde o que vem depois da abertura", "de cada assunto."], tone: "assistant", href: settingsHref("general") }));
+    }
+    for (const menuEdge of placedAttendance.menuEdges) {
+      edges.push({
+        id: `menu-link:${menuEdge.menuId}:${menuEdge.optionId}:${menuEdge.workflowId}`,
+        source: `menu:${menuEdge.menuId}`,
+        sourceHandle: menuHandleId(menuEdge.optionId, menuEdge.side),
+        target: `${MAP_FLOW_ID_PREFIX}${menuEdge.workflowId}`,
+        // O fluxo à esquerda do menu recebe a linha pela borda direita dele.
+        targetHandle: menuEdge.side === "left" ? FLOW_RIGHT_ENTRY_HANDLE : undefined,
+        type: "tagLink",
+        data: { kind: "menu", channelX: menuEdge.channelX },
+        selectable: false,
+      });
+    }
+    for (const bookingEdge of placedAttendance.bookingEdges) {
+      edges.push({
+        id: `booking-link:${bookingEdge.menuId}:${bookingEdge.optionId}`,
+        source: `menu:${bookingEdge.menuId}`,
+        sourceHandle: menuHandleId(bookingEdge.optionId, "right"),
+        target: BOOKING_BLOCK_ID,
+        type: "tagLink",
+        data: { kind: "booking", channelX: bookingEdge.channelX, endsOnChannel: true },
+        selectable: false,
+      });
+    }
+    for (const link of attendance.tagLinks) {
+      edges.push({ id: `tag-link:${link.fromWorkflowId}:${link.toWorkflowId}`, source: `${MAP_FLOW_ID_PREFIX}${link.fromWorkflowId}`, target: `${MAP_FLOW_ID_PREFIX}${link.toWorkflowId}`, type: "tagLink", data: { kind: "tag" }, selectable: false });
+    }
     return { nodes, edges };
-  }, [workflows, folders, isRichView, savedPositions, provider, trackingId, requestLink, requestUnlink, canEdit, canEditOnMap]);
+  }, [workflows, folders, isRichView, savedPositions, provider, trackingId, requestLink, requestUnlink, canEdit, canEditOnMap, attendance]);
 
   // Enquanto a pessoa arrasta, a posição vive aqui; ao soltar, vai para o que fica guardado.
   const [draggingPositions, setDraggingPositions] = useState<SavedPositions>({});
@@ -226,6 +298,11 @@ export function OperationMap({ trackingId, workflows, folders }: OperationMapPro
         onNodesChange={onNodesChange}
         onNodeDragStop={(_event, node) => savePosition(node)}
         onNodeClick={(_event, node) => {
+          // Menu, agendamento e assistente não se editam aqui: o clique leva à tela de cada um.
+          if (node.type === "menuGroup" || node.type === "infoBlock") {
+            router.push((node.data as { href: string }).href);
+            return;
+          }
           // Clicar num passo abre o fluxo dele para editar, sem sair do mapa.
           if (canEditOnMap && node.type === "mapStep" && node.parentId) setEditingWorkflowId(node.parentId.slice(MAP_FLOW_ID_PREFIX.length));
         }}

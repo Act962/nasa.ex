@@ -4,7 +4,8 @@ import "./astro-qa/load-env";
 import assert from "node:assert/strict";
 import prisma from "../src/lib/prisma";
 import { splitFlowIntoStageSections } from "../src/features/workflows/lib/flow-stage-sections";
-import { buildOperationMap, type MapWorkflowInput } from "../src/features/workflows/lib/operation-map-graph";
+import { CENTER_STACK, LEFT_COLUMN_RIGHT_EDGE, buildAttendanceMap, centerStackHeight, placeAttendance } from "../src/features/workflows/lib/operation-map-attendance";
+import { buildOperationMap, layoutOperationMap, type MapWorkflowInput } from "../src/features/workflows/lib/operation-map-graph";
 
 let checks = 0;
 function check(label: string, isOk: boolean, detail = "") {
@@ -97,6 +98,121 @@ async function main() {
     sizeOfStep,
   });
   check("CA-1 ativos primeiro e em ordem de nome", ordering.map((group) => group.workflowId).join() === "a-ativo,b-ativo,z-desligado");
+
+  // Menu do atendimento no mapa (ajuste de 2026-10-11).
+  const taggedFlow = (id: string, triggerTagId: string, appliedTagId?: string) => ({
+    id,
+    nodes: [
+      { type: "LEAD_TAGGED", data: { action: { tagIds: [triggerTagId], conditions: [] } } },
+      { type: "SEND_MESSAGE", data: {} },
+      ...(appliedTagId ? [{ type: "TAG", data: { action: { type: "ADD", tagsIds: [appliedTagId] } } }] : []),
+    ],
+  });
+  const attendanceFlows = [taggedFlow("f-catarata", "tag-catarata"), taggedFlow("f-refrativa", "tag-refrativa", "tag-pos"), taggedFlow("f-pos", "tag-pos"), { id: "f-sem-tag", nodes: [{ type: "NEW_LEAD", data: {} }] }];
+  const scriptMenu = { id: "m1", name: "Menu inicial do atendimento", isActive: true, buttons: [{ id: "b1", text: "Cirurgia Refrativa", tagId: "tag-refrativa" }, { id: "b2", text: "Cirurgia de Catarata", tagId: "tag-catarata" }, { id: "b3", text: "Outro assunto" }] };
+  const attendance = buildAttendanceMap({
+    menus: [scriptMenu, { id: "m2", name: "Menu sem fluxo", isActive: true, buttons: [{ id: "x", text: "Sim" }] }, { id: "m3", name: "Menu desligado", isActive: false, buttons: [{ id: "y", text: "A", tagId: "tag-catarata" }] }],
+    workflows: attendanceFlows,
+    scriptMenuName: "Menu inicial do atendimento",
+    hasBookingMenu: true,
+  });
+  check("menu do roteiro entra; menu sem fluxo e menu desligado ficam de fora", attendance.menus.length === 1 && attendance.menus[0].id === "m1");
+  check("cada opção com tag liga ao fluxo que começa por ela", attendance.menuLinks.length === 2 && attendance.menuLinks.some((link) => link.optionId === "b1" && link.workflowId === "f-refrativa") && attendance.menuLinks.some((link) => link.optionId === "b2" && link.workflowId === "f-catarata"));
+  check("com agendamento por botões, entram Agendar consulta e Meus horários", attendance.menus[0].options.filter((option) => option.kind === "booking").length === 2 && attendance.bookingLinks.length === 2 && attendance.bookingBlock !== null);
+  check("opção sem tag aparece, sem ligação", attendance.menus[0].options.some((option) => option.id === "b3" && option.kind === "plain"));
+  check("fluxo que aplica uma tag liga ao fluxo que começa por ela", attendance.tagLinks.length === 1 && attendance.tagLinks[0].fromWorkflowId === "f-refrativa" && attendance.tagLinks[0].toWorkflowId === "f-pos");
+  check("os fluxos ligados saem na ordem das opções do menu", attendance.linkedWorkflowOrder.join() === "f-refrativa,f-catarata");
+  check("a coluna dos menus fica à esquerda dos fluxos", attendance.menus[0].x + attendance.menus[0].width < 0);
+  const withoutBooking = buildAttendanceMap({ menus: [scriptMenu], workflows: attendanceFlows, scriptMenuName: "Menu inicial do atendimento", hasBookingMenu: false });
+  check("sem agendamento por botões, não há linhas nem bloco de agendamento", withoutBooking.bookingLinks.length === 0 && withoutBooking.bookingBlock === null && withoutBooking.menus[0].options.length === 3);
+  check("funil sem menu nenhum não ganha retângulo", buildAttendanceMap({ menus: [], workflows: attendanceFlows, scriptMenuName: "x", hasBookingMenu: true }).menus.length === 0);
+  const preferred = buildOperationMap({ workflows: [flow("a", null, 2), flow("b", null, 2), flow("c", null, 2)], folderOrder: [], sizeOfStep, preferredOrder: ["c", "a"] });
+  check("fluxos ligados ao menu vêm primeiro, na ordem pedida", preferred.map((group) => group.workflowId).join() === "c,a,b");
+
+  // Disposição inteligente em volta do menu (ajuste de 2026-10-11, depois do print do Weydson).
+  const columnOrder = ["c", "a", "f", "b", "e", "d"];
+  const columnFlows = columnOrder.map((id, index) => ({ ...flow(id, null, 2 + (index % 3)), isActive: true }));
+  const looseFlows = [flow("x", null, 3), flow("y", null, 4)];
+  const menuForColumn = { id: "m", name: "Menu inicial do atendimento", isActive: true, buttons: columnOrder.map((id) => ({ id: `o-${id}`, text: id, tagId: `tag-${id}` })) };
+  const columnAttendance = buildAttendanceMap({
+    menus: [menuForColumn],
+    workflows: columnOrder.map((id) => ({ id, nodes: [{ type: "LEAD_TAGGED", data: { action: { tagIds: [`tag-${id}`] } } }] })),
+    scriptMenuName: "Menu inicial do atendimento",
+    hasBookingMenu: true,
+  });
+  check("mais de três fluxos: um para cada lado do menu, alternando", columnAttendance.rightWorkflowOrder.join() === "c,f,e" && columnAttendance.leftWorkflowOrder.join() === "a,b,d");
+  const fewFlows = buildAttendanceMap({ menus: [{ ...menuForColumn, buttons: menuForColumn.buttons.slice(0, 3) }], workflows: columnOrder.slice(0, 3).map((id) => ({ id, nodes: [{ type: "LEAD_TAGGED", data: { action: { tagIds: [`tag-${id}`] } } }] })), scriptMenuName: "Menu inicial do atendimento", hasBookingMenu: false });
+  check("até três fluxos ficam todos de um lado só", fewFlows.rightWorkflowOrder.length === 3 && fewFlows.leftWorkflowOrder.length === 0);
+
+  const columnParams = {
+    workflows: [...looseFlows, ...columnFlows],
+    folderOrder: [],
+    sizeOfStep,
+    preferredOrder: columnOrder,
+    menuColumns: {
+      right: columnAttendance.rightWorkflowOrder,
+      left: columnAttendance.leftWorkflowOrder,
+      leftColumnRightEdge: LEFT_COLUMN_RIGHT_EDGE,
+      centerStackHeight: centerStackHeight(columnAttendance),
+      centerStackLeft: CENTER_STACK.left,
+      centerStackWidth: CENTER_STACK.width,
+    },
+  };
+  const columnLayout = layoutOperationMap(columnParams);
+  const columnGroups = columnLayout.groups;
+  const groupOf = (id: string) => columnGroups.find((group) => group.workflowId === id)!;
+  const rightGroups = columnAttendance.rightWorkflowOrder.map(groupOf);
+  const leftGroups = columnAttendance.leftWorkflowOrder.map(groupOf);
+  check("coluna da direita começa colada ao corredor do menu", rightGroups.every((group) => group.x === 0));
+  check("coluna da esquerda fica alinhada pela borda direita", leftGroups.every((group) => Math.abs(group.x + group.width - LEFT_COLUMN_RIGHT_EDGE) < 0.5));
+  check("em cada coluna, a ordem é a das opções do menu, de cima para baixo", [rightGroups, leftGroups].every((column) => column.every((group, index) => index === 0 || group.y > column[index - 1].y)));
+  const placedMenu = placeAttendance(columnAttendance, columnGroups, columnLayout.centerY);
+  const menuBox = placedMenu.menus[0];
+  const everyBox = [...columnGroups, ...placedMenu.menus, placedMenu.bookingBlock!, placedMenu.assistantBlock!];
+  check("nenhum retângulo fica em cima de outro (fluxos, menu, agendamento e assistente)", !anyOverlap(everyBox));
+  const centerBottom = placedMenu.assistantBlock!.y + placedMenu.assistantBlock!.height;
+  check("os demais fluxos ficam abaixo das colunas e do menu", looseFlows.every((looseFlow) => groupOf(looseFlow.id).y > Math.max(centerBottom, ...rightGroups.map((group) => group.y + group.height), ...leftGroups.map((group) => group.y + group.height))));
+  const columnsCenter = (Math.min(...[...rightGroups, ...leftGroups].map((group) => group.y)) + Math.max(...[...rightGroups, ...leftGroups].map((group) => group.y + group.height))) / 2;
+  check("o menu e os blocos ficam centrados na altura das colunas", Math.abs((menuBox.y + centerBottom) / 2 - columnsCenter) < 1);
+  check("uma linha por opção ligada, cada uma no corredor do lado do seu fluxo", placedMenu.menuEdges.length === 6 && placedMenu.menuEdges.every((edge) => (edge.side === "right" ? edge.channelX > menuBox.x + menuBox.width && edge.channelX < 0 : edge.channelX < menuBox.x && edge.channelX > LEFT_COLUMN_RIGHT_EDGE)));
+  // Duas linhas se cruzam quando o trecho vertical de uma corta o trecho horizontal de saída ou de chegada da outra.
+  const isBetween = (value: number, first: number, second: number) => value > Math.min(first, second) + 0.5 && value < Math.max(first, second) - 0.5;
+  let crossingCount = 0;
+  for (const side of ["left", "right"] as const) {
+    const direction = side === "right" ? 1 : -1;
+    const routed = placedMenu.menuEdges
+      .filter((edge) => edge.side === side)
+      .map((edge) => ({ distance: (edge.channelX - (side === "right" ? menuBox.x + menuBox.width : menuBox.x)) * direction, sourceY: menuBox.y + menuBox.options.find((option) => option.id === edge.optionId)!.centerY, targetY: groupOf(edge.workflowId).y + groupOf(edge.workflowId).height / 2 }));
+    for (const vertical of routed) {
+      for (const other of routed) {
+        if (other === vertical) continue;
+        if (isBetween(other.sourceY, vertical.sourceY, vertical.targetY) && other.distance > vertical.distance) crossingCount += 1;
+        if (isBetween(other.targetY, vertical.sourceY, vertical.targetY) && other.distance < vertical.distance) crossingCount += 1;
+      }
+    }
+  }
+  check("nenhuma linha do menu cruza outra", crossingCount === 0, `${crossingCount} cruzamento(s)`);
+  const bookingBox = placedMenu.bookingBlock!;
+  check("o agendamento fica logo abaixo do menu e as linhas descem retas até ele", bookingBox.y > menuBox.y + menuBox.height && placedMenu.bookingEdges.length === 2 && placedMenu.bookingEdges.every((edge) => edge.channelX > bookingBox.x && edge.channelX < bookingBox.x + bookingBox.width));
+  const nearestFlowChannel = Math.min(...placedMenu.menuEdges.filter((edge) => edge.side === "right").map((edge) => edge.channelX));
+  check("as linhas dos fluxos passam por fora do bloco de agendamento", nearestFlowChannel > bookingBox.x + bookingBox.width && nearestFlowChannel > Math.max(...placedMenu.bookingEdges.map((edge) => edge.channelX)));
+  const longestRun = Math.max(...placedMenu.menuEdges.map((edge) => Math.abs(menuBox.y + menuBox.options.find((option) => option.id === edge.optionId)!.centerY - (groupOf(edge.workflowId).y + groupOf(edge.workflowId).height / 2))));
+  const singleColumnHeight = columnFlows.length * 220;
+  check("com duas colunas, a linha mais longa é bem menor que numa coluna só", longestRun < singleColumnHeight / 2, `${Math.round(longestRun)} de altura`);
+
+  // "Nunca permita uma pasta ficar em cima da outra": arrastar para cima de qualquer coisa não sobrepõe.
+  const boxesOf = (layout: ReturnType<typeof layoutOperationMap>) => {
+    const placedAround = placeAttendance(columnAttendance, layout.groups, layout.centerY);
+    return [...layout.groups, ...placedAround.menus, placedAround.bookingBlock!, placedAround.assistantBlock!];
+  };
+  const ontoColumnFlow = layoutOperationMap({ ...columnParams, savedPositions: { x: { x: groupOf("c").x + 20, y: groupOf("c").y + 20 } } });
+  check("soltar um fluxo em cima de outro da coluna: ele desce até caber", !anyOverlap(boxesOf(ontoColumnFlow)));
+  const ontoMenu = layoutOperationMap({ ...columnParams, savedPositions: { y: { x: menuBox.x - 40, y: menuBox.y + 30 } } });
+  check("soltar um fluxo em cima do menu: ele desce até caber", !anyOverlap(boxesOf(ontoMenu)));
+  const columnFlowDragged = layoutOperationMap({ ...columnParams, savedPositions: { c: { x: groupOf("f").x + 10, y: groupOf("f").y + 10 } } });
+  check("arrastar um fluxo da coluna para cima do vizinho não sobrepõe", !anyOverlap(boxesOf(columnFlowDragged)));
+  const pileUp = layoutOperationMap({ ...columnParams, savedPositions: Object.fromEntries(columnParams.workflows.map((workflow) => [workflow.id, { x: 0, y: 0 }])) });
+  check("todos os fluxos soltos no mesmo ponto: nenhum fica em cima de outro nem do menu", !anyOverlap(boxesOf(pileUp)));
 
   const saved = await prisma.workflow.findMany({
     where: { trackingId: { not: null } },

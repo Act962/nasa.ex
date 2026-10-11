@@ -1,6 +1,6 @@
 "use client";
 
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, type Edge, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type Edge, type EdgeProps } from "@xyflow/react";
 import { XIcon } from "lucide-react";
 
 // Ligação entre dois fluxos no mapa: "terminou um, roda o outro". Mais grossa que a ligação entre
@@ -9,10 +9,11 @@ import { XIcon } from "lucide-react";
 export type FlowLinkEdgeType = Edge<{ onUnlink?: () => void }, "flowLink">;
 
 export function FlowLinkEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<FlowLinkEdgeType>) {
-  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  // Linha reta, em ângulo reto: no mapa nenhuma ligação entre retângulos é curva.
+  const [edgePath, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 0 });
   return (
     <>
-      <BaseEdge id={id} path={edgePath} style={{ stroke: "var(--info)", strokeWidth: 5, strokeLinecap: "round" }} />
+      <BaseEdge id={id} path={edgePath} style={{ stroke: "var(--info)", strokeWidth: 5, strokeLinejoin: "round" }} />
       <EdgeLabelRenderer>
         <div
           className="nodrag nopan absolute flex items-center gap-1 rounded-full border bg-background py-0.5 pl-2.5 pr-1 text-[11px] font-medium shadow-sm"

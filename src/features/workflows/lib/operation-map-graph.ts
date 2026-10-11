@@ -153,18 +153,50 @@ const MAX_PLACEMENT_TRIES = 400;
  * a pessoa já arrastou (`savedPositions`) vale no lugar da automática: os demais se encaixam em volta
  * dela, e dois arrastados que ficaram sobrepostos (o tamanho muda entre Ícones e Visual) se afastam.
  */
-export function buildOperationMap(params: {
+export interface OperationMapParams {
   workflows: MapWorkflowInput[];
   folderOrder: string[];
   sizeOfStep: (type: string) => MapSize;
   savedPositions?: Record<string, { x: number; y: number }>;
-}): MapFlowGroup[] {
+  /** Fluxos que vêm primeiro, nesta ordem (os ligados ao menu do atendimento, na ordem das opções). */
+  preferredOrder?: string[];
+  /**
+   * Fluxos que respondem ao menu do atendimento, divididos em duas colunas, uma de cada lado do menu,
+   * na ordem das opções. É o que deixa as linhas curtas e sem atravessar outro retângulo.
+   */
+  menuColumns?: {
+    right: string[];
+    left: string[];
+    /** Borda direita da coluna da esquerda (os fluxos dela ficam alinhados por essa borda). */
+    leftColumnRightEdge: number;
+    /** O que fica no meio (menu e blocos): altura, e a faixa horizontal que ocupa. Nenhum fluxo entra ali. */
+    centerStackHeight: number;
+    centerStackLeft: number;
+    centerStackWidth: number;
+  };
+}
+
+export interface OperationMapLayout {
+  groups: MapFlowGroup[];
+  /** Altura em que o menu e os blocos do meio ficam centrados: o meio das duas colunas. */
+  centerY: number;
+}
+
+/** O mesmo que `layoutOperationMap`, para quem só quer os retângulos. */
+export function buildOperationMap(params: OperationMapParams): MapFlowGroup[] {
+  return layoutOperationMap(params).groups;
+}
+
+export function layoutOperationMap(params: OperationMapParams): OperationMapLayout {
   const folderRank = new Map(params.folderOrder.map((folderId, folderIndex) => [folderId, folderIndex]));
   const rankOf = (workflow: MapWorkflowInput) =>
     workflow.folderId && folderRank.has(workflow.folderId) ? folderRank.get(workflow.folderId)! : params.folderOrder.length;
+  const preferredRank = new Map((params.preferredOrder ?? []).map((workflowId, orderIndex) => [workflowId, orderIndex]));
+  const preferredRankOf = (workflow: MapWorkflowInput) => preferredRank.get(workflow.id) ?? preferredRank.size;
   const ordered = [...params.workflows].sort(
     (first, second) =>
-      rankOf(first) - rankOf(second) || Number(second.isActive) - Number(first.isActive) || first.name.localeCompare(second.name, "pt-BR", { numeric: true }),
+      rankOf(first) - rankOf(second) ||
+      preferredRankOf(first) - preferredRankOf(second) || Number(second.isActive) - Number(first.isActive) || first.name.localeCompare(second.name, "pt-BR", { numeric: true }),
   );
   const builtGroups = ordered.map((workflow) => buildGroup(workflow, params.sizeOfStep));
   const placedByWorkflowId = new Map<string, MapFlowGroup>();
@@ -175,51 +207,83 @@ export function buildOperationMap(params: {
     placedByWorkflowId.set(group.workflowId, placedGroup);
   };
 
-  // 1. Os que a pessoa arrastou ficam onde ela deixou; se dois se sobrepõem, o de baixo desce.
-  const savedGroups = builtGroups
-    .filter((group) => params.savedPositions?.[group.workflowId])
+  const isDragged = (workflowId: string) => Boolean(params.savedPositions?.[workflowId]);
+
+  // 1. As colunas do menu: um fluxo embaixo do outro, na ordem das opções, centradas na mesma altura.
+  const columnGroupsOf = (workflowIds: string[]) => workflowIds.flatMap((workflowId) => builtGroups.filter((group) => group.workflowId === workflowId && !isDragged(workflowId)));
+  const stackHeightOf = (columnGroups: typeof builtGroups) => columnGroups.reduce((total, group) => total + group.height, 0) + Math.max(0, columnGroups.length - 1) * MAP_LAYOUT.groupGap;
+  const rightColumn = columnGroupsOf(params.menuColumns?.right ?? []);
+  const leftColumn = columnGroupsOf(params.menuColumns?.left ?? []);
+  const leftColumnRightEdge = params.menuColumns?.leftColumnRightEdge ?? 0;
+  const columnsHeight = Math.max(stackHeightOf(rightColumn), stackHeightOf(leftColumn));
+  const placeColumn = (columnGroups: typeof builtGroups, xOf: (group: (typeof builtGroups)[number]) => number) => {
+    let y = (columnsHeight - stackHeightOf(columnGroups)) / 2;
+    for (const group of columnGroups) {
+      place(group, xOf(group), y);
+      y += group.height + MAP_LAYOUT.groupGap;
+    }
+  };
+  placeColumn(rightColumn, () => 0);
+  placeColumn(leftColumn, (group) => leftColumnRightEdge - group.width);
+  const centerStackHeight = params.menuColumns?.centerStackHeight ?? 0;
+  const centerY = columnsHeight / 2;
+
+  // O menu e os blocos do meio contam como espaço ocupado: nenhum fluxo fica em cima deles.
+  const obstacles: MapBox[] =
+    params.menuColumns && centerStackHeight > 0
+      ? [{ x: params.menuColumns.centerStackLeft, y: centerY - centerStackHeight / 2, width: params.menuColumns.centerStackWidth, height: centerStackHeight }]
+      : [];
+  const findCollider = (candidate: MapBox): MapBox | undefined => [...placed, ...obstacles].find((other) => overlapsWithGap(candidate, other));
+
+  // 2. Os que a pessoa arrastou ficam onde ela soltou, a não ser que caiam em cima de alguma coisa:
+  //    aí descem até caber. Nenhum retângulo fica em cima de outro, nunca.
+  const draggedGroups = builtGroups
+    .filter((group) => isDragged(group.workflowId))
     .map((group) => ({ group, saved: params.savedPositions![group.workflowId] }))
     .sort((first, second) => first.saved.y - second.saved.y || first.saved.x - second.saved.x);
-  for (const { group, saved } of savedGroups) {
+  for (const { group, saved } of draggedGroups) {
     let y = saved.y;
     for (let tries = 0; tries < MAX_PLACEMENT_TRIES; tries += 1) {
-      const collider = placed.find((other) => overlapsWithGap({ ...group, x: saved.x, y }, other));
+      const collider = findCollider({ ...group, x: saved.x, y });
       if (!collider) break;
       y = collider.y + collider.height + MAP_LAYOUT.groupGap;
     }
     place(group, saved.x, y);
   }
 
-  // 2. Os demais entram em fileiras, pulando o espaço já ocupado.
-  let cursorX = 0;
-  let cursorY = 0;
+  // 3. Os demais entram em fileiras, abaixo de tudo, pulando o espaço já ocupado.
+  const hasColumns = rightColumn.length + leftColumn.length > 0;
+  const columnsBottom = Math.max(columnsHeight, centerY + centerStackHeight / 2);
+  // As fileiras começam na borda esquerda do conjunto, para o que não é do menu ficar centrado embaixo dele.
+  const rowsLeft = leftColumn.length > 0 ? Math.min(...leftColumn.map((group) => leftColumnRightEdge - group.width)) : 0;
+  let cursorX = rowsLeft;
+  let cursorY = hasColumns || obstacles.length > 0 ? columnsBottom + MAP_LAYOUT.groupGap * 2 : 0;
   let rowHeight = 0;
   let previousFolderId: string | null | undefined;
   for (const group of builtGroups) {
     if (placedByWorkflowId.has(group.workflowId)) continue;
     const startsNewFolder = previousFolderId !== undefined && previousFolderId !== group.folderId;
-    if (cursorX > 0 && startsNewFolder) {
-      cursorX = 0;
+    if (cursorX > rowsLeft && startsNewFolder) {
+      cursorX = rowsLeft;
       cursorY += rowHeight + MAP_LAYOUT.groupGap;
       rowHeight = 0;
     }
     for (let tries = 0; tries < MAX_PLACEMENT_TRIES; tries += 1) {
-      if (cursorX > 0 && cursorX + group.width > MAP_LAYOUT.rowMaxWidth) {
-        cursorX = 0;
+      if (cursorX > rowsLeft && cursorX - rowsLeft + group.width > MAP_LAYOUT.rowMaxWidth) {
+        cursorX = rowsLeft;
         cursorY += rowHeight + MAP_LAYOUT.groupGap;
         rowHeight = 0;
       }
-      const candidate = { ...group, x: cursorX, y: cursorY };
-      const collider = placed.find((other) => overlapsWithGap(candidate, other));
+      const collider = findCollider({ ...group, x: cursorX, y: cursorY });
       if (!collider) break;
       const nextX = collider.x + collider.width + MAP_LAYOUT.groupGap;
-      if (nextX + group.width > MAP_LAYOUT.rowMaxWidth) {
+      if (nextX - rowsLeft + group.width > MAP_LAYOUT.rowMaxWidth) {
         // Não cabe ao lado do obstáculo: desce para baixo dele e recomeça a fileira.
-        cursorX = 0;
+        cursorX = rowsLeft;
         cursorY = Math.max(cursorY + rowHeight + MAP_LAYOUT.groupGap, collider.y + collider.height + MAP_LAYOUT.groupGap);
         rowHeight = 0;
       } else {
-        cursorX = Math.max(nextX, 0);
+        cursorX = Math.max(nextX, rowsLeft);
       }
     }
     place(group, cursorX, cursorY);
@@ -227,5 +291,5 @@ export function buildOperationMap(params: {
     rowHeight = Math.max(rowHeight, group.height);
     previousFolderId = group.folderId;
   }
-  return builtGroups.map((group) => placedByWorkflowId.get(group.workflowId)!);
+  return { groups: builtGroups.map((group) => placedByWorkflowId.get(group.workflowId)!), centerY };
 }

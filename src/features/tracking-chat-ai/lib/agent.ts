@@ -24,6 +24,8 @@ import { loadAttendanceKnowledgeBlock } from "./attendance-knowledge";
 import { signalLeadAwaitingHuman, type AwaitingHumanReason } from "./awaiting-human";
 import { handleGuidedMenu } from "./guided-menu/guided-menu";
 import { handleScriptMenu } from "./script-menu";
+import { isTopicMenuName } from "./topic-menu";
+import { handleTopicMenu } from "./topic-menu-handler";
 import { MENU_PRESET_NAME } from "./attendance-setup/script-draft";
 import { joinAsSingleMessage, splitForWhatsapp } from "./split-message";
 import { persistOutboundMessage } from "./persist";
@@ -185,6 +187,12 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     if (guided.handled) return { skipped: true, reason: "guided_menu" };
   }
 
+  // Pergunta do menu de um assunto (spec 0096): a resposta do roteiro sai pelo código, sem modelo.
+  if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
+    const topicMenu = await step.run("topic-menu", () => handleTopicMenu(ctx, data.messageId));
+    if (topicMenu.handled) return { skipped: true, reason: "topic_menu" };
+  }
+
   // Menu inicial do roteiro (spec 0091): no começo da conversa, saudação e menu saem pelo código.
   if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const scriptMenu = await step.run("script-menu", () => handleScriptMenu(ctx, data.messageId));
@@ -287,7 +295,8 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
 
   // O menu inicial do roteiro é enviado pelo código (script-menu). A assistente não o vê: no teste real
   // ela reenviou a saudação com o menu no meio da conversa, quando o cliente só pediu para agendar.
-  const assistantCtx = { ...ctx, availableButtonPresets: ctx.availableButtonPresets.filter((preset) => preset.name !== MENU_PRESET_NAME) };
+  // Os menus de perguntas por assunto (spec 0096) também: quem os envia é o fluxo e o código.
+  const assistantCtx = { ...ctx, availableButtonPresets: ctx.availableButtonPresets.filter((preset) => preset.name !== MENU_PRESET_NAME && !isTopicMenuName(preset.name)) };
 
   const baseSystem = buildSystemPrompt({
     settings: ctx.settings!,

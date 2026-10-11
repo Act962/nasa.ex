@@ -51,4 +51,4 @@ export type EditorViewMode = "icon" | "rich";
  * "rich" mostra o card do lead nos gatilhos e o celular nas mensagens. Escolha de cada pessoa,
  * guardada no navegador.
  */
-export const editorViewModeAtom = atomWithStorage<EditorViewMode>("orbita:workflow-editor-view", "icon");
+export const editorViewModeAtom = atomWithStorage<EditorViewMode>("orbita:workflow-editor-view", "rich");

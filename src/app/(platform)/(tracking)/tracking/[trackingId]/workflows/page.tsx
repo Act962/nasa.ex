@@ -1,3 +1,7 @@
+import Link from "next/link";
+import { ZapIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { CreateWorkflowButton } from "./create-workflow";
 import { WorkflowContainer } from "./workflow-container";
@@ -32,6 +36,12 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          <Button asChild variant="ghost" size="sm" data-guide={GUIDE_ANCHORS.trackingFlowsOpenCentral.id}>
+            <Link href="/gatilhos" title="Ver todas as automações da empresa">
+              <ZapIcon className="size-4" />
+              <span className="hidden sm:inline">Central de Gatilhos</span>
+            </Link>
+          </Button>
           <AstroFlowBar trackingId={trackingId} />
           <QuickWorkflowButton trackingId={trackingId} />
           <CreateWorkflowButton />

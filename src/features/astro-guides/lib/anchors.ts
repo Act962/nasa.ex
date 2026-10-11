@@ -79,6 +79,14 @@ export const GUIDE_ANCHORS = {
     id: "automations-hub.astro-flow-button",
     description: "Botão \"Criar fluxo com ASTRO\" nos Gatilhos Automáticos, que abre o campo para descrever a automação",
   },
+  gatilhosOpenTrackingFlows: {
+    id: "automations-hub.open-tracking-flows",
+    description: "Botão da central de Gatilhos Automáticos que abre os fluxos e o mapa do último funil visitado",
+  },
+  trackingFlowsOpenCentral: {
+    id: "workflows.open-central",
+    description: "Botão \"Central de Gatilhos\" na página de fluxos de um funil, que leva à lista de todas as automações da empresa",
+  },
   astroFlowEditButton: {
     id: "automations-hub.astro-flow-edit-button",
     description: "Botão \"Pedir ao ASTRO\" no editor de um fluxo, que abre o campo para pedir uma mudança naquele fluxo",

@@ -1,5 +1,6 @@
 "use client";
 
+import { FLOW_RIGHT_ENTRY_HANDLE } from "./attendance-map-nodes";
 import Link from "next/link";
 import { memo } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
@@ -67,6 +68,8 @@ export const FlowGroupNode = memo(function FlowGroupNode({ data }: NodeProps<Flo
         className="!size-3.5 !border-2 !border-white"
         style={{ backgroundColor: toneColor }}
       />
+      {/* Entrada pela direita: usada só pela linha do menu quando o fluxo fica à esquerda dele. */}
+      <Handle id={FLOW_RIGHT_ENTRY_HANDLE} type="target" position={Position.Right} isConnectable={false} className="!size-1 !border-0 !bg-transparent" />
       <Handle
         type="source"
         position={Position.Right}

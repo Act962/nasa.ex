@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 export type WorkflowsView = "list" | "map";
 
 /** Como a página de Gatilhos Automáticos do funil mostra os fluxos. Escolha de cada pessoa, guardada no navegador. */
-export const workflowsViewAtom = atomWithStorage<WorkflowsView>("orbita:workflows-view", "list");
+export const workflowsViewAtom = atomWithStorage<WorkflowsView>("orbita:workflows-view", "map");
 
 const VIEWS = [
   { value: "list" as const, label: "Lista", icon: ListIcon, title: "Um fluxo por linha" },

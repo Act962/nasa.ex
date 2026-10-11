@@ -4,6 +4,7 @@ import { PlusIcon, ZapIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AstroFlowBar } from "@/features/automations-hub/components/astro-flow-bar";
 import { AutomationsList } from "@/features/automations-hub/components/automations-list";
+import { LastTrackingFlowsButton } from "@/features/automations-hub/components/last-tracking-flows-button";
 import { useAutomationsHubStore } from "@/features/automations-hub/store";
 
 // Página da central de Gatilhos Automáticos (spec 0090, RF-2): a lista completa das automações
@@ -24,6 +25,7 @@ export default function GatilhosPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <LastTrackingFlowsButton />
           <AstroFlowBar />
           <Button onClick={() => openHub("new")}>
             <PlusIcon />
