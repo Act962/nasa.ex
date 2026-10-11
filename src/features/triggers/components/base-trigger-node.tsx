@@ -1,4 +1,8 @@
 "use client";
+import { RichNodePreview } from "@/features/editor/components/rich/rich-node-preview";
+import { AnimatedOutline, type OutlineTone } from "@/features/editor/components/rich/animated-outline";
+import { hasRichPreview } from "@/features/editor/components/rich/rich-node-types";
+import { editorViewModeAtom } from "@/features/editor/store/atoms";
 import { useNodeFlowDiagnostics } from "@/features/editor/hooks/use-flow-diagnostics";
 
 import {
@@ -120,6 +124,10 @@ export const BaseTriggerNode = memo(
     const flowNotice =
       flowDiagnostics.find((diagnostic) => diagnostic.severity === "error") ?? flowDiagnostics[0];
     const hasFlowError = flowNotice?.severity === "error";
+    // Visão "Visual": card do lead nos gatilhos e celular nas mensagens. Na visão de ícones nada muda.
+    const viewMode = useAtomValue(editorViewModeAtom);
+    const showsRichPreview = viewMode === "rich" && hasRichPreview(nodeType);
+    const outlineTone: OutlineTone = hasFlowError ? "error" : flowNotice ? "warning" : "ok";
     const nodeInvalid = !!(validation && !validation.valid && !validation.skip);
     // `needsReview` no node.data sinaliza pendência da IA generativa —
     // user precisa abrir o nó pra completar (ex: escolher produto/agenda).
@@ -153,7 +161,7 @@ export const BaseTriggerNode = memo(
       >
         <StepRocketOverlay status={stepNodeStatus} onClick={handleRocketClick} />
         <NodeStatusIndicator
-          status={effectiveStatus}
+          status={showsRichPreview ? "initial" : effectiveStatus}
           variant="border"
           className="rounded-l-2xl"
         >
@@ -177,10 +185,13 @@ export const BaseTriggerNode = memo(
                 : []),
             ]}
             onDoubleClick={onDoubleClick}
-            className="rounded-l-2xl relative group"
+            className={showsRichPreview ? "relative group rounded-2xl border-transparent" : "rounded-l-2xl relative group"}
           >
-            <BaseNodeContent>
-              {typeof Icon === "string" ? (
+            <BaseNodeContent className={showsRichPreview ? "relative p-1" : undefined}>
+              {showsRichPreview && <AnimatedOutline tone={outlineTone} />}
+              {showsRichPreview && nodeType ? (
+                <RichNodePreview nodeType={nodeType} data={nodeData} name={name} icon={Icon} isUndelivered={hasFlowError} />
+              ) : typeof Icon === "string" ? (
                 <Image src={Icon} alt={name} width={16} height={16} />
               ) : (
                 <Icon className="size-4 text-muted-foreground" />

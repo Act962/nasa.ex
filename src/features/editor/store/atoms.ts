@@ -1,5 +1,6 @@
 import type { ReactFlowInstance } from "@xyflow/react";
 import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 import { EMPTY_FLOW_DIAGNOSTICS, type FlowDiagnosticsIndex } from "@/features/workflows/lib/flow-diagnostics";
 
 export const editorAtom = atom<ReactFlowInstance | null>(null);
@@ -27,3 +28,12 @@ export const workflowDirtyAtom = atom<boolean>(false);
  * Recalculado pelo editor a cada alteração do desenho, sem esperar o salvar.
  */
 export const flowDiagnosticsAtom = atom<FlowDiagnosticsIndex>(EMPTY_FLOW_DIAGNOSTICS);
+
+export type EditorViewMode = "icon" | "rich";
+
+/**
+ * Como os quadros do fluxo são desenhados (spec 0090, seção B): "icon" é o desenho de sempre;
+ * "rich" mostra o card do lead nos gatilhos e o celular nas mensagens. Escolha de cada pessoa,
+ * guardada no navegador.
+ */
+export const editorViewModeAtom = atomWithStorage<EditorViewMode>("orbita:workflow-editor-view", "icon");

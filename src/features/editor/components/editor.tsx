@@ -41,7 +41,6 @@ import { NodeSelector } from "@/components/node-selector";
 import { MenuOptions } from "../../../components/menu-options";
 import { triggerNodes } from "@/features/tracking-executions/lib/node-options";
 import { WorkflowAgentModeProvider } from "@/features/workflows/lib/agent-mode-context";
-import { DryRunButton } from "@/features/workflows/components/dry-run-button";
 import { AgentDetailButton } from "@/features/workflows/components/agent-detail-button";
 import { StepByStepContainer } from "./step-by-step-container";
 import { RateLimitBadge } from "@/features/workflows/components/rate-limit-badge";
@@ -50,6 +49,7 @@ import { WorkflowIssuesProvider } from "@/features/workflows/components/workflow
 import { useWorkflowValidation } from "@/features/workflows/hooks/use-workflow-validation";
 import type { GraphIssue } from "@/features/workflows/lib/validate-workflow-graph";
 import { ValidatedEdge } from "./validated-edge";
+import { ViewModeToggle } from "./view-mode-toggle";
 import { EMPTY_FLOW_DIAGNOSTICS, diagnoseFlow, indexFlowDiagnostics, type FlowChannelProvider } from "@/features/workflows/lib/flow-diagnostics";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
 import { useParams } from "next/navigation";
@@ -346,8 +346,8 @@ export function Editor({ workflowId }: { workflowId: string }) {
                 />
               )}
               {agentMode && <AgentDetailButton workflowId={workflowId} />}
+              <ViewModeToggle />
               <WorkflowIssuesPanel workflowId={workflowId} />
-              {agentMode && <DryRunButton workflowId={workflowId} />}
               <StepByStepContainer workflowId={workflowId} />
               {/* Copy/paste de workflow ou nodes selecionados. Cobre
                   cross-tracking + cross-org via dialog de mapping. */}

@@ -59,6 +59,10 @@ export const GUIDE_ANCHORS = {
     id: "comments.connect-with-meta",
     description: "Botão \"Usar @conta\" que conecta o Instagram já ligado na Meta",
   },
+  workflowViewModeToggle: {
+    id: "workflow-editor.view-mode",
+    description: "Chave \"Ícones / Visual\" na barra do editor de Gatilhos Automáticos, que troca o desenho dos quadros",
+  },
   automationsHubButton: {
     id: "automations-hub.button",
     description: "Botão \"Gatilhos Automáticos\" no rodapé da barra lateral, que abre a central de automações",
