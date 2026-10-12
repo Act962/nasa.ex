@@ -237,7 +237,8 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
           toPhone: phone,
           template: templateToSend,
         });
-      } else
+      } else {
+      // Só sem template reserva: com ele, o template já foi enviado no lugar do conteúdo livre.
       // Última barreira (spec 0097): texto de exemplo do modelo de atendimento nunca chega a um cliente.
       if (hasPlaceholderText(data.action?.payload)) {
         throw new NonRetriableError("Mensagem com texto de exemplo (\"[Escreva aqui…]\") não foi enviada. Troque o texto no passo.");
@@ -471,6 +472,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             });
           break;
         }
+      }
       }
 
       if (realTime) {
