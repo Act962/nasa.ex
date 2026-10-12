@@ -3,7 +3,8 @@ import { z } from "zod";
 // O que o Chatbot IA pode fazer pelo cliente (spec 0084). Guardado em
 // `AiSettings.capabilities`; campo ausente = capacidade desligada.
 
-const REMINDER_HOURS_OPTIONS = [2, 24, 48] as const;
+/** 0,5 = 30 minutos antes (spec 0100, RF-14). */
+const REMINDER_HOURS_OPTIONS = [0.5, 2, 24, 48] as const;
 export const MIN_VOICE_CALL_MINUTES = 1;
 export const MAX_VOICE_CALL_MINUTES = 10;
 
@@ -22,7 +23,7 @@ export const aiCapabilitiesSchema = z.object({
   reminder: z
     .object({
       isEnabled: z.boolean().default(false),
-      hoursBefore: z.number().int().min(1).max(72).default(24),
+      hoursBefore: z.number().min(0.5).max(72).default(24),
       /** Template aprovado na Meta, usado fora da janela de 24 h. Variáveis do corpo: {{1}} nome, {{2}} data e hora. */
       templateName: z.string().max(120).nullable().default(null),
     })

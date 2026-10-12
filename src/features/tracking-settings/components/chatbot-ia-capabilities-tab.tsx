@@ -300,7 +300,7 @@ function CapabilitiesForm({
                 className="rounded-full"
                 onClick={() => setCapabilities({ ...capabilities, reminder: { ...capabilities.reminder, hoursBefore } })}
               >
-                {hoursBefore === 24 ? "1 dia antes" : hoursBefore === 48 ? "2 dias antes" : `${hoursBefore} horas antes`}
+                {hoursBefore === 0.5 ? "30 min antes" : hoursBefore === 24 ? "1 dia antes" : hoursBefore === 48 ? "2 dias antes" : `${hoursBefore} horas antes`}
               </Button>
             ))}
           </div>

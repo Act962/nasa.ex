@@ -36,11 +36,13 @@ function remindAtFor(startsAt: Date, hoursBefore: number): Date {
   return new Date(startsAt.getTime() - hoursBefore * HOUR_MS);
 }
 
-function buildReminderMessage(agendaName: string, startsAt: Date): string {
+function buildReminderMessage(agendaName: string, startsAt: Date, meetingLink?: string | null): string {
   const when = dayjs(startsAt).tz(BRAZIL_TIME_ZONE);
   return (
     `Olá, {{nome}}! ${DETAIL_START}${agendaName} em ${when.format("DD/MM")} às ${when.format("HH:mm")}` +
-    `${DETAIL_END} *confirmar* ou *remarcar*. Para não receber mais lembretes, responda *parar*.`
+    `${DETAIL_END} *confirmar* ou *remarcar*. Para não receber mais lembretes, responda *parar*.` +
+    // O link vai de novo no lembrete, para o cliente não precisar procurar na conversa (spec 0100, RF-14).
+    (meetingLink ? `\n\nLink da reunião: ${meetingLink}` : "")
   );
 }
 
@@ -63,7 +65,7 @@ async function hasOptedOut(scope: AppointmentReminderScope): Promise<boolean> {
 /** Um lembrete por agendamento (RF-20). Não cria se já passou da hora de lembrar. */
 export async function createAppointmentReminder(
   scope: AppointmentReminderScope,
-  appointment: { startsAt: Date; agendaName: string },
+  appointment: { startsAt: Date; agendaName: string; meetingLink?: string | null },
 ): Promise<{ created: boolean }> {
   if (!scope.reminder.isEnabled || !scope.configuredByUserId || !scope.leadPhone) return { created: false };
   const remindAt = remindAtFor(appointment.startsAt, scope.reminder.hoursBefore);
@@ -73,7 +75,7 @@ export async function createAppointmentReminder(
   const reminder = await prisma.reminder.create({
     data: {
       createdByUserId: scope.configuredByUserId,
-      message: buildReminderMessage(appointment.agendaName, appointment.startsAt),
+      message: buildReminderMessage(appointment.agendaName, appointment.startsAt, appointment.meetingLink),
       recurrenceType: "ONCE",
       remindTime: dayjs(remindAt).tz(BRAZIL_TIME_ZONE).format("HH:mm"),
       nextRemindAt: remindAt,

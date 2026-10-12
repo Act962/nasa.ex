@@ -54,6 +54,10 @@ O atendimento por menu funciona de ponta a ponta em número oficial: o link do f
 | RF-10 | A confirmação por WhatsApp do agendamento sai em número da API oficial mesmo com o campo `status` em `DISCONNECTED`. |
 | RF-11 | Contato que já existe e está sem e-mail guarda o e-mail informado no formulário; e-mail já cadastrado nunca é trocado. O atendimento é avisado de que o contato tem e-mail e não pede de novo. |
 | RF-12 | Agendamento marcado pelo Astro na conversa nasce `CONFIRMED`, porque o cliente confirmou agenda, data e horário antes. |
+| RF-13 | Com Google conectado com permissão de Calendário, o agendamento marcado pelo Astro cria o evento no Google Agenda; em reunião on-line o evento ganha link do Meet e o Astro envia esse link na confirmação. Com e-mail no lead, o Google envia o convite. |
+| RF-14 | O lembrete do atendimento aceita 30 minutos antes. O lembrete enviado por WhatsApp repete o link da reunião, e o evento do Google usa o mesmo prazo de lembrete. |
+| RF-15 | Remarcar pelo Astro move o evento do Google para o novo horário; cancelar remove o evento. Os convidados são avisados pelo Google. |
+| RF-16 | Sem Google conectado, ou se o Google recusar, o agendamento acontece normalmente, sem link do Meet. |
 
 ### Não-funcionais
 
@@ -80,6 +84,11 @@ O atendimento por menu funciona de ponta a ponta em número oficial: o link do f
 - [ ] **CA-12** — Dado um contato com e-mail, quando ele envia um formulário com outro e-mail, então o e-mail do contato não muda.
 - [ ] **CA-13** — Dado um horário marcado pelo Astro, quando o cliente abre o link do agendamento, então o status é "Confirmado".
 
+- [ ] **CA-14** — Dado Google conectado e agenda on-line, quando o Astro agenda, então o evento existe no Google Agenda, o cliente recebe o link do Meet na conversa e o lead com e-mail recebe o convite.
+- [ ] **CA-15** — Dado lembrete em "30 min antes", quando o horário se aproxima, então o cliente recebe o lembrete por WhatsApp com o link da reunião.
+- [ ] **CA-16** — Dado um agendamento com evento no Google, quando o cliente remarca pelo Astro, então o evento muda de horário; quando cancela, o evento some.
+- [ ] **CA-17** — Dado uma empresa sem Google conectado, quando o Astro agenda, então o agendamento é criado e confirmado sem erro.
+
 ## 5. Casos de borda
 
 | # | Caso | Comportamento esperado |
@@ -95,6 +104,10 @@ O atendimento por menu funciona de ponta a ponta em número oficial: o link do f
 | CB-9 | E-mail inválido ou Resend sem chave | Envio falha em silêncio, com log; WhatsApp segue. |
 | CB-10 | Número não oficial desconectado | Continua pulando a confirmação por WhatsApp, como hoje. |
 | CB-11 | Janela de 24 h fechada | WhatsApp não sai (regra atual); o e-mail sai. |
+| CB-12 | Lead sem e-mail e Google conectado | Evento criado sem convidado; o link do Meet vai só pela conversa. |
+| CB-13 | Lembrete de 30 min fora da janela de 24 h em número oficial | Sai pelo template configurado, que não leva o link (variáveis fixas); o link já foi na confirmação e no convite. |
+| CB-14 | Evento apagado direto no Google antes do cancelamento | O cancelamento segue; o vínculo é limpo (resposta 410). |
+| CB-15 | Agendamento marcado antes desta entrega, sem evento no Google | Remarcar e cancelar seguem normais; nada é enviado ao Google. |
 
 ## 6. Decisões de design
 
@@ -114,6 +127,14 @@ Empresas que já têm formulário com tag nas opções e fluxo "Lead com Tag" na
 
 Para número oficial, quem diz se dá para enviar é a janela de 24 h (`isFreeFormWindowOpen`), que já é conferida logo abaixo. O campo `status` continua valendo para número não oficial.
 
+### D-6 — Google Agenda como complemento do agendamento
+
+A criação do evento saiu do botão "Sincronizar" para `src/features/agenda/lib/google-calendar-event.ts` e passou a ser chamada também pelo Astro. A conta usada é a de quem configurou o atendimento (login Google) ou, na falta, a integração Google da empresa (satélite Gmail). Falha no Google nunca desfaz o agendamento. O link do Meet não é guardado no banco (sem migration): vai na resposta da ferramenta, na confirmação e no texto do lembrete.
+
+### D-7 — Lembrete de 30 minutos como meia hora em `hoursBefore`
+
+`reminder.hoursBefore` passa a aceitar 0,5. Descartado: campo novo em minutos, que duplicaria a regra de cancelar e recriar o lembrete.
+
 ### D-5 — E-mail dentro da função `booking-notification`
 
 É a função que já roda a cada agendamento criado ou cancelado pelo chat. Nenhuma função nova no Inngest, então não depende de "Resync" em produção.
@@ -123,6 +144,7 @@ Para número oficial, quem diz se dá para enviar é a janela de 24 h (`isFreeFo
 - O link do formulário passa a levar o `publicToken` do lead, que já é o identificador público usado em `/lead/<token>` e no prefill. Ele só devolve nome, e-mail e telefone do próprio lead.
 - O disparo pelo formulário só alcança fluxos ligados do funil do lead, pelo mesmo helper do disparo humano (`findLeadTaggedMatchingWorkflows`).
 - O e-mail vai apenas para o e-mail do próprio lead do agendamento e contém só os dados daquele agendamento.
+- O evento do Google leva só título, horário, observação do próprio agendamento e o e-mail do próprio lead como convidado; o token do Google nunca sai do servidor.
 - Envio público de formulário passa a poder iniciar fluxo: o limite de execuções por hora do fluxo e a exigência de fluxo ligado na tag limitam o abuso. Sem a variável, nada muda.
 
 ## 8. Regras da Meta
@@ -135,7 +157,8 @@ Para número oficial, quem diz se dá para enviar é a janela de 24 h (`isFreeFo
 
 - Gatilho "Formulário respondido" com as respostas disponíveis no texto do fluxo.
 - Corrigir o campo `status` da instância oficial.
-- Criar o evento no Google Agenda com link do Meet no momento em que o Astro agenda, com lembrete 30 minutos antes e reenvio do link por WhatsApp. Hoje a sincronização com o Google é manual (`agenda.appointments.syncToGoogleCalendar`), exige a conta Google de um usuário logado com permissão de Calendário e o lembrete do atendimento só aceita horas (2, 24 ou 48). No teste de 12/10 a ÓRBITA HUB não tinha conexão Google com essa permissão.
+- Guardar o link do Meet no agendamento e mostrá-lo na página pública (pediria coluna nova).
+- Criar o evento no Google para agendamentos feitos pela página pública e pela tela da agenda.
 - Item "Testar chamada com o Astro" no menu da ÓRBITA HUB (depende de RF-5 em produção e das chamadas habilitadas no servidor).
 
 ## 10. Riscos e rollback
@@ -158,4 +181,5 @@ Sem migration. `voiceCallMaxMinutes` vive no JSON `AiSettings.capabilities`.
 
 - 2026-10-12 — criada a partir do teste real da ÓRBITA HUB.
 - 2026-10-12 — segundo teste real: o Astro pediu o e-mail já informado no formulário e o link do agendamento mostrava "Pendente". Entraram RF-11, RF-12 e CA-11 a CA-13; a criação automática do evento no Google com Meet ficou em "depois".
+- 2026-10-12 — terceiro lote, a pedido: Google Agenda com Meet ao agendar pelo Astro, lembrete de 30 minutos com o link e evento acompanhando remarcação e cancelamento (RF-13 a RF-16, CA-14 a CA-17, D-6, D-7).
 - 2026-10-12 — implementação: o e-mail roda numa etapa própria do Inngest (`send-booking-email`) para não sair duas vezes se a função repetir; data e hora da confirmação (WhatsApp e e-mail) passam a ser formatadas no fuso de São Paulo, antes dependiam do fuso do servidor. Sem runner de teste no projeto (CLAUDE.md, regra 20): os critérios de aceite ficam para teste manual.
