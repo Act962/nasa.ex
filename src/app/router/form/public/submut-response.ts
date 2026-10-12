@@ -320,10 +320,16 @@ export const submitResponse = base
             trackingParams,
           });
 
+          // Contato que já existia sem e-mail guarda o e-mail informado no formulário (spec 0100, RF-11).
+          const filledEmail = placement.outcome !== "created" && !placement.lead.email?.trim() && userEmail ? userEmail : null;
+          if (filledEmail) {
+            await tx.lead.update({ where: { id: placement.lead.id }, data: { email: filledEmail } });
+          }
+
           leadId = placement.lead.id;
           outLeadId = placement.lead.id;
           outLeadName = placement.lead.name;
-          outLeadEmail = placement.lead.email;
+          outLeadEmail = filledEmail ?? placement.lead.email;
           outLeadPhone = placement.lead.phone;
           outLeadPublicToken = placement.lead.publicToken;
 

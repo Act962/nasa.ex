@@ -52,6 +52,8 @@ O atendimento por menu funciona de ponta a ponta em número oficial: o link do f
 | RF-8 | A tela "O que o Astro pode fazer" mostra o campo de duração quando "Atender chamadas" está ligado. |
 | RF-9 | Ao criar ou cancelar um agendamento, se o lead tem e-mail, o sistema envia um e-mail com data, hora, agenda e o link público do agendamento. |
 | RF-10 | A confirmação por WhatsApp do agendamento sai em número da API oficial mesmo com o campo `status` em `DISCONNECTED`. |
+| RF-11 | Contato que já existe e está sem e-mail guarda o e-mail informado no formulário; e-mail já cadastrado nunca é trocado. O atendimento é avisado de que o contato tem e-mail e não pede de novo. |
+| RF-12 | Agendamento marcado pelo Astro na conversa nasce `CONFIRMED`, porque o cliente confirmou agenda, data e horário antes. |
 
 ### Não-funcionais
 
@@ -73,6 +75,10 @@ O atendimento por menu funciona de ponta a ponta em número oficial: o link do f
 - [ ] **CA-8** — Dado um lead com e-mail, quando um agendamento é criado, então um e-mail com data, hora e link é enviado para esse e-mail.
 - [ ] **CA-9** — Dado um lead sem e-mail, quando um agendamento é criado, então nenhum e-mail é enviado e a confirmação por WhatsApp segue normal.
 - [ ] **CA-10** — Dado um funil com número oficial e `status = DISCONNECTED`, quando um agendamento é criado dentro da janela de 24 h, então a confirmação por WhatsApp é enviada.
+
+- [ ] **CA-11** — Dado um contato existente sem e-mail, quando ele envia um formulário com e-mail, então o contato passa a ter esse e-mail e o Astro não pede e-mail na conversa seguinte.
+- [ ] **CA-12** — Dado um contato com e-mail, quando ele envia um formulário com outro e-mail, então o e-mail do contato não muda.
+- [ ] **CA-13** — Dado um horário marcado pelo Astro, quando o cliente abre o link do agendamento, então o status é "Confirmado".
 
 ## 5. Casos de borda
 
@@ -129,6 +135,7 @@ Para número oficial, quem diz se dá para enviar é a janela de 24 h (`isFreeFo
 
 - Gatilho "Formulário respondido" com as respostas disponíveis no texto do fluxo.
 - Corrigir o campo `status` da instância oficial.
+- Criar o evento no Google Agenda com link do Meet no momento em que o Astro agenda, com lembrete 30 minutos antes e reenvio do link por WhatsApp. Hoje a sincronização com o Google é manual (`agenda.appointments.syncToGoogleCalendar`), exige a conta Google de um usuário logado com permissão de Calendário e o lembrete do atendimento só aceita horas (2, 24 ou 48). No teste de 12/10 a ÓRBITA HUB não tinha conexão Google com essa permissão.
 - Item "Testar chamada com o Astro" no menu da ÓRBITA HUB (depende de RF-5 em produção e das chamadas habilitadas no servidor).
 
 ## 10. Riscos e rollback
@@ -150,4 +157,5 @@ Sem migration. `voiceCallMaxMinutes` vive no JSON `AiSettings.capabilities`.
 ## 13. Changelog da spec
 
 - 2026-10-12 — criada a partir do teste real da ÓRBITA HUB.
+- 2026-10-12 — segundo teste real: o Astro pediu o e-mail já informado no formulário e o link do agendamento mostrava "Pendente". Entraram RF-11, RF-12 e CA-11 a CA-13; a criação automática do evento no Google com Meet ficou em "depois".
 - 2026-10-12 — implementação: o e-mail roda numa etapa própria do Inngest (`send-booking-email`) para não sair duas vezes se a função repetir; data e hora da confirmação (WhatsApp e e-mail) passam a ser formatadas no fuso de São Paulo, antes dependiam do fuso do servidor. Sem runner de teste no projeto (CLAUDE.md, regra 20): os critérios de aceite ficam para teste manual.

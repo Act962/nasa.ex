@@ -176,7 +176,8 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
             endsAt: endsAt.toDate(),
             title: `Agendamento: ${scope.leadName ?? "Cliente"}`,
             notes: notes ?? null,
-            status: "PENDING",
+            // O cliente confirmou agenda, data e horário na conversa antes desta chamada (spec 0100, RF-12).
+            status: "CONFIRMED",
           },
           select: { id: true, startsAt: true, agenda: { select: { name: true } } },
         });

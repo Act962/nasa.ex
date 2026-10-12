@@ -174,6 +174,7 @@ export async function prepareClientCall(params: { instance: CallInstance; caller
       settings: agentContext.settings,
       orgName: agentContext.organization.name,
       leadName: agentContext.lead.name === "Sem nome" ? null : agentContext.lead.name,
+      hasLeadEmail: Boolean(agentContext.lead.email?.trim()),
       currentTags: agentContext.lead.leadTags,
       availableTags: agentContext.availableTags,
       availableButtonPresets: [],
