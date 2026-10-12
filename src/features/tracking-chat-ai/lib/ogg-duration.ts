@@ -8,7 +8,8 @@ const GRANULE_OFFSET = 6;
 const PAGE_HEADER_MIN_BYTES = 27;
 const OPUS_HEAD_SEARCH_BYTES = 200;
 const MAX_HEADER_TYPE = 7;
-const UNKNOWN_GRANULE = 0xffff_ffff_ffff_ffffn;
+const UINT32_MAX = 0xffff_ffff;
+const UINT32_RANGE = 2 ** 32;
 const MAX_PLAUSIBLE_SECONDS = 6 * 60 * 60;
 
 /** `null` quando o arquivo não é OGG/Opus ou a duração não pôde ser lida com segurança. */
@@ -22,8 +23,10 @@ export function readOggOpusSeconds(audio: Buffer): number | null {
   // "OggS" pode aparecer por acaso no meio do áudio: versão e tipo de página confirmam o cabeçalho.
   if (audio[lastPageAt + 4] !== 0 || audio[lastPageAt + 5] > MAX_HEADER_TYPE) return null;
 
-  const finalSamples = audio.readBigUInt64LE(lastPageAt + GRANULE_OFFSET);
-  if (finalSamples === UNKNOWN_GRANULE) return null;
-  const seconds = Number(finalSamples) / OPUS_SAMPLES_PER_SECOND;
+  // Posição de 64 bits lida em duas metades: o alvo de compilação do projeto não aceita BigInt literal.
+  const lowBits = audio.readUInt32LE(lastPageAt + GRANULE_OFFSET);
+  const highBits = audio.readUInt32LE(lastPageAt + GRANULE_OFFSET + 4);
+  if (lowBits === UINT32_MAX && highBits === UINT32_MAX) return null;
+  const seconds = (highBits * UINT32_RANGE + lowBits) / OPUS_SAMPLES_PER_SECOND;
   return seconds > 0 && seconds <= MAX_PLAUSIBLE_SECONDS ? seconds : null;
 }
