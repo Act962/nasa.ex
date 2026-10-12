@@ -162,7 +162,11 @@ function registerWhenRegistryIsReady(attempt = 1): void {
   try {
     registerRegistryExecutors();
   } catch (registrationError) {
-    if (attempt >= MAX_REGISTRATION_ATTEMPTS) throw registrationError;
+    if (attempt >= MAX_REGISTRATION_ATTEMPTS) {
+      // Lançar aqui seria uma exceção fora de qualquer requisição, capaz de derrubar o processo.
+      console.error("[ASTRO/confirmation] executores do registro não foram registrados", registrationError);
+      return;
+    }
     setTimeout(() => registerWhenRegistryIsReady(attempt + 1), 0);
   }
 }

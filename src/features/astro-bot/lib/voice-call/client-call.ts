@@ -7,6 +7,7 @@ import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers"
 import { persistOutboundMessage } from "@/features/tracking-chat-ai/lib/persist";
 import { ensureLeadConversation } from "@/features/tracking-executions/lib/send-template-to-lead";
 import { loadAgentContext } from "@/features/tracking-chat-ai/lib/context";
+import { parseAiCapabilities } from "@/features/tracking-chat-ai/lib/capabilities";
 import { buildSystemPrompt } from "@/features/tracking-chat-ai/lib/system-prompt";
 import { loadAttendanceKnowledgeBlock } from "@/features/tracking-chat-ai/lib/attendance-knowledge";
 import { buildAgentTools } from "@/features/tracking-chat-ai/server/tools";
@@ -128,6 +129,14 @@ export type ClientCallDecision =
 /** Decide se a chamada de um cliente é atendida e monta a sessão de voz dele. */
 export async function prepareClientCall(params: { instance: CallInstance; callerPhone: string }): Promise<ClientCallDecision> {
   const { instance } = params;
+  // Conferido antes de criar o lead: funil que não atende ligação não ganha um lead a cada chamada recusada.
+  const callSettings = await prisma.aiSettings.findUnique({
+    where: { trackingId: instance.trackingId },
+    select: { capabilities: true },
+  });
+  if (!callSettings || !parseAiCapabilities(callSettings.capabilities).voiceCall) {
+    return { canAnswer: false, reason: "voice_call_disabled", shouldSendTextOnlyNotice: true };
+  }
   const lead = await findOrCreateCallerLead({ trackingId: instance.trackingId, callerPhone: params.callerPhone, callerName: null });
   if (!lead) return { canAnswer: false, reason: "no_funnel_stage", shouldSendTextOnlyNotice: false };
 

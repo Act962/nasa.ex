@@ -4,6 +4,7 @@ import { meter } from "@/features/stars/lib/metering";
 import { transcribeAudioBuffer } from "@/features/astro-bot/lib/audio-transcription";
 import { MAX_LEAD_AUDIO_SECONDS, parseAiCapabilities } from "./capabilities";
 import { isAudioTooLong, readAudioTranscription, toMessageMetadata } from "./audio-metadata";
+import { readOggOpusSeconds } from "./ogg-duration";
 
 // Áudio do cliente vira texto para o agente (spec 0084, RF-1 e RF-2). A
 // transcrição fica em `Message.metadata`, sem coluna nova, e é o que o
@@ -68,6 +69,15 @@ export async function transcribePendingLeadAudio(params: {
     try {
       const audio = await downloadStoredAudio(message.mediaUrl!);
       if (!audio) continue;
+      // Nota de voz longa é descartada antes de transcrever: sem isso ela era transcrita e cobrada à toa.
+      const knownSeconds = readOggOpusSeconds(audio);
+      if (knownSeconds !== null && knownSeconds > MAX_LEAD_AUDIO_SECONDS) {
+        await prisma.message.update({
+          where: { id: message.id },
+          data: { metadata: { ...toMessageMetadata(message.metadata), transcriptionSkipped: "too_long" } },
+        });
+        continue;
+      }
       const transcription = await transcribeAudioBuffer(audio, "audio-do-cliente.ogg", message.mimetype ?? undefined);
       if (!transcription) continue;
       const isTooLong = transcription.seconds > MAX_LEAD_AUDIO_SECONDS;

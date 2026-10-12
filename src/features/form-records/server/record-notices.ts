@@ -1,6 +1,7 @@
 import "server-only";
 import prisma from "@/lib/prisma";
 import { canAstroRead } from "@/features/astro/actions/permission-gate";
+import type { AgentContext } from "@/features/astro/server/agents/types";
 import { TrackingProviderBotChannel } from "@/features/astro-bot/lib/tracking-provider-channel";
 import { MENU_ROOT_ID } from "@/features/astro-bot/lib/menu/menu-tree";
 import { startOfBrazilDay } from "@/features/form-records/lib/next-due-window";
@@ -178,8 +179,13 @@ export async function sendDueRecordNotices(now = new Date()): Promise<{ checked:
     await markRun(null);
 
     try {
-      const ctx = { userId: preference.userId, organizationId: preference.organizationId, restrictToOrgId: preference.organizationId, route: {} };
-      if (!(await canAstroRead(ctx as never, "formularios"))) continue;
+      const agentContext: AgentContext = {
+        userId: preference.userId,
+        organizationId: preference.organizationId,
+        restrictToOrgId: preference.organizationId,
+        route: {},
+      };
+      if (!(await canAstroRead(agentContext, "formularios"))) continue;
       const channel = await resolveNoticeChannel({ userId: preference.userId, organizationId: preference.organizationId });
       if (!channel) {
         await markRun("Sem número liberado no ASTRO.");
