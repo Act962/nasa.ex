@@ -1,4 +1,5 @@
 import { buttonReplyOutputs } from "@/features/workflows/lib/button-reply-flow";
+import { DEFAULT_CONSENT_PAYLOAD, DEFAULT_FORM_CHAT_PAYLOAD, conversationStepOutputs, isFormChatOn } from "@/features/workflows/lib/conversation-steps";
 import { NodeType } from "@/generated/prisma/enums";
 import {
   ArrowLeftRightIcon,
@@ -31,6 +32,7 @@ import {
   RouteIcon,
   ScaleIcon,
   SendIcon,
+  ShieldCheckIcon,
   ShuffleIcon,
   SparklesIcon,
   SunriseIcon,
@@ -104,7 +106,7 @@ export function getNodeOutputs(
     }
     case "SEND_MESSAGE": {
       // Menu de botões que espera o clique: uma saída por botão e "sem clique" (spec 0090, seção F).
-      const replyOutputs = buttonReplyOutputs(data);
+      const replyOutputs = buttonReplyOutputs(data) ?? conversationStepOutputs(data);
       return replyOutputs ? replyOutputs.map((replyOutput) => replyOutput.id) : ["main"];
     }
     default:
@@ -424,6 +426,28 @@ export const executionNodes: NodeTypeOption[] = [
       action: { payload: { type: "BUTTONS", mode: "preset" } },
     },
   },
+  // Passos de conversa (spec 0099): reusam o Enviar Mensagem, sem tipo novo de quadro. Só aparecem
+  // com a opção de liberação ligada.
+  ...(isFormChatOn()
+    ? [
+        {
+          type: NodeType.SEND_MESSAGE,
+          category: "execution" as const,
+          label: "Pedir aceite",
+          description: "Mostra os termos (LGPD) e registra no lead se o cliente aceitou, antes de pedir dados",
+          icon: ShieldCheckIcon,
+          defaultData: { action: { payload: DEFAULT_CONSENT_PAYLOAD } },
+        },
+        {
+          type: NodeType.SEND_MESSAGE,
+          category: "execution" as const,
+          label: "Preencher formulário pela conversa",
+          description: "Pergunta os campos de um formulário do Órbita Forms um a um, valida as respostas e grava a ficha no lead",
+          icon: ClipboardListIcon,
+          defaultData: { action: { payload: DEFAULT_FORM_CHAT_PAYLOAD } },
+        },
+      ]
+    : []),
   {
     // "Fazer ligação com IA", etapa do convite (spec 0090, seção G, 8A): o cliente recebe o convite,
     // liga pelo WhatsApp e a assistente atende. Reusa o Enviar Mensagem, sem tipo novo de quadro.

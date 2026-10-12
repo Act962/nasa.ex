@@ -14,6 +14,10 @@ export type ClientMenuStep =
   | { step: "links" }
   | { step: "book" }
   | { step: "mine" }
+  // Níveis do agendamento (spec 0099): posição da especialidade e da unidade nas listas em ordem
+  // alfabética. `-1` = nível sem escolha (uma opção só, ou campo não preenchido).
+  | { step: "specialty"; specialty: number }
+  | { step: "unit"; specialty: number; unit: number }
   | { step: "days"; agendaId: string; appointmentId: string | null }
   | { step: "slots"; agendaId: string; date: string; appointmentId: string | null; page: number }
   | { step: "slot"; agendaId: string; date: string; time: string; appointmentId: string | null }
@@ -27,12 +31,22 @@ const SAFE_PART = /^[A-Za-z0-9_-]{1,40}$/;
 const DATE_PART = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PART = /^\d{2}:\d{2}$/;
 
+const MAX_LEVEL_INDEX = 50;
+
+function isLevelIndex(value: number): boolean {
+  return Number.isInteger(value) && value >= -1 && value <= MAX_LEVEL_INDEX;
+}
+
 function appointmentPart(appointmentId: string | null): string {
   return appointmentId ?? NO_APPOINTMENT;
 }
 
 export function clientMenuId(target: ClientMenuStep): string {
   switch (target.step) {
+    case "specialty":
+      return `${CLIENT_MENU_PREFIX}specialty|${target.specialty}`;
+    case "unit":
+      return `${CLIENT_MENU_PREFIX}unit|${target.specialty}|${target.unit}`;
     case "days":
       return `${CLIENT_MENU_PREFIX}days|${target.agendaId}|${appointmentPart(target.appointmentId)}`;
     case "slots":
@@ -69,6 +83,14 @@ export function parseClientMenuId(replyId: string): ClientMenuStep | null {
     case "book":
     case "mine":
       return parts.length === 0 ? { step } : null;
+    case "specialty": {
+      const specialty = Number(parts[0]);
+      return isLevelIndex(specialty) ? { step, specialty } : null;
+    }
+    case "unit": {
+      const [specialty, unit] = [Number(parts[0]), Number(parts[1])];
+      return isLevelIndex(specialty) && isLevelIndex(unit) ? { step, specialty, unit } : null;
+    }
     case "days":
       return areSafe(parts[0], parts[1]) ? { step, agendaId: parts[0], appointmentId: toAppointmentId(parts[1]) } : null;
     case "slots": {

@@ -24,6 +24,7 @@ import { loadAttendanceKnowledgeBlock } from "./attendance-knowledge";
 import { signalLeadAwaitingHuman, type AwaitingHumanReason } from "./awaiting-human";
 import { handleGuidedMenu } from "./guided-menu/guided-menu";
 import { handleScriptMenu } from "./script-menu";
+import { isReplyForWaitingFlow } from "./flow-awaiting-reply";
 import { isTopicMenuName } from "./topic-menu";
 import { handleTopicMenu } from "./topic-menu-handler";
 import { MENU_PRESET_NAME } from "./attendance-setup/script-draft";
@@ -178,6 +179,12 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     if (!(await isFreeFormWindowOpen(resolved, ctx.conversation.id))) {
       return { skipped: true, reason: WINDOW_CLOSED_SKIP_REASON };
     }
+  }
+
+  // Passo de fluxo esperando a resposta do cliente (spec 0099): a mensagem é do fluxo, ninguém mais responde.
+  if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
+    const isForWaitingFlow = await step.run("flow-awaiting-reply", () => isReplyForWaitingFlow(ctx, data.messageId));
+    if (isForWaitingFlow) return { skipped: true, reason: "flow_awaiting_reply" };
   }
 
   // Menu de botões (spec 0089): saudação e cliques do menu são resolvidos em código, sem modelo,

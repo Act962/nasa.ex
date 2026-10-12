@@ -162,6 +162,48 @@ export const TRACKING_GUIDES: GuideDef[] = [
     },
   },
   {
+    key: "tracking.form-chat-step",
+    app: "tracking",
+    title: "Cadastrar o cliente pela conversa",
+    summary: "Um passo do fluxo pergunta os campos de um formulário do Órbita Forms no WhatsApp, valida as respostas e grava a ficha no lead.",
+    topicPattern: /\b(cadastr\w*|formulario|ficha|cpf|dados)\b.*\b(conversa|whatsapp|chat|fluxo)\b|\b(pergunt\w*|ped\w*|colet\w*)\b.*\b(cpf|dados|nome|nascimento|convenio)\b/,
+    steps: [
+      {
+        anchor: "workflowFormChatStep",
+        title: "Escolha o formulário e os campos",
+        message: "As perguntas saem na ordem do formulário, uma por vez. CPF, telefone, e-mail e data são conferidos antes de seguir.",
+        position: "left",
+        advanceOn: "next",
+        missingMessage: "No editor de um fluxo em modo agente, adicione o passo \"Preencher formulário pela conversa\" e abra a configuração dele.",
+      },
+    ],
+    finish: {
+      title: "Cadastro configurado ✨",
+      message: "Ligue as três saídas do passo: Concluído, Desistiu e Pediu atendente. Antes dele, use o passo Pedir aceite.",
+    },
+  },
+  {
+    key: "tracking.consent-step",
+    app: "tracking",
+    title: "Pedir o aceite dos termos",
+    summary: "Um passo do fluxo mostra os termos, espera o cliente tocar em aceitar e registra o aceite no lead, com data.",
+    topicPattern: /\b(lgpd|aceite|consentimento|termos|privacidade)\b/,
+    steps: [
+      {
+        anchor: "workflowConsentStep",
+        title: "Escreva os termos",
+        message: "Informe o texto, o link da política de privacidade e os dois botões. Quem já aceitou o mesmo texto não é perguntado de novo.",
+        position: "left",
+        advanceOn: "next",
+        missingMessage: "No editor de um fluxo em modo agente, adicione o passo \"Pedir aceite\" e abra a configuração dele.",
+      },
+    ],
+    finish: {
+      title: "Aceite configurado ✨",
+      message: "O passo tem duas saídas: Aceitou e Recusou. O registro aparece na jornada do lead.",
+    },
+  },
+  {
     key: "tracking.menu-option-outputs",
     app: "tracking",
     title: "Ligar um passo a uma opção do menu",

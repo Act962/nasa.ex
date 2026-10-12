@@ -417,9 +417,13 @@ export async function runWorkflow(
           ? (waitOutput.buttonIds as unknown[]).map(String)
           : null;
       // Com espera de clique, quem volta para a fila é o próprio quadro, marcado para só escolher a saída.
+      // Passo de conversa (spec 0099) volta inteiro: ele roda de novo para ler a resposta do cliente,
+      // e decide se pergunta outra coisa ou por qual saída segue.
       const remainingQueue: QueueItem[] = buttonReplyIds
         ? [{ nodeId: node.id, buttonReplyIds }, ...queue]
-        : [...nextAfterWait, ...queue];
+        : waitOutput.resumeSameNode === true
+          ? [{ nodeId: node.id }, ...queue]
+          : [...nextAfterWait, ...queue];
       const pendingCtx = mergeOutputInto(ctx, node.id, result.output);
 
       // Prioriza valores que o executor retornou no output (caso do nó WAIT

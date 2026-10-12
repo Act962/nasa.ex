@@ -7,6 +7,7 @@ import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-bu
 import { useTrackingStatusNames } from "@/features/trackings/hooks/use-tracking-status-names";
 import { LeadCardPreview, type LeadCardTag } from "./lead-card-preview";
 import { MessagePhonePreview, type PhoneMessage } from "./message-phone-preview";
+import type { MenuAnswerOutput } from "./menu-answer-cards";
 import { RICH_ACTION_TYPES, RICH_MESSAGE_TYPES, RICH_TRIGGER_TYPES } from "./rich-node-types";
 import { ActionCardPreview } from "./action-card-preview";
 import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
@@ -46,6 +47,12 @@ function toPhoneMessage(nodeType: string, config: Fields, presetById: Map<string
   }
   const payload = asFields(config.payload);
   switch (String(payload.type ?? "TEXT")) {
+    case "CONSENT":
+      return { kind: "buttons", text: String(payload.termsText ?? ""), options: [String(payload.acceptLabel ?? "Sim, concordo"), String(payload.refuseLabel ?? "Não")] };
+    case "FORM_CHAT": {
+      const fieldCount = Array.isArray(payload.fieldIds) ? payload.fieldIds.length : 0;
+      return { kind: "text", text: fieldCount > 0 ? `Cadastro pela conversa: ${fieldCount} pergunta(s), uma por vez, com validação e resumo no fim.` : "Escolha o formulário e os campos a perguntar." };
+    }
     case "IMAGE":
       return { kind: "image", text: withLeadPlaceholder(payload.caption), mediaUrl: String(payload.imageUrl ?? "") };
     case "DOCUMENT":
@@ -108,10 +115,10 @@ export function RichNodePreview({
   description,
   icon: Icon,
   isUndelivered,
-  optionOutputIds,
+  optionOutputs,
 }: {
-  /** Saídas por opção do menu salvo (spec 0098): só o editor passa; no Mapa o quadro é só leitura. */
-  optionOutputIds?: (string | null)[];
+  /** Saídas por opção do menu salvo, com a resposta de cada uma (spec 0098): só o editor passa; no Mapa o quadro é só leitura. */
+  optionOutputs?: (MenuAnswerOutput | null)[];
   nodeType: string;
   data: unknown;
   name: string;
@@ -159,7 +166,8 @@ export function RichNodePreview({
         message={toPhoneMessage(nodeType, config, presetById)}
         isUndelivered={isUndelivered}
         channelLabel={describeChannel(instance)}
-        optionOutputIds={optionOutputIds}
+        optionOutputs={optionOutputs}
+        menuHref={trackingId ? `/tracking/${trackingId}/settings?tab=chatbot-ia&iaTab=buttons` : undefined}
       />
     );
   }

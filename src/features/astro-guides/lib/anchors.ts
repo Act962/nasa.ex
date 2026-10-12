@@ -95,6 +95,18 @@ export const GUIDE_ANCHORS = {
     id: "workflows.menu-option-outputs",
     description: "Lista de opções do menu salvo dentro do quadro Enviar Mensagem, no editor de um fluxo: cada pergunta tem um ponto de saída à direita para ligar um passo",
   },
+  agendaLevelsFields: {
+    id: "agenda.levels-fields",
+    description: "Campos Especialidade, Unidade e Ficha do profissional na aba Geral de uma agenda, que organizam o agendamento pelo WhatsApp em níveis",
+  },
+  workflowConsentStep: {
+    id: "workflows.consent-step",
+    description: "Janela de configuração do passo \"Pedir aceite\" de um fluxo: texto dos termos, link da política e os dois botões",
+  },
+  workflowFormChatStep: {
+    id: "workflows.form-chat-step",
+    description: "Janela de configuração do passo \"Preencher formulário pela conversa\": formulário do Órbita Forms e os campos que serão perguntados no WhatsApp",
+  },
   astroFlowEditButton: {
     id: "automations-hub.astro-flow-edit-button",
     description: "Botão \"Pedir ao ASTRO\" no editor de um fluxo, que abre o campo para pedir uma mudança naquele fluxo",

@@ -188,6 +188,12 @@ export function validateNode(
         }
       } else if (t === "TEMPLATE") {
         errs.push(...findTemplateProblems(payload, "template"));
+      } else if (t === "CONSENT") {
+        if (!hasNonEmptyString(payload.termsText)) errs.push("Escreva o texto dos termos");
+        if (!hasNonEmptyString(payload.acceptLabel) || !hasNonEmptyString(payload.refuseLabel)) errs.push("Informe o texto dos dois botões");
+      } else if (t === "FORM_CHAT") {
+        if (!hasNonEmptyString(payload.formId)) errs.push("Escolha o formulário");
+        if (!Array.isArray(payload.fieldIds) || payload.fieldIds.length === 0) errs.push("Marque ao menos um campo para perguntar");
       } else {
         // Default = TEXT
         if (!hasNonEmptyString(payload.message))

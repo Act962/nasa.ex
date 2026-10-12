@@ -241,6 +241,10 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
       if (hasPlaceholderText(data.action?.payload)) {
         throw new NonRetriableError("Mensagem com texto de exemplo (\"[Escreva aqui…]\") não foi enviada. Troque o texto no passo.");
       }
+      // Passos de conversa (spec 0099) dependem do motor do modo agente, que sabe esperar a resposta.
+      if (typeMessage === "CONSENT" || typeMessage === "FORM_CHAT") {
+        throw new NonRetriableError("Este passo só funciona em fluxo no modo agente.");
+      }
       switch (typeMessage) {
         case "TEXT":
           let message = data.action?.payload.message || "";

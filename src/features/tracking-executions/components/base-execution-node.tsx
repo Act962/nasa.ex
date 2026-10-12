@@ -38,7 +38,8 @@ import { nextSide, readNodeSides, toPosition } from "@/features/editor/lib/node-
 import { formatWaitLabel } from "@/features/editor/lib/wait-label";
 import { cn } from "@/lib/utils";
 import { NO_CLICK_OUTPUT, buttonReplyOutputs } from "@/features/workflows/lib/button-reply-flow";
-import { menuOptionOutputIdsByRow, menuOptionOutputs } from "@/features/workflows/lib/menu-option-outputs";
+import { conversationStepOutputs } from "@/features/workflows/lib/conversation-steps";
+import { menuOptionAnswersByRow, menuOptionOutputs } from "@/features/workflows/lib/menu-option-outputs";
 import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-button-presets";
 import { ButtonHandle } from "@/components/react-flow/button-handle";
 import { AddNextNodeButton } from "@/features/editor/components/add-next-node-button";
@@ -91,13 +92,14 @@ export const BaseExecutionNode = memo(
     const viewMode = useAtomValue(editorViewModeAtom);
     const isRichView = viewMode === "rich";
     const isReadOnly = useAtomValue(editorReadOnlyAtom);
-    const replyOutputs = useMemo(() => buttonReplyOutputs(nodeData), [nodeData]);
+    // Saídas nomeadas: uma por botão (spec 0090, seção F) ou as do passo de conversa (spec 0099).
+    const replyOutputs = useMemo(() => buttonReplyOutputs(nodeData) ?? conversationStepOutputs(nodeData), [nodeData]);
     // Menu salvo: uma saída por opção, além da saída de sempre (spec 0098).
     const { trackingId } = useParams<{ trackingId: string }>();
     const { presets: savedMenus } = useAiButtonPresets(trackingId ?? "");
     const optionOutputs = useMemo(() => (nodeType === "SEND_MESSAGE" ? menuOptionOutputs(nodeData, savedMenus) : null), [nodeType, nodeData, savedMenus]);
-    const optionOutputIds = useMemo(() => (nodeType === "SEND_MESSAGE" ? (menuOptionOutputIdsByRow(nodeData, savedMenus) ?? undefined) : undefined), [nodeType, nodeData, savedMenus]);
-    const optionOutputsSignature = optionOutputIds?.join("|") ?? "";
+    const optionAnswers = useMemo(() => (nodeType === "SEND_MESSAGE" ? (menuOptionAnswersByRow(nodeData, savedMenus) ?? undefined) : undefined), [nodeType, nodeData, savedMenus]);
+    const optionOutputsSignature = optionAnswers?.map((optionAnswer) => optionAnswer?.id ?? "").join("|") ?? "";
     // O contorno tracejado faz o papel da borda nas duas visões; do andamento só fica o que está acontecendo agora.
     const runStatus = status === "loading" || status === "success" ? status : "initial";
     const connectionHover = useAtomValue(connectionHoverAtom);
@@ -263,7 +265,7 @@ export const BaseExecutionNode = memo(
               )}
               {isRichView && flowNotice && <FlowNoticeBadge notice={flowNotice} onFix={isReadOnly ? undefined : onSettings} />}
               {showsRichPreview && nodeType ? (
-                <RichNodePreview nodeType={nodeType} data={nodeData} name={name} description={description} icon={Icon} isUndelivered={hasFlowError} optionOutputIds={optionOutputIds} />
+                <RichNodePreview nodeType={nodeType} data={nodeData} name={name} description={description} icon={Icon} isUndelivered={hasFlowError} optionOutputs={optionAnswers} />
               ) : !isRichView && nodeType && hasIconGlyph(nodeType) ? (
                 <IconNodeGlyph nodeType={nodeType} data={nodeData} />
               ) : typeof Icon === "string" ? (

@@ -3111,6 +3111,12 @@ model Agenda {
   slug           String
   isActive       Boolean  @default(true) @map("is_active")
   slotDuration   Int      @default(30) @map("slot_duration")
+  // Níveis do agendamento por botões (spec 0099): o cliente escolhe especialidade, unidade e depois a
+  // agenda. Vazios = agendamento em lista única, como sempre.
+  specialty         String? @map("specialty")
+  unit              String? @map("unit")
+  // Ficha enviada ao cliente antes dos dias (o que atende, valores, avisos).
+  professionalNotes String? @map("professional_notes")
   trackingId     String   @map("tracking_id")
   statusId       String?  @map("status_id")
   organizationId String   @map("organization_id")

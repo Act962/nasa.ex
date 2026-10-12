@@ -43,6 +43,15 @@ export function menuOptionOutputIdsByRow(nodeData: unknown, savedMenus: { id: st
   return outputIds.some(Boolean) ? outputIds : null;
 }
 
+/** Como `menuOptionOutputIdsByRow`, com a resposta guardada de cada pergunta, para o editor mostrar ao lado. */
+export function menuOptionAnswersByRow(nodeData: unknown, savedMenus: { id: string; buttons?: unknown }[]): ({ id: string; answer: string } | null)[] | null {
+  const outputIds = menuOptionOutputIdsByRow(nodeData, savedMenus);
+  if (!outputIds) return null;
+  const savedMenu = savedMenus.find((menu) => menu.id === savedMenuIdOf(nodeData));
+  const buttons = Array.isArray(savedMenu?.buttons) ? (savedMenu.buttons as Fields[]) : [];
+  return outputIds.map((outputId, buttonIndex) => (outputId ? { id: outputId, answer: String(buttons[buttonIndex]?.answer ?? "") } : null));
+}
+
 /** As saídas do quadro, com o título de cada opção. */
 export function menuOptionOutputs(nodeData: unknown, savedMenus: { id: string; buttons?: unknown }[]): MenuOptionOutput[] | null {
   const outputIds = menuOptionOutputIdsByRow(nodeData, savedMenus);
