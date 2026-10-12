@@ -77,6 +77,20 @@ async function hasConflict(agendaId: string, startsAt: Date, endsAt: Date, ignor
   return Boolean(conflict);
 }
 
+const OUTSIDE_AVAILABILITY_REPLY = {
+  error: "Esse horário não está entre os horários de atendimento da agenda. Chame get_available_slots para a data e ofereça um dos horários livres.",
+};
+
+/**
+ * O horário pedido precisa ser um dos que a agenda oferece naquela data (dias e faixas de
+ * atendimento, data bloqueada). Só conferir conflito deixava o modelo marcar fora do expediente.
+ */
+async function isOfferedSlot(agenda: { agendaId: string; slotDuration: number }, date: string, time: string): Promise<boolean> {
+  const freeSlots = await listAgendaFreeSlots(agenda, date);
+  const slots: { startTime: string }[] = "slots" in freeSlots && Array.isArray(freeSlots.slots) ? freeSlots.slots : [];
+  return slots.some((slot) => slot.startTime === time);
+}
+
 /** Só agendamento futuro, ativo, deste cliente e de agenda liberada. */
 /**
  * O modelo às vezes manda um id que não existe. Quando o cliente tem um único agendamento
@@ -147,6 +161,9 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
         const startsAt = toStartsAt(date, time);
         if (!startsAt.isValid() || startsAt.isBefore(dayjs())) return { error: "Escolha um horário futuro." };
         const endsAt = startsAt.add(agenda.slotDuration, "minute");
+        if (!(await isOfferedSlot({ agendaId: agenda.id, slotDuration: agenda.slotDuration }, date, time))) {
+          return OUTSIDE_AVAILABILITY_REPLY;
+        }
         if (await hasConflict(agenda.id, startsAt.toDate(), endsAt.toDate())) {
           return { error: "Esse horário acabou de ser ocupado. Consulte os horários de novo." };
         }
@@ -244,6 +261,9 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
         const startsAt = toStartsAt(date, time);
         if (!startsAt.isValid() || startsAt.isBefore(dayjs())) return { error: "Escolha um horário futuro." };
         const endsAt = startsAt.add(appointment.agenda.slotDuration, "minute");
+        if (!(await isOfferedSlot({ agendaId: appointment.agendaId, slotDuration: appointment.agenda.slotDuration }, date, time))) {
+          return OUTSIDE_AVAILABILITY_REPLY;
+        }
         if (await hasConflict(appointment.agendaId, startsAt.toDate(), endsAt.toDate(), appointment.id)) {
           return { error: "Esse horário está ocupado. Consulte os horários de novo." };
         }

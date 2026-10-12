@@ -4,6 +4,8 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { getPixSettings, savePixSettings, sendRecordPix, setRecordPaid } from "@/features/form-records/server/record-pix";
+import { logActivity } from "@/features/admin/lib/activity-logger";
+import { isOrgOwnerOrAdmin } from "@/features/permissions/server/is-org-admin";
 
 // PIX das fichas (spec 0081, parte D): chave da empresa, envio do copia e cola e baixa manual.
 
@@ -26,8 +28,25 @@ export const saveRecordPixSettings = base
   .route({ method: "POST", summary: "Save the organization PIX key used by records", tags: ["Forms"] })
   .input(pixSettingsSchema)
   .output(z.object({ success: z.boolean() }))
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
+    // A chave é a mesma das Propostas: trocá-la desvia o que os clientes pagam. Só dono e administrador.
+    if (!(await isOrgOwnerOrAdmin(context.org.id, context.user.id))) {
+      throw errors.FORBIDDEN({ message: "Só o dono ou um administrador da empresa altera a chave PIX." });
+    }
     await savePixSettings(context.org.id, input);
+    await logActivity({
+      organizationId: context.org.id,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: context.user.image,
+      appSlug: "forms",
+      subAppSlug: "form-records",
+      featureKey: "form-records.pix.settings.updated",
+      action: "form-records.pix.settings.updated",
+      actionLabel: "Alterou a chave PIX da empresa",
+      metadata: { pixKeyLast4: input.pixKey.slice(-4) },
+    }).catch((logError: unknown) => console.warn("[form-records/pix] registro da troca da chave falhou", logError));
     return { success: true };
   });
 

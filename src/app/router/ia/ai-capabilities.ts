@@ -105,7 +105,7 @@ export const updateAiCapabilities = base
     };
     await prisma.aiSettings.update({
       where: { trackingId: input.trackingId },
-      data: { capabilities, isAudioEnabled: capabilities.voiceReply },
+      data: { capabilities },
     });
     return { trackingId: input.trackingId, capabilities };
   });

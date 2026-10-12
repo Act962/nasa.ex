@@ -3,6 +3,17 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { isOrgOwnerOrAdmin } from "@/features/permissions/server/is-org-admin";
+
+/** Mesmo conteúdo com as chaves em outra ordem conta como igual. */
+function toStableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(toStableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const fields = Object.entries(value as Record<string, unknown>).sort(([first], [second]) => first.localeCompare(second));
+    return `{${fields.map(([key, fieldValue]) => `${JSON.stringify(key)}:${toStableJson(fieldValue)}`).join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
 
 const settingsShape = z.object({
   id: z.string(),
@@ -67,6 +78,17 @@ export const updateForgeSettings = base
   )
   .output(z.object({ ok: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
+    // Chave PIX e credenciais de gateway decidem para onde vai o dinheiro do cliente: só dono e
+    // administrador alteram. A tela reenvia o bloco inteiro a cada gravação, então só barra se mudou.
+    if (input.paymentGatewayConfigs !== undefined && !(await isOrgOwnerOrAdmin(context.org.id, context.user.id))) {
+      const current = await prisma.forgeSettings.findUnique({
+        where: { organizationId: context.org.id },
+        select: { paymentGatewayConfigs: true },
+      });
+      if (toStableJson(current?.paymentGatewayConfigs ?? {}) !== toStableJson(input.paymentGatewayConfigs ?? {})) {
+        throw errors.FORBIDDEN({ message: "Só o dono ou um administrador da empresa altera os dados de pagamento." });
+      }
+    }
     try {
       const data = {
         commissionPercentage: input.commissionPercentage,
