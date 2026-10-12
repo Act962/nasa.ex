@@ -119,13 +119,15 @@ export const updateIsActive = base
     // O menu de perguntas que o fluxo envia liga junto: desligado, o passo de envio falharia.
     const topicMenuIdsToTurnOn = savedMenus.filter((menu) => !menu.isActive && isTopicMenuName(menu.name)).map((menu) => menu.id);
 
-    const [updated] = await prisma.$transaction([
-      prisma.workflow.update({
+    const updated = await prisma.$transaction(async (tx) => {
+      if (topicMenuIdsToTurnOn.length > 0) {
+        await tx.aiButtonPreset.updateMany({ where: { id: { in: topicMenuIdsToTurnOn } }, data: { isActive: true } });
+      }
+      return tx.workflow.update({
         where: { id: input.workflowId },
         data: { isActive: input.isActive },
-      }),
-      ...(topicMenuIdsToTurnOn.length > 0 ? [prisma.aiButtonPreset.updateMany({ where: { id: { in: topicMenuIdsToTurnOn } }, data: { isActive: true } })] : []),
-    ]);
+      });
+    });
 
     // Ativou/desativou — invalida o cache do gatilho FIRST_INTERACTION_OF_DAY.
     if (workflow.trackingId) {

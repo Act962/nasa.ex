@@ -2,7 +2,7 @@
 id: 0098
 titulo: Uma saída por opção no menu salvo enviado pelo fluxo
 dominio: workflows
-status: rascunho
+status: aprovada
 autor: Weydson
 criada: 2026-10-11
 atualizada: 2026-10-11
@@ -127,3 +127,4 @@ Hoje a prévia corta em cinco e escreve "e mais 3". Com uma saída por opção, 
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-11 | Weydson | Rascunho, a partir do desenho do Weydson (um ponto de saída por opção) e do "aprovado, pode escrever a spec do caminho 1". |
+| 2026-10-11 | Weydson | **Aprovada e implementada** ("Faça o que precisa ser feito"; a resposta do roteiro continua saindo, como proposto na D-2). **Risco do motor resolvido**: a fila de retomada não servia para começar no meio; `runWorkflow` ganhou `startFrom: { nodeId, output }`, que monta a fila inicial pela saída de um passo sem passar por gatilho, e `executeWorkflow` repassa o campo do evento. Peças: `workflows/lib/menu-option-outputs.ts` (saídas e busca do que roda, sem `server-only`), `tracking-chat-ai/lib/menu-option-dispatch.ts` (dispara depois da resposta, com a janela de 60 s), chamada em `topic-menu-handler.ts`, saídas desenhadas em `base-execution-node.tsx` e `message-phone-preview.tsx`, regra `MENU_OPTION_MISSING` em `collectFlowProblems`, rótulo "ao tocar" na ligação, âncora `workflowMenuOptionOutputs` e guia `tracking.menu-option-outputs`. **Divergências do rascunho**: (1) **RF-1**: as saídas aparecem no editor; no Mapa o quadro continua resumido (cinco opções e "e mais N"), porque lá ele é só leitura. (2) **Só as perguntas ganham saída**: opções com resposta guardada. Linhas de ação ("Agendar", "Falar com atendente") e opções que aplicam tag não ganham, porque o toque nelas segue outro caminho e os passos nunca rodariam; o trecho da RF-4 sobre "linha de ação roda só os passos" deixa de valer. (3) **CB-4 não implementado**: a ligação não guarda o título da opção (o banco só tem o nome da saída). Refazer o menu mudando a ordem das perguntas pode deixar a ligação apontando para outra pergunta; opção que some é pega pela RF-9. Fica como limite conhecido. (4) **Só fluxo em modo agente**, que é o caso dos fluxos do roteiro e do modelo. (5) A janela de 60 s (RF-7) confere execuções já gravadas: dois toques quase simultâneos podem passar os dois. **Verificado** por `scripts/verify-menu-option-outputs.ts` num funil temporário, com o motor a seco (11 de 11): CA-1, CA-2, CA-3, CA-6, CA-7, CA-8 e CA-9. **Não verificado**: CA-4 e CA-5 e o toque real no WhatsApp (o Inngest e o túnel estavam desligados); o desenho das saídas na tela não foi visto. |

@@ -50,6 +50,11 @@ export type RunWorkflowInput = {
    * `step.waitForEvent` ou `step.sleep` e depois re-invoca runWorkflow
    * passando esses campos pra continuar do ponto.
    */
+  /**
+   * Começa pela saída de um passo, sem passar por gatilho (spec 0098): o toque numa opção de menu
+   * salvo roda só o que está ligado àquela opção.
+   */
+  startFrom?: { nodeId: string; output: string };
   resumeFromRunId?: string;
   resumeQueue?: QueueItem[];
   resumeContext?: WorkflowContext;
@@ -145,6 +150,7 @@ export async function runWorkflow(
     resumeContext,
     resumeExecutions,
     resumeStars,
+    startFrom,
   } = input;
   const isResume = !!resumeFromRunId && !!resumeQueue;
 
@@ -223,7 +229,7 @@ export async function runWorkflow(
 
   // 5. Encontra trigger-nodes que casam com triggerType
   const triggerNodes = workflow.nodes.filter((n) => n.type === triggerType);
-  if (triggerNodes.length === 0) {
+  if (triggerNodes.length === 0 && !startFrom) {
     // Lista os triggers que o workflow tem, pra mensagem ajudar o operador
     // a entender o mismatch (ex: dispatch enviou MANUAL_TRIGGER mas o
     // workflow só tem LEAD_TAGGED — bug clássico de dispatch sem helper).
@@ -300,7 +306,9 @@ export async function runWorkflow(
   // Queue de pares (nodeId, contexto-no-momento). BFS pra evitar recursão profunda.
   const queue: QueueItem[] = isResume
     ? resumeQueue!
-    : triggerNodes.map((n) => ({ nodeId: n.id }));
+    : startFrom
+      ? (adjBy.get(startFrom.nodeId)?.get(startFrom.output) ?? []).map((nodeId) => ({ nodeId }))
+      : triggerNodes.map((n) => ({ nodeId: n.id }));
 
   while (queue.length > 0) {
     if (executions >= MAX_EXECUTIONS_PER_RUN) {

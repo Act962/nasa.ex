@@ -161,6 +161,27 @@ export const TRACKING_GUIDES: GuideDef[] = [
       message: "Dá para voltar aqui e mudar quando quiser.",
     },
   },
+  {
+    key: "tracking.menu-option-outputs",
+    app: "tracking",
+    title: "Ligar um passo a uma opção do menu",
+    summary: "No fluxo que envia um menu de perguntas, cada pergunta tem um ponto de saída. O que você ligar ali roda quando o cliente tocar naquela pergunta.",
+    topicPattern: /\b(lig\w*|conect\w*|inser\w*|adicion\w*|coloc\w*)\b.*\b(passo|no|acao|tag)\b.*\b(opcao|opcoes|resposta|respostas|pergunta|perguntas)\b.*\bmenu\b|\bsaida\b.*\b(opcao|pergunta|resposta)\b/,
+    steps: [
+      {
+        anchor: "workflowMenuOptionOutputs",
+        title: "Puxe uma linha da pergunta",
+        message: "Cada pergunta tem um ponto à direita. Arraste dele até um passo, como Tag ou Mover lead. A resposta do menu continua saindo; o passo roda em seguida.",
+        position: "right",
+        advanceOn: "next",
+        missingMessage: "Abra, na visão Visual, um fluxo que envia um menu de perguntas. Os pontos só aparecem com a opção de botões em fluxo ligada.",
+      },
+    ],
+    finish: {
+      title: "Passo ligado ✨",
+      message: "Só as perguntas que você ligar fazem algo a mais. As outras respondem como sempre.",
+    },
+  },
   // Mais específico que criar um fluxo: "modelo de atendimento" vem antes.
   {
     key: "tracking.attendance-template",

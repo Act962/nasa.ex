@@ -45,7 +45,8 @@ export type FlowDiagnosticCode =
   | "NODE_DISCONNECTED"
   | "TRIGGER_LEADS_NOWHERE"
   | "NODE_INCOMPLETE"
-  | "PLACEHOLDER_TEXT";
+  | "PLACEHOLDER_TEXT"
+  | "MENU_OPTION_MISSING";
 
 export interface FlowDiagnostic {
   nodeId: string;

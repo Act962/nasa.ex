@@ -97,6 +97,8 @@ export const executeWorkflow = inngest.createFunction(
         triggerPayload:
           (event.data as { initialData?: Record<string, unknown> })
             .initialData ?? {},
+        // Toque numa opção de menu salvo (spec 0098): começa pela saída daquela opção.
+        ...((event.data as { startFrom?: unknown }).startFrom ? { startFrom: (event.data as { startFrom?: unknown }).startFrom } : {}),
       };
       let lastResult: unknown = null;
 

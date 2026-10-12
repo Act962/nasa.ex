@@ -2,7 +2,10 @@ import { ImageIcon, MicIcon } from "lucide-react";
 import { WhatsappIcon } from "@/components/whatsapp";
 import { MetaLogo } from "@/features/meta-guide/components/meta-logo";
 import { useConstructUrl } from "@/hooks/use-construct-url";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { cn } from "@/lib/utils";
+import { Position } from "@xyflow/react";
+import { BaseHandle } from "@/components/react-flow/base-handle";
 
 // Celular com a mensagem como o cliente vê, para os quadros de envio (spec 0090, RF-9).
 
@@ -103,17 +106,21 @@ export function MessagePhonePreview({
   message,
   isUndelivered,
   channelLabel,
+  optionOutputIds,
 }: {
   message: PhoneMessage;
   isUndelivered?: boolean;
   /** Número e nome da conexão por onde a mensagem sai. */
   channelLabel?: string;
+  /** Uma saída do fluxo por opção, na mesma ordem das opções (spec 0098). Com elas, todas as opções aparecem. */
+  optionOutputIds?: (string | null)[];
 }) {
   const options = message.options ?? [];
   const isList = options.length > MAX_BUTTONS;
+  const visibleOptionCount = optionOutputIds ? options.length : MAX_VISIBLE_OPTIONS;
   return (
-    <div className="w-[184px] overflow-hidden rounded-[20px] border-2 border-border bg-background text-left">
-      <div className="flex h-3 items-center justify-center bg-muted">
+    <div className={cn("w-[184px] rounded-[20px] border-2 border-border bg-background text-left", !optionOutputIds && "overflow-hidden")}>
+      <div className="flex h-3 items-center justify-center rounded-t-[18px] bg-muted">
         <span className="h-[3px] w-10 rounded-full bg-border" />
       </div>
       <div className="flex items-center gap-1.5 bg-muted px-2 py-1 text-[10px] font-semibold">
@@ -125,7 +132,7 @@ export function MessagePhonePreview({
           {channelLabel && <span className="block truncate text-[8.5px] font-normal leading-tight text-muted-foreground">{channelLabel}</span>}
         </span>
       </div>
-      <div className="min-h-[92px] space-y-1 bg-muted/40 bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:12px_12px] p-2">
+      <div className="min-h-[92px] space-y-1 rounded-b-[18px] bg-muted/40 bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:12px_12px] p-2">
         <div className={cn("rounded bg-card px-2 py-1.5 text-[10.5px] leading-snug shadow-sm", isUndelivered && "opacity-60")}>
           {message.kind === "image" && <ImageAttachment mediaUrl={message.mediaUrl} />}
           {message.kind === "document" && <DocumentBadge fileName={message.label} mediaUrl={message.mediaUrl} />}
@@ -147,20 +154,32 @@ export function MessagePhonePreview({
           <span className="line-clamp-6 whitespace-pre-line break-words">{message.text || (message.kind === "image" || message.kind === "document" ? "" : "Mensagem sem texto")}</span>
         </div>
         {options.length > 0 && (
-          <div className={cn(isList ? "overflow-hidden rounded bg-card shadow-sm" : "grid gap-0.5")}>
-            {options.slice(0, MAX_VISIBLE_OPTIONS).map((option, optionIndex) => (
+          <div
+            className={cn(isList ? "rounded bg-card shadow-sm" : "grid gap-0.5", isList && !optionOutputIds && "overflow-hidden")}
+            data-guide={optionOutputIds ? GUIDE_ANCHORS.workflowMenuOptionOutputs.id : undefined}
+          >
+            {options.slice(0, visibleOptionCount).map((option, optionIndex) => (
               <span
                 key={`${option}-${optionIndex}`}
                 className={cn(
-                  "block truncate text-[10.5px]",
+                  "relative block text-[10.5px]",
                   isList ? "border-b px-2 py-1 last:border-b-0" : "rounded bg-card px-2 py-1 text-center font-medium text-info shadow-sm",
                 )}
               >
-                {option || "sem texto"}
+                <span className="block truncate">{option || "sem texto"}</span>
+                {optionOutputIds?.[optionIndex] && (
+                  <BaseHandle
+                    id={optionOutputIds[optionIndex] ?? undefined}
+                    type="source"
+                    position={Position.Right}
+                    title={`Ligue aqui o que acontece quando o cliente toca em "${option}"`}
+                    className="!-right-[17px] !border-info !bg-background"
+                  />
+                )}
               </span>
             ))}
-            {options.length > MAX_VISIBLE_OPTIONS && (
-              <span className="block px-2 py-1 text-[10px] text-muted-foreground">e mais {options.length - MAX_VISIBLE_OPTIONS}</span>
+            {options.length > visibleOptionCount && (
+              <span className="block px-2 py-1 text-[10px] text-muted-foreground">e mais {options.length - visibleOptionCount}</span>
             )}
           </div>
         )}

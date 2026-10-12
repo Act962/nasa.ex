@@ -1,7 +1,8 @@
+import { savedMenuIdOf } from "./menu-option-outputs";
 import { PLACEHOLDER_PROBLEM, hasPlaceholderText } from "./placeholder-text";
 import { isButtonsOfficialOnly } from "@/features/tracking-chat/lib/numbered-menu";
 import { validateNode } from "./validate-node";
-import { isMetaInteractiveOn } from "./button-reply-flow";
+import { BUTTON_OUTPUT_PREFIX, isMetaInteractiveOn } from "./button-reply-flow";
 import {
   diagnoseFlow,
   indexFlowDiagnostics,
@@ -20,11 +21,6 @@ export interface SavedMenuContent {
   id: string;
   bodyText?: unknown;
   buttons?: unknown;
-}
-
-function savedMenuIdOf(nodeData: Record<string, unknown> | undefined): string | null {
-  const payload = (nodeData?.action as { payload?: { mode?: unknown; presetId?: unknown } } | undefined)?.payload;
-  return payload?.mode === "preset" && typeof payload.presetId === "string" ? payload.presetId : null;
 }
 
 export function collectFlowProblems(
@@ -72,8 +68,31 @@ export function collectFlowProblems(
       },
     ];
   });
+  // Ligação saindo de uma opção que o menu salvo não tem mais (spec 0098, RF-9). Só com os menus em
+  // mãos: sem eles não dá para afirmar que a opção sumiu.
+  const missingOptionSteps: FlowDiagnostic[] = nodes.flatMap((node) => {
+    const savedMenuId = savedMenuIdOf(node.data as Record<string, unknown> | undefined);
+    const savedMenu = savedMenuId ? savedMenus.find((menu) => menu.id === savedMenuId) : undefined;
+    if (!savedMenu) return [];
+    const optionIds = new Set((Array.isArray(savedMenu.buttons) ? (savedMenu.buttons as { id?: unknown }[]) : []).map((button) => String(button.id ?? "")));
+    const orphanEdges = edges.filter(
+      (edge) => edge.source === node.id && edge.sourceHandle?.startsWith(BUTTON_OUTPUT_PREFIX) && !optionIds.has(edge.sourceHandle.slice(BUTTON_OUTPUT_PREFIX.length)),
+    );
+    if (orphanEdges.length === 0) return [];
+    return [
+      {
+        nodeId: node.id,
+        edgeIds: orphanEdges.map((edge) => edge.id),
+        severity: "error" as const,
+        code: "MENU_OPTION_MISSING" as const,
+        title: "Esta opção não existe mais no menu",
+        message: "Há um passo ligado a uma opção que saiu do menu salvo. Ele não roda mais.",
+        fixHint: "Apague a ligação ou ligue em outra opção",
+      },
+    ];
+  });
   return indexFlowDiagnostics(
-    [...diagnoseFlow(nodes, edges, { provider, canSendOfficialMenu: isMetaInteractiveOn(), sendsMenuAsNumberedText: isButtonsOfficialOnly() }), ...incompleteSteps, ...placeholderSteps],
+    [...diagnoseFlow(nodes, edges, { provider, canSendOfficialMenu: isMetaInteractiveOn(), sendsMenuAsNumberedText: isButtonsOfficialOnly() }), ...incompleteSteps, ...placeholderSteps, ...missingOptionSteps],
     edges,
   );
 }

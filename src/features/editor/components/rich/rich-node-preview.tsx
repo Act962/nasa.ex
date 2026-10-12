@@ -108,7 +108,10 @@ export function RichNodePreview({
   description,
   icon: Icon,
   isUndelivered,
+  optionOutputIds,
 }: {
+  /** Saídas por opção do menu salvo (spec 0098): só o editor passa; no Mapa o quadro é só leitura. */
+  optionOutputIds?: (string | null)[];
   nodeType: string;
   data: unknown;
   name: string;
@@ -156,6 +159,7 @@ export function RichNodePreview({
         message={toPhoneMessage(nodeType, config, presetById)}
         isUndelivered={isUndelivered}
         channelLabel={describeChannel(instance)}
+        optionOutputIds={optionOutputIds}
       />
     );
   }

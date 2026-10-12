@@ -2,6 +2,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { makeSendButtonsTool } from "../server/tools/send-buttons";
 import type { AgentContext } from "./context";
+import { dispatchMenuOptionBranches } from "./menu-option-dispatch";
 import { findTopicAnswer, isTopicOptionId, topicAnswerBody } from "./topic-menu";
 
 // Clique numa pergunta do menu de um assunto (spec 0096): o código responde com o texto do roteiro e
@@ -26,6 +27,16 @@ export async function handleTopicMenu(ctx: AgentContext, inboundMessageId: strin
     execute: (input: { presetId: string }, options: { toolCallId: string; messages: [] }) => Promise<{ ok?: boolean }>;
   };
   const sent = await sendMenu.execute({ presetId: answerMenu.id }, { toolCallId: `topic-menu-${Date.now()}`, messages: [] });
+  // Passos ligados a esta opção no fluxo (spec 0098) rodam depois da resposta. Falha neles não desfaz a resposta.
+  if (sent.ok === true) {
+    await dispatchMenuOptionBranches({
+      trackingId: ctx.trackingId,
+      organizationId: ctx.organization.id,
+      leadId: ctx.lead.id,
+      menuId: match.preset.id,
+      optionId: replyId,
+    }).catch((error: unknown) => console.error("[topic-menu] passos da opção não iniciados", error));
+  }
   // Se o menu não saiu (limite do canal, por exemplo), a assistente responde.
   return { handled: sent.ok === true };
 }

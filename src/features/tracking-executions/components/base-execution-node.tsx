@@ -19,6 +19,7 @@ import {
 import { PlusIcon, type LucideIcon } from "lucide-react";
 import { createId } from "@paralleldrive/cuid2";
 import { memo, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useParams } from "next/navigation";
 import { WorkflowNode } from "@/components/workflow-node";
 import { BaseNode, BaseNodeContent } from "@/components/react-flow/base-node";
 import { validateNode } from "@/features/workflows/lib/validate-node";
@@ -37,6 +38,8 @@ import { nextSide, readNodeSides, toPosition } from "@/features/editor/lib/node-
 import { formatWaitLabel } from "@/features/editor/lib/wait-label";
 import { cn } from "@/lib/utils";
 import { NO_CLICK_OUTPUT, buttonReplyOutputs } from "@/features/workflows/lib/button-reply-flow";
+import { menuOptionOutputIdsByRow, menuOptionOutputs } from "@/features/workflows/lib/menu-option-outputs";
+import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-button-presets";
 import { ButtonHandle } from "@/components/react-flow/button-handle";
 import { AddNextNodeButton } from "@/features/editor/components/add-next-node-button";
 
@@ -89,6 +92,12 @@ export const BaseExecutionNode = memo(
     const isRichView = viewMode === "rich";
     const isReadOnly = useAtomValue(editorReadOnlyAtom);
     const replyOutputs = useMemo(() => buttonReplyOutputs(nodeData), [nodeData]);
+    // Menu salvo: uma saída por opção, além da saída de sempre (spec 0098).
+    const { trackingId } = useParams<{ trackingId: string }>();
+    const { presets: savedMenus } = useAiButtonPresets(trackingId ?? "");
+    const optionOutputs = useMemo(() => (nodeType === "SEND_MESSAGE" ? menuOptionOutputs(nodeData, savedMenus) : null), [nodeType, nodeData, savedMenus]);
+    const optionOutputIds = useMemo(() => (nodeType === "SEND_MESSAGE" ? (menuOptionOutputIdsByRow(nodeData, savedMenus) ?? undefined) : undefined), [nodeType, nodeData, savedMenus]);
+    const optionOutputsSignature = optionOutputIds?.join("|") ?? "";
     // O contorno tracejado faz o papel da borda nas duas visões; do andamento só fica o que está acontecendo agora.
     const runStatus = status === "loading" || status === "success" ? status : "initial";
     const connectionHover = useAtomValue(connectionHoverAtom);
@@ -97,6 +106,10 @@ export const BaseExecutionNode = memo(
     const isBlockedByFlowProblem = useIsNodeBlockedByFlowProblem(id);
     const { inputSide, outputSide } = readNodeSides(nodeData);
     const updateNodeInternals = useUpdateNodeInternals();
+    // As saídas por opção chegam depois dos menus carregarem: o React Flow precisa medir de novo.
+    useEffect(() => {
+      updateNodeInternals(id);
+    }, [optionOutputsSignature, isRichView, id, updateNodeInternals]);
     const changeSide = (end: "inputSide" | "outputSide") => {
       const sides = readNodeSides(nodeData);
       const changedSide = end === "inputSide" ? nextSide(sides.inputSide, sides.outputSide) : nextSide(sides.outputSide, sides.inputSide);
@@ -250,7 +263,7 @@ export const BaseExecutionNode = memo(
               )}
               {isRichView && flowNotice && <FlowNoticeBadge notice={flowNotice} onFix={isReadOnly ? undefined : onSettings} />}
               {showsRichPreview && nodeType ? (
-                <RichNodePreview nodeType={nodeType} data={nodeData} name={name} description={description} icon={Icon} isUndelivered={hasFlowError} />
+                <RichNodePreview nodeType={nodeType} data={nodeData} name={name} description={description} icon={Icon} isUndelivered={hasFlowError} optionOutputIds={optionOutputIds} />
               ) : !isRichView && nodeType && hasIconGlyph(nodeType) ? (
                 <IconNodeGlyph nodeType={nodeType} data={nodeData} />
               ) : typeof Icon === "string" ? (
@@ -294,6 +307,20 @@ export const BaseExecutionNode = memo(
                   );
                 })
               ) : (
+                <>
+                {/* Na visão de ícones não há a lista de opções: as saídas ficam empilhadas na lateral. */}
+                {!showsRichPreview &&
+                  optionOutputs?.map((optionOutput, outputIndex) => (
+                    <BaseHandle
+                      key={optionOutput.id}
+                      id={optionOutput.id}
+                      type="source"
+                      position={Position.Right}
+                      title={`Quando o cliente toca em "${optionOutput.label}"`}
+                      className="!border-info !bg-background"
+                      style={{ top: `${((outputIndex + 1) / (optionOutputs.length + 1)) * 100}%` }}
+                    />
+                  ))}
                 <NodeSelector
                   open={openSelector}
                   onOpenChange={setOpenSelector}
@@ -308,6 +335,7 @@ export const BaseExecutionNode = memo(
                     <AddNextNodeButton />
                   </ButtonHandle>
                 </NodeSelector>
+                </>
               )}
             </BaseNodeContent>
           </BaseNode>

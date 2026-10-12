@@ -91,6 +91,10 @@ export const GUIDE_ANCHORS = {
     id: "workflows.attendance-template",
     description: "Botão \"Criar modelo de atendimento\" na página de fluxos de um funil, que cria um exemplo de atendimento por menu, desligado",
   },
+  workflowMenuOptionOutputs: {
+    id: "workflows.menu-option-outputs",
+    description: "Lista de opções do menu salvo dentro do quadro Enviar Mensagem, no editor de um fluxo: cada pergunta tem um ponto de saída à direita para ligar um passo",
+  },
   astroFlowEditButton: {
     id: "automations-hub.astro-flow-edit-button",
     description: "Botão \"Pedir ao ASTRO\" no editor de um fluxo, que abre o campo para pedir uma mudança naquele fluxo",

@@ -11,10 +11,11 @@ export const OFFICIAL_ONLY_MESSAGE = "Botões e listas só podem ser enviados em
 export const NUMBERED_MENU_NOTICE = "Este funil usa um número fora da API oficial: os menus saem como texto numerado, e o cliente responde com o número da opção.";
 const REPLY_INSTRUCTION = "Responda com o número da opção.";
 
-export interface NumberedOption {
+// Alias, não interface: vai para `Message.metadata`, e o Prisma só aceita como JSON um tipo com chaves abertas.
+export type NumberedOption = {
   id: string;
   title: string;
-}
+};
 
 /** O texto que vai ao cliente no lugar dos botões. */
 export function formatNumberedMenu(params: { body: string; options: NumberedOption[]; footer?: string | null }): string {

@@ -9,6 +9,7 @@
  * `BezierEdge` nativo, com label opcional pro `fromOutput` semântico
  * (loop/done/true/false/accepted/etc.) preservado em `edge.data`.
  */
+import { BUTTON_OUTPUT_PREFIX } from "@/features/workflows/lib/button-reply-flow";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -109,12 +110,10 @@ export function ValidatedEdge({
 
   // Label semântico vindo de data.fromOutput (loop/done/true/etc) ou
   // do label direto da edge. Preserva o texto que já existia.
-  const visibleLabel =
-    label ??
-    ((data as { fromOutput?: string } | undefined)?.fromOutput &&
-    (data as { fromOutput?: string }).fromOutput !== "main"
-      ? (data as { fromOutput?: string }).fromOutput
-      : undefined);
+  const outputName = (data as { fromOutput?: string } | undefined)?.fromOutput;
+  // Saída de uma opção de menu: o nome técnico ("btn:…") não diz nada a quem lê o fluxo.
+  const outputLabel = outputName?.startsWith(BUTTON_OUTPUT_PREFIX) ? "ao tocar" : outputName;
+  const visibleLabel = label ?? (outputLabel && outputLabel !== "main" ? outputLabel : undefined);
 
   // Resolve estilo final levando em conta step-by-step
   let stroke: string | undefined;
