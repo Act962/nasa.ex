@@ -1,7 +1,7 @@
 import { guideSelector } from "./anchors";
 import type { GuideDef } from "./types";
 import type { TourStep } from "@/features/tour/types";
-import { TRACKING_GUIDES } from "./guides/tracking";
+import { TRACKING_FLOW_MESSAGE_GUIDES, TRACKING_GUIDES } from "./guides/tracking";
 import { CHAT_GUIDES } from "./guides/chat";
 import { AGENDA_GUIDES } from "./guides/agenda";
 import { FORGE_GUIDES } from "./guides/forge";
@@ -32,6 +32,8 @@ export const ASTRO_GUIDES: GuideDef[] = [
   ...AGENDA_GUIDES,
   // Antes de Campanhas: "campanha de tráfego" é trafeGO, não disparo em massa.
   ...TRAFEGO_GUIDES,
+  // Antes de Campanhas e do Chat: "mensagem para grupo de WhatsApp" é um passo de fluxo.
+  ...TRACKING_FLOW_MESSAGE_GUIDES,
   // Antes do Chat: "mensagem em massa" é campanha, não conversa.
   ...CAMPANHAS_GUIDES,
   // Antes de Integrações: "conectar o Instagram" é o Comments.
