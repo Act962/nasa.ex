@@ -103,6 +103,10 @@ export const GUIDE_ANCHORS = {
     id: "workflows.consent-step",
     description: "Janela de configuração do passo \"Pedir aceite\" de um fluxo: texto dos termos, link da política e os dois botões",
   },
+  workflowGroupMessageStep: {
+    id: "workflows.group-message-step",
+    description: "Janela de configuração do passo \"Enviar para grupo\" de um fluxo: grupo de WhatsApp que recebe e o texto, com os números do dia",
+  },
   workflowFormChatStep: {
     id: "workflows.form-chat-step",
     description: "Janela de configuração do passo \"Preencher formulário pela conversa\": formulário do Órbita Forms e os campos que serão perguntados no WhatsApp",

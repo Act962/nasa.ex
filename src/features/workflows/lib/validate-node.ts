@@ -191,6 +191,10 @@ export function validateNode(
       } else if (t === "CONSENT") {
         if (!hasNonEmptyString(payload.termsText)) errs.push("Escreva o texto dos termos");
         if (!hasNonEmptyString(payload.acceptLabel) || !hasNonEmptyString(payload.refuseLabel)) errs.push("Informe o texto dos dois botões");
+      } else if (t === "GROUP_TEXT") {
+        if (!hasNonEmptyString(payload.groupJid)) errs.push("Escolha o grupo que vai receber a mensagem");
+        if (!hasNonEmptyString(payload.trackingId)) errs.push("Escolha o funil cujo número envia");
+        if (!hasNonEmptyString(payload.message)) errs.push("Escreva a mensagem que será enviada");
       } else if (t === "FORM_CHAT") {
         if (!hasNonEmptyString(payload.formId)) errs.push("Escolha o formulário");
         if (!Array.isArray(payload.fieldIds) || payload.fieldIds.length === 0) errs.push("Marque ao menos um campo para perguntar");

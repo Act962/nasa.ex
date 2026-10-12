@@ -14,6 +14,8 @@
 import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import { DEFAULT_REPLY_TIMEOUT_MINUTES, RESUME_BY_BUTTON_REPLY, isMetaInteractiveOn } from "../button-reply-flow";
 import { CONSENT_TYPE, FORM_CHAT_TYPE } from "../conversation-steps";
+import { GROUP_MESSAGE_TYPE } from "../group-message";
+import { runGroupMessageStep } from "./group-message";
 import "server-only";
 import OpenAI from "openai";
 import { NonRetriableError } from "inngest";
@@ -438,6 +440,9 @@ export const sendMessageExecutor: NodeExecutor = async ({
       : action) ?? {};
 
   const payloadType = String(payload.type ?? "TEXT").toUpperCase();
+
+  // Envio para grupo (spec 0101): não depende de lead, então roda também em fluxo agendado.
+  if (payloadType === GROUP_MESSAGE_TYPE) return runGroupMessageStep({ payload, context, dryRun });
 
   const leadId = String(
     (context.lead as Record<string, unknown> | undefined)?.id ?? "",
