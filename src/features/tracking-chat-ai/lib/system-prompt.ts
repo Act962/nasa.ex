@@ -29,6 +29,8 @@ interface BuildPromptArgs {
   settings: AiSettings;
   orgName: string;
   leadName: string | null;
+  /** O contato já tem e-mail cadastrado: a assistente não pede de novo (spec 0100, RF-11). */
+  hasLeadEmail?: boolean;
   currentTags: CurrentLeadTag[];
   availableTags: AvailableTag[];
   availableButtonPresets: AvailableButtonPreset[];
@@ -42,6 +44,7 @@ export function buildSystemPrompt({
   settings,
   orgName,
   leadName,
+  hasLeadEmail,
   currentTags,
   availableTags,
   availableButtonPresets,
@@ -75,6 +78,7 @@ quem assume a partir daí é o atendente humano.`;
   return [
     `Você é ${assistantName} da empresa "${orgName}".`,
     leadName ? `Você está conversando com ${leadName}.` : "",
+    hasLeadEmail ? "O e-mail deste cliente já está cadastrado: não peça o e-mail de novo." : "",
     "",
     settings.prompt.trim(),
     "",

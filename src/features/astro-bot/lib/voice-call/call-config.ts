@@ -5,7 +5,18 @@ import { ASTRO_READ_DENIAL } from "@/features/astro/lib/permission-denial";
 // Chamada de voz do Astro pelo WhatsApp (spec 0086): liga/desliga e a sessão de voz.
 
 export const MAX_CALL_MS = 10 * 60_000;
-export const CALL_WARNING_MS = 9 * 60_000;
+const WARNING_LEAD_MS = 60_000;
+
+/**
+ * Quando a chamada encerra e quando sai o aviso (spec 0100, RF-6). Sem limite próprio (equipe) ou com
+ * valor inválido vale o teto. O aviso sai um minuto antes; em chamada de um minuto, na metade.
+ */
+export function resolveCallLimit(requestedMaxMs?: number | null): { maxMs: number; warningMs: number; warningLabel: string } {
+  const isValid = typeof requestedMaxMs === "number" && Number.isFinite(requestedMaxMs) && requestedMaxMs >= WARNING_LEAD_MS && requestedMaxMs <= MAX_CALL_MS;
+  const maxMs = isValid ? requestedMaxMs : MAX_CALL_MS;
+  if (maxMs > WARNING_LEAD_MS) return { maxMs, warningMs: maxMs - WARNING_LEAD_MS, warningLabel: "um minuto" };
+  return { maxMs, warningMs: maxMs / 2, warningLabel: "trinta segundos" };
+}
 const CALL_VOICE = "cedar";
 
 /** Desligado por padrão: só atende com a função ligada E o tracking na lista (RF-2, RS-3). */

@@ -17,10 +17,9 @@ import { isTrafegoOrganization } from "../stars-billing";
 import { TrackingProviderBotChannel } from "../tracking-provider-channel";
 import { canBeSpoken, toSpeakableText } from "../voice/speakable-text";
 import {
-  CALL_WARNING_MS,
+  resolveCallLimit,
   LISTENING_TURN_DETECTION,
   WAITING_PHRASES,
-  MAX_CALL_MS,
   buildCallSessionConfig,
   buildGreetingInstructions,
 } from "./call-config";
@@ -126,6 +125,8 @@ export interface ClientCallPersona {
   callerKey: string;
   callerName: string | null;
   greeting: string;
+  /** Duração máxima escolhida pela empresa para a chamada do cliente (spec 0100, RF-5). */
+  maxCallMs: number;
   sessionConfig: Record<string, unknown> & { model: string };
   runTool: (toolName: string, rawArguments: string) => Promise<string>;
 }
@@ -812,14 +813,15 @@ export async function answerCall(params: {
     void endCall(metaCallId, { terminateOnMeta: true, reason: "controle_erro" });
   });
 
+  const callLimit = resolveCallLimit(client?.maxCallMs);
   call.timers.push(
     setTimeout(() => {
       sendToRealtime(call, {
         type: "response.create",
-        response: { instructions: "Avise em uma frase que a ligação vai encerrar em um minuto e pergunte se falta algo." },
+        response: { instructions: `Avise em uma frase que a ligação vai encerrar em ${callLimit.warningLabel} e pergunte se falta algo.` },
       });
-    }, CALL_WARNING_MS),
-    setTimeout(() => void endCall(metaCallId, { terminateOnMeta: true, reason: "limite_de_tempo" }), MAX_CALL_MS),
+    }, callLimit.warningMs),
+    setTimeout(() => void endCall(metaCallId, { terminateOnMeta: true, reason: "limite_de_tempo" }), callLimit.maxMs),
   );
   console.log(`[astro-bot/chamada] atendida call=${metaCallId} quem=${binding ? `equipe:${binding.id}` : call.callerKey}`);
   return { answered: true };

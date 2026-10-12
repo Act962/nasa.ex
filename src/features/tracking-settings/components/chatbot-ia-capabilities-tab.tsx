@@ -54,6 +54,7 @@ interface NamedOption {
 }
 
 const MAX_COMPANY_LINKS = 5;
+const VOICE_CALL_MINUTE_OPTIONS = [1, 2, 3, 5, 10] as const;
 
 function CheckList({
   options,
@@ -245,7 +246,23 @@ function CapabilitiesForm({
           description="O cliente liga pelo WhatsApp e o Astro atende falando, com as mesmas opções ligadas nesta tela. A ligação fica transcrita na conversa. Só em número da API oficial com chamadas ativas; cobra Stars por minuto."
           isEnabled={capabilities.voiceCall}
           onToggle={(voiceCall) => setCapabilities({ ...capabilities, voiceCall })}
-        />
+        >
+          <p className="mb-2 text-xs text-muted-foreground">Duração máxima de cada ligação. O Astro avisa pouco antes de encerrar.</p>
+          <div className="flex flex-wrap gap-2">
+            {VOICE_CALL_MINUTE_OPTIONS.map((minutes) => (
+              <Button
+                key={minutes}
+                type="button"
+                size="sm"
+                variant={capabilities.voiceCallMaxMinutes === minutes ? "default" : "outline"}
+                className="rounded-full"
+                onClick={() => setCapabilities({ ...capabilities, voiceCallMaxMinutes: minutes })}
+              >
+                {minutes} min
+              </Button>
+            ))}
+          </div>
+        </CapabilityRow>
       </section>
 
       <section>
@@ -283,7 +300,7 @@ function CapabilitiesForm({
                 className="rounded-full"
                 onClick={() => setCapabilities({ ...capabilities, reminder: { ...capabilities.reminder, hoursBefore } })}
               >
-                {hoursBefore === 24 ? "1 dia antes" : hoursBefore === 48 ? "2 dias antes" : `${hoursBefore} horas antes`}
+                {hoursBefore === 0.5 ? "30 min antes" : hoursBefore === 24 ? "1 dia antes" : hoursBefore === 48 ? "2 dias antes" : `${hoursBefore} horas antes`}
               </Button>
             ))}
           </div>

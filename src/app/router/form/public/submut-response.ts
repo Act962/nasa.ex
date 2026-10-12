@@ -22,6 +22,7 @@ import {
   publishLeadMoved,
 } from "@/features/leads/realtime/publish";
 import { extractResponseTagIds } from "@/features/form/lib/apply-response-tags";
+import { dispatchFormAnswerTagFlows } from "@/features/form/lib/dispatch-answer-tag-flows";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 import { generateActionsForResponse } from "@/features/form/server/lib/generate-actions-for-response";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
@@ -319,10 +320,16 @@ export const submitResponse = base
             trackingParams,
           });
 
+          // Contato que já existia sem e-mail guarda o e-mail informado no formulário (spec 0100, RF-11).
+          const filledEmail = placement.outcome !== "created" && !placement.lead.email?.trim() && userEmail ? userEmail : null;
+          if (filledEmail) {
+            await tx.lead.update({ where: { id: placement.lead.id }, data: { email: filledEmail } });
+          }
+
           leadId = placement.lead.id;
           outLeadId = placement.lead.id;
           outLeadName = placement.lead.name;
-          outLeadEmail = placement.lead.email;
+          outLeadEmail = filledEmail ?? placement.lead.email;
           outLeadPhone = placement.lead.phone;
           outLeadPublicToken = placement.lead.publicToken;
 
@@ -543,6 +550,15 @@ export const submitResponse = base
       // FK — silenciosamente, porque trackLeadEvent nunca repropaga.
       if (pendingJourneyEvents.length > 0) {
         await Promise.all(pendingJourneyEvents.map((event) => trackLeadEvent(event)));
+      }
+
+      // Tags das respostas disparam os fluxos "Lead com Tag" (spec 0100, RF-2). Pós-commit e best-effort:
+      // falha aqui não invalida o envio já gravado.
+      const taggedLeadId = outLeadId as string | null;
+      if (taggedLeadId) {
+        await dispatchFormAnswerTagFlows({ leadId: taggedLeadId, answerTagIds: tagIds }).catch((dispatchError: unknown) =>
+          console.error("[form/submit] disparo dos fluxos por tag falhou:", dispatchError),
+        );
       }
 
       // Realtime do board: lead novo entrou no tracking → board refetcha a

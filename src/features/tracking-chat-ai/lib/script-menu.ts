@@ -13,6 +13,8 @@ import type { AgentContext } from "./context";
 const FRESH_CONTACT_HOURS = 12;
 /** Saudação curta ou pedido do menu: o menu volta mesmo no meio da conversa. */
 const ASKS_FOR_MENU = /^(oi+|ola|opa|e ?ai|bom dia|boa tarde|boa noite|menu|inicio|comecar|opcoes)\b[\s!.,?]*$/;
+/** Pedido com todas as letras: o menu volta sempre, mesmo logo depois de outro (spec 0100, RF-4). */
+const EXPLICIT_MENU_REQUEST = /^(menu|inicio|comecar|opcoes)\b[\s!.,?]*$/;
 const MENU_COOLDOWN_MS = 2 * 60_000;
 
 function normalize(text: string): string {
@@ -79,7 +81,9 @@ export async function handleScriptMenu(ctx: AgentContext, inboundMessageId: stri
     return { handled: await didClickStartFlow(ctx, inbound.createdAt) };
   }
 
-  const asksForMenu = ASKS_FOR_MENU.test(normalize(inbound.body ?? ""));
+  const normalizedBody = normalize(inbound.body ?? "");
+  const asksForMenu = ASKS_FOR_MENU.test(normalizedBody);
+  const isExplicitMenuRequest = EXPLICIT_MENU_REQUEST.test(normalizedBody);
   const earlierMessage = await prisma.message.findFirst({
     where: {
       conversationId: ctx.conversation.id,
@@ -89,7 +93,7 @@ export async function handleScriptMenu(ctx: AgentContext, inboundMessageId: stri
     select: { id: true },
   });
   const isOngoingConversation = Boolean(earlierMessage);
-  if (asksForMenu && !isBackToMenuClick) {
+  if (asksForMenu && !isExplicitMenuRequest && !isBackToMenuClick) {
     // Dois "oi" seguidos não geram dois menus.
     const recentMenu = await prisma.message.findFirst({
       where: {

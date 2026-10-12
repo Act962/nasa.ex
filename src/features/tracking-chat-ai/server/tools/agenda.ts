@@ -8,6 +8,12 @@ import { inngest } from "@/inngest/client";
 import { listAgendaFreeSlots } from "@/features/public-booking-chat/lib/booking-agent";
 import { buildAppointmentPublicUrl } from "@/features/astro/actions/agenda/schedule-steps";
 import {
+  cancelGoogleEventForAppointment,
+  createGoogleEventForAppointment,
+  moveGoogleEventForAppointment,
+  type GoogleEventResult,
+} from "@/features/agenda/lib/google-calendar-event";
+import {
   cancelAppointmentReminder,
   createAppointmentReminder,
   stopLeadReminders,
@@ -44,6 +50,27 @@ export interface LeadAgendaScope {
   /** Lembrete antes do horário (Parte E). Ausente = sem lembrete. */
   reminderScope?: AppointmentReminderScope;
 }
+
+/** Evento no Google Agenda é complemento (spec 0100, RF-13): empresa sem Google conectado agenda normalmente. */
+function googleEventScope(scope: LeadAgendaScope, appointmentId: string) {
+  return { appointmentId, organizationId: scope.organizationId, userId: scope.reminderScope?.configuredByUserId ?? null };
+}
+
+async function syncGoogleEvent(run: () => Promise<GoogleEventResult>): Promise<string | null> {
+  try {
+    const synced = await run();
+    if (!synced.ok) {
+      if (synced.reason === "google_refused" || synced.reason === "refresh_failed") console.warn("[tracking-chat-ai/agenda] Google Agenda falhou:", synced.message);
+      return null;
+    }
+    return synced.meetLink;
+  } catch (error: unknown) {
+    console.warn("[tracking-chat-ai/agenda] Google Agenda falhou", error);
+    return null;
+  }
+}
+
+const MEETING_LINK_NOTE = "Reunião on-line por vídeo. Envie o meetingLink ao cliente junto com a confirmação.";
 
 /** Lembrete é complemento: falha nele nunca desfaz o agendamento. */
 async function syncReminder(run: () => Promise<unknown>): Promise<void> {
@@ -176,7 +203,8 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
             endsAt: endsAt.toDate(),
             title: `Agendamento: ${scope.leadName ?? "Cliente"}`,
             notes: notes ?? null,
-            status: "PENDING",
+            // O cliente confirmou agenda, data e horário na conversa antes desta chamada (spec 0100, RF-12).
+            status: "CONFIRMED",
           },
           select: { id: true, startsAt: true, agenda: { select: { name: true } } },
         });
@@ -184,13 +212,25 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
           .send({ name: "appointment/booking.notification", data: { appointmentId: appointment.id, type: "created" } })
           .catch((error: unknown) => console.warn("[tracking-chat-ai/agenda] aviso de agendamento falhou", error));
         await requestLeadMetricsRecompute(scope.leadId);
+        const reminderSettings = scope.reminderScope?.reminder;
+        const meetingLink = await syncGoogleEvent(() =>
+          createGoogleEventForAppointment({
+            ...googleEventScope(scope, appointment.id),
+            reminderMinutes: reminderSettings?.isEnabled ? reminderSettings.hoursBefore * 60 : null,
+          }),
+        );
         if (scope.reminderScope) {
           const reminderScope = scope.reminderScope;
           await syncReminder(() =>
-            createAppointmentReminder(reminderScope, { startsAt: appointment.startsAt, agendaName: appointment.agenda.name }),
+            createAppointmentReminder(reminderScope, { startsAt: appointment.startsAt, agendaName: appointment.agenda.name, meetingLink }),
           );
         }
-        return { success: true, ...describeAppointment(appointment), link: buildAppointmentPublicUrl(appointment.id) };
+        return {
+          success: true,
+          ...describeAppointment(appointment),
+          link: buildAppointmentPublicUrl(appointment.id),
+          ...(meetingLink ? { meetingLink, note: MEETING_LINK_NOTE } : {}),
+        };
       },
     }),
 
@@ -229,6 +269,9 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
           .send({ name: "appointment/booking.notification", data: { appointmentId: appointment.id, type: "cancelled" } })
           .catch((error: unknown) => console.warn("[tracking-chat-ai/agenda] aviso de cancelamento falhou", error));
         await requestLeadMetricsRecompute(scope.leadId);
+        await cancelGoogleEventForAppointment(googleEventScope(scope, appointment.id)).catch((error: unknown) =>
+          console.warn("[tracking-chat-ai/agenda] cancelamento no Google Agenda falhou", error),
+        );
         if (scope.reminderScope) {
           const reminderScope = scope.reminderScope;
           await syncReminder(() => cancelAppointmentReminder(reminderScope, appointment.startsAt));
@@ -272,14 +315,20 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
           data: { startsAt: startsAt.toDate(), endsAt: endsAt.toDate() },
           select: { id: true, startsAt: true, agenda: { select: { name: true } } },
         });
+        const meetingLink = await syncGoogleEvent(() => moveGoogleEventForAppointment(googleEventScope(scope, updated.id)));
         if (scope.reminderScope) {
           const reminderScope = scope.reminderScope;
           await syncReminder(async () => {
             await cancelAppointmentReminder(reminderScope, appointment.startsAt);
-            await createAppointmentReminder(reminderScope, { startsAt: updated.startsAt, agendaName: updated.agenda.name });
+            await createAppointmentReminder(reminderScope, { startsAt: updated.startsAt, agendaName: updated.agenda.name, meetingLink });
           });
         }
-        return { success: true, ...describeAppointment(updated), link: buildAppointmentPublicUrl(updated.id) };
+        return {
+          success: true,
+          ...describeAppointment(updated),
+          link: buildAppointmentPublicUrl(updated.id),
+          ...(meetingLink ? { meetingLink, note: MEETING_LINK_NOTE } : {}),
+        };
       },
     }),
   };
