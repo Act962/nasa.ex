@@ -2,6 +2,7 @@
 
 import { authClient } from "@/lib/auth-client";
 import { NotificationPreferencesPanel } from "@/features/settings/components/notification-preferences-panel";
+import { RecordNoticePreferences } from "@/features/form-records/components/record-notice-preferences";
 
 /**
  * O que o ASTRO te manda no WhatsApp (spec 0029).
@@ -24,6 +25,7 @@ export function WhatsAppNotificationPreferences() {
         </p>
       </div>
       <NotificationPreferencesPanel organizationId={organizationId} channels={["whatsApp"]} />
+      <RecordNoticePreferences />
     </section>
   );
 }

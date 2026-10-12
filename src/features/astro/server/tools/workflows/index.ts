@@ -67,6 +67,7 @@ const SuggestedTagSchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional(),
   reason: z.string().optional(),
+  aiDescription: z.string().max(300).optional(),
 });
 
 export const GeneratedBlueprintSchema = z.object({
@@ -145,7 +146,8 @@ export function buildWorkflowTools(
     // ── 3. Gera workflow inteiro a partir de intent natural ─────────
     generate_workflow_from_intent: tool({
       description:
-        "Gera UM workflow customizado a partir de uma descrição em linguagem natural. LLM produz blueprint estruturado (nodes + edges + tags sugeridas + nós em vermelho onde falta decisão). Workflow nasce INATIVO no canvas pra user revisar. Use quando nenhum preset casa exatamente. Não use pra mudanças em workflow EXISTENTE (use addNode/connectNodes pra isso).",
+        "Gera UM workflow customizado a partir de uma descrição em linguagem natural. LLM produz blueprint estruturado (nodes + edges + tags sugeridas + nós em vermelho onde falta decisão). Workflow nasce INATIVO no canvas pra user revisar. Use quando nenhum preset casa exatamente. Não use pra mudanças em workflow EXISTENTE (use addNode/connectNodes pra isso). " +
+        "ATENDIMENTO DE UM TIPO DE NEGÓCIO (spec 0085): quando o usuário perguntar qual o melhor fluxo de atendimento para um ramo (clínica, centro automotivo, autônomo de ar condicionado…), NÃO chame esta ferramenta de imediato. Primeiro responda em texto com um roteiro curto: (1) os interesses do cliente a reconhecer, cada um com a tag e a frase de quando aplicar; (2) o que cada fluxo envia quando a tag entra (menu de serviços, caminho de agendamento, lista de parceiros, formulário); (3) o que ele vai precisar revisar (agenda, formulário, textos, contatos e códigos de parceiros). Pergunte em qual tracking criar e se pode criar. Só depois do sim, chame esta ferramenta UMA VEZ POR FLUXO, com o intent completo daquele fluxo. Tudo nasce desligado para revisão.",
       inputSchema: z.object({
         intent: z
           .string()
@@ -223,12 +225,16 @@ export function buildWorkflowTools(
               name: t.name,
               slug: t.slug,
               reason: t.reason,
+              // Com descrição, a IA do atendimento aplica a tag sozinha e este fluxo dispara (spec 0085).
+              aiDescription: t.aiDescription ?? null,
             })),
             tagsReused: tagResult.reused.map((t) => ({
               name: t.name,
               matchedBy: t.matchedBy,
             })),
             needsReviewCount,
+            tagsHint:
+              "No resumo ao usuário, liste cada tag criada e, quando houver, a regra (aiDescription) pela qual a IA do atendimento vai aplicá-la. Diga que ele pode ajustar o texto em Tags.",
             message:
               needsReviewCount > 0
                 ? `Workflow "${blueprint.name}" criado com ${created.nodesCreated} nós e ${needsReviewCount} marcados em VERMELHO pra você revisar (faltam IDs concretos). Abra o canvas pra completar.`

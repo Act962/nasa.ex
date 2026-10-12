@@ -90,6 +90,8 @@ function historyToLines(history: unknown[]): string[] {
     .filter(Boolean);
 }
 
+const AUDIO_LOG_PREFIX = "[áudio]";
+
 export async function handleBotCommand(
   ctx: RouteContext,
   messageText: string,
@@ -101,7 +103,7 @@ export async function handleBotCommand(
   let media = audio ? undefined : ctx.media;
   // Imagem destinada a uma demanda deixa de ser "mídia" e a legenda segue como pedido escrito.
   let hasInboundMedia = Boolean(ctx.media);
-  let loggedText = audio ? "[áudio]" : buildLoggedMessageText(messageText, media);
+  let loggedText = audio ? AUDIO_LOG_PREFIX : buildLoggedMessageText(messageText, media);
   const sessionId = `whatsapp:${binding.id}`;
   const menuContext: AgentContext = {
     userId: binding.userId,
@@ -261,7 +263,7 @@ export async function handleBotCommand(
       });
     }
     messageText = transcription.text;
-    loggedText = `[áudio] ${transcription.text}`;
+    loggedText = `${AUDIO_LOG_PREFIX} ${transcription.text}`;
     stake.starsCharged += transcription.starsCharged;
     const spokenCorrectionReply = await tryWhatsappCorrection({ binding, text: messageText });
     if (spokenCorrectionReply) {
@@ -445,8 +447,10 @@ async function logAndReturn(
   messageText: string,
   result: BotCommandResult,
 ): Promise<BotCommandResult> {
+  // Todo áudio é registrado com o prefixo "[áudio]"; é o que liga a resposta em voz (spec 0083).
+  const wasAudioInput = messageText.startsWith(AUDIO_LOG_PREFIX);
   try {
-    await prisma.whatsappBotCommand.create({
+    const commandLog = await prisma.whatsappBotCommand.create({
       data: {
         bindingId: binding.id,
         organizationId: binding.organizationId,
@@ -457,9 +461,11 @@ async function logAndReturn(
         tokensUsed: result.tokensUsed ?? null,
         starsCharged: result.starsCharged ?? null,
       },
+      select: { id: true },
     });
+    return { ...result, wasAudioInput, commandLogId: commandLog.id };
   } catch (logError) {
     console.warn("[astro-bot/router] log command failed", logError);
   }
-  return result;
+  return { ...result, wasAudioInput };
 }

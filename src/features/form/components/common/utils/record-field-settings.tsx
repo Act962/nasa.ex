@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useBuilderStore } from "@/features/form/context/builder-form-provider";
 import type { FormBlockInstance } from "@/features/form/types";
-import { toFieldKey } from "@/features/form-records/lib/record-fields";
+import { NEXT_DATE_MAX_MONTHS, readNextDateAfterMonths, toFieldKey } from "@/features/form-records/lib/record-fields";
 
 /**
  * Configuração de ficha de um campo (spec 0075, RF-5): o nome-chave liga este
@@ -27,6 +27,8 @@ export function RecordFieldSettings({
     isSearchable?: boolean;
     showInList?: boolean;
     useAsReferenceDate?: boolean;
+    useAsNextDate?: boolean;
+    nextDateAfterMonths?: number;
   };
   const [fieldKeyText, setFieldKeyText] = useState(attributes.fieldKey ?? "");
 
@@ -84,8 +86,42 @@ export function RecordFieldSettings({
             <Switch
               checked={attributes.useAsReferenceDate === true}
               aria-label="Usar como data da ficha"
-              onCheckedChange={(useAsReferenceDate) => commit({ useAsReferenceDate })}
+              onCheckedChange={(useAsReferenceDate) => commit({ useAsReferenceDate, ...(useAsReferenceDate ? { useAsNextDate: false } : {}) })}
             />
+          </div>
+        )}
+        {canBeReferenceDate && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[13px]">Usar como próxima data</span>
+              <Switch
+                checked={attributes.useAsNextDate === true}
+                aria-label="Usar como próxima data"
+                onCheckedChange={(useAsNextDate) => commit({ useAsNextDate, ...(useAsNextDate ? { useAsReferenceDate: false } : {}) })}
+              />
+            </div>
+            <p className="text-[11px] leading-tight text-muted-foreground">
+              Retorno, manutenção, renovação: a data em que este cliente deve ser atendido de novo. O ASTRO lista e avisa por ela.
+            </p>
+            {attributes.useAsNextDate === true && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13px]">Se ficar em branco, somar à data da ficha</span>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={NEXT_DATE_MAX_MONTHS}
+                    inputMode="numeric"
+                    className="h-8 w-16"
+                    aria-label="Meses até a próxima data"
+                    placeholder="—"
+                    value={attributes.nextDateAfterMonths ?? ""}
+                    onChange={(event) => commit({ nextDateAfterMonths: readNextDateAfterMonths(event.target.value) ?? undefined })}
+                  />
+                  <span className="text-[13px] text-muted-foreground">meses</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

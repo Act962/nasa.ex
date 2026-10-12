@@ -106,6 +106,7 @@ export const forwardMessageHandler = base
         await chargeMessageOutbound({
           organizationId: conversation.tracking.organizationId,
           userId: context.user.id,
+          trackingId: conversation.trackingId,
           channel: "whatsapp",
           mediaType: payloadKindToMediaType(input.payload.kind),
         });

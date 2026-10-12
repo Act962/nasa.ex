@@ -129,6 +129,7 @@ export const createTextMessage = base
         await chargeMessageOutbound({
           organizationId,
           userId: context.user.id,
+          trackingId: trackingId,
           channel:
             channel === MessageChannel.INSTAGRAM
               ? "instagram"

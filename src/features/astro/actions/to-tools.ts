@@ -3,6 +3,7 @@ import { tool, type ToolSet } from "ai";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { ASTRO_ACTIONS } from "./registry";
 import { proposeAction } from "./confirmation";
+import { checkAstroPermission } from "./permission-gate";
 import type { AstroActionResult } from "./types";
 
 // Adaptador registro → ferramentas do orquestrador (spec 0023, RF-2).
@@ -33,6 +34,8 @@ export function buildActionRegistryTools(ctx: AgentContext): ToolSet {
       description: action.description,
       inputSchema: action.input,
       execute: async (input) => {
+        const allowed = await checkAstroPermission({ ctx, ...action.permission });
+        if (!allowed.ok) return { status: "error", title: "Sem permissão", description: allowed.error };
         // RF-8: escrita que pede confirmação devolve o cartão e para aqui.
         // Quem grava é `confirm_action`, depois do "sim" do usuário.
         if (action.requiresConfirmation) {

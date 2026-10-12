@@ -3,7 +3,8 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { normalizeSearchText } from "@/features/form-records/lib/record-fields";
+import { normalizeSearchText, readNextDateLabel } from "@/features/form-records/lib/record-fields";
+import { NEXT_DUE_FILTERS, nextDueBounds } from "@/features/form-records/lib/next-due-window";
 import { summarizeRecords, toDateRangeBounds } from "@/features/form-records/lib/records-summary";
 import { flattenBlocks } from "@/features/form-records/lib/response-values";
 
@@ -21,6 +22,8 @@ function readListColumns(jsonBlock: unknown): { key: string; label: string }[] {
   for (const block of flattenBlocks(jsonBlock)) {
     const attributes = block.attributes ?? {};
     if (attributes.showInList !== true || typeof attributes.fieldKey !== "string") continue;
+    // O campo de próxima data já tem coluna própria, com a distância até o prazo.
+    if (attributes.useAsNextDate === true) continue;
     if (columns.some((column) => column.key === attributes.fieldKey)) continue;
     columns.push({
       key: attributes.fieldKey,
@@ -54,6 +57,8 @@ export const listFormRecords = base
       leadId: z.string().optional(),
       leadMemberId: z.string().optional(),
       search: z.string().trim().max(80).optional(),
+      /** Filtro pela próxima data da ficha (spec 0081, RF-5). */
+      nextDue: z.enum(NEXT_DUE_FILTERS).optional(),
       page: z.coerce.number().int().positive().default(1),
     }),
   )
@@ -71,12 +76,16 @@ export const listFormRecords = base
           /** Vinculado do lead a quem a ficha se refere (spec 0076). */
           leadMemberName: z.string().nullable(),
           referenceDate: z.string(),
+          /** Próxima data desta ficha; só a mais recente de cada item tem. */
+          nextDueAt: z.string().nullable(),
           usageTotalCents: z.number(),
           isFinalized: z.boolean(),
           isClosed: z.boolean(),
           values: z.record(z.string(), z.string()),
         }),
       ),
+      /** Rótulo do campo marcado como "próxima data" (ex.: "Próximo atendimento"). `null` = o formulário não tem. */
+      nextDateLabel: z.string().nullable(),
       total: z.number(),
       usageSumCents: z.number(),
       pageSize: z.number(),
@@ -121,12 +130,17 @@ export const listFormRecords = base
       ...(input.leadId ? { leadId: input.leadId } : {}),
       ...(input.leadMemberId ? { leadMemberId: input.leadMemberId } : {}),
       ...(input.search ? { searchText: { contains: normalizeSearchText(input.search) } } : {}),
+      ...(input.nextDue ? { nextDueAt: nextDueBounds(input.nextDue) } : {}),
     };
+    // Filtrando por próxima data, a ordem é a do prazo: o que vence antes vem primeiro.
+    const orderBy = input.nextDue
+      ? [{ nextDueAt: "asc" as const }, { createdAt: "desc" as const }]
+      : [{ referenceDate: "desc" as const }, { createdAt: "desc" as const }];
 
     const [records, total, usageSum, periodGroups, leadGroups, memberGroups, summaryRecords] = await Promise.all([
       prisma.formRecord.findMany({
         where,
-        orderBy: [{ referenceDate: "desc" }, { createdAt: "desc" }],
+        orderBy,
         skip: (input.page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
         select: {
@@ -136,6 +150,7 @@ export const listFormRecords = base
           leadId: true,
           leadMemberId: true,
           referenceDate: true,
+          nextDueAt: true,
           usageTotalCents: true,
           finalizedAt: true,
           keyFields: true,
@@ -196,11 +211,13 @@ export const listFormRecords = base
         leadName: record.leadId ? (leadNameById.get(record.leadId) ?? null) : null,
         leadMemberName: record.leadMemberId ? (memberNameById.get(record.leadMemberId) ?? null) : null,
         referenceDate: record.referenceDate.toISOString(),
+        nextDueAt: record.nextDueAt?.toISOString() ?? null,
         usageTotalCents: record.usageTotalCents,
         isFinalized: record.finalizedAt !== null,
         isClosed: record.closing?.status === "CLOSED",
         values: readKeyFieldValues(record.keyFields),
       })),
+      nextDateLabel: readNextDateLabel(flattenBlocks(form.jsonBlock)),
       total,
       usageSumCents: usageSum._sum.usageTotalCents ?? 0,
       pageSize: PAGE_SIZE,

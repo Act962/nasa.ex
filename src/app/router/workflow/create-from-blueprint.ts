@@ -61,6 +61,7 @@ const SuggestedTagSchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional(),
   reason: z.string().optional(),
+  aiDescription: z.string().max(300).optional(),
 });
 
 const BlueprintSchema = z.object({

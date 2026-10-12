@@ -1,5 +1,6 @@
 import { getBotConfig } from "./config/get";
 import { upsertBotConfig } from "./config/upsert";
+import { getBotVoiceSample } from "./config/voice-sample";
 import { createBinding } from "./binding/create";
 import { listBindings } from "./binding/list";
 import { revokeBinding } from "./binding/revoke";
@@ -11,6 +12,7 @@ export const astroBotRouter = {
   config: {
     get: getBotConfig,
     upsert: upsertBotConfig,
+    voiceSample: getBotVoiceSample,
   },
   binding: {
     create: createBinding,

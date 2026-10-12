@@ -65,7 +65,7 @@ export interface Message {
     };
   };
   quotedMessage?: Message | null;
-  /** `metadata.instagram` marca comentário/DM do Instagram (spec 0062). */
+  /** Dados extras: `metadata.instagram` marca comentário/DM do Instagram (spec 0062); a transcrição do áudio também fica aqui (spec 0084). */
   metadata?: unknown;
 }
 

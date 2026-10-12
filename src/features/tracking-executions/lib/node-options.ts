@@ -410,7 +410,7 @@ export const executionNodes: NodeTypeOption[] = [
     category: "execution",
     label: "Menu de Botões",
     description:
-      "Envia menu interativo com até 9 botões (reusa presets do Chatbot IA ou inline)",
+      "Envia menu interativo com até 9 botões (reusa presets do Fluxo de atendimento ou inline)",
     icon: MousePointerIcon,
     defaultData: {
       action: { payload: { type: "BUTTONS", mode: "preset" } },

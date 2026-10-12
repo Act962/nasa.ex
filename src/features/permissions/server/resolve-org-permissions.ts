@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import {
   DEFAULT_PERMISSIONS,
   permissionFieldFor,
+  resolveAppPermissions,
   type AppKey,
   type AppPermissions,
   type OrgAction,
@@ -73,7 +74,9 @@ export function permissionsForApp(
   resolved: ResolvedOrgPermissions,
   appKey: AppKey,
 ): AppPermissions {
-  return resolved.overrides[appKey] ?? resolved.fallback;
+  // Mesma regra da tela e das procedures (`resolveAppPermissions`): o Master
+  // vê tudo e os Apps que nasceram sem restrição começam liberados.
+  return resolveAppPermissions(resolved.role, appKey, resolved.overrides[appKey] ?? null);
 }
 
 export function isOrgActionAllowed(
@@ -83,21 +86,4 @@ export function isOrgActionAllowed(
 ): boolean {
   if (!resolved) return false;
   return permissionsForApp(resolved, appKey)[permissionFieldFor(action)];
-}
-
-/**
- * Quem pode liberar acesso. Só o Master altera a matriz
- * (`update-permission.ts`), então é ele que a recusa precisa nomear.
- */
-export async function listPermissionGrantersNames(
-  organizationId: string,
-): Promise<string[]> {
-  const owners = await prisma.member.findMany({
-    where: { organizationId, role: "owner" },
-    select: { user: { select: { name: true } } },
-    take: 3,
-  });
-  return owners
-    .map((owner) => owner.user?.name?.trim())
-    .filter((name): name is string => Boolean(name));
 }

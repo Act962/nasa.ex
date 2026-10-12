@@ -165,6 +165,7 @@ export function ChatBotIaGeneralTab({ trackingId }: { trackingId: string }) {
 
       <ChatTestAiModal
         trackingId={trackingId}
+        assistantName={settings?.assistantName}
         open={open}
         onOpenChange={setOpen}
       />

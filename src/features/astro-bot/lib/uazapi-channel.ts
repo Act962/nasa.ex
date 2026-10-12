@@ -108,6 +108,10 @@ export class UazapiBotChannel implements WhatsappBotChannel {
     return this.sendText(phone, [media.caption, media.url].filter(Boolean).join("\n"));
   }
 
+  async sendVoice(): Promise<{ messageId: string | null }> {
+    throw new Error("Canal legado não envia nota de voz");
+  }
+
   async sendTyping(_phone: string, _durationMs: number): Promise<void> {
     // uazapi não tem endpoint dedicado pra typing indicator — o `delay`
     // do sendText já gera typing automaticamente. Implementação no-op

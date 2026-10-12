@@ -11,6 +11,7 @@ import { addLeadNoteAction } from "./leads/add-lead-note";
 import { createLeadAction } from "./leads/create-lead";
 import { createTrackingAction } from "./tracking/create-tracking";
 import { createAgendaAction } from "./agenda/create-agenda";
+import { setupAttendanceFromSiteAction } from "./tracking/setup-attendance-from-site";
 import { createAppointmentAction } from "./agenda/create-appointment";
 import { createWorkspaceAction } from "./workspace/create-workspace";
 import { createWorkspaceActionItem } from "./workspace/create-action";
@@ -39,6 +40,8 @@ import { createReminderAction } from "./agenda/create-reminder";
 import { addTrackingParticipantAction } from "./tracking/add-participant";
 import { sendFormToLeadAction } from "./form/send-to-lead";
 import { toggleFormPublishAction } from "./form/toggle-publish";
+import { markRecordPaidAction, sendRecordPixAction } from "./form/record-pix";
+import { scheduleDailyRecordsAction } from "./form/schedule-record-notice";
 import { sendMessageAction } from "./chat/send-message";
 import { addLeadTagAction } from "./leads/add-lead-tag";
 
@@ -58,6 +61,7 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   createLeadAction,
   createTrackingAction,
   createAgendaAction,
+  setupAttendanceFromSiteAction,
   createAppointmentAction,
   createWorkspaceAction,
   createWorkspaceActionItem,
@@ -86,6 +90,9 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   addTrackingParticipantAction,
   sendFormToLeadAction,
   toggleFormPublishAction,
+  sendRecordPixAction,
+  markRecordPaidAction,
+  scheduleDailyRecordsAction,
   sendMessageAction,
   addLeadTagAction,
 ];

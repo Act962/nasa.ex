@@ -23,15 +23,19 @@ export interface ButtonPayload {
   buttons: BotButton[];
   /** Texto do botão que abre a lista, quando as opções não cabem em 3 botões. */
   listButtonLabel?: string;
+  /** Sem a espera que imita digitação: quem mandou áudio já esperou a transcrição e a voz (spec 0083). */
+  isImmediate?: boolean;
 }
 
 export interface WhatsappBotChannel {
   /** Envia mensagem de texto. Quebra em múltiplas se > 4000 chars. */
-  sendText(phone: string, text: string): Promise<{ messageId: string | null }>;
+  sendText(phone: string, text: string, options?: { isImmediate?: boolean }): Promise<{ messageId: string | null }>;
   /** Envia pergunta com opções: botões ou lista onde o provider aceita, lista numerada onde não. */
   sendButtons(phone: string, payload: ButtonPayload): Promise<{ messageId: string | null }>;
   /** Envia imagem com legenda por URL pública (prévia de post do Planner, spec 0064). */
   sendMedia(phone: string, media: { url: string; caption?: string }): Promise<{ messageId: string | null }>;
+  /** Envia nota de voz (OGG/Opus). Lança se o provider não aceitar (spec 0083). */
+  sendVoice(phone: string, voice: { audio: Buffer; mimetype: string }): Promise<{ messageId: string | null }>;
   /** Mostra typing indicator (humaniza respostas longas). */
   sendTyping(phone: string, durationMs: number): Promise<void>;
 }
@@ -79,4 +83,10 @@ export interface BotCommandResult {
   toolsCalled?: string[];
   tokensUsed?: number;
   starsCharged?: number;
+  /** A mensagem chegou como áudio: decide a resposta em voz no modo "quando eu mandar áudio" (spec 0083). */
+  wasAudioInput?: boolean;
+  /** Empresa isenta de Stars neste comando (ex.: trafeGO). */
+  isBillingExempt?: boolean;
+  /** Linha do registro deste comando, para anotar a resposta em voz. */
+  commandLogId?: string;
 }

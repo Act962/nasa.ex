@@ -2,6 +2,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { canAstroRead, checkAstroPermission } from "@/features/astro/actions/permission-gate";
+import { ASTRO_READ_DENIAL } from "@/features/astro/lib/permission-denial";
 import { clearGuidedSlot } from "@/features/astro/actions/guided-slots";
 import type { BotButton } from "../types";
 import {
@@ -118,7 +119,7 @@ async function appReply(ctx: AgentContext, app: MenuApp): Promise<MenuOutcome> {
   if (allowedItems.length === 0) {
     return {
       kind: "reply",
-      reply: `Você não tem permissão para usar ${app.title}. Quem libera é o administrador, em Configurações › Permissões.`,
+      reply: ASTRO_READ_DENIAL,
       buttons: [{ id: MENU_ROOT_ID, text: "Menu" }],
     };
   }

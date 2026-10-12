@@ -1,5 +1,6 @@
 "use client";
 
+import { KnowledgeChipPicker } from "@/features/astro-commander/components/intelligence/knowledge-chip-picker";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -182,33 +183,11 @@ export function SiteFormFields({ values, onChange, sections }: FieldsProps) {
             label="Bases de conhecimento"
             description="Só as marcadas aqui ficam disponíveis para o público. Nada interno da empresa é usado."
           >
-            {knowledgeBases.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma base cadastrada no ASTRO.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {knowledgeBases.map((knowledgeBase) => {
-                  const isSelected = values.knowledgeIds.includes(knowledgeBase.id);
-                  return (
-                    <button
-                      key={knowledgeBase.id}
-                      type="button"
-                      onClick={() =>
-                        onChange({
-                          knowledgeIds: isSelected
-                            ? values.knowledgeIds.filter((id) => id !== knowledgeBase.id)
-                            : [...values.knowledgeIds, knowledgeBase.id],
-                        })
-                      }
-                      className={`rounded-full border px-3 py-1 text-xs transition ${
-                        isSelected ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
-                      }`}
-                    >
-                      {knowledgeBase.name}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <KnowledgeChipPicker
+              options={knowledgeBases}
+              selectedIds={values.knowledgeIds}
+              onChange={(knowledgeIds) => onChange({ knowledgeIds })}
+            />
           </SettingRow>
           <SettingRow
             label="Teto diário de respostas"

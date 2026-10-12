@@ -84,6 +84,7 @@ export const createLocationMessage = base
         await chargeMessageOutbound({
           organizationId,
           userId: context.user.id,
+          trackingId: conversation?.trackingId,
           channel:
             channel === MessageChannel.INSTAGRAM
               ? "instagram"

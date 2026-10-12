@@ -34,13 +34,13 @@ export function FlowAttendiment({ trackingId }: FlowAttendimentProps) {
           <div className="flex justify-between w-full gap-2">
             <div className="flex items-center gap-2">
               <GitPullRequestArrowIcon className="size-4 " />
-              <h2 className="text-xl font-semibold">Fluxo de atendimento</h2>
+              <h2 className="text-xl font-semibold">Consultores</h2>
             </div>
             <Button onClick={() => setModalOpen(true)}>
               Adicionar Consultor
             </Button>
           </div>
-          <span>Consultores</span>
+          <span>Quem atende os leads deste funil</span>
 
           {!isLoadingTrackingConsultants &&
             trackingConsultants?.length === 0 && (

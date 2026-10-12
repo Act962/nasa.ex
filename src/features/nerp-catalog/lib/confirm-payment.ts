@@ -1,4 +1,5 @@
 import "server-only";
+import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
@@ -66,6 +67,8 @@ export async function confirmCatalogOrderPayment(orderId: string, payment: Confi
       lead: { select: { id: true, trackingId: true, conversation: { select: { id: true } } } },
     },
   });
+  // Pedido pago conta como compra na Visão do Lead (spec 0085). Best-effort.
+  await requestLeadMetricsRecompute(order.lead.id);
   const integration = await prisma.nerpCatalogIntegration.findUnique({
     where: { organizationId: order.organizationId },
     select: { logisticsTrackingId: true, logisticsStatusId: true },

@@ -65,7 +65,7 @@ export default async function Page({
       ),
     },
     {
-      name: "Fluxo de atendimento",
+      name: "Consultores",
       value: "flow-attendance",
       content: <FlowAttendiment trackingId={trackingId} />,
     },
@@ -90,7 +90,7 @@ export default async function Page({
       content: <ChatSettings />,
     },
     {
-      name: "ChatBot AI",
+      name: "Fluxo de atendimento",
       value: "chatbot-ia",
       content: <ChatBotIa trackingId={trackingId} />,
     },

@@ -7,6 +7,9 @@ import {
   toPhoneDigits,
 } from "@/features/tracking-chat/lib/providers/automated-outbound";
 import { computeNextRemindAt } from "@/lib/reminder-recurrence";
+import { sendTemplateToLead } from "@/features/tracking-executions/lib/send-template-to-lead";
+import { parseAiCapabilities } from "@/features/tracking-chat-ai/lib/capabilities";
+import { extractReminderDetail } from "@/features/tracking-chat-ai/lib/appointment-reminder";
 import { createNotification } from "@/features/admin/lib/notification-service";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { pusherServer } from "@/lib/pusher";
@@ -153,6 +156,44 @@ export const processReminder = inngest.createFunction(
             ),
           )
         : false;
+
+    // Lembrete de agendamento ao cliente com a janela de 24 h fechada (spec 0084, RF-18):
+    // sai pelo template que a empresa escolheu no Chatbot IA. Sem template, segue como antes (não envia).
+    if (phone && trackingId && !canSendWhatsapp && isLeadPhone && fresh.lead && instance?.status === "CONNECTED") {
+      const reminderLeadId = fresh.lead.id;
+      const reminderDetail = extractReminderDetail(fresh.message);
+      const leadFirstName = fresh.lead.name.trim().split(/\s+/)[0] ?? "";
+      const templateOutcome = await step.run("send-reminder-template", async () => {
+        const aiSettings = await prisma.aiSettings.findUnique({
+          where: { trackingId },
+          select: { capabilities: true },
+        });
+        const templateName = parseAiCapabilities(aiSettings?.capabilities).reminder.templateName;
+        if (!templateName || !reminderDetail) return { sent: false, reason: "no_reminder_template" };
+        try {
+          await sendTemplateToLead({
+            leadId: reminderLeadId,
+            trackingId,
+            template: {
+              templateName,
+              languageCode: "pt_BR",
+              headerText: null,
+              bodyText: resolvedMessage,
+              headerParameters: [],
+              bodyParameters: [leadFirstName, reminderDetail],
+            },
+          });
+          return { sent: true, reason: null };
+        } catch (templateError) {
+          return {
+            sent: false,
+            reason: templateError instanceof Error ? templateError.message.slice(0, 200) : "template_failed",
+          };
+        }
+      });
+      if (templateOutcome.sent) sent = true;
+      else console.warn(`[reminder] lembrete ${reminderId} fora da janela não enviado: ${templateOutcome.reason}`);
+    }
 
     if (phone && trackingId && canSendWhatsapp) {
       const message = resolvedMessage;

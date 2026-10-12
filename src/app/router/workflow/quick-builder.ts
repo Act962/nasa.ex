@@ -41,6 +41,7 @@ const suggestedTagSchema = z.object({
   name: z.string(),
   color: z.string().optional(),
   reason: z.string().optional(),
+  aiDescription: z.string().max(300).optional(),
 });
 
 async function findTrackingInOrg(trackingId: string, organizationId: string) {

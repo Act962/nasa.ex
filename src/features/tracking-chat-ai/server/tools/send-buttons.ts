@@ -19,6 +19,9 @@ function parsePresetButtons(raw: unknown) {
   });
 }
 
+/** Limite da Meta para lista interativa. */
+const MAX_OFFICIAL_OPTIONS = 10;
+
 export const makeSendButtonsTool = (ctx: AgentContext) =>
   tool({
     description:
@@ -48,11 +51,37 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
       try {
         const resolved = await resolveOutboundProvider(ctx.trackingId);
         if (!resolved.uazapiToken) {
-          return {
-            error: "buttons_unsupported_on_official_api",
-            message:
-              "Botões e listas não estão disponíveis na API Oficial. Responda em texto com as opções.",
-          };
+          // API oficial (spec 0085, RF-9): botões até 3 opções, lista até 10, com a mesma tag por opção.
+          const sendInteractive = resolved.provider.sendInteractive?.bind(resolved.provider);
+          const optionsWithId = buttons.filter((button) => button.id);
+          if (!sendInteractive || optionsWithId.length === 0 || optionsWithId.length > MAX_OFFICIAL_OPTIONS) {
+            return {
+              error: "buttons_unsupported_on_official_api",
+              message: "Este menu não pode ser enviado neste número. Responda em texto com as opções.",
+            };
+          }
+          const sent = await sendInteractive({
+            kind: "interactive",
+            to: ctx.lead.phone,
+            body: preset.bodyText,
+            footer: preset.footerText ?? undefined,
+            options: optionsWithId.map((button) => ({ id: button.id as string, title: button.text })),
+            listButtonLabel: preset.listButton ?? undefined,
+          });
+          const officialTagMap: Record<string, string> = {};
+          for (const button of optionsWithId) {
+            if (button.tagId) officialTagMap[button.id as string] = button.tagId;
+          }
+          await persistOutboundMessage({
+            conversationId: ctx.conversation.id,
+            leadId: ctx.lead.id,
+            trackingId: ctx.trackingId,
+            body: `${preset.bodyText}\n\n[Menu]\n${optionsWithId.map((button) => `• ${button.text}`).join("\n")}`,
+            senderName: ctx.settings?.assistantName ?? "IA",
+            externalMessageId: sent.externalMessageId,
+            metadata: Object.keys(officialTagMap).length > 0 ? { buttonTagMap: officialTagMap } : null,
+          });
+          return { ok: true, presetName: preset.name };
         }
         const uazapiToken = resolved.uazapiToken;
         const uazapiBaseUrl = resolved.uazapiBaseUrl;
