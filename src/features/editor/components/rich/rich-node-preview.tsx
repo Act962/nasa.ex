@@ -77,6 +77,11 @@ function toPhoneMessage(nodeType: string, config: Fields, presetById: Map<string
   }
 }
 
+/** A mensagem de um quadro de envio como o cliente vê, a partir do que está salvo no passo. */
+export function phoneMessageOf(nodeType: string, data: unknown, presetById: Map<string, Record<string, unknown>>): PhoneMessage {
+  return toPhoneMessage(nodeType, nodeConfig(data), presetById);
+}
+
 /** "+55 86 9982-1810 · Clínica" ou "… · API oficial": por qual número a mensagem sai. */
 function describeChannel(instance: unknown): string | undefined {
   if (!instance) return undefined;

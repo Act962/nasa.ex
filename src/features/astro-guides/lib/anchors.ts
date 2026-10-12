@@ -87,6 +87,10 @@ export const GUIDE_ANCHORS = {
     id: "workflows.open-central",
     description: "Botão \"Central de Gatilhos\" na página de fluxos de um funil, que leva à lista de todas as automações da empresa",
   },
+  trackingFlowsAttendanceTemplate: {
+    id: "workflows.attendance-template",
+    description: "Botão \"Criar modelo de atendimento\" na página de fluxos de um funil, que cria um exemplo de atendimento por menu, desligado",
+  },
   astroFlowEditButton: {
     id: "automations-hub.astro-flow-edit-button",
     description: "Botão \"Pedir ao ASTRO\" no editor de um fluxo, que abre o campo para pedir uma mudança naquele fluxo",

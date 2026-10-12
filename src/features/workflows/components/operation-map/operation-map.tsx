@@ -9,7 +9,9 @@ import { useAtomValue } from "jotai";
 import { LayoutDashboardIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ViewModeToggle } from "@/features/editor/components/view-mode-toggle";
-import { richNodeSize } from "@/features/editor/components/rich/rich-node-types";
+import { estimatePhoneHeight } from "@/features/editor/components/rich/message-phone-preview";
+import { phoneMessageOf } from "@/features/editor/components/rich/rich-node-preview";
+import { RICH_MESSAGE_TYPES, richNodeSize } from "@/features/editor/components/rich/rich-node-types";
 import { editorViewModeAtom } from "@/features/editor/store/atoms";
 import { MENU_PRESET_NAME } from "@/features/tracking-chat-ai/lib/attendance-setup/script-draft";
 import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-button-presets";
@@ -40,6 +42,8 @@ const ASSISTANT_BLOCK_ID = "attendance:assistant";
 /** Etapa 2 (spec 0092): ligar fluxos pelo mapa. Desligado, o mapa é só leitura. */
 const IS_MAP_EDIT_ON = process.env.NEXT_PUBLIC_WORKFLOW_MAP_EDIT === "true";
 const ICON_STEP_SIZE: MapSize = { width: 64, height: 64 };
+/** Folga em volta do celular dentro do quadro tracejado do passo. */
+const PHONE_FRAME_MARGIN = 16;
 
 type SavedPositions = Record<string, { x: number; y: number }>;
 
@@ -102,12 +106,21 @@ export function OperationMap({ trackingId, workflows, folders }: OperationMapPro
     [presets, workflows, hasBookingMenu],
   );
 
+  const presetById = useMemo(() => new Map(presets.map((preset) => [preset.id, preset as unknown as Record<string, unknown>])), [presets]);
+
   const graph = useMemo(() => {
+    const flowsWithError = new Set<string>();
     const folderNameById = new Map(folders.map((folder) => [folder.id, folder.name]));
     const { groups, centerY } = layoutOperationMap({
       workflows,
       folderOrder: folders.map((folder) => folder.id),
-      sizeOfStep: (stepType) => (isRichView ? (richNodeSize(stepType) ?? ICON_STEP_SIZE) : ICON_STEP_SIZE),
+      sizeOfStep: (stepType, stepData) => {
+        if (!isRichView) return ICON_STEP_SIZE;
+        const baseSize = richNodeSize(stepType) ?? ICON_STEP_SIZE;
+        if (!RICH_MESSAGE_TYPES.has(stepType)) return baseSize;
+        // O celular cresce com o texto e as opções: altura fixa deixava a lista para fora do quadro.
+        return { width: baseSize.width, height: estimatePhoneHeight(phoneMessageOf(stepType, stepData, presetById)) + PHONE_FRAME_MARGIN };
+      },
       savedPositions,
       preferredOrder: attendance.linkedWorkflowOrder,
       menuColumns: {
@@ -128,8 +141,10 @@ export function OperationMap({ trackingId, workflows, folders }: OperationMapPro
         workflow.nodes.filter((node) => node.type !== "INITIAL"),
         workflow.connections.map((connection) => ({ id: connection.id, source: connection.fromNodeId, target: connection.toNodeId, sourceHandle: connection.fromOutput })),
         provider,
+        presets,
       );
       const errors = problems.all.filter((problem) => problem.severity === "error");
+      if (errors.length > 0) flowsWithError.add(group.workflowId);
       const groupData: FlowGroupData = {
         workflowId: group.workflowId,
         trackingId,
@@ -220,7 +235,7 @@ export function OperationMap({ trackingId, workflows, folders }: OperationMapPro
       ...fixedNode,
     });
     for (const menu of placedAttendance.menus) {
-      const menuData: MenuGroupData = { name: menu.name, href: settingsHref("buttons"), options: menu.options };
+      const menuData: MenuGroupData = { name: menu.name, href: settingsHref("buttons"), isActive: menu.isActive, options: menu.options };
       nodes.push({ id: `menu:${menu.id}`, type: "menuGroup", position: { x: menu.x, y: menu.y }, data: menuData, style: { width: menu.width, height: menu.height }, ...fixedNode });
     }
     if (placedAttendance.bookingBlock) {
@@ -238,7 +253,7 @@ export function OperationMap({ trackingId, workflows, folders }: OperationMapPro
         // O fluxo à esquerda do menu recebe a linha pela borda direita dele.
         targetHandle: menuEdge.side === "left" ? FLOW_RIGHT_ENTRY_HANDLE : undefined,
         type: "tagLink",
-        data: { kind: "menu", channelX: menuEdge.channelX },
+        data: { kind: "menu", channelX: menuEdge.channelX, tone: flowsWithError.has(menuEdge.workflowId) ? "problem" : "ok" },
         selectable: false,
       });
     }
@@ -254,10 +269,10 @@ export function OperationMap({ trackingId, workflows, folders }: OperationMapPro
       });
     }
     for (const link of attendance.tagLinks) {
-      edges.push({ id: `tag-link:${link.fromWorkflowId}:${link.toWorkflowId}`, source: `${MAP_FLOW_ID_PREFIX}${link.fromWorkflowId}`, target: `${MAP_FLOW_ID_PREFIX}${link.toWorkflowId}`, type: "tagLink", data: { kind: "tag" }, selectable: false });
+      edges.push({ id: `tag-link:${link.fromWorkflowId}:${link.toWorkflowId}`, source: `${MAP_FLOW_ID_PREFIX}${link.fromWorkflowId}`, target: `${MAP_FLOW_ID_PREFIX}${link.toWorkflowId}`, type: "tagLink", data: { kind: "tag", tone: flowsWithError.has(link.toWorkflowId) ? "problem" : "ok" }, selectable: false });
     }
     return { nodes, edges };
-  }, [workflows, folders, isRichView, savedPositions, provider, trackingId, requestLink, requestUnlink, canEdit, canEditOnMap, attendance]);
+  }, [workflows, folders, isRichView, savedPositions, provider, trackingId, requestLink, requestUnlink, canEdit, canEditOnMap, attendance, presetById, presets]);
 
   // Enquanto a pessoa arrasta, a posição vive aqui; ao soltar, vai para o que fica guardado.
   const [draggingPositions, setDraggingPositions] = useState<SavedPositions>({});

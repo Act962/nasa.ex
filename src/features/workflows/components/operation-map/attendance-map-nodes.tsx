@@ -3,16 +3,17 @@
 import { BaseEdge, Handle, Position, getSmoothStepPath, type Edge, type EdgeProps, type Node, type NodeProps } from "@xyflow/react";
 import { ListIcon } from "lucide-react";
 import { ATTENDANCE_LAYOUT, type MapMenuOption } from "@/features/workflows/lib/operation-map-attendance";
+import { DASH_GAP, DASH_LENGTH, outlineToneColor, type OutlineTone } from "@/features/editor/components/rich/animated-outline";
 import { cn } from "@/lib/utils";
 import { straightPathThrough } from "./straight-path";
 
 // O menu do atendimento e os blocos em volta dele no mapa da operação (spec 0092): o menu com uma saída
 // por opção, o agendamento por botões e a assistente. São só leitura; o clique leva à tela de cada um.
 
-export type MenuGroupData = { name: string; href: string; options: MapMenuOption[] };
+export type MenuGroupData = { name: string; href: string; isActive: boolean; options: MapMenuOption[] };
 export type InfoBlockData = { title: string; lines: string[]; tone: "booking" | "assistant"; href: string };
 export type TagLinkKind = "menu" | "booking" | "tag";
-export type TagLinkEdgeType = Edge<{ kind: TagLinkKind; channelX?: number; endsOnChannel?: boolean }, "tagLink">;
+export type TagLinkEdgeType = Edge<{ kind: TagLinkKind; channelX?: number; endsOnChannel?: boolean; tone?: OutlineTone }, "tagLink">;
 
 /** Cada opção do menu tem uma saída de cada lado: o fluxo dela pode estar à esquerda ou à direita. */
 export function menuHandleId(optionId: string, side: "left" | "right"): string {
@@ -26,13 +27,16 @@ const HIDDEN_HANDLE = "!size-2 !border-0 !bg-transparent";
 
 export function MenuGroupNode({ data }: NodeProps<Node<MenuGroupData, "menuGroup">>) {
   return (
-    <div className="relative size-full cursor-pointer rounded-3xl border-[2.5px] border-success bg-success/5" title="Abrir os menus do atendimento">
+    <div
+      className={cn("relative size-full cursor-pointer rounded-3xl border-[2.5px] border-success bg-success/5", !data.isActive && "border-dashed")}
+      title="Abrir os menus do atendimento"
+    >
       <div className="px-5 pt-4">
         <p className="flex items-center gap-2 text-base font-bold">
           <ListIcon className="size-4 text-success" />
           <span className="truncate">{data.name}</span>
         </p>
-        <p className="text-xs text-muted-foreground">Menu do atendimento. Cada opção leva a um fluxo.</p>
+        <p className="text-xs text-muted-foreground">{data.isActive ? "Menu do atendimento. Cada opção leva a um fluxo." : "Desligado. Cada opção leva a um fluxo."}</p>
       </div>
       {data.options.map((option) => (
         <div
@@ -72,11 +76,13 @@ export function InfoBlockNode({ data }: NodeProps<Node<InfoBlockData, "infoBlock
   );
 }
 
-const LINK_STYLE: Record<TagLinkKind, { stroke: string; strokeWidth: number; strokeDasharray?: string }> = {
-  menu: { stroke: "var(--info)", strokeWidth: 2.5 },
-  tag: { stroke: "var(--info)", strokeWidth: 2.5, strokeDasharray: "2 6" },
-  booking: { stroke: "var(--success)", strokeWidth: 2.5, strokeDasharray: "8 6" },
-};
+const BOOKING_LINK_STYLE = { stroke: "var(--success)", strokeWidth: 2.5, strokeDasharray: "8 6" };
+
+/** Menu e tag usam o mesmo tracejado das ligações entre passos: azul, ou vermelho se o fluxo de destino tem problema. */
+function linkStyle(kind: TagLinkKind, tone: OutlineTone) {
+  if (kind === "booking") return BOOKING_LINK_STYLE;
+  return { stroke: outlineToneColor(tone), strokeWidth: 3, strokeDasharray: `${DASH_LENGTH} ${DASH_GAP}`, strokeLinecap: "round" as const };
+}
 
 /** Ligação que existe por causa de uma tag (ou do menu de agendamento): não é criada nem desfeita no mapa. */
 export function TagLinkEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<TagLinkEdgeType>) {
@@ -89,5 +95,5 @@ export function TagLinkEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosi
       : data.endsOnChannel
         ? `M ${sourceX} ${sourceY} L ${data.channelX} ${sourceY} L ${data.channelX} ${targetY}`
         : straightPathThrough({ sourceX, sourceY, targetX, targetY, channelX: data.channelX });
-  return <BaseEdge id={id} path={edgePath} style={{ ...LINK_STYLE[data?.kind ?? "menu"], strokeLinejoin: "round", fill: "none" }} />;
+  return <BaseEdge id={id} path={edgePath} style={{ ...linkStyle(data?.kind ?? "menu", data?.tone ?? "ok"), strokeLinejoin: "round", fill: "none" }} />;
 }

@@ -11,7 +11,7 @@ import { persistOutboundMessage } from "../persist";
 import { buildLeadAgendaScope } from "../../server/tools";
 import { makeLeadAgendaTools } from "../../server/tools/agenda";
 import { makeTransferToHumanTool } from "../../server/tools/transfer-to-human";
-import { clientMenuId, isClientMenuId, parseClientMenuId, type ClientMenuStep } from "./menu-ids";
+import { clientMenuId, isClientMenuId, parseClientMenuId, RETURNING_MENU_BODY, type ClientMenuStep } from "./menu-ids";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -180,8 +180,10 @@ class GuidedMenu {
     return { id: clientMenuId({ step: "human" }), title: "Atendente" };
   }
 
-  async showMenu(): Promise<void> {
-    const body = `Olá! Aqui é ${this.assistantName}, assistente virtual da ${this.ctx.organization.name}. Escolha uma opção ou escreva sua dúvida.`;
+  async showMenu(isReturning = false): Promise<void> {
+    const body = isReturning
+      ? RETURNING_MENU_BODY
+      : `Olá! Aqui é ${this.assistantName}, assistente virtual da ${this.ctx.organization.name}. ${RETURNING_MENU_BODY}`;
     const options: MenuOption[] = this.hasAgenda
       ? [
           { id: clientMenuId({ step: "book" }), title: "Agendar" },
@@ -426,7 +428,7 @@ class GuidedMenu {
     await this.sendChoice("Agendamento cancelado.", [this.backToMenu()]);
   }
 
-  async run(target: ClientMenuStep): Promise<void> {
+  async run(target: ClientMenuStep, origin: { isClick: boolean } = { isClick: false }): Promise<void> {
     // No teste não existe agendamento: os passos que partem de um caem na explicação.
     const needsAppointment =
       target.step === "appointment" || target.step === "reschedule" || target.step === "cancel" || target.step === "cancelConfirm";
@@ -436,7 +438,7 @@ class GuidedMenu {
     }
     switch (target.step) {
       case "menu":
-        return this.showMenu();
+        return this.showMenu(origin.isClick);
       case "more":
         return this.showMore();
       case "links":
@@ -513,10 +515,10 @@ export async function handleGuidedMenu(
   if (!replyId && NUMBERED_ANSWER.test(text.trim())) replyId = await resolveNumberedAnswer(ctx.conversation.id, text.trim());
   const target = resolveTarget({ text, replyId });
   if (target === "not_menu") return { handled: false };
-  // Funil com menu do roteiro (spec 0091): a saudação é dele, que já leva "Agendar" e "Meus horários".
-  // Este menu fica com os cliques. Um clique em "Voltar ao menu" continua abrindo o menu daqui.
-  const isGreetingText = !replyId && target !== "invalid" && target.step === "menu";
-  if (isGreetingText && ctx.availableButtonPresets.some((preset) => preset.name === MENU_PRESET_NAME)) return { handled: false };
+  // Funil com menu do roteiro (spec 0091): a saudação e o "Voltar ao menu" são dele, que já leva os
+  // assuntos, "Agendar" e "Meus horários". Este menu fica com os demais cliques.
+  const opensMainMenu = target !== "invalid" && target.step === "menu";
+  if (opensMainMenu && ctx.availableButtonPresets.some((preset) => preset.name === MENU_PRESET_NAME)) return { handled: false };
 
   const clicksLastHour = await prisma.message.count({
     where: {
@@ -537,7 +539,7 @@ export async function handleGuidedMenu(
       await transfer.execute({ reason: "Cliente pediu atendente pelo menu", clientAsked: true }, { toolCallId: `menu-${Date.now()}`, messages: [] });
     },
   });
-  await menu.run(target === "invalid" ? { step: "menu" } : target);
+  await menu.run(target === "invalid" ? { step: "menu" } : target, { isClick: Boolean(replyId) });
   return { handled: true };
 }
 
@@ -553,6 +555,6 @@ export async function runGuidedMenuTest(
   if (!ctx.capabilities.guidedMenu) return { handled: false };
   const target = resolveTarget(input);
   if (target === "not_menu") return { handled: false };
-  await new GuidedMenu(ctx, { channel, isTest: true }).run(target === "invalid" ? { step: "menu" } : target);
+  await new GuidedMenu(ctx, { channel, isTest: true }).run(target === "invalid" ? { step: "menu" } : target, { isClick: Boolean(input.replyId) });
   return { handled: true };
 }

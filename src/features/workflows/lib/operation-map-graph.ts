@@ -87,7 +87,7 @@ function stageBoxes(sections: StageSection[], stepBoxByNodeId: Map<string, MapBo
 }
 
 /** Um fluxo: os passos reposicionados para dentro do retângulo, na mesma disposição do editor. */
-function buildGroup(workflow: MapWorkflowInput, sizeOfStep: (type: string) => MapSize): Omit<MapFlowGroup, "x" | "y"> {
+function buildGroup(workflow: MapWorkflowInput, sizeOfStep: (type: string, data: unknown) => MapSize): Omit<MapFlowGroup, "x" | "y"> {
   const steps = workflow.nodes.filter((node) => node.type !== "INITIAL");
   const base = {
     workflowId: workflow.id,
@@ -98,7 +98,7 @@ function buildGroup(workflow: MapWorkflowInput, sizeOfStep: (type: string) => Ma
   };
   if (steps.length === 0) return { ...base, ...MAP_LAYOUT.emptyGroup, stages: [], steps: [], links: [] };
 
-  const editorBoxes = steps.map((step) => ({ id: step.id, position: readPosition(step.position), measured: sizeOfStep(step.type) }));
+  const editorBoxes = steps.map((step) => ({ id: step.id, position: readPosition(step.position), measured: sizeOfStep(step.type, step.data) }));
   // Na visão Visual os quadros são maiores que os do editor em Ícones: quem ficaria em cima do outro abre espaço.
   const spreadPositions = resolveOverlaps(editorBoxes);
   const rawBoxes = editorBoxes.map((box) => ({ ...(spreadPositions.get(box.id) ?? box.position), ...box.measured }));
@@ -156,7 +156,8 @@ const MAX_PLACEMENT_TRIES = 400;
 export interface OperationMapParams {
   workflows: MapWorkflowInput[];
   folderOrder: string[];
-  sizeOfStep: (type: string) => MapSize;
+  /** Recebe também a configuração do passo: um quadro de mensagem cresce com o texto e as opções. */
+  sizeOfStep: (type: string, data: unknown) => MapSize;
   savedPositions?: Record<string, { x: number; y: number }>;
   /** Fluxos que vêm primeiro, nesta ordem (os ligados ao menu do atendimento, na ordem das opções). */
   preferredOrder?: string[];

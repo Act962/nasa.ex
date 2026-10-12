@@ -2,7 +2,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { MENU_PRESET_NAME } from "./attendance-setup/script-draft";
 import { makeSendButtonsTool } from "../server/tools/send-buttons";
-import { clientMenuId } from "./guided-menu/menu-ids";
+import { clientMenuId, RETURNING_MENU_BODY } from "./guided-menu/menu-ids";
 import type { AgentContext } from "./context";
 
 // Menu inicial do roteiro (spec 0091): quando a conversa começa, a saudação e o menu saem pelo
@@ -73,12 +73,23 @@ export async function handleScriptMenu(ctx: AgentContext, inboundMessageId: stri
   if (!inbound || inbound.mimetype || inbound.mediaType) return { handled: false };
   // Clique numa opção do menu: se a tag acabou de entrar e um fluxo ligado responde a ela, o fluxo já
   // manda a abertura do assunto. A assistente fica quieta, para o cliente não receber duas respostas.
-  if ((inbound.metadata as { interactiveReplyId?: unknown } | null)?.interactiveReplyId) {
+  const clickedId = (inbound.metadata as { interactiveReplyId?: unknown } | null)?.interactiveReplyId;
+  const isBackToMenuClick = clickedId === clientMenuId({ step: "menu" });
+  if (clickedId && !isBackToMenuClick) {
     return { handled: await didClickStartFlow(ctx, inbound.createdAt) };
   }
 
   const asksForMenu = ASKS_FOR_MENU.test(normalize(inbound.body ?? ""));
-  if (asksForMenu) {
+  const earlierMessage = await prisma.message.findFirst({
+    where: {
+      conversationId: ctx.conversation.id,
+      id: { not: inboundMessageId },
+      createdAt: { gte: new Date(inbound.createdAt.getTime() - FRESH_CONTACT_HOURS * 60 * 60_000), lt: inbound.createdAt },
+    },
+    select: { id: true },
+  });
+  const isOngoingConversation = Boolean(earlierMessage);
+  if (asksForMenu && !isBackToMenuClick) {
     // Dois "oi" seguidos não geram dois menus.
     const recentMenu = await prisma.message.findFirst({
       where: {
@@ -90,20 +101,16 @@ export async function handleScriptMenu(ctx: AgentContext, inboundMessageId: stri
       select: { id: true },
     });
     if (recentMenu) return { handled: true };
-  } else {
-    const earlierMessage = await prisma.message.findFirst({
-      where: {
-        conversationId: ctx.conversation.id,
-        id: { not: inboundMessageId },
-        createdAt: { gte: new Date(inbound.createdAt.getTime() - FRESH_CONTACT_HOURS * 60 * 60_000), lt: inbound.createdAt },
-      },
-      select: { id: true },
-    });
-    // Conversa em andamento com outra pergunta: quem responde é a assistente, para não cortar a dúvida com o menu.
-    if (earlierMessage) return { handled: false };
   }
+  // Conversa em andamento com outra pergunta: quem responde é a assistente, para não cortar a dúvida com o menu.
+  if (!asksForMenu && !isBackToMenuClick && isOngoingConversation) return { handled: false };
 
-  const sendPreset = makeSendButtonsTool({ ...ctx, availableButtonPresets: [withBookingRows(ctx, menuPreset)] }) as unknown as {
+  const menuToSend = withBookingRows(ctx, menuPreset);
+  const sendPreset = makeSendButtonsTool({
+    ...ctx,
+    // No meio da conversa o menu volta sem a apresentação da assistente de novo.
+    availableButtonPresets: [isOngoingConversation ? { ...menuToSend, bodyText: RETURNING_MENU_BODY } : menuToSend],
+  }) as unknown as {
     execute: (input: { presetId: string }, options: { toolCallId: string; messages: [] }) => Promise<{ ok?: boolean; error?: string }>;
   };
   const sent = await sendPreset.execute({ presetId: menuPreset.id }, { toolCallId: `script-menu-${Date.now()}`, messages: [] });

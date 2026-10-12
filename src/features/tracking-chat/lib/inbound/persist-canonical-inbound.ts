@@ -346,6 +346,7 @@ export async function persistCanonicalInbound(
     externalMessageId: canonical.externalMessageId,
     fromMe: canonical.sender.fromMe,
     channel,
+    isButtonClick: Boolean(canonical.replyId),
     // Só inbound: `leadMessage` é, por contrato, texto escrito pelo lead.
     ...(canonical.sender.fromMe
       ? {}

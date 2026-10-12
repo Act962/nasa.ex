@@ -84,7 +84,7 @@ import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-d
 import { sendRecordNotices } from "@/inngest/functions/crons/send-record-notices";
 import { snapshotMetaDailySpendCron } from "@/inngest/functions/campanhas/snapshot-meta-daily-spend";
 import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
-import { chatAiWhatsappAgent } from "@/inngest/functions/chat-ai/whatsapp-agent";
+import { chatAiWhatsappAgent, chatAiWhatsappButtonClick } from "@/inngest/functions/chat-ai/whatsapp-agent";
 import { syncCatalogOrderToNerp } from "@/inngest/functions/nerp-catalog/sync-order-to-nerp";
 import { awaitReplyTagCheck } from "@/inngest/functions/org-defaults/await-reply-tag";
 import { astroBotInactivityNotice } from "@/inngest/functions/astro-bot/inactivity-notice";
@@ -214,6 +214,7 @@ export const { GET, POST, PUT } = serve({
     chatSyncMessages,
     // ── Chat AI (WhatsApp agent interno) ──
     chatAiWhatsappAgent,
+    chatAiWhatsappButtonClick,
     // ── Catálogo online NERP → Órbita: pagamento e confirmação da venda ──
     watchCatalogOrderPayment,
     syncCatalogOrderToNerp,

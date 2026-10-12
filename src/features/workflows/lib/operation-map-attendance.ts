@@ -28,6 +28,7 @@ export interface MapMenuOption {
 export interface MapMenuBox {
   id: string;
   name: string;
+  isActive: boolean;
   x: number;
   y: number;
   width: number;
@@ -127,7 +128,9 @@ export function buildAttendanceMap(params: {
   const menuX = -(layout.menuWidth + layout.columnGap);
   let cursorY = 0;
 
-  for (const menu of params.menus.filter((candidate) => candidate.isActive)) {
+  // Menu desligado só aparece se for o menu inicial: é o caso do modelo de atendimento (spec 0097),
+  // que nasce todo desligado e precisa mostrar o desenho completo.
+  for (const menu of params.menus.filter((candidate) => candidate.isActive || candidate.name === params.scriptMenuName)) {
     const storedOptions = readMenuOptions(menu.buttons);
     const isScriptMenu = menu.name === params.scriptMenuName;
     const leadsToFlow = storedOptions.some((option) => option.tagId && flowsByTriggerTag.has(option.tagId));
@@ -147,7 +150,7 @@ export function buildAttendanceMap(params: {
       centerY: layout.headerHeight + rowIndex * (layout.rowHeight + layout.rowGap) + layout.rowHeight / 2,
     }));
     const height = layout.headerHeight + rows.length * (layout.rowHeight + layout.rowGap) - layout.rowGap + layout.padding;
-    menus.push({ id: menu.id, name: menu.name, x: menuX, y: cursorY, width: layout.menuWidth, height, options });
+    menus.push({ id: menu.id, name: menu.name, isActive: menu.isActive, x: menuX, y: cursorY, width: layout.menuWidth, height, options });
     cursorY += height + layout.menuGap;
 
     for (const row of rows) {

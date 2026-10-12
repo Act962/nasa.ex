@@ -89,3 +89,6 @@ export function parseClientMenuId(replyId: string): ClientMenuStep | null {
       return null;
   }
 }
+
+/** Texto do menu quando o cliente volta a ele: sem repetir a apresentação da assistente. */
+export const RETURNING_MENU_BODY = "Escolha uma opção ou escreva sua dúvida.";

@@ -8,6 +8,7 @@ import { WorkflowContainer } from "./workflow-container";
 import { Suspense } from "react";
 import { prefetchWorkflows } from "@/features/workflows/server/prefetch";
 import { QuickWorkflowButton } from "@/features/workflows/components/quick-builder/quick-workflow-button";
+import { AttendanceTemplateButton } from "@/features/tracking-chat-ai/components/attendance-template-button";
 import { AstroFlowBar } from "@/features/automations-hub/components/astro-flow-bar";
 
 interface WorkflowPageProps {
@@ -43,6 +44,7 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
             </Link>
           </Button>
           <AstroFlowBar trackingId={trackingId} />
+          <AttendanceTemplateButton trackingId={trackingId} />
           <QuickWorkflowButton trackingId={trackingId} />
           <CreateWorkflowButton />
         </div>

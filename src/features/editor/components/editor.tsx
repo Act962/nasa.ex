@@ -1,4 +1,5 @@
 "use client";
+import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-button-presets";
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { createId } from "@paralleldrive/cuid2";
@@ -441,6 +442,7 @@ export function Editor({ workflowId }: { workflowId: string }) {
   // ligações mudam, não a cada arrasto. O tipo de número do funil decide quais regras valem.
   const { trackingId } = useParams<{ trackingId: string }>();
   const { instance, instanceLoading } = useQueryInstances(trackingId);
+  const { presets: savedMenus } = useAiButtonPresets(trackingId ?? "");
   const channelProvider: FlowChannelProvider = !instance ? "none" : instance.provider === "META_CLOUD" ? "meta" : "uazapi";
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const setFlowDiagnostics = useSetAtom(flowDiagnosticsAtom);
@@ -454,11 +456,11 @@ export function Editor({ workflowId }: { workflowId: string }) {
   );
   useEffect(() => {
     if (instanceLoading) return;
-    const flowDiagnostics = collectFlowProblems(nodes, edges, channelProvider);
+    const flowDiagnostics = collectFlowProblems(nodes, edges, channelProvider, savedMenus);
     setFlowDiagnostics(flowDiagnostics);
     // A assinatura já resume nós e ligações: depender deles direto recalcularia a cada arrasto.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diagnosticsSignature, channelProvider, instanceLoading, setFlowDiagnostics]);
+  }, [diagnosticsSignature, channelProvider, instanceLoading, setFlowDiagnostics, savedMenus]);
   useEffect(
     () => () => {
       setFlowDiagnostics(EMPTY_FLOW_DIAGNOSTICS);

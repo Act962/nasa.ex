@@ -1,3 +1,4 @@
+import { createAttendanceTemplate } from "./create-attendance-template";
 import { createActionWithAi } from "./ai-workspace";
 import { createLeadWithAi } from "./ai-tracking";
 import { createAiButtonPreset } from "./create-ai-button-preset";
@@ -50,6 +51,8 @@ export const iaRouter = {
   consumptionReport: getAiConsumptionReport,
   // Em quais recursos a chave da empresa vale e a faixa do modelo por uso (etapa 2).
   preferences: { get: getAiPreferences, update: updateAiPreferences },
+  // Modelo de atendimento por menu, desligado, para a empresa adaptar (spec 0097).
+  attendanceTemplate: { create: createAttendanceTemplate },
   buttonPresets: {
     list: listAiButtonPresets,
     create: createAiButtonPreset,

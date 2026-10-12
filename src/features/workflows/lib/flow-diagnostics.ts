@@ -44,7 +44,8 @@ export type FlowDiagnosticCode =
   | "OPTION_TITLE_TOO_LONG"
   | "NODE_DISCONNECTED"
   | "TRIGGER_LEADS_NOWHERE"
-  | "NODE_INCOMPLETE";
+  | "NODE_INCOMPLETE"
+  | "PLACEHOLDER_TEXT";
 
 export interface FlowDiagnostic {
   nodeId: string;

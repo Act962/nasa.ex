@@ -1,3 +1,4 @@
+import { hasPlaceholderText } from "@/features/workflows/lib/placeholder-text";
 import { sendText } from "@/http/uazapi/send-text";
 import { formatNumberedMenu, isButtonsOfficialOnly, numberedMenuMetadata } from "@/features/tracking-chat/lib/numbered-menu";
 import { NodeExecutor } from "@/features/tracking-executions/types";
@@ -236,6 +237,10 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
           template: templateToSend,
         });
       } else
+      // Última barreira (spec 0097): texto de exemplo do modelo de atendimento nunca chega a um cliente.
+      if (hasPlaceholderText(data.action?.payload)) {
+        throw new NonRetriableError("Mensagem com texto de exemplo (\"[Escreva aqui…]\") não foi enviada. Troque o texto no passo.");
+      }
       switch (typeMessage) {
         case "TEXT":
           let message = data.action?.payload.message || "";
@@ -321,6 +326,9 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
               throw new NonRetriableError(
                 "Preset de botões não encontrado ou inativo",
               );
+            }
+            if (hasPlaceholderText([preset.bodyText, preset.footerText])) {
+              throw new NonRetriableError("Menu com texto de exemplo (\"[Escreva aqui…]\") não foi enviado. Troque o texto do menu.");
             }
             bodyText = preset.bodyText;
             footerText = preset.footerText ?? undefined;

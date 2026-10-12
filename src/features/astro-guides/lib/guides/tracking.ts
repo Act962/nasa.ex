@@ -161,6 +161,28 @@ export const TRACKING_GUIDES: GuideDef[] = [
       message: "Dá para voltar aqui e mudar quando quiser.",
     },
   },
+  // Mais específico que criar um fluxo: "modelo de atendimento" vem antes.
+  {
+    key: "tracking.attendance-template",
+    app: "tracking",
+    title: "Criar o modelo de atendimento",
+    summary: "Um exemplo pronto de atendimento por menu, desligado, para você trocar os textos pelos da sua empresa.",
+    topicPattern: /\b(modelo|exemplo)\b.*\b(atendimento|menu)\b|\b(atendimento|menu)\b.*\b(modelo|exemplo|pronto)\b/,
+    steps: [
+      {
+        anchor: "trackingFlowsAttendanceTemplate",
+        title: "Clique em Criar modelo de atendimento",
+        message: "Cria um menu inicial, três fluxos e três menus de perguntas. Tudo vem desligado.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: "Abra Gatilhos Automáticos dentro de um funil para ver este botão. Ele só aparece para quem pode criar Automações.",
+      },
+    ],
+    finish: {
+      title: "Modelo criado ✨",
+      message: "Abra cada fluxo e cada menu e troque os textos entre colchetes. Enquanto houver texto de exemplo, nada liga.",
+    },
+  },
   // Mais específico que criar: vem antes, para "como altero um fluxo" não cair no guia de criar.
   {
     key: "tracking.astro-flow-edit",

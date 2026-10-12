@@ -1,3 +1,4 @@
+import { hasPlaceholderText } from "@/features/workflows/lib/placeholder-text";
 import { sendText } from "@/http/uazapi/send-text";
 import { formatNumberedMenu, isButtonsOfficialOnly, numberedMenuMetadata } from "@/features/tracking-chat/lib/numbered-menu";
 import { tool } from "ai";
@@ -43,6 +44,12 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
 
       const preset = ctx.availableButtonPresets.find((p) => p.id === presetId);
       if (!preset) return { error: "preset_not_found", presetId };
+
+      // Última barreira (spec 0097): texto de exemplo do modelo nunca chega a um cliente.
+      if (hasPlaceholderText([preset.bodyText, preset.footerText])) {
+        console.error("[send-buttons] menu com texto de exemplo não enviado", { presetId, trackingId: ctx.trackingId });
+        return { error: "preset_has_placeholder_text", presetId };
+      }
 
       const buttons = parsePresetButtons(preset.buttons);
       if (buttons.length === 0) {

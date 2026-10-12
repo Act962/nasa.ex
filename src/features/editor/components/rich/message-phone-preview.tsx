@@ -76,6 +76,29 @@ function ImageAttachment({ mediaUrl }: { mediaUrl?: string }) {
 const MAX_BUTTONS = 3;
 const MAX_VISIBLE_OPTIONS = 5;
 
+const PHONE_CHROME_HEIGHT = 50;
+const PHONE_BODY_MIN_HEIGHT = 92;
+const PHONE_BODY_PADDING = 16;
+const BUBBLE_PADDING = 12;
+const TEXT_LINE_HEIGHT = 14.5;
+const TEXT_CHARS_PER_LINE = 26;
+const MAX_TEXT_LINES = 6;
+const OPTION_ROW_HEIGHT = 24;
+const ATTACHMENT_HEIGHT: Partial<Record<PhoneMessage["kind"], number>> = { image: 84, document: 40, voice: 20, template: 22 };
+
+/** Altura aproximada do celular, para quem precisa reservar espaço antes de desenhar (mapa da operação). */
+export function estimatePhoneHeight(message: PhoneMessage): number {
+  const wrappedLines = (message.text || "Mensagem sem texto")
+    .split("\n")
+    .reduce((lineCount, paragraph) => lineCount + Math.max(1, Math.ceil(paragraph.length / TEXT_CHARS_PER_LINE)), 0);
+  const titleHeight = message.kind === "template" && message.headerText ? TEXT_LINE_HEIGHT : 0;
+  const bubbleHeight = BUBBLE_PADDING + (ATTACHMENT_HEIGHT[message.kind] ?? 0) + titleHeight + Math.min(MAX_TEXT_LINES, wrappedLines) * TEXT_LINE_HEIGHT;
+  const optionCount = message.options?.length ?? 0;
+  const visibleRows = optionCount > MAX_BUTTONS ? Math.min(optionCount, MAX_VISIBLE_OPTIONS) + (optionCount > MAX_VISIBLE_OPTIONS ? 1 : 0) : optionCount;
+  const optionsHeight = visibleRows > 0 ? visibleRows * OPTION_ROW_HEIGHT + 6 : 0;
+  return Math.ceil(PHONE_CHROME_HEIGHT + Math.max(PHONE_BODY_MIN_HEIGHT, PHONE_BODY_PADDING + bubbleHeight + optionsHeight));
+}
+
 export function MessagePhonePreview({
   message,
   isUndelivered,
@@ -103,7 +126,7 @@ export function MessagePhonePreview({
         </span>
       </div>
       <div className="min-h-[92px] space-y-1 bg-muted/40 bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:12px_12px] p-2">
-        <div className={cn("rounded-lg bg-card px-2 py-1.5 text-[10.5px] leading-snug shadow-sm", isUndelivered && "opacity-60")}>
+        <div className={cn("rounded bg-card px-2 py-1.5 text-[10.5px] leading-snug shadow-sm", isUndelivered && "opacity-60")}>
           {message.kind === "image" && <ImageAttachment mediaUrl={message.mediaUrl} />}
           {message.kind === "document" && <DocumentBadge fileName={message.label} mediaUrl={message.mediaUrl} />}
           {message.kind === "voice" && (
@@ -124,13 +147,13 @@ export function MessagePhonePreview({
           <span className="line-clamp-6 whitespace-pre-line break-words">{message.text || (message.kind === "image" || message.kind === "document" ? "" : "Mensagem sem texto")}</span>
         </div>
         {options.length > 0 && (
-          <div className={cn(isList ? "overflow-hidden rounded-lg bg-card shadow-sm" : "grid gap-0.5")}>
+          <div className={cn(isList ? "overflow-hidden rounded bg-card shadow-sm" : "grid gap-0.5")}>
             {options.slice(0, MAX_VISIBLE_OPTIONS).map((option, optionIndex) => (
               <span
                 key={`${option}-${optionIndex}`}
                 className={cn(
                   "block truncate text-[10.5px]",
-                  isList ? "border-b px-2 py-1 last:border-b-0" : "rounded-lg bg-card px-2 py-1 text-center font-medium text-info shadow-sm",
+                  isList ? "border-b px-2 py-1 last:border-b-0" : "rounded bg-card px-2 py-1 text-center font-medium text-info shadow-sm",
                 )}
               >
                 {option || "sem texto"}
