@@ -5,6 +5,7 @@ import { Decimal } from "@prisma/client/runtime/client";
 import prisma from "@/lib/prisma";
 import { sendRecordPix } from "@/features/form-records/server/record-pix";
 import { notifyNewTask } from "@/features/actions/server/lib/notify-new-task";
+import { buildPublicFormUrl } from "@/features/form/lib/public-form-url";
 import type { AiCapabilities } from "../../lib/capabilities";
 
 /**
@@ -42,10 +43,14 @@ function makeFormTool(scope: LeadServiceScope) {
       if (!scope.capabilities.forms.formIds.includes(formId)) return { error: "Formulário indisponível." };
       const form = await prisma.form.findFirst({
         where: { id: formId, organizationId: scope.organizationId, published: true },
-        select: { name: true, shareUrl: true },
+        select: { id: true, name: true },
       });
       if (!form) return { error: "Formulário indisponível." };
-      return { formName: form.name, link: `${appBaseUrl()}/formulario/${form.shareUrl}?lead=${scope.leadId}` };
+      const lead = await prisma.lead.findFirst({
+        where: { id: scope.leadId, tracking: { organizationId: scope.organizationId } },
+        select: { publicToken: true },
+      });
+      return { formName: form.name, link: buildPublicFormUrl({ formId: form.id, leadPublicToken: lead?.publicToken }) };
     },
   });
 }

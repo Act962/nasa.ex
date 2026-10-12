@@ -168,6 +168,7 @@ export async function prepareClientCall(params: { instance: CallInstance; caller
     maxChars: MAX_COMPANY_KNOWLEDGE_CHARS,
   });
   const assistantName = agentContext.settings.assistantName?.trim() || "Astro";
+  const maxCallMinutes = agentContext.capabilities.voiceCallMaxMinutes;
   const instructions = [
     buildSystemPrompt({
       settings: agentContext.settings,
@@ -182,6 +183,7 @@ export async function prepareClientCall(params: { instance: CallInstance; caller
     }),
     knowledge,
     VOICE_RULES,
+    `- Esta ligação dura no máximo ${maxCallMinutes} ${maxCallMinutes === 1 ? "minuto" : "minutos"}. Se perguntarem, diga isso; perto do fim, o sistema avisa você para se despedir.`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -238,6 +240,7 @@ export async function prepareClientCall(params: { instance: CallInstance; caller
       callerKey: `lead:${lead.id}`,
       callerName: agentContext.lead.name === "Sem nome" ? null : agentContext.lead.name,
       greeting: `Atenda a ligação agora dizendo exatamente: "Olá, aqui é ${assistantName}, assistente virtual da ${agentContext.organization.name}. Como posso ajudar?"`,
+      maxCallMs: maxCallMinutes * 60_000,
       runTool,
       sessionConfig: {
         type: "realtime",

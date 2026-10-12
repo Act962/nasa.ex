@@ -4,6 +4,8 @@ import { z } from "zod";
 // `AiSettings.capabilities`; campo ausente = capacidade desligada.
 
 const REMINDER_HOURS_OPTIONS = [2, 24, 48] as const;
+export const MIN_VOICE_CALL_MINUTES = 1;
+export const MAX_VOICE_CALL_MINUTES = 10;
 
 export const aiCapabilitiesSchema = z.object({
   understandAudio: z.boolean().default(false),
@@ -55,6 +57,8 @@ export const aiCapabilitiesSchema = z.object({
     .default({ isEnabled: false, workspaceId: null }),
   /** Atender chamadas de voz de clientes pelo WhatsApp (spec 0087, Parte C). */
   voiceCall: z.boolean().default(false),
+  /** Duração máxima da chamada do cliente, em minutos (spec 0100, RF-5). Valor fora da faixa vale o padrão. */
+  voiceCallMaxMinutes: z.number().int().min(MIN_VOICE_CALL_MINUTES).max(MAX_VOICE_CALL_MINUTES).catch(MAX_VOICE_CALL_MINUTES).default(MAX_VOICE_CALL_MINUTES),
   /** Atender por botões e listas o que é roteiro (marcar, ver, remarcar, cancelar), sem modelo (spec 0089). */
   guidedMenu: z.boolean().default(false),
   /** Cada resposta da assistente sai numa mensagem só, curta, em vez de 2 a 4 mensagens em sequência. */
