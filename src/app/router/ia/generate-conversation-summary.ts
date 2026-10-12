@@ -1,10 +1,11 @@
+import { resolveAiFor } from "@/features/ia/server/resolve-ai-for";
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { streamText } from "ai";
-import { google } from "@ai-sdk/google";
 import { streamToEventIterator } from "@orpc/client";
 import dayjs from "dayjs";
 import {
@@ -158,8 +159,9 @@ export const generateConversationSummary = base
       ? prependBrandToTextSystem(baseSystem, brandCtx)
       : baseSystem;
 
+    const resolvedAi = await resolveAiFor({ resourceId: "chat.assist", organizationId: context.org.id, provider: "google", modelId: "gemini-2.5-flash" });
     const result = streamText({
-      model: google("gemini-2.5-flash"),
+      model: resolvedAi.model,
       system,
       messages: [
         {
@@ -169,6 +171,8 @@ export const generateConversationSummary = base
       ],
       temperature: 0.2,
       experimental_telemetry: { isEnabled: true, functionId: "generate-conversation-summary" },
+      onFinish: ({ usage }) =>
+        recordAiUsage({ resourceId: "chat.assist", feature: "chat.summary", organizationId: context.org.id, userId: context.user.id, provider: "google", modelId: resolvedAi.modelId, keySource: resolvedAi.keySource, usage, starsCharged: charge.cost }),
     });
 
     return streamToEventIterator(result.toUIMessageStream());

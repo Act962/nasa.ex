@@ -11,6 +11,7 @@
  * incompatíveis (ex: ciclo sem IF), o save subsequente vai bloquear até
  * o user ajustar.
  */
+import { AUTOMATION_DENIAL, checkWorkflowAccess } from "@/features/workflows/server/workflow-access";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { logActivity } from "@/features/admin/lib/activity-logger";
@@ -35,6 +36,10 @@ export const updateAgentMode = base
     }),
   )
   .handler(async ({ input, context, errors }) => {
+    // Ser da empresa não basta: vale a permissão de Automações do papel da pessoa (spec 0092).
+    const access = await checkWorkflowAccess(input.workflowId, context.user.id, "canEdit");
+    if (access === "not-found") throw errors.NOT_FOUND({ message: "Workflow não encontrado" });
+    if (access === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canEdit });
     const workflow = await prisma.workflow.findUnique({
       where: { id: input.workflowId },
       select: {

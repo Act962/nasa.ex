@@ -150,5 +150,8 @@ export async function sendLinkToLead(
       // Pusher falha não deve derrubar o executor — mensagem já tá no DB
     });
 
+  // Mensagem de fluxo também é resposta ao cliente (spec 0099): sem isto, quem conversava com um
+  // fluxo aparecia como "sem resposta" e ganhava "Aguard. atendimento" 15 minutos depois.
+  await prisma.lead.update({ where: { id: lead.id }, data: { lastOutboundAt: new Date() } }).catch(() => undefined);
   return { messageId: message.id, viaInChat: skipUazapi };
 }

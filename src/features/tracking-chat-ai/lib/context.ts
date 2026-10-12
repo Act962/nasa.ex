@@ -129,7 +129,7 @@ export async function loadAgentContext(data: AgentEventData) {
     capabilities.agenda.isEnabled && capabilities.agenda.agendaIds.length > 0
       ? await prisma.agenda.findMany({
           where: { id: { in: capabilities.agenda.agendaIds }, organizationId: data.organizationId, isActive: true },
-          select: { id: true, name: true },
+          select: { id: true, name: true, specialty: true, unit: true, professionalNotes: true },
           orderBy: { name: "asc" },
         })
       : [];

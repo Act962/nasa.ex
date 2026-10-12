@@ -23,12 +23,32 @@ import { buildSystemPrompt } from "./system-prompt";
 import { loadAttendanceKnowledgeBlock } from "./attendance-knowledge";
 import { signalLeadAwaitingHuman, type AwaitingHumanReason } from "./awaiting-human";
 import { handleGuidedMenu } from "./guided-menu/guided-menu";
-import { splitForWhatsapp } from "./split-message";
+import { handleScriptMenu } from "./script-menu";
+import { isReplyForWaitingFlow } from "./flow-awaiting-reply";
+import { isTopicMenuName } from "./topic-menu";
+import { handleTopicMenu } from "./topic-menu-handler";
+import { MENU_PRESET_NAME } from "./attendance-setup/script-draft";
+import { joinAsSingleMessage, splitForWhatsapp } from "./split-message";
 import { persistOutboundMessage } from "./persist";
 import { buildAgentTools } from "../server/tools";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { buildCatalogOrderPrompt } from "@/features/nerp-catalog/lib/order-context";
 import { deliverTextToLead } from "@/features/nerp-catalog/lib/order-channel";
+
+const RECENT_CLIENT_MESSAGES = 3;
+
+/** O que o cliente escreveu por último, para escolher o recorte do roteiro sem chamar modelo. */
+function recentClientText(history: { role: string; content: unknown }[]): string {
+  return history
+    .filter((message) => message.role === "user")
+    .slice(-RECENT_CLIENT_MESSAGES)
+    .map((message) => {
+      if (typeof message.content === "string") return message.content;
+      if (!Array.isArray(message.content)) return "";
+      return message.content.map((part) => (part && typeof part === "object" && "text" in part ? String((part as { text: unknown }).text) : "")).join(" ");
+    })
+    .join(" ");
+}
 
 type Step = GetStepTools<typeof inngest>;
 
@@ -161,11 +181,29 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     }
   }
 
+  // Passo de fluxo esperando a resposta do cliente (spec 0099): a mensagem é do fluxo, ninguém mais responde.
+  if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
+    const isForWaitingFlow = await step.run("flow-awaiting-reply", () => isReplyForWaitingFlow(ctx, data.messageId));
+    if (isForWaitingFlow) return { skipped: true, reason: "flow_awaiting_reply" };
+  }
+
   // Menu de botões (spec 0089): saudação e cliques do menu são resolvidos em código, sem modelo,
   // sem cobrar resposta de IA e sem contar no limite abaixo. O resto segue para a assistente.
   if (ctx.capabilities.guidedMenu && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const guided = await step.run("guided-menu", () => handleGuidedMenu(ctx, data.messageId));
     if (guided.handled) return { skipped: true, reason: "guided_menu" };
+  }
+
+  // Pergunta do menu de um assunto (spec 0096): a resposta do roteiro sai pelo código, sem modelo.
+  if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
+    const topicMenu = await step.run("topic-menu", () => handleTopicMenu(ctx, data.messageId));
+    if (topicMenu.handled) return { skipped: true, reason: "topic_menu" };
+  }
+
+  // Menu inicial do roteiro (spec 0091): no começo da conversa, saudação e menu saem pelo código.
+  if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
+    const scriptMenu = await step.run("script-menu", () => handleScriptMenu(ctx, data.messageId));
+    if (scriptMenu.handled) return { skipped: true, reason: "script_menu" };
   }
 
   // Limite por cliente (spec 0084, RS-9): protege o número e o saldo da empresa de uso abusivo.
@@ -262,13 +300,18 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     return { skipped: true, reason: "stars_insufficient" };
   }
 
+  // O menu inicial do roteiro é enviado pelo código (script-menu). A assistente não o vê: no teste real
+  // ela reenviou a saudação com o menu no meio da conversa, quando o cliente só pediu para agendar.
+  // Os menus de perguntas por assunto (spec 0096) também: quem os envia é o fluxo e o código.
+  const assistantCtx = { ...ctx, availableButtonPresets: ctx.availableButtonPresets.filter((preset) => preset.name !== MENU_PRESET_NAME && !isTopicMenuName(preset.name)) };
+
   const baseSystem = buildSystemPrompt({
     settings: ctx.settings!,
     orgName: ctx.organization.name,
     leadName: ctx.lead.name,
     currentTags: ctx.lead.leadTags,
     availableTags: ctx.availableTags,
-    availableButtonPresets: ctx.availableButtonPresets,
+    availableButtonPresets: assistantCtx.availableButtonPresets,
     availableAgendas: ctx.availableAgendas,
     availableForms: ctx.availableForms,
     capabilities: ctx.capabilities,
@@ -281,6 +324,8 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     loadAttendanceKnowledgeBlock({
       organizationId: ctx.organizationId,
       knowledgeIds: ctx.capabilities.knowledgeIds,
+      // Só o assunto em pauta: o roteiro inteiro a cada resposta era o maior custo por mensagem.
+      focus: { tagNames: ctx.lead.leadTags.map((leadTag) => leadTag.tag.name), recentText: recentClientText(ctx.history) },
     }),
   );
   const baseWithKnowledge = knowledgeBlock ? `${baseSystem}\n\n${knowledgeBlock}` : baseSystem;
@@ -303,7 +348,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     const result = await generateText({
       model: resolved.model,
       system: systemPrompt,
-      tools: buildAgentTools(ctx),
+      tools: buildAgentTools(assistantCtx),
       messages: ctx.history,
       stopWhen: ({ steps }) => steps.length >= 6,
     }).catch(async (error: unknown) => {
@@ -398,7 +443,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
           voiceName: ctx.capabilities.voiceName,
         });
       }
-      const parts = splitForWhatsapp(aiResult.text);
+      const parts = ctx.capabilities.singleMessageReply ? joinAsSingleMessage(aiResult.text) : splitForWhatsapp(aiResult.text);
       for (let i = 0; i < parts.length; i++) {
         const chunk = parts[i];
         if (ctx.catalogOrder) {

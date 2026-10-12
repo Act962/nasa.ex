@@ -1,5 +1,7 @@
 "use client";
 
+import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
+import { NUMBERED_MENU_NOTICE, isButtonsOfficialOnly } from "@/features/tracking-chat/lib/numbered-menu";
 import { useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -93,6 +95,8 @@ function parseButtons(raw: unknown): ButtonItem[] {
 export function ChatBotIaButtonsTab({ trackingId }: { trackingId: string }) {
   const { presets, isLoadingPresets } = useAiButtonPresets(trackingId);
   const createPreset = useCreateAiButtonPreset(trackingId);
+  const { instance } = useQueryInstances(trackingId);
+  const isUnofficialNumber = Boolean(instance) && instance?.provider !== "META_CLOUD" && isButtonsOfficialOnly();
 
   const handleCreate = () => {
     createPreset.mutate(
@@ -120,6 +124,11 @@ export function ChatBotIaButtonsTab({ trackingId }: { trackingId: string }) {
 
   return (
     <div className="space-y-6">
+      {isUnofficialNumber && (
+        <p className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">Botões e listas só em número com API oficial.</span> {NUMBERED_MENU_NOTICE}
+        </p>
+      )}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">
           <h3 className="text-base font-semibold">Presets de botões</h3>

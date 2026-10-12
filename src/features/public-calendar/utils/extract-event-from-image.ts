@@ -1,3 +1,5 @@
+import { anthropicKeySourceOf } from "@/lib/anthropic-key";
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import "server-only";
 
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -76,11 +78,13 @@ export async function extractEventFromImage(
   imageBytes: Uint8Array,
   contentType: string,
   apiKey: string,
+  /** Quem pediu, para o registro de uso de IA (spec 0093). */
+  requester: { organizationId: string; userId?: string },
 ): Promise<(ParsedEvent & { eventCategory?: string | null }) | null> {
   try {
     const anthropic = createAnthropic({ apiKey });
 
-    const { object } = await generateObject({
+    const { object, usage } = await generateObject({
       model: anthropic("claude-haiku-4-5-20251001"),
       schema: eventSchema,
       messages: [
@@ -103,6 +107,15 @@ export async function extractEventFromImage(
         },
       ],
       maxOutputTokens: 800,
+    });
+    await recordAiUsage({
+      resourceId: "agenda.event-from-image",
+      organizationId: requester.organizationId,
+      userId: requester.userId,
+      provider: "anthropic",
+      modelId: "claude-haiku-4-5",
+      keySource: anthropicKeySourceOf(apiKey),
+      usage,
     });
 
     // Normaliza pro shape de ParsedEvent + categoria

@@ -19,6 +19,7 @@ export {
   TaskIcon,
   NBoxIcon,
   TrackingIcon,
+  GatilhosIcon,
   NasaPlannerIcon,
   NasaRouteIcon,
   SpaceStationIcon,

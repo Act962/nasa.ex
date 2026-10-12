@@ -7,7 +7,7 @@ import { IntegrationPlatform } from "@/generated/prisma/enums";
 import { assertSafeSeiEndpoint } from "@/features/sei/server/sei-client";
 import { encryptSeiIdentification } from "@/features/sei/server/sei-config";
 import { inngest } from "@/inngest/client";
-import { isAiKeyPlatform, maskIntegrationConfig, sealIntegrationConfig } from "@/features/integrations/lib/integration-api-key";
+import { isSealedKeyPlatform, maskIntegrationConfig, sealIntegrationConfig } from "@/features/integrations/lib/integration-api-key";
 
 const seiConfigSchema = z.object({
   endpoint: z.url("Informe uma URL válida para o WebService do SEI."),
@@ -56,7 +56,7 @@ export const upsertPlatformIntegration = base
       };
     }
 
-    if (isAiKeyPlatform(input.platform)) {
+    if (isSealedKeyPlatform(input.platform)) {
       const current = await prisma.platformIntegration.findUnique({
         where: {
           organizationId_platform: { organizationId: context.org.id, platform: input.platform },

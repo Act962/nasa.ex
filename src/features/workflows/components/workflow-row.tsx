@@ -1,5 +1,6 @@
 "use client";
 
+import { useAutomationPermissions } from "@/features/workflows/hooks/use-automation-permissions";
 import { Button } from "@/components/ui/button";
 import {
   Item,
@@ -56,6 +57,7 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
   const { data: foldersData } = useWorkflowFolders(trackingId);
   const moveToFolder = useMoveWorkflowToFolder(trackingId);
   const updateIsActive = useUpdateWorkflowIsActive(trackingId);
+  const permissions = useAutomationPermissions();
   const [duplicateOpen, setDuplicateOpen] = useState(false);
 
   const { labels, total } = getWorkflowStepsPreview(
@@ -171,6 +173,7 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
                 <Switch
                   checked={workflow.isActive}
                   disabled={
+                    !permissions.canEdit ||
                     updateIsActive.isPending ||
                     (!workflow.isActive && !canActivate)
                   }
@@ -215,6 +218,7 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
             )}
           </Tooltip>
         </TooltipProvider>
+        {(permissions.canCreate || permissions.canEdit) && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -227,11 +231,15 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onSelect={() => setDuplicateOpen(true)}>
-              <CopyIcon className="size-3.5" />
-              Duplicar automação
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {permissions.canCreate && (
+              <DropdownMenuItem onSelect={() => setDuplicateOpen(true)}>
+                <CopyIcon className="size-3.5" />
+                Duplicar automação
+              </DropdownMenuItem>
+            )}
+            {permissions.canCreate && permissions.canEdit && <DropdownMenuSeparator />}
+            {permissions.canEdit && (
+            <>
             <DropdownMenuLabel className="text-xs flex items-center gap-1.5">
               <FolderInputIcon className="size-3.5" />
               Mover para
@@ -270,8 +278,11 @@ export function WorkflowRow({ workflow, trackingId, currentFolderId }: Props) {
                 </DropdownMenuItem>
               ))
             )}
+            </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
         <Button size="sm" variant="outline" asChild>
           <Link href={`/tracking/${trackingId}/workflows/${workflow.id}`}>
             Ver

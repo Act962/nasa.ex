@@ -1,5 +1,6 @@
+import { resolveAiFor } from "@/features/ia/server/resolve-ai-for";
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import "server-only";
-import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import type {
@@ -34,13 +35,24 @@ export class StarsAiReplyGenerator implements AiReplyGenerator {
     }
 
     try {
+      const resolvedAi = await resolveAiFor({ resourceId: "comments.reply", organizationId: request.organizationId, provider: "openai", modelId: "gpt-4o-mini" });
       const result = await generateText({
-        model: openai("gpt-4o-mini"),
+        model: resolvedAi.model,
         prompt: [
           `Instruções: ${request.prompt}`,
           `Mensagem do usuário: "${request.incomingText}"`,
           "Responda em português do Brasil, em até 2 frases, sem repetir a pergunta.",
         ].join("\n"),
+      });
+
+      await recordAiUsage({
+        resourceId: "comments.reply",
+        organizationId: request.organizationId,
+        provider: "openai",
+        modelId: resolvedAi.modelId,
+        keySource: resolvedAi.keySource,
+        usage: result.usage,
+        starsCharged: charge.cost,
       });
 
       const text = result.text?.trim();

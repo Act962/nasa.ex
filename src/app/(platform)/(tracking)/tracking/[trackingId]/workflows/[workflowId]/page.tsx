@@ -1,4 +1,5 @@
-import { Editor, EditorLoading } from "@/features/editor/components/editor";
+import { EditorLoading } from "@/features/editor/components/editor";
+import { EditorWithAstroReload } from "@/features/editor/components/editor-with-astro-reload";
 import { EditorHeader } from "@/features/editor/components/editor-header";
 import { prefetchWorkflow } from "@/features/workflows/server/prefetch";
 import { orpc } from "@/lib/orpc";
@@ -22,7 +23,7 @@ export default async function WorkflowPage({ params }: Props) {
       <Suspense fallback={<EditorLoading />}>
         <EditorHeader workflowId={workflowId} />
         <main className="flex-1">
-          <Editor workflowId={workflowId} />
+          <EditorWithAstroReload workflowId={workflowId} />
         </main>
       </Suspense>
     </HydrateClient>

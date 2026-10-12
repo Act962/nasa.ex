@@ -11,6 +11,7 @@
  * anônimo criaria um passivo de LGPD sem contrapartida.
  */
 
+import { recordTrafegoAiUsage } from "@/features/trafego/server/lib/record-trafego-ai-usage";
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@ai-sdk/openai";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
     maxOutputTokens: 900,
     temperature: 0.3,
     experimental_telemetry: { isEnabled: true, functionId: "trafego-assistant" },
+    onFinish: ({ totalUsage }) => recordTrafegoAiUsage({ feature: "trafego.assistant", provider: "openai", modelId: "gpt-4o-mini", usage: totalUsage }),
   });
 
   return result.toUIMessageStreamResponse();

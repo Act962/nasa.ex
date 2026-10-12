@@ -17,6 +17,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { runWorkflow, type NodeExecutor } from "../run-workflow";
 import { interpolate } from "../workflow-context";
+import { HANDOFF_MODE, MAX_HANDOFF_DEPTH } from "../flow-links";
 
 const MAX_SUBWORKFLOW_DEPTH = 5;
 
@@ -112,7 +113,15 @@ export const callWorkflowExecutor: NodeExecutor = async ({
   // Carrega sub-workflow
   const subWorkflow = await prisma.workflow.findUnique({
     where: { id: workflowId },
-    select: { id: true, agentMode: true, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      agentMode: true,
+      isActive: true,
+      tracking: { select: { organizationId: true } },
+      nodes: { select: { id: true, type: true } },
+      connections: { select: { toNodeId: true } },
+    },
   });
   if (!subWorkflow) {
     return {
@@ -120,6 +129,19 @@ export const callWorkflowExecutor: NodeExecutor = async ({
       status: "FAILED",
       errorMessage: "subworkflow_not_found",
     };
+  }
+  // O id do fluxo de destino vem do desenho, que qualquer editor do funil pode alterar: só vale
+  // fluxo da mesma empresa do lead (spec 0092).
+  const leadTrackingId = typeof context.lead?.trackingId === "string" ? (context.lead.trackingId as string) : null;
+  if (leadTrackingId && subWorkflow.tracking?.organizationId) {
+    const leadTracking = await prisma.tracking.findUnique({ where: { id: leadTrackingId }, select: { organizationId: true } });
+    if (leadTracking && leadTracking.organizationId !== subWorkflow.tracking.organizationId) {
+      return {
+        output: { error: `Workflow ${workflowId} não encontrado` },
+        status: "FAILED",
+        errorMessage: "subworkflow_not_found",
+      };
+    }
   }
   if (!subWorkflow.agentMode) {
     return {
@@ -133,6 +155,45 @@ export const callWorkflowExecutor: NodeExecutor = async ({
     return {
       output: { dryRun: true, calledWorkflowId: workflowId, depth: depth + 1 },
     };
+  }
+
+  // Modo passagem ("terminou um, roda o outro", spec 0092): em vez de rodar aqui dentro, dispara o
+  // fluxo de destino como uma execução própria. Assim as esperas dele funcionam, o que não acontece
+  // na chamada embutida abaixo. Só para quadros marcados com `mode: "handoff"`; os demais não mudam.
+  if (data.mode === HANDOFF_MODE) {
+    const handoffDepth = Number((context.trigger as { __handoffDepth?: unknown } | undefined)?.__handoffDepth ?? 0);
+    if (handoffDepth >= MAX_HANDOFF_DEPTH) {
+      return {
+        output: { error: `Sequência de fluxos passou de ${MAX_HANDOFF_DEPTH} passagens` },
+        status: "FAILED",
+        errorMessage: "max_handoff_depth_reached",
+      };
+    }
+    if (!subWorkflow.isActive) {
+      return {
+        output: { error: `O fluxo "${subWorkflow.name}" está desligado` },
+        status: "FAILED",
+        errorMessage: `O fluxo de destino "${subWorkflow.name}" está desligado. Ligue-o para a passagem acontecer.`,
+      };
+    }
+    // O fluxo de destino começa pelo gatilho dele: é o tipo desse quadro que o motor procura.
+    const nodesWithIncoming = new Set(subWorkflow.connections.map((connection) => connection.toNodeId));
+    const entryNode = subWorkflow.nodes.find((node) => node.type !== "INITIAL" && !nodesWithIncoming.has(node.id));
+    if (!entryNode) {
+      return {
+        output: { error: `O fluxo "${subWorkflow.name}" não tem gatilho` },
+        status: "FAILED",
+        errorMessage: `O fluxo de destino "${subWorkflow.name}" não tem por onde começar.`,
+      };
+    }
+    const { sendWorkflowExecution } = await import("@/inngest/utils");
+    await sendWorkflowExecution({
+      workflowId,
+      triggerType: entryNode.type as Parameters<typeof sendWorkflowExecution>[0]["triggerType"],
+      leadId: typeof context.lead?.id === "string" ? (context.lead.id as string) : null,
+      initialData: { __handoffDepth: handoffDepth + 1, handedOffFromWorkflow: true },
+    });
+    return { output: { handedOff: true, subWorkflowId: workflowId }, chosenOutput: "main" };
   }
 
   // Executa sub-workflow inline com profundidade +1. Sub-workflow herda

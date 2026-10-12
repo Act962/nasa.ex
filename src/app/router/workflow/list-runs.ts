@@ -5,6 +5,7 @@
  * lista de runs com status + duração, aba Métricas mostra agregados
  * (taxa de sucesso, Stars gastos, decisões IA, conversões).
  */
+import { AUTOMATION_DENIAL, checkWorkflowAccess } from "@/features/workflows/server/workflow-access";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
@@ -18,7 +19,11 @@ export const listWorkflowRuns = base
       limit: z.number().int().min(1).max(200).default(50),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
+    // Ser da empresa não basta: vale a permissão de Automações do papel da pessoa (spec 0092).
+    const access = await checkWorkflowAccess(input.workflowId, context.user.id, "canView");
+    if (access === "not-found") throw errors.NOT_FOUND({ message: "Workflow não encontrado" });
+    if (access === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canView });
     const runs = await prisma.workflowRun.findMany({
       where: { workflowId: input.workflowId },
       orderBy: { startedAt: "desc" },
@@ -84,7 +89,7 @@ export const listWorkflowRuns = base
 export const getWorkflowRunDetail = base
   .use(requiredAuthMiddleware)
   .input(z.object({ runId: z.string() }))
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const run = await prisma.workflowRun.findUnique({
       where: { id: input.runId },
       include: {
@@ -104,6 +109,9 @@ export const getWorkflowRunDetail = base
         },
       },
     });
-    if (!run) throw errors.NOT_FOUND({ message: "Run não encontrada" });
+    // Só quem é da empresa dona do fluxo vê a execução dele (spec 0092).
+    const runAccess = run ? await checkWorkflowAccess(run.workflowId, context.user.id, "canView") : "not-found";
+    if (!run || runAccess === "not-found") throw errors.NOT_FOUND({ message: "Run não encontrada" });
+    if (runAccess === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canView });
     return run;
   });

@@ -1,214 +1,107 @@
 /**
- * Overview de consumo de tokens da organização — usado pelo TokenMeter
- * do sidebar. Diferente de `getAiUsage` (que é por tracking), este é
- * **org-wide** e agrega tudo: Chatbot IA, workflow agent-mode, etc.
+ * `ia.usage.overview` — agregado de tokens e custo de IA da empresa no ciclo de 30 dias.
  *
- * Retorna:
- *   - currentCycle  : tokens + custo USD/BRL no ciclo atual (30d)
- *   - previousCycle : mesma janela no mês anterior pra calcular trend
- *   - byProvider    : breakdown OpenAI / Anthropic / Google / NASA default
- *   - byModel       : breakdown por modelId (top 10)
- *   - dailyTrend    : série diária últimos 30 dias pro mini-chart
- *
- * Ciclo: 30 dias a contar de `organization.starsCycleStart` (mesma
- * janela do Stars meter, pra a UI bater).
- *
- * Custo: derivado em-memória usando tabela `token-pricing.ts`. Não
- * persistimos `costInCents` em `AiChatRun` (ainda) pra não precisar
- * de backfill — preço sempre calculado on-read.
+ * Lê de `usage_event`, a mesma fonte da seção "IA da empresa" e do relatório "Consumo de IA" do
+ * Insights (spec 0093, RF-7), para os três mostrarem o mesmo número. Antes lia de `AiChatRun`, que só
+ * conhecia o atendimento do funil e deixava de fora o Astro e os demais recursos.
  */
+
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma/client";
-import { calculateCostUsd, toBrl } from "@/features/ia/lib/token-pricing";
+import { usageCostBrl } from "@/features/ia/lib/ai-use-groups";
+import { FALLBACK_USD_TO_BRL } from "@/features/ia/lib/token-pricing";
+import { loadAiDailyUsage, type AiDailyUsageRow } from "@/features/ia/server/load-ai-daily-usage";
+import { isCompanyAiManager } from "@/features/ia/server/load-ai-usage";
 
 const CYCLE_DAYS = 30;
+const CYCLE_MS = CYCLE_DAYS * 24 * 60 * 60 * 1000;
+const MODELS_SHOWN = 10;
+
+interface UsageTotal {
+  tokens: number;
+  costBrl: number;
+  runs: number;
+}
+
+function addToTotal(totals: Map<string, UsageTotal>, key: string, usageRow: AiDailyUsageRow, costBrl: number): void {
+  const total = totals.get(key) ?? { tokens: 0, costBrl: 0, runs: 0 };
+  totals.set(key, { tokens: total.tokens + usageRow.inputTokens + usageRow.outputTokens, costBrl: total.costBrl + costBrl, runs: total.runs + usageRow.calls });
+}
+
+const toUsd = (costBrl: number) => costBrl / FALLBACK_USD_TO_BRL;
 
 export const getTokenUsageOverview = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
-  .handler(async ({ context }) => {
-    const orgId = context.org.id;
+  .handler(async ({ context, errors }) => {
+    const organizationId = context.org.id;
+    // Custo de IA da empresa inteira: só dono e admin (spec 0093). O membro comum não vê o medidor.
+    if (!(await isCompanyAiManager(organizationId, context.user.id))) {
+      throw errors.FORBIDDEN({ message: "Só o dono ou um administrador da empresa vê o consumo de IA." });
+    }
+    const organization = await prisma.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { createdAt: true, starsCycleStart: true } });
 
-    const org = await prisma.organization.findUniqueOrThrow({
-      where: { id: orgId },
-      select: { createdAt: true, starsCycleStart: true },
-    });
+    const cycleStart = organization.starsCycleStart ?? organization.createdAt;
+    const cycleEnd = new Date(cycleStart.getTime() + CYCLE_MS);
+    const previousCycleStart = new Date(cycleStart.getTime() - CYCLE_MS);
 
-    const cycleStart = org.starsCycleStart ?? org.createdAt;
-    const cycleEnd = new Date(
-      cycleStart.getTime() + CYCLE_DAYS * 24 * 60 * 60 * 1000,
-    );
-    const prevCycleStart = new Date(
-      cycleStart.getTime() - CYCLE_DAYS * 24 * 60 * 60 * 1000,
-    );
-
-    const baseWhere = { organizationId: orgId };
-
-    // ── Linhas brutas dos 2 ciclos pra calcular custo em-memória ────
-    //   Calcular custo em SQL exigiria CASE longo pra cada modelId.
-    //   Em-memória é mais simples e rápido o suficiente até ~10k runs.
-    const [currentRows, previousRows, totalRuns] = await Promise.all([
-      prisma.aiChatRun.findMany({
-        where: { ...baseWhere, createdAt: { gte: cycleStart } },
-        select: {
-          provider: true,
-          modelId: true,
-          inputTokens: true,
-          outputTokens: true,
-          totalTokens: true,
-          createdAt: true,
-        },
-      }),
-      prisma.aiChatRun.findMany({
-        where: {
-          ...baseWhere,
-          createdAt: { gte: prevCycleStart, lt: cycleStart },
-        },
-        select: {
-          inputTokens: true,
-          outputTokens: true,
-          modelId: true,
-        },
-      }),
-      prisma.aiChatRun.count({
-        where: { ...baseWhere, createdAt: { gte: cycleStart } },
-      }),
+    const [currentRows, previousRows] = await Promise.all([
+      loadAiDailyUsage(organizationId, cycleStart),
+      loadAiDailyUsage(organizationId, previousCycleStart, cycleStart),
     ]);
 
-    // ── Aggregates do ciclo atual ──────────────────────────────────
     let currentInput = 0;
     let currentOutput = 0;
-    let currentCost = 0;
+    let currentCostBrl = 0;
+    let totalRuns = 0;
+    const byProviderTotals = new Map<string, UsageTotal>();
+    const byModelTotals = new Map<string, UsageTotal>();
+    const dailyTotals = new Map<string, UsageTotal>();
 
-    const byProviderMap = new Map<
-      string,
-      { tokens: number; cost: number; runs: number }
-    >();
-    const byModelMap = new Map<
-      string,
-      { tokens: number; cost: number; runs: number }
-    >();
-    const dailyMap = new Map<string, { tokens: number; cost: number }>();
-
-    for (const r of currentRows) {
-      const cost = calculateCostUsd(r.modelId, r.inputTokens, r.outputTokens);
-      currentInput += r.inputTokens;
-      currentOutput += r.outputTokens;
-      currentCost += cost;
-
-      const providerKey = r.provider ?? "NASA_DEFAULT";
-      const prov = byProviderMap.get(providerKey) ?? {
-        tokens: 0,
-        cost: 0,
-        runs: 0,
-      };
-      prov.tokens += r.totalTokens;
-      prov.cost += cost;
-      prov.runs += 1;
-      byProviderMap.set(providerKey, prov);
-
-      const mod = byModelMap.get(r.modelId) ?? { tokens: 0, cost: 0, runs: 0 };
-      mod.tokens += r.totalTokens;
-      mod.cost += cost;
-      mod.runs += 1;
-      byModelMap.set(r.modelId, mod);
-
-      // Bucket diário — usa UTC pra evitar drift de timezone
-      const dayKey = r.createdAt.toISOString().slice(0, 10);
-      const day = dailyMap.get(dayKey) ?? { tokens: 0, cost: 0 };
-      day.tokens += r.totalTokens;
-      day.cost += cost;
-      dailyMap.set(dayKey, day);
+    for (const usageRow of currentRows) {
+      const costBrl = usageCostBrl(usageRow) ?? 0;
+      currentInput += usageRow.inputTokens;
+      currentOutput += usageRow.outputTokens;
+      currentCostBrl += costBrl;
+      totalRuns += usageRow.calls;
+      // Chave da empresa aparece pelo provedor; o resto é a IA mantida pela plataforma.
+      addToTotal(byProviderTotals, usageRow.usingCustomKey && usageRow.provider ? usageRow.provider.toUpperCase() : "NASA_DEFAULT", usageRow, costBrl);
+      addToTotal(byModelTotals, usageRow.modelId ?? "sem modelo informado", usageRow, costBrl);
+      addToTotal(dailyTotals, usageRow.day, usageRow, costBrl);
     }
 
-    // ── Aggregates do ciclo anterior — só pra calcular % trend ─────
     let previousTokens = 0;
-    let previousCost = 0;
-    for (const r of previousRows) {
-      previousTokens += r.inputTokens + r.outputTokens;
-      previousCost += calculateCostUsd(
-        r.modelId,
-        r.inputTokens,
-        r.outputTokens,
-      );
+    let previousCostBrl = 0;
+    for (const usageRow of previousRows) {
+      previousTokens += usageRow.inputTokens + usageRow.outputTokens;
+      previousCostBrl += usageCostBrl(usageRow) ?? 0;
     }
 
     const currentTokens = currentInput + currentOutput;
-    const tokensTrendPct =
-      previousTokens > 0
-        ? ((currentTokens - previousTokens) / previousTokens) * 100
-        : null;
-    const costTrendPct =
-      previousCost > 0
-        ? ((currentCost - previousCost) / previousCost) * 100
-        : null;
-
-    // ── Formatação dos breakdowns ──────────────────────────────────
-    const byProvider = Array.from(byProviderMap.entries())
-      .map(([provider, agg]) => ({
-        provider,
-        tokens: agg.tokens,
-        runs: agg.runs,
-        costUsd: agg.cost,
-        costBrl: toBrl(agg.cost),
-      }))
-      .sort((a, b) => b.tokens - a.tokens);
-
-    const byModel = Array.from(byModelMap.entries())
-      .map(([modelId, agg]) => ({
-        modelId,
-        tokens: agg.tokens,
-        runs: agg.runs,
-        costUsd: agg.cost,
-        costBrl: toBrl(agg.cost),
-      }))
-      .sort((a, b) => b.tokens - a.tokens)
-      .slice(0, 10);
-
-    const dailyTrend = Array.from(dailyMap.entries())
-      .map(([day, agg]) => ({
-        day,
-        tokens: agg.tokens,
-        costUsd: agg.cost,
-        costBrl: toBrl(agg.cost),
-      }))
-      .sort((a, b) => a.day.localeCompare(b.day));
 
     return {
       cycleStart,
       cycleEnd,
       totalRuns,
-      currentCycle: {
-        inputTokens: currentInput,
-        outputTokens: currentOutput,
-        totalTokens: currentTokens,
-        costUsd: currentCost,
-        costBrl: toBrl(currentCost),
-      },
-      previousCycle: {
-        totalTokens: previousTokens,
-        costUsd: previousCost,
-        costBrl: toBrl(previousCost),
-      },
+      currentCycle: { inputTokens: currentInput, outputTokens: currentOutput, totalTokens: currentTokens, costUsd: toUsd(currentCostBrl), costBrl: currentCostBrl },
+      previousCycle: { totalTokens: previousTokens, costUsd: toUsd(previousCostBrl), costBrl: previousCostBrl },
       trend: {
-        tokensPct: tokensTrendPct,
-        costPct: costTrendPct,
+        tokensPct: previousTokens > 0 ? ((currentTokens - previousTokens) / previousTokens) * 100 : null,
+        costPct: previousCostBrl > 0 ? ((currentCostBrl - previousCostBrl) / previousCostBrl) * 100 : null,
       },
-      byProvider,
-      byModel,
-      dailyTrend,
-      /**
-       * Soft budget configurável (admin define no painel de billing).
-       * null = sem teto definido → meter mostra só absoluto + trend.
-       * Quando setado, vira `current / budget %` igual o Stars meter.
-       * Coluna ainda não existe no schema — sempre null por enquanto.
-       */
+      byProvider: [...byProviderTotals.entries()]
+        .map(([provider, total]) => ({ provider, tokens: total.tokens, runs: total.runs, costUsd: toUsd(total.costBrl), costBrl: total.costBrl }))
+        .sort((left, right) => right.costBrl - left.costBrl),
+      byModel: [...byModelTotals.entries()]
+        .map(([modelId, total]) => ({ modelId, tokens: total.tokens, runs: total.runs, costUsd: toUsd(total.costBrl), costBrl: total.costBrl }))
+        .sort((left, right) => right.costBrl - left.costBrl)
+        .slice(0, MODELS_SHOWN),
+      dailyTrend: [...dailyTotals.entries()]
+        .map(([day, total]) => ({ day, tokens: total.tokens, costUsd: toUsd(total.costBrl), costBrl: total.costBrl }))
+        .sort((left, right) => left.day.localeCompare(right.day)),
+      // Sem teto configurável ainda: o medidor mostra só o valor absoluto e a tendência.
       softBudgetTokens: null as number | null,
     };
   });
-
-// Helper só pra calmar o TS quando importarmos sem usar
-export type TokenUsageOverview = Prisma.JsonValue;

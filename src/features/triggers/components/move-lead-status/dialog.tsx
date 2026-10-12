@@ -106,9 +106,9 @@ export const MoveLeadStatusTriggerDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent data-node-config className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Mover Lead para Status</DialogTitle>
+          <DialogTitle>Lead entrou na coluna</DialogTitle>
           <DialogDescription>
             Configure o status de gatilho e condições opcionais para o lead.
           </DialogDescription>

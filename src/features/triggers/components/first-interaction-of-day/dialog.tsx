@@ -53,7 +53,7 @@ export const FirstInteractionOfDayDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>Primeira Interação do Dia</DialogTitle>
           <DialogDescription>

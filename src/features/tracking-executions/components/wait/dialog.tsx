@@ -99,7 +99,7 @@ export const WaitDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>Esperar</DialogTitle>
           <DialogDescription>Configure o tempo de espera</DialogDescription>

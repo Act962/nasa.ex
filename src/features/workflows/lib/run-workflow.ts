@@ -19,6 +19,7 @@
  * de cada node-execution (enviar msg, chamar Stripe, etc) são delegados ao
  * `executor-registry.ts` existente (Fase 2 estende com os novos NodeTypes).
  */
+import { RESUME_BY_BUTTON_REPLY, chooseButtonReplyOutput } from "./button-reply-flow";
 import prisma from "@/lib/prisma";
 import {
   createInitialContext,
@@ -49,8 +50,13 @@ export type RunWorkflowInput = {
    * `step.waitForEvent` ou `step.sleep` e depois re-invoca runWorkflow
    * passando esses campos pra continuar do ponto.
    */
+  /**
+   * Começa pela saída de um passo, sem passar por gatilho (spec 0098): o toque numa opção de menu
+   * salvo roda só o que está ligado àquela opção.
+   */
+  startFrom?: { nodeId: string; output: string };
   resumeFromRunId?: string;
-  resumeQueue?: Array<{ nodeId: string }>;
+  resumeQueue?: QueueItem[];
   resumeContext?: WorkflowContext;
   resumeExecutions?: number;
   resumeStars?: number;
@@ -60,6 +66,12 @@ export type RunWorkflowInput = {
  * Estado serializável retornado quando o workflow suspende em
  * WAIT_FOR_EVENT. Caller usa pra retomar via `resumeFromRunId`.
  */
+/** Item da fila do motor. `buttonReplyIds` marca um menu de botões que volta só para escolher a saída. */
+export interface QueueItem {
+  nodeId: string;
+  buttonReplyIds?: string[];
+}
+
 export type SuspendedState = {
   runId: string;
   suspendedAtNodeId: string;
@@ -76,7 +88,7 @@ export type SuspendedState = {
   eventNames: string[];
   timeoutMinutes: number;
   /** Nodes que ainda precisam ser executados após o resume. */
-  pendingQueue: Array<{ nodeId: string }>;
+  pendingQueue: QueueItem[];
   /** Contexto serializado pra reidratar no resume. */
   contextSnapshot: WorkflowContext;
   executions: number;
@@ -138,6 +150,7 @@ export async function runWorkflow(
     resumeContext,
     resumeExecutions,
     resumeStars,
+    startFrom,
   } = input;
   const isResume = !!resumeFromRunId && !!resumeQueue;
 
@@ -216,7 +229,7 @@ export async function runWorkflow(
 
   // 5. Encontra trigger-nodes que casam com triggerType
   const triggerNodes = workflow.nodes.filter((n) => n.type === triggerType);
-  if (triggerNodes.length === 0) {
+  if (triggerNodes.length === 0 && !startFrom) {
     // Lista os triggers que o workflow tem, pra mensagem ajudar o operador
     // a entender o mismatch (ex: dispatch enviou MANUAL_TRIGGER mas o
     // workflow só tem LEAD_TAGGED — bug clássico de dispatch sem helper).
@@ -291,9 +304,11 @@ export async function runWorkflow(
   }> = [];
 
   // Queue de pares (nodeId, contexto-no-momento). BFS pra evitar recursão profunda.
-  const queue: Array<{ nodeId: string }> = isResume
+  const queue: QueueItem[] = isResume
     ? resumeQueue!
-    : triggerNodes.map((n) => ({ nodeId: n.id }));
+    : startFrom
+      ? (adjBy.get(startFrom.nodeId)?.get(startFrom.output) ?? []).map((nodeId) => ({ nodeId }))
+      : triggerNodes.map((n) => ({ nodeId: n.id }));
 
   while (queue.length > 0) {
     if (executions >= MAX_EXECUTIONS_PER_RUN) {
@@ -329,6 +344,20 @@ export async function runWorkflow(
     const cur = queue.shift()!;
     const node = nodeById.get(cur.nodeId);
     if (!node) continue;
+
+    // Menu de botões que esperou o clique (spec 0090, seção F): o quadro já rodou antes da espera;
+    // agora só escolhe por qual saída seguir, sem enviar de novo.
+    if (cur.buttonReplyIds) {
+      const vars = (ctx.vars as Record<string, unknown> | undefined) ?? {};
+      const replyOutput = chooseButtonReplyOutput({
+        sentButtonIds: cur.buttonReplyIds,
+        hasTimedOut: vars.lastWaitTimedOut === true,
+        clickedButtonId: (vars.lastEvent as { interactiveReplyId?: unknown } | undefined)?.interactiveReplyId,
+      });
+      log.push({ nodeId: node.id, type: node.type, chosenOutput: replyOutput, output: { resumedBy: replyOutput }, status: "SUCCESS" });
+      for (const nextId of adjBy.get(node.id)?.get(replyOutput) ?? []) queue.push({ nodeId: nextId });
+      continue;
+    }
 
     executions++;
     const result = await executeNode({
@@ -382,7 +411,19 @@ export async function runWorkflow(
           nextAfterWait.push({ nodeId: nextId });
         }
       }
-      const remainingQueue = [...nextAfterWait, ...queue];
+      const waitOutput = (result.output && typeof result.output === "object" ? result.output : {}) as Record<string, unknown>;
+      const buttonReplyIds =
+        waitOutput.resumeOutputFrom === RESUME_BY_BUTTON_REPLY && Array.isArray(waitOutput.buttonIds)
+          ? (waitOutput.buttonIds as unknown[]).map(String)
+          : null;
+      // Com espera de clique, quem volta para a fila é o próprio quadro, marcado para só escolher a saída.
+      // Passo de conversa (spec 0099) volta inteiro: ele roda de novo para ler a resposta do cliente,
+      // e decide se pergunta outra coisa ou por qual saída segue.
+      const remainingQueue: QueueItem[] = buttonReplyIds
+        ? [{ nodeId: node.id, buttonReplyIds }, ...queue]
+        : waitOutput.resumeSameNode === true
+          ? [{ nodeId: node.id }, ...queue]
+          : [...nextAfterWait, ...queue];
       const pendingCtx = mergeOutputInto(ctx, node.id, result.output);
 
       // Prioriza valores que o executor retornou no output (caso do nó WAIT

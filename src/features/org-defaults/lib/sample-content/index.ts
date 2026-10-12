@@ -1,5 +1,6 @@
 import "server-only";
 import { seedSampleAgenda } from "./agenda";
+import { seedSampleAttendanceTemplate } from "./attendance-template";
 import { seedSampleForge } from "./forge";
 import { seedSampleForm } from "./form";
 import { seedSampleLinnker } from "./linnker";
@@ -28,4 +29,5 @@ export const SAMPLE_APP_SEEDERS: { app: string; seed: (context: SampleSeedContex
   { app: "payment", seed: seedSamplePayment },
   { app: "star-friends", seed: seedSampleStarFriends },
   { app: "space-station", seed: seedSampleSpaceStation },
+  { app: "attendance-template", seed: seedSampleAttendanceTemplate },
 ];

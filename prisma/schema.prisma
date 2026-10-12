@@ -255,6 +255,9 @@ model Organization {
   astroCommanderPausedAt DateTime?    @map("astro_commander_paused_at")
   /// IA do ASTRO (spec 0053): PLATFORM = modelo ÓRBITA; OWN = chave da org nos Satélites; null = ainda não escolheu.
   astroAiMode            AstroAiMode? @map("astro_ai_mode")
+  /// Preferências de IA da empresa (spec 0093, etapa 2): em quais recursos a chave própria vale e a
+  /// faixa do modelo por uso. Vazio = cada recurso escolhe como sempre escolheu.
+  aiPreferences          Json         @default("{}") @map("ai_preferences")
   // Anti-spam de notificações pós-débito (1 dispatch/dia/severidade).
   starsLastAlertAt       DateTime?    @map("stars_last_alert_at")
   starsAlertConfig       Json         @default("{}") @map("stars_alert_config")
@@ -3108,6 +3111,12 @@ model Agenda {
   slug           String
   isActive       Boolean  @default(true) @map("is_active")
   slotDuration   Int      @default(30) @map("slot_duration")
+  // Níveis do agendamento por botões (spec 0099): o cliente escolhe especialidade, unidade e depois a
+  // agenda. Vazios = agendamento em lista única, como sempre.
+  specialty         String? @map("specialty")
+  unit              String? @map("unit")
+  // Ficha enviada ao cliente antes dos dias (o que atende, valores, avisos).
+  professionalNotes String? @map("professional_notes")
   trackingId     String   @map("tracking_id")
   statusId       String?  @map("status_id")
   organizationId String   @map("organization_id")

@@ -102,7 +102,7 @@ export const ManualTriggerDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent data-node-config className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Gatilho Manual</DialogTitle>
           <DialogDescription>

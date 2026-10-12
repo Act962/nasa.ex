@@ -1,3 +1,4 @@
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import "server-only";
 
 import { generateObject } from "ai";
@@ -66,8 +67,8 @@ async function buildModelContent(bytes: Uint8Array, mimeType: string): Promise<M
   return null;
 }
 
-async function runExtraction(candidate: ResolvedExtractionModel, content: ModelContent, userId: string) {
-  const { object } = await generateObject({
+async function runExtraction(candidate: ResolvedExtractionModel, content: ModelContent, requester: { organizationId: string; userId: string; starsCharged: number }) {
+  const { object, usage } = await generateObject({
     model: candidate.model,
     schema: companyDocumentExtractionSchema,
     messages: [{ role: "user", content: [{ type: "text", text: EXTRACTION_PROMPT }, ...content] }],
@@ -75,8 +76,18 @@ async function runExtraction(candidate: ResolvedExtractionModel, content: ModelC
     experimental_telemetry: {
       isEnabled: true,
       functionId: "accounting-extract-company-document",
-      metadata: { posthog_distinct_id: userId },
+      metadata: { posthog_distinct_id: requester.userId },
     },
+  });
+  await recordAiUsage({
+    resourceId: "finance.documents",
+    organizationId: requester.organizationId,
+    userId: requester.userId,
+    provider: candidate.provider,
+    modelId: candidate.modelId,
+    keySource: candidate.keySource === "integration" ? "organization" : "platform",
+    usage,
+    starsCharged: requester.starsCharged,
   });
   return object;
 }
@@ -147,7 +158,7 @@ export async function extractCompanyDocument(params: {
   let usedCandidate: ResolvedExtractionModel | null = null;
   for (const candidate of candidates) {
     try {
-      raw = await runExtraction(candidate, content, params.userId);
+      raw = await runExtraction(candidate, content, { organizationId: params.organizationId, userId: params.userId, starsCharged: charge.cost });
       usedCandidate = candidate;
       break;
     } catch (error) {

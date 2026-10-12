@@ -83,7 +83,7 @@ export const ResponsibleDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>Responsável</DialogTitle>
           <DialogDescription>

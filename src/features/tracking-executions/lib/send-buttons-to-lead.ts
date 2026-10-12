@@ -12,6 +12,8 @@
  * Mesma garantia in-chat fallback (PR #72) — se instância banida, salva
  * Message com viaInChat=true SEM chamar uazapi.
  */
+import { sendText } from "@/http/uazapi/send-text";
+import { formatNumberedMenu, isButtonsOfficialOnly, numberedMenuMetadata } from "@/features/tracking-chat/lib/numbered-menu";
 import { NonRetriableError } from "inngest";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
@@ -25,7 +27,9 @@ import { v4 as uuidv4 } from "uuid";
 import {
   requireUazapiMenuCredentials,
   resolveWorkflowProvider,
+  sendWithWorkflowErrors,
 } from "./workflow-outbound";
+import { OFFICIAL_MENU_LIMITS, isMetaInteractiveOn } from "@/features/workflows/lib/button-reply-flow";
 
 export interface SendButtonsToLeadParams {
   leadId: string;
@@ -81,10 +85,48 @@ export async function sendButtonsToLead(
   //    marca a conversa como lida do lado do WhatsApp pra não acumular
   //    badge de não-lida.
   let externalMessageId = `auto-${uuidv4()}`;
-  if (!skipUazapi) {
-    const menuCredentials = requireUazapiMenuCredentials(
-      await resolveWorkflowProvider(trackingId),
+  let isSentAsNumberedText = false;
+  const numberedOptions = buttons.filter((button) => button.id).map((button) => ({ id: button.id, title: button.text }));
+  const resolvedProvider = skipUazapi ? null : await resolveWorkflowProvider(trackingId);
+  const sendOfficialInteractive =
+    resolvedProvider && !resolvedProvider.uazapiToken && isMetaInteractiveOn()
+      ? resolvedProvider.provider.sendInteractive?.bind(resolvedProvider.provider)
+      : undefined;
+  if (resolvedProvider && sendOfficialInteractive) {
+    // API oficial (spec 0090, seção F): até 3 botões ou 10 itens de lista, com título curto. Fora
+    // disso a Meta recusa; melhor falhar aqui com uma frase clara do que mandar algo cortado.
+    const maxOptions = asList ? OFFICIAL_MENU_LIMITS.maxListRows : OFFICIAL_MENU_LIMITS.maxButtons;
+    const maxTitleChars = asList ? OFFICIAL_MENU_LIMITS.listRowTitleChars : OFFICIAL_MENU_LIMITS.buttonTitleChars;
+    if (buttons.length > maxOptions) {
+      throw new NonRetriableError(`A API oficial aceita no máximo ${maxOptions} ${asList ? "itens na lista" : "botões"} por mensagem.`);
+    }
+    const longButton = buttons.find((button) => button.text.length > maxTitleChars);
+    if (longButton) {
+      throw new NonRetriableError(`A opção "${longButton.text}" passa de ${maxTitleChars} caracteres, o limite da API oficial.`);
+    }
+    const sent = await sendWithWorkflowErrors(() =>
+      sendOfficialInteractive({
+        kind: "interactive",
+        to: lead.phone as string,
+        body: bodyText,
+        footer: footerText || undefined,
+        options: buttons.map((button) => ({ id: button.id, title: button.text })),
+        listButtonLabel: asList ? params.listButton?.trim() || "Ver opções" : undefined,
+      }),
     );
+    externalMessageId = sent.externalMessageId ?? externalMessageId;
+  } else if (resolvedProvider && resolvedProvider.uazapiToken && isButtonsOfficialOnly()) {
+    // Número fora da API oficial (spec 0095): o menu sai como texto numerado, sem botão nem lista.
+    const menuCredentials = requireUazapiMenuCredentials(resolvedProvider);
+    const sentText = await sendText(
+      menuCredentials.token,
+      { number: lead.phone, text: formatNumberedMenu({ body: bodyText, options: numberedOptions, footer: footerText }), readchat: true, readmessages: true, delay: 2000 },
+      menuCredentials.baseUrl,
+    );
+    externalMessageId = sentText.messageid ?? externalMessageId;
+    isSentAsNumberedText = true;
+  } else if (resolvedProvider) {
+    const menuCredentials = requireUazapiMenuCredentials(resolvedProvider);
     const response = asList
       ? await sendItemsAsList(
           menuCredentials.token,
@@ -117,12 +159,9 @@ export async function sendButtonsToLead(
   }
 
   // 5. Persiste Message — body inclui texto + opções pro histórico
-  const bodyFormatted = formatBodyWithButtons(
-    bodyText,
-    footerText,
-    buttons,
-    asList ? (params.listButton?.trim() || "Ver opções") : null,
-  );
+  const bodyFormatted = isSentAsNumberedText
+    ? formatNumberedMenu({ body: bodyText, options: numberedOptions, footer: footerText })
+    : formatBodyWithButtons(bodyText, footerText, buttons, asList ? (params.listButton?.trim() || "Ver opções") : null);
   // buttonTagMap (buttonId→tagId) — grava no metadata pra o webhook aplicar
   // a tag quando o lead clicar num botão com tag associada.
   const buttonTagMap: Record<string, string> = {};
@@ -141,7 +180,9 @@ export async function sendButtonsToLead(
       status: MessageStatus.SENT,
       quotedMessageId: null,
       viaInChat: skipUazapi,
-      ...(hasTagMap ? { metadata: { buttonTagMap } } : {}),
+      ...(hasTagMap || isSentAsNumberedText
+        ? { metadata: { ...(hasTagMap ? { buttonTagMap } : {}), ...(isSentAsNumberedText ? numberedMenuMetadata(numberedOptions) : {}) } }
+        : {}),
     },
     include: {
       conversation: { include: { lead: true } },
@@ -159,6 +200,9 @@ export async function sendButtonsToLead(
       // Pusher falha não derruba o executor
     });
 
+  // Mensagem de fluxo também é resposta ao cliente (spec 0099): sem isto, quem conversava com um
+  // fluxo aparecia como "sem resposta" e ganhava "Aguard. atendimento" 15 minutos depois.
+  await prisma.lead.update({ where: { id: lead.id }, data: { lastOutboundAt: new Date() } }).catch(() => undefined);
   return { messageId: message.id, viaInChat: skipUazapi };
 }
 

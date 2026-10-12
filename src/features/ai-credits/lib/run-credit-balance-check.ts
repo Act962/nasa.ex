@@ -61,10 +61,13 @@ async function alertScope(scope: AiCreditScope): Promise<number> {
       { scope: scopeKey, provider: summary.provider, level: summary.level, balanceUsd: summary.balanceUsd, orgId: scope.organizationId },
       {
         bypassRules: {
-          title: isCritical ? `Crédito da ${providerLabel} quase no fim` : `Crédito da ${providerLabel} baixando`,
+          // O título diz de quem é a conta: a chave que a empresa cadastrou, ou a conta que a plataforma paga (spec 0093, RF-8).
+          title: scope.organizationId
+            ? `Crédito da sua chave ${providerLabel} ${isCritical ? "quase no fim" : "baixando"}`
+            : `Crédito da conta ${providerLabel} da plataforma ${isCritical ? "quase no fim" : "baixando"}`,
           body: scope.organizationId
-            ? `${describeSummary(summary)} Recarregue a conta do provedor e informe o novo saldo em Satélites para o ASTRO seguir na sua IA.`
-            : `${describeSummary(summary)} Recarregue a conta da plataforma e registre em Admin → Créditos de IA.`,
+            ? `${describeSummary(summary)} Esta é a chave que a empresa cadastrou em Satélites: quem paga é a empresa, direto ao provedor. O saldo é uma estimativa a partir do último valor informado; se você já recarregou, informe o novo saldo em Satélites.`
+            : `${describeSummary(summary)} Esta é a conta que a plataforma paga e que atende as empresas sem chave própria. O saldo é uma estimativa a partir do último valor informado; se já recarregou, registre em Admin → Créditos de IA.`,
           severity: isCritical ? "critical" : "warning",
           audience: { kind: "user", userIds },
           orgId: scope.organizationId,

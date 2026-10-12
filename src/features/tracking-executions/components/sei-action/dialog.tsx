@@ -26,7 +26,7 @@ export function SeiActionDialog({ open, onOpenChange, defaultValues, onSubmit }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>Consultar processo SEI</DialogTitle>
           <DialogDescription>

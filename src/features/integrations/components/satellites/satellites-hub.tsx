@@ -1,5 +1,6 @@
 "use client";
 
+import { AiCompanyPanel } from "@/features/ia/components/ai-company-panel";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MegaphoneIcon, MessageCircleIcon, SearchIcon, SparklesIcon } from "lucide-react";
@@ -216,6 +217,15 @@ export function SatellitesHub() {
           />
         </label>
       </header>
+
+      {/* IA da empresa (spec 0093): consumo, chaves e modelo de cada uso. Só dono e admin recebem dados. */}
+      <AiCompanyPanel
+        canManage={canManage}
+        onConnect={(platform) => {
+          const platformDef = PLATFORM_DEFS.find((candidate) => candidate.platform === platform);
+          if (platformDef) setConfiguring(platformDef);
+        }}
+      />
 
       {orbitCount > 0 && (
         <section id={ORBIT_SECTION_ID} className="scroll-mt-16 space-y-3">

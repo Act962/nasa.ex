@@ -82,8 +82,9 @@ export function autoLayoutWorkflow(
   for (const node of nodes) {
     // Permite override por nó via `node.width`/`node.height` se algum nó
     // grande (ex: SEND_MESSAGE com texto longo) tiver tamanho conhecido.
-    const w = node.width ?? nodeWidth;
-    const h = node.height ?? nodeHeight;
+    // Quadro maior que o padrão (visão Visual) usa o tamanho medido; o padrão continua valendo para os pequenos.
+    const w = node.width ?? Math.max(nodeWidth, node.measured?.width ?? 0);
+    const h = node.height ?? Math.max(nodeHeight, node.measured?.height ?? 0);
     g.setNode(node.id, { width: w, height: h });
   }
 
@@ -100,8 +101,9 @@ export function autoLayoutWorkflow(
   const laidOutNodes: Node[] = nodes.map((node) => {
     const dagreNode = g.node(node.id);
     if (!dagreNode) return node; // node órfão — mantém position original
-    const w = node.width ?? nodeWidth;
-    const h = node.height ?? nodeHeight;
+    // Quadro maior que o padrão (visão Visual) usa o tamanho medido; o padrão continua valendo para os pequenos.
+    const w = node.width ?? Math.max(nodeWidth, node.measured?.width ?? 0);
+    const h = node.height ?? Math.max(nodeHeight, node.measured?.height ?? 0);
     return {
       ...node,
       position: {

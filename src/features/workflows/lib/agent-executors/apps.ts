@@ -11,6 +11,9 @@
  *  - SEND_MEDIA     — envia imagem/vídeo/áudio/documento WhatsApp via
  *                     uazapi /send/media. Interpolação de texto + URL.
  */
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
+import { DEFAULT_REPLY_TIMEOUT_MINUTES, RESUME_BY_BUTTON_REPLY, isMetaInteractiveOn } from "../button-reply-flow";
+import { CONSENT_TYPE, FORM_CHAT_TYPE } from "../conversation-steps";
 import "server-only";
 import OpenAI from "openai";
 import { NonRetriableError } from "inngest";
@@ -230,10 +233,25 @@ export const sendVoiceExecutor: NodeExecutor = async ({
   );
 
   if (orgId) {
-    await chargeStarsByAction(orgId, AGENT_STARS_ACTIONS.SEND_VOICE, {
+    const charge = await chargeStarsByAction(orgId, AGENT_STARS_ACTIONS.SEND_VOICE, {
       description: "Voz IA gerada e enviada",
       appSlug: "agent",
-    }).catch((err) => console.warn("[send-voice charge]", err));
+    }).catch((err) => {
+      console.warn("[send-voice charge]", err);
+      return null;
+    });
+    await recordAiUsage({
+      resourceId: "workflows.speech",
+      organizationId: orgId,
+      provider: "openai",
+      modelId: "tts-1",
+      keySource: "platform",
+      quantity: text.length,
+      quantityUnit: "characters",
+      starsCharged: charge?.cost ?? 0,
+      trackingId: String(trackingId),
+      leadId: String(leadId),
+    });
   }
 
   return {
@@ -404,6 +422,7 @@ async function sendTemplateStep(params: {
 //          presetId?, bodyText?, footerText?, buttons? } } }
 // O texto suporta interpolação {{lead.name}}, {{vars.x}}, etc.
 export const sendMessageExecutor: NodeExecutor = async ({
+  nodeId,
   data,
   context,
   dryRun,
@@ -436,6 +455,13 @@ export const sendMessageExecutor: NodeExecutor = async ({
   }
 
   // ─── BUTTONS branch ───────────────────────────────────────────────
+  // Passos de conversa (spec 0099): pedem algo ao cliente e esperam a resposta dele.
+  if (payloadType === CONSENT_TYPE || payloadType === FORM_CHAT_TYPE) {
+    const { runConsentStep, runFormChatStep } = await import("./conversation-steps");
+    const stepParams = { nodeId, payload, context, dryRun, leadId, trackingId };
+    return payloadType === CONSENT_TYPE ? runConsentStep(stepParams) : runFormChatStep(stepParams);
+  }
+
   if (payloadType === "BUTTONS") {
     const { sendButtonsToLead } =
       await import("@/features/tracking-executions/lib/send-buttons-to-lead");
@@ -543,6 +569,24 @@ export const sendMessageExecutor: NodeExecutor = async ({
         menuFormat,
         listButton,
       });
+      // Espera o clique e segue um caminho por resposta (spec 0090, seção F). Só com o interruptor
+      // ligado e marcado no quadro; sem isso o menu segue pela saída única de sempre.
+      if (isMetaInteractiveOn() && payload.waitForReply === true && payload.mode !== "preset") {
+        const replyTimeoutMinutes = Number(payload.replyTimeoutMinutes);
+        return {
+          status: "WAITING",
+          output: {
+            sent: true,
+            type: "BUTTONS",
+            messageId: result.messageId,
+            eventNames: ["message-incoming"],
+            timeoutMinutes:
+              Number.isFinite(replyTimeoutMinutes) && replyTimeoutMinutes > 0 ? replyTimeoutMinutes : DEFAULT_REPLY_TIMEOUT_MINUTES,
+            resumeOutputFrom: RESUME_BY_BUTTON_REPLY,
+            buttonIds: buttons.map((button) => button.id),
+          },
+        };
+      }
       return {
         output: {
           sent: true,

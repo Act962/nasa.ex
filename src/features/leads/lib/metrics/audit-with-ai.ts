@@ -1,3 +1,4 @@
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import "server-only";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -22,7 +23,7 @@ Estime o potencial de compra (0 a 100) e o nível de interesse (LOW, MEDIUM, HIG
 Baseie-se só no que está escrito: intenção de compra, perguntas sobre preço, prazo ou condições, objeções, tom.
 Sem sinais claros, prefira valores baixos. "rationale": uma frase curta em português explicando a nota.`;
 
-export async function auditLeadWithAi(params: { organizationId: string; leadId: string }): Promise<AiLeadAudit | null> {
+export async function auditLeadWithAi(params: { organizationId: string; leadId: string; userId?: string; starsCharged?: number }): Promise<AiLeadAudit | null> {
   const messages = await prisma.message.findMany({
     where: { conversation: { leadId: params.leadId } },
     select: { fromMe: true, body: true },
@@ -41,11 +42,22 @@ export async function auditLeadWithAi(params: { organizationId: string; leadId: 
     tier: "FAST",
     requires: { json: true },
   });
-  const { object } = await generateObject({
+  const { object, usage } = await generateObject({
     model: resolved.model,
     schema: aiAuditSchema,
     system: SYSTEM_PROMPT,
     prompt: transcript,
+  });
+  await recordAiUsage({
+    resourceId: "leads.audit",
+    organizationId: params.organizationId,
+    userId: params.userId,
+    provider: resolved.provider,
+    modelId: resolved.modelId,
+    keySource: resolved.keySource,
+    usage,
+    starsCharged: params.starsCharged,
+    leadId: params.leadId,
   });
   return object;
 }

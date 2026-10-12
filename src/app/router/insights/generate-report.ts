@@ -1,3 +1,4 @@
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -190,7 +191,7 @@ export const generateReport = base
 
     const dataText = sections.join("\n\n");
 
-    const { text } = await generateText({
+    const { text, usage } = await generateText({
       model: resolvedModel.model,
       system: `Você é um analista de marketing e negócios especialista em análise de dados.
 Sua função é gerar relatórios profissionais, objetivos e estratégicos para gestores e clientes.
@@ -211,6 +212,17 @@ O relatório deve conter:
 5. **Recomendações Estratégicas** — ações concretas para o próximo período
 
 Seja específico com os números. Calcule taxas e ratios relevantes. Máximo de 400 palavras.`,
+    });
+
+    await recordAiUsage({
+      resourceId: "insights.report",
+      organizationId: context.org.id,
+      userId: context.user.id,
+      provider: resolvedModel.provider,
+      modelId: resolvedModel.modelId,
+      keySource: resolvedModel.keySource,
+      usage,
+      starsCharged: charge.cost,
     });
 
     return { report: text, period, orgName };

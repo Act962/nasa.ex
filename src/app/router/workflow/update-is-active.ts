@@ -1,9 +1,17 @@
+import { isTopicMenuName } from "@/features/tracking-chat-ai/lib/topic-menu";
+import { PLACEHOLDER_PROBLEM, hasPlaceholderText } from "@/features/workflows/lib/placeholder-text";
+import { AUTOMATION_DENIAL, checkWorkflowAccess } from "@/features/workflows/server/workflow-access";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { detectCollisions } from "@/features/workflows/lib/collision-detector";
 import z from "zod";
+
+function savedMenuIdsOf(nodeData: unknown): string[] {
+  const payload = (nodeData as { action?: { payload?: { mode?: unknown; presetId?: unknown } } } | null)?.action?.payload;
+  return payload?.mode === "preset" && typeof payload.presetId === "string" ? [payload.presetId] : [];
+}
 
 export const updateIsActive = base
   .use(requiredAuthMiddleware)
@@ -43,6 +51,12 @@ export const updateIsActive = base
     if (!workflow) {
       throw errors.NOT_FOUND({ message: "Workflow not found" });
     }
+
+    // Ligar ou desligar exige ser da empresa do fluxo e ter a permissão de editar Automações
+    // (spec 0090, S-2; spec 0092). Fluxo solto, sem funil nem workspace, só quem criou.
+    const access = await checkWorkflowAccess(input.workflowId, context.user.id, "canEdit");
+    if (access === "not-found") throw errors.NOT_FOUND({ message: "Workflow not found" });
+    if (access === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canEdit });
 
     // Quando ATIVANDO em Modo Agente IA, checa colisão com outros workflows
     // ativos. Retorna warnings — front decide se mostra dialog de confirmação.
@@ -89,9 +103,30 @@ export const updateIsActive = base
       }
     }
 
-    const updated = await prisma.workflow.update({
-      where: { id: input.workflowId },
-      data: { isActive: input.isActive },
+    // Modelo de atendimento (spec 0097): com texto de exemplo no passo ou no menu que ele envia, o
+    // fluxo não liga. A recusa é do servidor, para não depender do aviso da tela.
+    const savedMenuIds = input.isActive ? workflow.nodes.flatMap((node) => savedMenuIdsOf(node.data)) : [];
+    const savedMenus =
+      savedMenuIds.length > 0
+        ? await prisma.aiButtonPreset.findMany({
+            where: { id: { in: savedMenuIds }, trackingId: workflow.trackingId ?? undefined },
+            select: { id: true, name: true, bodyText: true, buttons: true, isActive: true },
+          })
+        : [];
+    if (input.isActive && (workflow.nodes.some((node) => hasPlaceholderText(node.data)) || savedMenus.some((menu) => hasPlaceholderText([menu.bodyText, menu.buttons])))) {
+      throw errors.BAD_REQUEST({ message: `${PLACEHOLDER_PROBLEM.title}: ${PLACEHOLDER_PROBLEM.message}` });
+    }
+    // O menu de perguntas que o fluxo envia liga junto: desligado, o passo de envio falharia.
+    const topicMenuIdsToTurnOn = savedMenus.filter((menu) => !menu.isActive && isTopicMenuName(menu.name)).map((menu) => menu.id);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (topicMenuIdsToTurnOn.length > 0) {
+        await tx.aiButtonPreset.updateMany({ where: { id: { in: topicMenuIdsToTurnOn } }, data: { isActive: true } });
+      }
+      return tx.workflow.update({
+        where: { id: input.workflowId },
+        data: { isActive: input.isActive },
+      });
     });
 
     // Ativou/desativou — invalida o cache do gatilho FIRST_INTERACTION_OF_DAY.

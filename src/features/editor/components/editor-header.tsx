@@ -1,5 +1,16 @@
 "use client";
 
+import { AstroFlowEditBar } from "@/features/automations-hub/components/astro-flow-edit-bar";
+import { useAutomationPermissions } from "@/features/workflows/hooks/use-automation-permissions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -26,7 +37,9 @@ import {
   editorAtom,
   lastSavedSnapshotAtom,
   workflowDirtyAtom,
+  flowDiagnosticsAtom,
 } from "../store/atoms";
+import { ViewModeToggle } from "./view-mode-toggle";
 import { UnsavedChangesDialog } from "./unsaved-changes-dialog";
 import {
   Dialog,
@@ -43,6 +56,7 @@ export const EditorOptions = ({ workflowId }: { workflowId: string }) => {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const deleteWorkflow = useDeleteWorkflow();
+  const { canDelete } = useAutomationPermissions();
 
   const handleDelete = () => {
     deleteWorkflow.mutate(
@@ -55,6 +69,8 @@ export const EditorOptions = ({ workflowId }: { workflowId: string }) => {
       },
     );
   };
+
+  if (!canDelete) return null;
 
   return (
     <>
@@ -129,6 +145,7 @@ const computeWorkflowSignature = (
 };
 
 export const EditorSaveButton = ({ workflowId }: { workflowId: string }) => {
+  const { canEdit } = useAutomationPermissions();
   const editor = useAtomValue(editorAtom);
   const setLastSavedSnapshot = useSetAtom(lastSavedSnapshotAtom);
   const setDirty = useSetAtom(workflowDirtyAtom);
@@ -160,6 +177,11 @@ export const EditorSaveButton = ({ workflowId }: { workflowId: string }) => {
       },
     );
   };
+
+  // Quem não pode editar Automações vê o fluxo, mas não salva.
+  if (!canEdit) {
+    return <span className="rounded-full border px-3 py-1 text-xs text-muted-foreground">Somente leitura</span>;
+  }
 
   return (
     <Button onClick={handleSave} size={"sm"} disabled={saveWorkflow.isPending}>
@@ -318,18 +340,45 @@ const EditorActiveToggle = ({ workflowId }: { workflowId: string }) => {
   const { data } = useSuspenseWorkflow(workflowId);
   const isActive = data.workflow.isActive;
   const updateIsActive = useUpdateWorkflowIsActive(trackingId);
+  const { canEdit: canEditAutomations } = useAutomationPermissions();
+  // Erros previstos no desenho (spec 0090, RF-20): com erro, o fluxo não liga por aqui. Desligar é sempre
+  // permitido, e fluxo que já estava ligado continua ligado (RF-21).
+  const predictedErrors = useAtomValue(flowDiagnosticsAtom).all.filter((diagnostic) => diagnostic.severity === "error");
+  const [isConfirmingActivation, setIsConfirmingActivation] = useState(false);
+
+  const handleToggle = (checked: boolean) => {
+    if (checked && predictedErrors.length > 0) {
+      setIsConfirmingActivation(true);
+      return;
+    }
+    updateIsActive.mutate({ workflowId, isActive: checked });
+  };
 
   return (
     <label className="flex items-center gap-2 text-xs text-muted-foreground">
       <span>{isActive ? "Ativa" : "Inativa"}</span>
       <Switch
         checked={isActive}
-        disabled={updateIsActive.isPending}
-        onCheckedChange={(checked) =>
-          updateIsActive.mutate({ workflowId, isActive: checked })
-        }
+        disabled={updateIsActive.isPending || !canEditAutomations}
+        onCheckedChange={handleToggle}
         aria-label={isActive ? "Desativar automação" : "Ativar automação"}
       />
+      <AlertDialog open={isConfirmingActivation} onOpenChange={setIsConfirmingActivation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Corrija {predictedErrors.length === 1 ? "o passo em vermelho" : `os ${predictedErrors.length} pontos em vermelho`} antes de ligar
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {predictedErrors[0]?.title}: {predictedErrors[0]?.message}
+              {predictedErrors.length > 1 ? ` E mais ${predictedErrors.length - 1}. Veja a lista em Problemas.` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Entendi</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </label>
   );
 };
@@ -340,7 +389,9 @@ export const EditorHeader = ({ workflowId }: { workflowId: string }) => {
       <EditorBreadcrumbs workflowId={workflowId} />
       <div className="flex items-center gap-2">
         <EditorActiveToggle workflowId={workflowId} />
+        <AstroFlowEditBar workflowId={workflowId} />
         <EditorOptions workflowId={workflowId} />
+        <ViewModeToggle />
         <EditorSaveButton workflowId={workflowId} />
       </div>
     </div>

@@ -20,6 +20,10 @@ export const updateAgenda = base
       description: z.string().optional().nullable(),
       slug: z.string().optional(),
       slotDuration: z.coerce.number().optional(),
+      // Níveis do agendamento por botões e ficha do profissional (spec 0099). Vazio apaga.
+      specialty: z.string().max(60).optional().nullable(),
+      unit: z.string().max(60).optional().nullable(),
+      professionalNotes: z.string().max(900).optional().nullable(),
       trackingId: z.string().optional(),
       statusId: z.string().nullable().optional(),
       tagIds: z.array(z.string()).optional(),
@@ -113,6 +117,9 @@ export const updateAgenda = base
           description: input.description,
           slug: input.slug,
           slotDuration: input.slotDuration,
+          ...(input.specialty !== undefined ? { specialty: input.specialty?.trim() || null } : {}),
+          ...(input.unit !== undefined ? { unit: input.unit?.trim() || null } : {}),
+          ...(input.professionalNotes !== undefined ? { professionalNotes: input.professionalNotes?.trim() || null } : {}),
           trackingId: input.trackingId,
           isActive: input.isActive,
           // Se trackingId mudou, força reset do status (mesmo se o cliente

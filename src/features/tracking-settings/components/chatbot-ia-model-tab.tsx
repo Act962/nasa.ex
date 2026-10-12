@@ -27,33 +27,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ProviderIcon } from "./provider-icons";
+import { FunnelModelHint } from "@/features/ia/components/funnel-model-hint";
+import { BAND_LABEL, defaultFunnelModelId, funnelModelOptions, type FunnelAiProvider } from "@/features/ia/lib/ai-model-guide";
 
-const PROVIDER_MODELS = {
-  OPENAI: [
-    { id: "gpt-4.1", label: "GPT-4.1" },
-    { id: "gpt-4.1-mini", label: "GPT-4.1 mini" },
-    { id: "gpt-4o", label: "GPT-4o" },
-    { id: "gpt-4o-mini", label: "GPT-4o mini" },
-  ],
-  ANTHROPIC: [
-    { id: "claude-opus-4-7", label: "Claude Opus 4.7" },
-    { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
-    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
-    { id: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
-    { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
-  ],
-  GOOGLE: [
-    { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-    { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-    { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
-    { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-    { id: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" },
-    { id: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
-    { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
-  ],
-} as const;
-
-const PROVIDER_LABEL: Record<keyof typeof PROVIDER_MODELS, string> = {
+// A lista de modelos vem do guia (`ai-model-guide.ts`): a mesma fonte de Satélites e do relatório.
+const PROVIDER_LABEL: Record<FunnelAiProvider, string> = {
   OPENAI: "OpenAI",
   ANTHROPIC: "Anthropic",
   GOOGLE: "Google",
@@ -242,10 +220,7 @@ export function ChatBotIaModelTab({ trackingId }: { trackingId: string }) {
                       value={field.value ?? undefined}
                       onValueChange={(v) => {
                         field.onChange(v);
-                        const first = PROVIDER_MODELS[
-                          v as keyof typeof PROVIDER_MODELS
-                        ]?.[0]?.id;
-                        form.setValue("aiModelId", first ?? null);
+                        form.setValue("aiModelId", defaultFunnelModelId(v as FunnelAiProvider));
                       }}
                       disabled={isSubmitting}
                     >
@@ -283,7 +258,7 @@ export function ChatBotIaModelTab({ trackingId }: { trackingId: string }) {
                   name="aiModelId"
                   control={form.control}
                   render={({ field }) => {
-                    const options = provider ? PROVIDER_MODELS[provider] : [];
+                    const options = provider ? funnelModelOptions(provider, field.value) : [];
                     return (
                       <Select
                         value={field.value ?? undefined}
@@ -297,6 +272,7 @@ export function ChatBotIaModelTab({ trackingId }: { trackingId: string }) {
                           {options.map((opt) => (
                             <SelectItem key={opt.id} value={opt.id}>
                               {opt.label}
+                              {opt.guide ? ` · ${BAND_LABEL[opt.guide.band]}` : ""}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -304,6 +280,7 @@ export function ChatBotIaModelTab({ trackingId }: { trackingId: string }) {
                     );
                   }}
                 />
+                <FunnelModelHint modelId={form.watch("aiModelId")} trackingId={trackingId} />
                 {errors.aiModelId && (
                   <p className="text-destructive text-sm">
                     {errors.aiModelId.message}

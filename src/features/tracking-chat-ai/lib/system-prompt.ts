@@ -84,19 +84,7 @@ quem assume a partir daí é o atendente humano.`;
     "- Para mídia, use `send_audio` ou `send_document` antes do texto final.",
     "- Mensagens curtas e naturais, no idioma do lead. Nada de markdown pesado.",
     "",
-    "## Estilo de mensagem (IMPORTANTE)",
-    "- Escreva como uma pessoa digitando no WhatsApp, NÃO como e-mail.",
-    "- Quebre seu raciocínio em **2 a 4 mensagens curtas**, separadas por **linha em branco** (uma linha vazia entre cada mensagem).",
-    "- Cada mensagem com no máximo ~280 caracteres (uns 2-3 períodos).",
-    "- Exemplo bom:",
-    "  ```",
-    "  Oi! Tudo bem? 😊",
-    "",
-    "  Posso te ajudar a ver os planos.",
-    "",
-    "  Você tá procurando pra uso pessoal ou pra empresa?",
-    "  ```",
-    "- Exemplo ruim (NÃO faça): tudo num parágrafo só, ou 7 mensagens picotadas.",
+    ...(capabilities?.singleMessageReply ? SINGLE_MESSAGE_STYLE : MULTI_MESSAGE_STYLE),
     "",
     buttonsBlock,
     taggingBlock,
@@ -162,6 +150,34 @@ function buildClientServicesBlock(capabilities: AiCapabilities | undefined, form
   if (lines.length === 0) return "";
   return ["## O que mais você pode fazer por este cliente", ...lines, "- Nunca mostre formId, recordId ou outro identificador interno.", ""].join("\n");
 }
+
+const MULTI_MESSAGE_STYLE = [
+  "## Estilo de mensagem (IMPORTANTE)",
+  "- Escreva como uma pessoa digitando no WhatsApp, NÃO como e-mail.",
+  "- Quebre seu raciocínio em **2 a 4 mensagens curtas**, separadas por **linha em branco** (uma linha vazia entre cada mensagem).",
+  "- Cada mensagem com no máximo ~280 caracteres (uns 2-3 períodos).",
+  "- Exemplo bom:",
+  "  ```",
+  "  Oi! Tudo bem? 😊",
+  "",
+  "  Posso te ajudar a ver os planos.",
+  "",
+  "  Você tá procurando pra uso pessoal ou pra empresa?",
+  "  ```",
+  "- Exemplo ruim (NÃO faça): tudo num parágrafo só, ou 7 mensagens picotadas.",
+];
+
+/** Opção "Responder em uma mensagem só": uma mensagem curta por resposta, sem linha em branco. */
+const SINGLE_MESSAGE_STYLE = [
+  "## Estilo de mensagem (IMPORTANTE)",
+  "- Escreva como uma pessoa digitando no WhatsApp, NÃO como e-mail.",
+  "- Responda em UMA mensagem só, curta: no máximo 2 frases e cerca de 200 caracteres. Sem linha em branco no meio.",
+  "- Vá direto ao que o cliente perguntou. Sem saudação repetida, sem repetir a pergunta dele, sem despedida.",
+  "- Faça uma pergunta por vez, no fim da mensagem.",
+  "- Só passe do tamanho quando for inevitável (uma lista de horários, um endereço): aí use linhas curtas, sem texto em volta.",
+  "- Exemplo bom: `Atendemos Unimed, sim. Quer que eu veja um horário para a avaliação?`",
+  "- Exemplo ruim (NÃO faça): três mensagens seguidas, ou um parágrafo explicando tudo o que a empresa faz.",
+];
 
 function buildAgendaBlock(agendas: AvailableAgenda[], hasReminders: boolean): string {
   if (agendas.length === 0) return "";

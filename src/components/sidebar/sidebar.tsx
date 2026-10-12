@@ -19,6 +19,7 @@ import { TeamSwitcher } from "./team-switcher";
 
 import { NavUser } from "./nav-user";
 import { NotificationBell } from "./notification-bell";
+import { AutomationsHubButton } from "@/features/automations-hub/components/automations-hub-button";
 import { NavMenu } from "./nav-menu";
 import { ICON_MODE_BUTTON, ICON_MODE_LABEL } from "./icon-mode";
 import { cn } from "@/lib/utils";
@@ -90,6 +91,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter>
         <SidebarMenu>
           <NotificationBell />
+          <AutomationsHubButton />
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip={"Space Help"}

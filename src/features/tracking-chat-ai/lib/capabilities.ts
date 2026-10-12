@@ -57,6 +57,8 @@ export const aiCapabilitiesSchema = z.object({
   voiceCall: z.boolean().default(false),
   /** Atender por botões e listas o que é roteiro (marcar, ver, remarcar, cancelar), sem modelo (spec 0089). */
   guidedMenu: z.boolean().default(false),
+  /** Cada resposta da assistente sai numa mensagem só, curta, em vez de 2 a 4 mensagens em sequência. */
+  singleMessageReply: z.boolean().default(false),
   /** Documentos da Auto Inteligência que o atendimento pode ler (spec 0088). Vazio = nenhum. */
   knowledgeIds: z.array(z.string()).max(10).default([]),
   /** Membro que salvou a configuração: é quem assina demandas e lembretes criados pelo agente. Definido pelo servidor. */

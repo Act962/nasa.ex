@@ -1,3 +1,4 @@
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import "server-only";
 
 import { generateObject } from "ai";
@@ -82,12 +83,13 @@ async function runStatementModel(params: {
   bytes: Uint8Array;
   pdfText: string | null;
   userId: string | null;
+  organizationId: string;
 }): Promise<PdfStatementExtraction> {
   const fileContent = params.pdfText
     ? [{ type: "text" as const, text: `Conteúdo textual do extrato:\n\n${params.pdfText}` }]
     : [{ type: "file" as const, data: params.bytes, mediaType: "application/pdf" }];
 
-  const { object } = await generateObject({
+  const { object, usage } = await generateObject({
     model: params.candidate.model,
     schema: pdfStatementExtractionSchema,
     messages: [
@@ -99,6 +101,16 @@ async function runStatementModel(params: {
       functionId: "payment-pdf-statement-extract",
       metadata: params.userId ? { posthog_distinct_id: params.userId } : {},
     },
+  });
+  // As Stars do extrato são cobradas depois, na importação; aqui fica só o custo da leitura.
+  await recordAiUsage({
+    resourceId: "finance.documents",
+    organizationId: params.organizationId,
+    userId: params.userId,
+    provider: params.candidate.provider,
+    modelId: params.candidate.modelId,
+    keySource: params.candidate.keySource === "integration" ? "organization" : "platform",
+    usage,
   });
   return object;
 }
@@ -169,7 +181,7 @@ export async function readPdfStatementExtraction(params: {
 
   for (const candidate of candidates) {
     try {
-      rawExtraction = await runStatementModel({ candidate, bytes, pdfText, userId: params.userId ?? null });
+      rawExtraction = await runStatementModel({ candidate, bytes, pdfText, userId: params.userId ?? null, organizationId: params.organizationId });
       usedCandidate = candidate;
       break;
     } catch (fileError) {
@@ -179,7 +191,7 @@ export async function readPdfStatementExtraction(params: {
       pdfText = pdfText ?? (await extractPdfText(bytes));
       if (!pdfText) continue;
       try {
-        rawExtraction = await runStatementModel({ candidate, bytes, pdfText, userId: params.userId ?? null });
+        rawExtraction = await runStatementModel({ candidate, bytes, pdfText, userId: params.userId ?? null, organizationId: params.organizationId });
         usedCandidate = candidate;
         usedTextFallback = true;
         break;

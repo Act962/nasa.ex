@@ -78,6 +78,8 @@ const LABELS: Record<string, string> = {
   note: "Nota adicionada",
   sla_breached: "Prazo (SLA) excedido",
   public_link_viewed: "Cliente abriu o acompanhamento",
+  consent_accepted: "Aceitou os termos",
+  consent_refused: "Recusou os termos",
   won: "Lead ganho",
   lost: "Lead perdido",
   deleted: "Lead arquivado",

@@ -1,6 +1,8 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { PLACEHOLDER_PROBLEM, hasPlaceholderText } from "@/features/workflows/lib/placeholder-text";
 import prisma from "@/lib/prisma";
+import { canAccessMenu } from "./button-preset-access";
 import z from "zod";
 
 const buttonSchema = z.object({
@@ -26,8 +28,11 @@ export const updateAiButtonPreset = base
       isActive: z.boolean().optional(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const { id, ...rest } = input;
+    if (!(await canAccessMenu(id, context.user.id))) {
+      throw errors.NOT_FOUND({ message: "Preset de botões não encontrado" });
+    }
 
     const data: Record<string, unknown> = {};
     if (rest.name !== undefined) data.name = rest.name;
@@ -38,6 +43,14 @@ export const updateAiButtonPreset = base
     if (rest.menuFormat !== undefined) data.menuFormat = rest.menuFormat;
     if (rest.listButton !== undefined) data.listButton = rest.listButton;
     if (rest.isActive !== undefined) data.isActive = rest.isActive;
+
+    // Menu com texto de exemplo do modelo de atendimento não liga (spec 0097).
+    if (rest.isActive === true) {
+      const current = await prisma.aiButtonPreset.findUnique({ where: { id }, select: { bodyText: true, buttons: true } });
+      if (hasPlaceholderText([rest.bodyText ?? current?.bodyText, rest.buttons ?? current?.buttons])) {
+        throw errors.BAD_REQUEST({ message: `${PLACEHOLDER_PROBLEM.title}: ${PLACEHOLDER_PROBLEM.message}` });
+      }
+    }
 
     try {
       const preset = await prisma.aiButtonPreset.update({

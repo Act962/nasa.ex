@@ -1,3 +1,4 @@
+import { NUMBERED_MENU_NOTICE, isButtonsOfficialOnly } from "@/features/tracking-chat/lib/numbered-menu";
 import { Uploader } from "@/components/file-uploader/uploader";
 import {
   Alert,
@@ -52,6 +53,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronDownIcon, InfoIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { isMetaInteractiveOn } from "@/features/workflows/lib/button-reply-flow";
+import { useWorkflowAgentMode } from "@/features/workflows/lib/agent-mode-context";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -130,6 +133,9 @@ const buttonsPayloadSchema = z
     menuFormat: z.enum(["BUTTON", "LIST"]).default("BUTTON"),
     listButton: z.string().optional(),
     buttons: z.array(buttonItemSchema).optional(),
+    // Espera o clique e segue um caminho por resposta (spec 0090, seção F). Só no modo inline.
+    waitForReply: z.boolean().optional(),
+    replyTimeoutMinutes: z.number().int().positive().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.mode === "preset") {
@@ -288,6 +294,7 @@ function ButtonsPayloadFields({
 }) {
   const { presets, isLoadingPresets } = useAiButtonPresets(trackingId);
   const { tags } = useTags({ trackingId });
+  const agentModeContext = useWorkflowAgentMode();
 
   // useFieldArray = padrão correto pra arrays dinâmicos no react-hook-form.
   // Lida com add/update/remove + re-renders sem precisar do watch manual
@@ -547,6 +554,43 @@ function ButtonsPayloadFields({
                   </Button>
                 </div>
               ))}
+              {isMetaInteractiveOn() && agentModeContext?.agentMode && (
+                <div className="rounded-lg border p-3">
+                  <Controller
+                    control={form.control}
+                    name="payload.waitForReply"
+                    render={({ field }) => (
+                      <label className="flex items-start justify-between gap-3">
+                        <span>
+                          <span className="block text-sm font-medium">Esperar o clique</span>
+                          <span className="block text-xs text-muted-foreground">
+                            O quadro ganha uma saída para cada botão e uma para “Sem clique”. O fluxo segue pelo botão que o cliente tocar.
+                          </span>
+                        </span>
+                        <Switch checked={field.value === true} onCheckedChange={field.onChange} />
+                      </label>
+                    )}
+                  />
+                  {form.watch("payload.waitForReply") === true && (
+                    <Controller
+                      control={form.control}
+                      name="payload.replyTimeoutMinutes"
+                      render={({ field }) => (
+                        <Field className="mt-3">
+                          <FieldLabel>Esperar por quantas horas</FieldLabel>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={720}
+                            value={field.value ? Math.round(Number(field.value) / 60) : 24}
+                            onChange={(event) => field.onChange(Math.max(1, Number(event.target.value) || 1) * 60)}
+                          />
+                        </Field>
+                      )}
+                    />
+                  )}
+                </div>
+              )}
               {fields.length < MAX_BUTTONS && (
                 <Button
                   type="button"
@@ -606,6 +650,12 @@ export const SendMessageDialog = ({
     countries.find((c) => c.code === selectedCode) || countries[0];
   const messageType = form.watch("payload.type");
   const isOfficialApi = instance?.provider === "META_CLOUD";
+  // Com o interruptor da fase ligado, a automação envia botões também pela API oficial.
+  const isMenuBlocked = isOfficialApi && !isMetaInteractiveOn();
+  // Número fora da API oficial (spec 0095): botão não pode ser escolhido de novo. Passo que já era de
+  // botões continua abrindo, e sai como texto numerado.
+  const isUnofficialNumber = Boolean(instance) && !isOfficialApi && isButtonsOfficialOnly();
+  const isButtonsChoiceBlocked = isMenuBlocked || (isUnofficialNumber && messageType !== "BUTTONS");
   const payloadValues = form.watch("payload");
   const fallbackTemplate = form.watch("fallbackTemplate");
   const canHaveFallbackTemplate =
@@ -649,7 +699,7 @@ export const SendMessageDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>Enviar Mensagem</DialogTitle>
           <DialogDescription>Configure a mensagem</DialogDescription>
@@ -686,9 +736,10 @@ export const SendMessageDialog = ({
                       <SelectItem value="TEXT">Texto</SelectItem>
                       <SelectItem value="IMAGE">Imagem</SelectItem>
                       <SelectItem value="DOCUMENT">Documento</SelectItem>
-                      <SelectItem value="BUTTONS" disabled={isOfficialApi}>
+                      <SelectItem value="BUTTONS" disabled={isButtonsChoiceBlocked}>
                         Menu de Botões
-                        {isOfficialApi && " (indisponível na API Oficial)"}
+                        {isMenuBlocked && " (indisponível na API Oficial)"}
+                        {isUnofficialNumber && " (só em número com API oficial)"}
                       </SelectItem>
                       {isOfficialApi && (
                         <SelectItem value="TEMPLATE">
@@ -697,6 +748,9 @@ export const SendMessageDialog = ({
                       )}
                     </SelectContent>
                   </Select>
+                  {isUnofficialNumber && messageType === "BUTTONS" && (
+                    <p className="text-xs text-warning">{NUMBERED_MENU_NOTICE} Botões e listas só existem em número com API oficial.</p>
+                  )}
                   {canHaveFallbackTemplate && (
                     <FieldDescription>
                       Na API Oficial, este tipo só é entregue se o lead escreveu

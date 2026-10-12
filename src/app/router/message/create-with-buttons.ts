@@ -1,3 +1,4 @@
+import { OFFICIAL_ONLY_MESSAGE, isButtonsOfficialOnly } from "@/features/tracking-chat/lib/numbered-menu";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { CreatedMessageProps, MessageStatus } from "@/features/tracking-chat/types";
@@ -98,6 +99,12 @@ export const createButtonsMessage = base
         message: err.message,
         data: { code: err.code, feature: err.feature } as never,
       });
+    }
+
+    // Botões e listas só em número com API oficial (spec 0095). O painel some da tela, mas a recusa é
+    // aqui: esconder o botão não é proteção. (Este envio manual só existe para número não oficial.)
+    if (isButtonsOfficialOnly()) {
+      throw errors.BAD_REQUEST({ message: OFFICIAL_ONLY_MESSAGE });
     }
 
     // ── Resolve provider ANTES de cobrar ★ (Fix #2 + #7) ────────────────

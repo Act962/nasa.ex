@@ -62,6 +62,7 @@ export const topologicalSort = (
  */
 export type WorkflowTriggerType =
   | "INITIAL"
+  | "MENU_OPTION_CLICK"
   | "MANUAL_TRIGGER"
   | "NEW_LEAD"
   | "MOVE_LEAD_STATUS"

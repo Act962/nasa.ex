@@ -73,6 +73,11 @@ import type {
 
 const FETCH_TIMEOUT_MS = 10_000;
 
+/** Id da opção tocada, quando a mensagem é o toque num botão ou item de lista. */
+function interactiveReplyIdOf(canonical: CanonicalInboundMessage): string | undefined {
+  return canonical.type === "interactive_reply" ? canonical.replyId : undefined;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Strategy types — injetados pelo caller (provider-specific)
 // ────────────────────────────────────────────────────────────────────────────
@@ -346,6 +351,7 @@ export async function persistCanonicalInbound(
     externalMessageId: canonical.externalMessageId,
     fromMe: canonical.sender.fromMe,
     channel,
+    isButtonClick: Boolean(interactiveReplyIdOf(canonical)),
     // Só inbound: `leadMessage` é, por contrato, texto escrito pelo lead.
     ...(canonical.sender.fromMe
       ? {}
@@ -810,6 +816,7 @@ async function dispatchAgentMessageIncoming(args: DispatchArgs): Promise<void> {
       ...(mediaType ? { mediaType } : {}),
       ...(mimetype ? { mimetype } : {}),
       ...(fileName ? { fileName } : {}),
+      ...(interactiveReplyIdOf(args.canonical) ? { interactiveReplyId: interactiveReplyIdOf(args.canonical) } : {}),
     });
   } catch (err) {
     console.error("[persist-canonical-inbound] agent_dispatch_failed", err);

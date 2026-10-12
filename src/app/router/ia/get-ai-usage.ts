@@ -1,5 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { isCompanyAiManager } from "@/features/ia/server/load-ai-usage";
 import prisma from "@/lib/prisma";
 import { AiProvider, Prisma } from "@/generated/prisma/client";
 import z from "zod";
@@ -10,6 +12,7 @@ import z from "zod";
 // - runs recentes (default 50)
 export const getAiUsage = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .input(
     z.object({
       trackingId: z.string(),
@@ -23,8 +26,16 @@ export const getAiUsage = base
         .default("all"),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
     const { trackingId, days, recentLimit, provider } = input;
+
+    // O id do funil vem do navegador: sem conferir a empresa, daria para ler o uso de IA de outra.
+    const tracking = await prisma.tracking.findFirst({ where: { id: trackingId, organizationId: context.org.id }, select: { id: true } });
+    if (!tracking) throw errors.NOT_FOUND({ message: "Funil não encontrado nesta empresa." });
+    // Consumo de IA do funil: só dono e admin, como o resto do consumo de IA (spec 0093).
+    if (!(await isCompanyAiManager(context.org.id, context.user.id))) {
+      throw errors.FORBIDDEN({ message: "Só o dono ou um administrador da empresa vê o consumo de IA." });
+    }
 
     const since = new Date();
     since.setUTCDate(since.getUTCDate() - days);

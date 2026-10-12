@@ -158,6 +158,12 @@ function CapabilitiesForm({
           isEnabled={capabilities.guidedMenu}
           onToggle={(guidedMenu) => setCapabilities({ ...capabilities, guidedMenu })}
         />
+        <CapabilityRow
+          title="Responder em uma mensagem só"
+          description="Cada resposta da assistente sai numa única mensagem curta (até duas frases), em vez de duas a quatro mensagens em sequência. As mensagens dos fluxos e dos menus não mudam."
+          isEnabled={capabilities.singleMessageReply}
+          onToggle={(singleMessageReply) => setCapabilities({ ...capabilities, singleMessageReply })}
+        />
       </section>
 
       <section data-guide={GUIDE_ANCHORS.chatbotIaKnowledgePicker.id}>

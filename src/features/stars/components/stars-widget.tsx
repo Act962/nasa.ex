@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -318,6 +319,14 @@ export function StarsWidget({ variant = "pill" }: StarsWidgetProps = {}) {
                     <History className="size-3" />
                     Histórico
                   </button>
+                  <Link
+                    href="/integrations#ia-da-empresa"
+                    className="inline-flex items-center gap-1 text-[10px] font-medium text-info hover:bg-info/10 rounded px-1.5 py-0.5 transition-colors"
+                    title="Ver quanto a empresa gastou com IA"
+                  >
+                    <Sparkles className="size-3" />
+                    Consumo de IA
+                  </Link>
                   {hasPlan && (
                     <PlanBadge planSlug={planSlug} planName={planName} />
                   )}

@@ -1,3 +1,5 @@
+import { resolveAiFor } from "@/features/ia/server/resolve-ai-for";
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -7,7 +9,6 @@ import {
   streamText,
   type UIMessage,
 } from "ai";
-import { openai } from "@ai-sdk/openai";
 import { streamToEventIterator } from "@orpc/client";
 import z from "zod";
 import { createLeadTool } from "./tools/create-lead";
@@ -161,10 +162,12 @@ export const createLeadWithAi = base
           lastUserText,
         ) && lastUserText.length > 60;
 
+      const assistantModelId = isComplexWorkflowRequest ? "gpt-4o" : "gpt-4.1-nano";
+      const resolvedAi = await resolveAiFor({ resourceId: "tracking.assistant", organizationId: orgId, provider: "openai", modelId: assistantModelId });
       const result = streamText({
-        model: openai(
-          isComplexWorkflowRequest ? "gpt-4o" : "gpt-4.1-nano",
-        ),
+        model: resolvedAi.model,
+        onFinish: ({ totalUsage }) =>
+          recordAiUsage({ resourceId: "tracking.assistant", organizationId: orgId, userId, provider: "openai", modelId: resolvedAi.modelId, keySource: resolvedAi.keySource, usage: totalUsage, trackingId }),
         messages: [
           { role: "system", content: systemPrompt },
           ...(await convertToModelMessages(messages)),

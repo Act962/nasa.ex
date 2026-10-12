@@ -16,7 +16,7 @@
 | Severidade | Itens | Status |
 | --- | ---: | --- |
 | 🔴 Crítico — explorável anonimamente | 8 | ⬜ 7 · ✅ 1 |
-| 🟠 Alto | 7 | ⬜ 6 · ✅ 1 |
+| 🟠 Alto | 8 | ⬜ 6 · ✅ 2 |
 | 🟡 Médio | 5 | ⬜ 5 |
 
 **Ponto de partida:** as quatro primeiras (S1–S4) são **horas de trabalho cada** e os templates
@@ -387,6 +387,15 @@ implementação correspondente.
 | **Impacto** | **Vazamento entre empresas.** Qualquer usuário logado lia números de outra empresa passando o ID dela em `organizationIds` |
 | **Correção** | `resolveInsightsOrganizationIds` (`src/app/router/insights/resolve-insights-organizations.ts`): só valem empresas de que o usuário é membro; sem seleção, todas as dele (mesmo critério do relatório do Tracking) |
 
+### A8 — Menus de botões do atendimento lidos e alterados sem conferir a empresa
+
+| | |
+| --- | --- |
+| **Status** | ✅ corrigido em `feature/workflows-simulador-visual-20261010` ([Act962/nasa.ex#454](https://github.com/Act962/nasa.ex/pull/454)) |
+| **Arquivos** | `src/app/router/ia/{list,create,update,delete}-ai-button-preset.ts` |
+| **Impacto** | **Alteração entre empresas.** Qualquer usuário logado listava, criava, editava, ligava ou apagava o menu salvo de qualquer funil pelo id; esse menu é o texto enviado aos clientes da empresa no WhatsApp |
+| **Correção** | `canAccessTrackingMenus` / `canAccessMenu` (`src/app/router/ia/button-preset-access.ts`): só membro da empresa dona do funil. Quem não é membro recebe a mesma resposta de id inexistente; a listagem devolve vazio |
+
 ## 🟡 Médios
 
 | # | Item | Arquivo | Ação |
@@ -430,3 +439,4 @@ Registrados para não serem re-auditados sem motivo:
 | 2026-09-29 | S8 corrigido: bloco de debug removido depois de gravar em log a API key do Asaas de uma loja durante teste de PIX real. Pendentes: logging com redação e rotação das chaves expostas. |
 | 2026-09-26 | M6 adicionado e corrigido (vazamento do Financeiro pelo ASTRO para membro sem acesso), achado pela bateria de testes do ASTRO. |
 | 2026-10-01 | A7 adicionado e corrigido (Insights lia dados de qualquer empresa pelo ID), achado ao auditar os filtros do Insights. |
+| 2026-10-11 | A8 adicionado e corrigido (menus de botões do atendimento sem conferência de empresa), achado ao implementar a trava do modelo de atendimento (spec 0097). |

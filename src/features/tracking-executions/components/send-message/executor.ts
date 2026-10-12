@@ -1,3 +1,7 @@
+import { CONSENT_TYPE, FORM_CHAT_TYPE } from "@/features/workflows/lib/conversation-steps";
+import { hasPlaceholderText } from "@/features/workflows/lib/placeholder-text";
+import { sendText } from "@/http/uazapi/send-text";
+import { formatNumberedMenu, isButtonsOfficialOnly, numberedMenuMetadata } from "@/features/tracking-chat/lib/numbered-menu";
 import { NodeExecutor } from "@/features/tracking-executions/types";
 import prisma from "@/lib/prisma";
 import { NonRetriableError } from "inngest";
@@ -233,7 +237,18 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
           toPhone: phone,
           template: templateToSend,
         });
-      } else
+      } else {
+      // Só sem template reserva: com ele, o template já foi enviado no lugar do conteúdo livre.
+      // Última barreira (spec 0097): texto de exemplo do modelo de atendimento nunca chega a um cliente.
+      if (hasPlaceholderText(data.action?.payload)) {
+        throw new NonRetriableError("Mensagem com texto de exemplo (\"[Escreva aqui…]\") não foi enviada. Troque o texto no passo.");
+      }
+      // Passos de conversa (spec 0099) dependem do motor do modo agente, que sabe esperar a resposta.
+      // O tipo deste quadro não lista os passos de conversa: eles são gravados pelas janelas próprias.
+      const stepType: string = String(typeMessage ?? "");
+      if (stepType === CONSENT_TYPE || stepType === FORM_CHAT_TYPE) {
+        throw new NonRetriableError("Este passo só funciona em fluxo no modo agente.");
+      }
       switch (typeMessage) {
         case "TEXT":
           let message = data.action?.payload.message || "";
@@ -320,6 +335,9 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
                 "Preset de botões não encontrado ou inativo",
               );
             }
+            if (hasPlaceholderText([preset.bodyText, preset.footerText])) {
+              throw new NonRetriableError("Menu com texto de exemplo (\"[Escreva aqui…]\") não foi enviado. Troque o texto do menu.");
+            }
             bodyText = preset.bodyText;
             footerText = preset.footerText ?? undefined;
             menuFormat = preset.menuFormat === "LIST" ? "LIST" : "BUTTON";
@@ -364,7 +382,13 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
           // Envia como botões OU lista conforme `menuFormat`. Lista reusa a
           // mesma composição de itens (`sendItemsAsList` embrulha numa seção).
           const asList = menuFormat === "LIST";
-          const buttonsResponse = asList
+          // Número fora da API oficial (spec 0095): o menu sai como texto numerado.
+          const isSentAsNumberedText = isButtonsOfficialOnly();
+          const numberedOptions = buttons.filter((button) => button.id).map((button) => ({ id: button.id, title: button.text }));
+          const numberedText = formatNumberedMenu({ body: bodyText, options: numberedOptions, footer: footerText });
+          const buttonsResponse = isSentAsNumberedText
+            ? await sendText(menuCredentials.token, { number: phone, text: numberedText, readchat: true, readmessages: true, delay: 2000 }, menuCredentials.baseUrl)
+            : asList
             ? await sendItemsAsList(
                 menuCredentials.token,
                 {
@@ -401,9 +425,11 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
           const menuHeader = asList
             ? `[Lista: ${listButton?.trim() || "Ver opções"}]`
             : "[Botões]";
-          const persistedBody = footerText
-            ? `${bodyText}\n\n${menuHeader}\n${summary}\n\n${footerText}`
-            : `${bodyText}\n\n${menuHeader}\n${summary}`;
+          const persistedBody = isSentAsNumberedText
+            ? numberedText
+            : footerText
+              ? `${bodyText}\n\n${menuHeader}\n${summary}\n\n${footerText}`
+              : `${bodyText}\n\n${menuHeader}\n${summary}`;
 
           // Mapa buttonId→tagId para disparar automações LEAD_TAGGED quando
           // o lead clicar num botão com tag associada. Montado a partir dos
@@ -428,7 +454,9 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
               fromMe: true,
               status: MessageStatusEnum.SENT,
               quotedMessageId: null,
-              ...(hasTagMap ? { metadata: { buttonTagMap } } : {}),
+              ...(hasTagMap || isSentAsNumberedText
+                ? { metadata: { ...(hasTagMap ? { buttonTagMap } : {}), ...(isSentAsNumberedText ? numberedMenuMetadata(numberedOptions) : {}) } }
+                : {}),
             },
             include: {
               conversation: { include: { lead: true } },
@@ -444,6 +472,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             });
           break;
         }
+      }
       }
 
       if (realTime) {

@@ -143,7 +143,7 @@ export const TagDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>Gerenciar Tags</DialogTitle>
           <DialogDescription>

@@ -4,7 +4,7 @@ import { ReportsList } from "@/features/insights/components/reports/reports-list
 import { AstroPromptBar } from "@/features/insights/components/astro/astro-prompt-bar";
 import { CampaignsEvolution } from "@/features/insights/components/reports/campaigns-evolution";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, BarChart3, TrendingUp } from "lucide-react";
+import { ArrowRight, BarChart3, Sparkles, TrendingUp } from "lucide-react";
 
 export default function RelatoriosPage() {
   return (
@@ -44,6 +44,27 @@ export default function RelatoriosPage() {
                     KPIs gerais, comparação com período anterior, quebra por
                     campanha e anúncios em destaque. Modelo padrão para
                     relatórios de tráfego pago.
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link
+              href="/insights/relatorios/consumo-ia"
+              className="group focus:outline-none focus:ring-2 focus:ring-primary rounded-xl"
+            >
+              <Card className="h-full transition-colors group-hover:border-primary">
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div className="p-2 rounded-lg bg-info/10 text-info">
+                      <Sparkles className="size-4" />
+                    </div>
+                    <ArrowRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <h3 className="font-semibold text-sm">Consumo de IA</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Quanto a empresa gastou com IA por dia, por recurso e por
+                    modelo, separando a chave própria do que foi cobrado em
+                    Stars. Visível para dono e administradores.
                   </p>
                 </CardContent>
               </Card>

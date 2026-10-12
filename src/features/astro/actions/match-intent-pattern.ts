@@ -14,9 +14,11 @@ function normalizeIntentText(text: string): string {
 
 export function matchIntentPattern(text: string): StagedClassification | null {
   const normalized = normalizeIntentText(text);
-  const matchedActions = ASTRO_ACTIONS.filter((action) =>
-    (action.intentPatterns ?? []).some((pattern) => pattern.test(normalized)),
-  );
+  const claimingActions = ASTRO_ACTIONS.filter((action) => action.claimsText?.(text));
+  const matchedActions =
+    claimingActions.length > 0
+      ? claimingActions
+      : ASTRO_ACTIONS.filter((action) => (action.intentPatterns ?? []).some((pattern) => pattern.test(normalized)));
   // Dois verbos casando é dúvida de verdade: aí o classificador decide.
   if (matchedActions.length !== 1) return null;
   const [action] = matchedActions;
@@ -33,7 +35,7 @@ export function matchIntentPattern(text: string): StagedClassification | null {
 /** Algum verbo casou? Frase de ação nunca é consulta, mesmo com dois verbos. */
 export function matchesAnyIntentPattern(text: string): boolean {
   const normalized = normalizeIntentText(text);
-  return ASTRO_ACTIONS.some((action) =>
-    (action.intentPatterns ?? []).some((pattern) => pattern.test(normalized)),
+  return ASTRO_ACTIONS.some(
+    (action) => action.claimsText?.(text) || (action.intentPatterns ?? []).some((pattern) => pattern.test(normalized)),
   );
 }

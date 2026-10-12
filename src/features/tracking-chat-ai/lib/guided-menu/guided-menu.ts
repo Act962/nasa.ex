@@ -1,3 +1,4 @@
+import { MENU_PRESET_NAME } from "../attendance-setup/script-draft";
 import "server-only";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -10,7 +11,7 @@ import { persistOutboundMessage } from "../persist";
 import { buildLeadAgendaScope } from "../../server/tools";
 import { makeLeadAgendaTools } from "../../server/tools/agenda";
 import { makeTransferToHumanTool } from "../../server/tools/transfer-to-human";
-import { clientMenuId, isClientMenuId, parseClientMenuId, type ClientMenuStep } from "./menu-ids";
+import { clientMenuId, isClientMenuId, parseClientMenuId, RETURNING_MENU_BODY, type ClientMenuStep } from "./menu-ids";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -76,6 +77,29 @@ function distinctTitles(titles: string[], limit: number): string[] {
     });
   }
   return result;
+}
+
+interface LeveledAgenda {
+  agendaId: string;
+  name: string;
+  specialty: string | null;
+  unit: string | null;
+  professionalNotes: string | null;
+}
+
+/** Nível ainda não escolhido (ou que não existe neste funil). */
+const UNSET_LEVEL = -1;
+const NO_LEVEL_LABEL = "Outros";
+
+/** Agenda sem o campo preenchido, num funil em que outras têm, fica em "Outros". */
+function levelLabel(value: string | null): string {
+  return value ?? NO_LEVEL_LABEL;
+}
+
+/** Os valores de um nível, em ordem alfabética. Ninguém preencheu = nível não existe. */
+function levelValues(values: (string | null)[]): string[] {
+  if (values.every((value) => value === null)) return [];
+  return [...new Set(values.map(levelLabel))].sort((first, second) => first.localeCompare(second, "pt-BR"));
 }
 
 function normalize(text: string): string {
@@ -179,8 +203,10 @@ class GuidedMenu {
     return { id: clientMenuId({ step: "human" }), title: "Atendente" };
   }
 
-  async showMenu(): Promise<void> {
-    const body = `Olá! Aqui é ${this.assistantName}, assistente virtual da ${this.ctx.organization.name}. Escolha uma opção ou escreva sua dúvida.`;
+  async showMenu(isReturning = false): Promise<void> {
+    const body = isReturning
+      ? RETURNING_MENU_BODY
+      : `Olá! Aqui é ${this.assistantName}, assistente virtual da ${this.ctx.organization.name}. ${RETURNING_MENU_BODY}`;
     const options: MenuOption[] = this.hasAgenda
       ? [
           { id: clientMenuId({ step: "book" }), title: "Agendar" },
@@ -222,25 +248,93 @@ class GuidedMenu {
     await this.sendChoice("Essa opção não está mais disponível.", [this.backToMenu(), this.humanOption()]);
   }
 
-  private async showAgendas(): Promise<void> {
-    if (!this.hasAgenda) return this.unavailable();
+  /** As agendas liberadas ao cliente, com os níveis preenchidos (spec 0099). Ordem fixa: os ids dos toques levam posições. */
+  private async loadBookableAgendas(): Promise<LeveledAgenda[]> {
     const output = await runAgendaTool(this.tools, "list_agendas", {});
-    const agendas = (output.agendas as { agendaId: string; name: string }[] | undefined) ?? [];
+    const listed = (output.agendas as { agendaId: string; name: string }[] | undefined) ?? [];
+    if (listed.length === 0) return [];
+    const levels = await prisma.agenda.findMany({
+      where: { id: { in: listed.map((agenda) => agenda.agendaId) }, organizationId: this.ctx.organizationId },
+      select: { id: true, specialty: true, unit: true, professionalNotes: true },
+    });
+    const levelsById = new Map(levels.map((agenda) => [agenda.id, agenda]));
+    return listed.map((agenda) => ({
+      agendaId: agenda.agendaId,
+      name: agenda.name,
+      specialty: levelsById.get(agenda.agendaId)?.specialty?.trim() || null,
+      unit: levelsById.get(agenda.agendaId)?.unit?.trim() || null,
+      professionalNotes: levelsById.get(agenda.agendaId)?.professionalNotes?.trim() || null,
+    }));
+  }
+
+  /**
+   * Agendamento em níveis: especialidade, depois unidade, depois a agenda. Nível com uma opção só é
+   * pulado, e funil sem esses campos preenchidos cai direto na lista única de sempre.
+   */
+  private async showAgendas(specialtyIndex = UNSET_LEVEL, unitIndex = UNSET_LEVEL): Promise<void> {
+    if (!this.hasAgenda) return this.unavailable();
+    const agendas = await this.loadBookableAgendas();
     if (agendas.length === 0) return this.unavailable();
-    if (agendas.length === 1) return this.showDays(agendas[0].agendaId, null);
+    if (agendas.length === 1) return this.openAgenda(agendas[0].agendaId);
+
+    const specialties = levelValues(agendas.map((agenda) => agenda.specialty));
+    if (specialties.length > 1 && specialtyIndex === UNSET_LEVEL) {
+      return this.sendChoice(
+        "Qual especialidade você procura?",
+        [
+          ...specialties.slice(0, MAX_LIST_ROWS - 1).map((specialty, index) => ({ id: clientMenuId({ step: "specialty", specialty: index }), title: specialty })),
+          { id: clientMenuId({ step: "menu" }), title: "Voltar ao menu" },
+        ],
+        "Ver especialidades",
+      );
+    }
+    if (specialtyIndex !== UNSET_LEVEL && !specialties[specialtyIndex]) return this.unavailable();
+    const inSpecialty = specialtyIndex === UNSET_LEVEL ? agendas : agendas.filter((agenda) => levelLabel(agenda.specialty) === specialties[specialtyIndex]);
+    const backToSpecialties: MenuOption = { id: clientMenuId({ step: "book" }), title: "Voltar" };
+
+    const units = levelValues(inSpecialty.map((agenda) => agenda.unit));
+    if (units.length > 1 && unitIndex === UNSET_LEVEL) {
+      return this.sendChoice(
+        "Em qual unidade?",
+        [
+          ...units.slice(0, MAX_LIST_ROWS - 2).map((unit, index) => ({ id: clientMenuId({ step: "unit", specialty: specialtyIndex, unit: index }), title: unit })),
+          ...(specialties.length > 1 ? [backToSpecialties] : []),
+          { id: clientMenuId({ step: "menu" }), title: "Voltar ao menu" },
+        ],
+        "Ver unidades",
+      );
+    }
+    if (unitIndex !== UNSET_LEVEL && !units[unitIndex]) return this.unavailable();
+    const choices = unitIndex === UNSET_LEVEL ? inSpecialty : inSpecialty.filter((agenda) => levelLabel(agenda.unit) === units[unitIndex]);
+    if (choices.length === 0) return this.unavailable();
+    if (choices.length === 1) return this.openAgenda(choices[0].agendaId);
+
+    const hasLevels = specialties.length > 1 || units.length > 1;
     // Sempre em lista (quatro linhas ou mais): só a lista mostra o nome inteiro da agenda na descrição.
     await this.sendChoice(
-      "O que você quer marcar?",
+      hasLevels ? "Com quem você quer marcar?" : "O que você quer marcar?",
       [
-        ...agendas.slice(0, MAX_LIST_ROWS - 1).map((agenda) => ({
+        ...choices.slice(0, MAX_LIST_ROWS - 2).map((agenda) => ({
           id: clientMenuId({ step: "days", agendaId: agenda.agendaId, appointmentId: null }),
           title: agenda.name,
         })),
+        ...(hasLevels ? [units.length > 1 ? { id: clientMenuId({ step: "specialty", specialty: specialtyIndex }), title: "Voltar" } : backToSpecialties] : []),
         { id: clientMenuId({ step: "menu" }), title: "Voltar ao menu" },
-        ...(agendas.length === 2 ? [this.humanOption()] : []),
+        ...(choices.length === 2 && !hasLevels ? [this.humanOption()] : []),
       ],
       "Ver agendas",
     );
+  }
+
+  /** Agenda escolhida para um horário novo: a ficha do profissional chega antes dos dias (spec 0099, RF-17). */
+  private async openAgenda(agendaId: string): Promise<void> {
+    await this.sendProfessionalNotes(agendaId);
+    return this.showDays(agendaId, null);
+  }
+
+  private async sendProfessionalNotes(agendaId: string): Promise<void> {
+    const agenda = (await this.loadBookableAgendas()).find((candidate) => candidate.agendaId === agendaId);
+    if (agenda?.professionalNotes) await this.sendText(`${agenda.name}\n${agenda.professionalNotes}`);
   }
 
   private async freeTimes(agendaId: string, date: string): Promise<string[] | null> {
@@ -425,7 +519,7 @@ class GuidedMenu {
     await this.sendChoice("Agendamento cancelado.", [this.backToMenu()]);
   }
 
-  async run(target: ClientMenuStep): Promise<void> {
+  async run(target: ClientMenuStep, origin: { isClick: boolean } = { isClick: false }): Promise<void> {
     // No teste não existe agendamento: os passos que partem de um caem na explicação.
     const needsAppointment =
       target.step === "appointment" || target.step === "reschedule" || target.step === "cancel" || target.step === "cancelConfirm";
@@ -435,7 +529,7 @@ class GuidedMenu {
     }
     switch (target.step) {
       case "menu":
-        return this.showMenu();
+        return this.showMenu(origin.isClick);
       case "more":
         return this.showMore();
       case "links":
@@ -444,12 +538,16 @@ class GuidedMenu {
         return this.transferToHuman();
       case "book":
         return this.showAgendas();
+      case "specialty":
+        return this.showAgendas(target.specialty);
+      case "unit":
+        return this.showAgendas(target.specialty, target.unit);
       case "mine":
         return this.showMine();
       case "days":
         if (!this.hasAgenda) return this.unavailable();
         if (target.appointmentId && !(await this.findOwnAppointment(target.appointmentId))) return this.unavailable();
-        return this.showDays(target.agendaId, target.appointmentId);
+        return target.appointmentId ? this.showDays(target.agendaId, target.appointmentId) : this.openAgenda(target.agendaId);
       case "slots":
         return this.hasAgenda ? this.showSlots(target) : this.unavailable();
       case "slot":
@@ -512,6 +610,10 @@ export async function handleGuidedMenu(
   if (!replyId && NUMBERED_ANSWER.test(text.trim())) replyId = await resolveNumberedAnswer(ctx.conversation.id, text.trim());
   const target = resolveTarget({ text, replyId });
   if (target === "not_menu") return { handled: false };
+  // Funil com menu do roteiro (spec 0091): a saudação e o "Voltar ao menu" são dele, que já leva os
+  // assuntos, "Agendar" e "Meus horários". Este menu fica com os demais cliques.
+  const opensMainMenu = target !== "invalid" && target.step === "menu";
+  if (opensMainMenu && ctx.availableButtonPresets.some((preset) => preset.name === MENU_PRESET_NAME)) return { handled: false };
 
   const clicksLastHour = await prisma.message.count({
     where: {
@@ -532,7 +634,7 @@ export async function handleGuidedMenu(
       await transfer.execute({ reason: "Cliente pediu atendente pelo menu", clientAsked: true }, { toolCallId: `menu-${Date.now()}`, messages: [] });
     },
   });
-  await menu.run(target === "invalid" ? { step: "menu" } : target);
+  await menu.run(target === "invalid" ? { step: "menu" } : target, { isClick: Boolean(replyId) });
   return { handled: true };
 }
 
@@ -548,6 +650,6 @@ export async function runGuidedMenuTest(
   if (!ctx.capabilities.guidedMenu) return { handled: false };
   const target = resolveTarget(input);
   if (target === "not_menu") return { handled: false };
-  await new GuidedMenu(ctx, { channel, isTest: true }).run(target === "invalid" ? { step: "menu" } : target);
+  await new GuidedMenu(ctx, { channel, isTest: true }).run(target === "invalid" ? { step: "menu" } : target, { isClick: Boolean(input.replyId) });
   return { handled: true };
 }

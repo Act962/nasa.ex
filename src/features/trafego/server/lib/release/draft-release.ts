@@ -1,3 +1,4 @@
+import { recordTrafegoAiUsage } from "@/features/trafego/server/lib/record-trafego-ai-usage";
 import "server-only";
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
@@ -39,7 +40,7 @@ export async function draftRelease(params: {
   if (usable.length === 0) return null;
 
   try {
-    const { object } = await generateObject({
+    const { object, usage } = await generateObject({
       model: openai("gpt-4o-mini"),
       schema: releaseSchema,
       system: [
@@ -63,6 +64,7 @@ export async function draftRelease(params: {
         .join("\n"),
       maxRetries: 1,
     });
+    await recordTrafegoAiUsage({ feature: "trafego.release", provider: "openai", modelId: "gpt-4o-mini", usage });
     return object;
   } catch (error) {
     console.warn("[trafego/release] redação falhou:", error);

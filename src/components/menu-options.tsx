@@ -27,11 +27,14 @@ import { PlusIcon, SaveIcon, WorkflowIcon } from "lucide-react";
 export function MenuOptions({
   children,
   handelOpenSelector,
+  isDisabled = false,
   workflowId,
 }: {
   children: React.ReactNode;
   handelOpenSelector: (open: boolean) => void;
   workflowId: string;
+  /** Fluxo aberto só para olhar: o menu do botão direito não abre. */
+  isDisabled?: boolean;
 }) {
   const editor = useAtomValue(editorAtom);
   const saveWorkflow = useUpdateWorkflow();
@@ -100,7 +103,7 @@ export function MenuOptions({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger disabled={isDisabled}>{children}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuGroup>
           <ContextMenuItem
