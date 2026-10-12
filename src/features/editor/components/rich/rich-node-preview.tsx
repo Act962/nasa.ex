@@ -47,6 +47,8 @@ function toPhoneMessage(nodeType: string, config: Fields, presetById: Map<string
   }
   const payload = asFields(config.payload);
   switch (String(payload.type ?? "TEXT")) {
+    case "GROUP_TEXT":
+      return { kind: "text", text: `Para o grupo ${String(payload.groupName || "(escolha o grupo)")}:\n${String(payload.message ?? "")}` };
     case "CONSENT":
       return { kind: "buttons", text: String(payload.termsText ?? ""), options: [String(payload.acceptLabel ?? "Sim, concordo"), String(payload.refuseLabel ?? "Não")] };
     case "FORM_CHAT": {

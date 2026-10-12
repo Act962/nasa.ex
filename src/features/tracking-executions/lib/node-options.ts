@@ -1,4 +1,5 @@
 import { buttonReplyOutputs } from "@/features/workflows/lib/button-reply-flow";
+import { DEFAULT_DAILY_SUMMARY_MESSAGE, DEFAULT_GROUP_MESSAGE_PAYLOAD } from "@/features/workflows/lib/group-message";
 import { DEFAULT_CONSENT_PAYLOAD, DEFAULT_FORM_CHAT_PAYLOAD, conversationStepOutputs, isFormChatOn } from "@/features/workflows/lib/conversation-steps";
 import { NodeType } from "@/generated/prisma/enums";
 import {
@@ -44,6 +45,7 @@ import {
   UserRoundPlusIcon,
   WebhookIcon,
   PhoneCallIcon,
+  UsersIcon,
 } from "lucide-react";
 
 export type NodeTypeOption = {
@@ -448,6 +450,16 @@ export const executionNodes: NodeTypeOption[] = [
         },
       ]
     : []),
+  {
+    // Envio para grupo (spec 0101): reusa o Enviar Mensagem, sem tipo novo de quadro.
+    type: NodeType.SEND_MESSAGE,
+    category: "execution",
+    label: "Enviar para grupo",
+    description: "Manda um texto para um grupo de WhatsApp, com os números do dia se você quiser. Só em número conectado por QR code",
+    icon: UsersIcon,
+    agentModeOnly: true,
+    defaultData: { action: { payload: { ...DEFAULT_GROUP_MESSAGE_PAYLOAD, message: DEFAULT_DAILY_SUMMARY_MESSAGE } } },
+  },
   {
     // "Fazer ligação com IA", etapa do convite (spec 0090, seção G, 8A): o cliente recebe o convite,
     // liga pelo WhatsApp e a assistente atende. Reusa o Enviar Mensagem, sem tipo novo de quadro.
