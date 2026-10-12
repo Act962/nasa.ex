@@ -1,3 +1,4 @@
+import { CONSENT_TYPE, FORM_CHAT_TYPE } from "@/features/workflows/lib/conversation-steps";
 import { hasPlaceholderText } from "@/features/workflows/lib/placeholder-text";
 import { sendText } from "@/http/uazapi/send-text";
 import { formatNumberedMenu, isButtonsOfficialOnly, numberedMenuMetadata } from "@/features/tracking-chat/lib/numbered-menu";
@@ -242,7 +243,9 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
         throw new NonRetriableError("Mensagem com texto de exemplo (\"[Escreva aqui…]\") não foi enviada. Troque o texto no passo.");
       }
       // Passos de conversa (spec 0099) dependem do motor do modo agente, que sabe esperar a resposta.
-      if (typeMessage === "CONSENT" || typeMessage === "FORM_CHAT") {
+      // O tipo deste quadro não lista os passos de conversa: eles são gravados pelas janelas próprias.
+      const stepType: string = String(typeMessage ?? "");
+      if (stepType === CONSENT_TYPE || stepType === FORM_CHAT_TYPE) {
         throw new NonRetriableError("Este passo só funciona em fluxo no modo agente.");
       }
       switch (typeMessage) {
