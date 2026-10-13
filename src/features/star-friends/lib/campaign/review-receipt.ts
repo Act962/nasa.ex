@@ -15,6 +15,8 @@ import { grantLuckyNumbers } from "./grant-lucky-numbers";
 // mesmos do cupom aceito na hora.
 
 const DEFAULT_REJECT_REASON = "Recusado na conferência";
+// O texto do WhatsApp tem limite de tamanho, e um cupom alto rende centenas de números.
+const MAX_CODES_IN_MESSAGE = 60;
 
 type ReviewFailure = "not_found" | "not_pending" | "already_drawn" | "out_of_period" | "duplicate";
 
@@ -103,6 +105,11 @@ export async function approveReceipt(params: {
   let granted: { codes: string[]; carryOverCents: number };
   try {
     granted = await prisma.$transaction(async (tx) => {
+      // Primeira escrita, para travar a linha da campanha: a varredura trava a mesma linha antes de
+      // ler os cupons, então ou ela já enxerga este cupom aceito, ou termina antes e a marca é
+      // zerada aqui. Sem isso a varredura podia regravar a marca por cima e o sorteio aceitaria um
+      // cupom que ela não viu.
+      await tx.loyaltyCampaign.update({ where: { id: campaign.id }, data: { lastSweepAt: null } });
       // Dois cliques em "Aprovar": só o primeiro encontra o cupom ainda em conferência.
       const claimed = await tx.loyaltyReceipt.updateMany({ where: { id: receipt.id, status: "PENDING_REVIEW" }, data: { status: "ACCEPTED" } });
       if (claimed.count === 0) throw new ReceiptAlreadyReviewedError();
@@ -120,8 +127,6 @@ export async function approveReceipt(params: {
             select: { id: true },
           }),
       });
-      // A varredura anterior não viu este cupom: o sorteio volta a exigir uma nova.
-      await tx.loyaltyCampaign.update({ where: { id: campaign.id }, data: { lastSweepAt: null } });
       return result;
     });
   } catch (error) {
@@ -142,10 +147,12 @@ export async function approveReceipt(params: {
 
   const perNumber = formatCents(campaign.amountPerNumberCents);
   const carryLine = `Saldo acumulado para o próximo número: ${formatCents(granted.carryOverCents)} de ${perNumber}.`;
+  const shownCodes = granted.codes.slice(0, MAX_CODES_IN_MESSAGE);
+  const hiddenLine = granted.codes.length > shownCodes.length ? `\n… e mais ${granted.codes.length - shownCodes.length}, em "Ver meus códigos".` : "";
   const codesBlock =
     granted.codes.length === 0
       ? `Ele ainda não completou ${perNumber}, então o valor ficou guardado.`
-      : `${granted.codes.length === 1 ? "Seu número da sorte" : "Seus números da sorte"}:\n${granted.codes.map((code) => `🎟️ ${code}`).join("\n")}`;
+      : `${granted.codes.length === 1 ? "Seu número da sorte" : `Seus ${granted.codes.length} números da sorte`}:\n${shownCodes.map((code) => `🎟️ ${code}`).join("\n")}${hiddenLine}`;
   const wasCustomerNotified = await notifyCustomer(
     receipt.leadId,
     `Seu cupom de ${formatCents(totalCents)} foi conferido e aprovado. ✅\n\n${codesBlock}\n\n${carryLine}`,
