@@ -7,6 +7,13 @@
 > (§3 do overview) continua válido e não é repetido aqui.
 >
 > Nenhum arquivo de código foi alterado nesta reaferição.
+>
+> **Ressalva (2026-10-13, mesmo dia):** o commit medido, `7ead1bb6`, estava 71 commits atrás da
+> `main` remota. Depois do merge, as medidas de fronteira são piores que as desta página: 87 features
+> (eram 84), 74 pares de features mutuamente dependentes (57), maior grupo interdependente com 60
+> features (56), 65 imports contra as camadas (58). Só `orpc.*` fora de hook melhorou: 690 em 312
+> arquivos (726 em 321). As demais tabelas não foram refeitas; os números oficiais passam a ser os de
+> `pnpm arch:features`.
 
 ## 1. Resumo
 

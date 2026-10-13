@@ -67,7 +67,7 @@ describe("computeNextRemindAt", () => {
     );
   });
 
-  describe("spec 0074: mês que não tem o dia de referência", () => {
+  describe("spec 0090: mês que não tem o dia de referência", () => {
     it("CA-1: dia 31 em 31/01 vai para o último dia de fevereiro", () => {
       expect(nextRemindAtFor(ReminderRecurrenceType.MONTHLY, "2026-01-31T12:00:00Z", 31)).toEqual(
         utc("2026-02-28T12:00:00Z"),

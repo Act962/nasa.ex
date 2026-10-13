@@ -1,5 +1,5 @@
 ---
-id: 0074
+id: 0090
 titulo: Lembrete mensal não pula mês curto
 dominio: tracking-chat
 status: em-revisao
@@ -11,7 +11,7 @@ pr: https://github.com/Act962/nasa.ex/pull/459
 peso: leve
 ---
 
-# 0074 — Lembrete mensal não pula mês curto
+# 0090 — Lembrete mensal não pula mês curto
 
 ## 1. Contexto
 
@@ -95,3 +95,4 @@ registrada em `reminder_occurrences`. Não foi feita aqui porque altera dados de
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-13 | João Gabriel | Criada junto com a correção |
+| 2026-10-13 | João Gabriel | Renumerada de 0074 para 0090: o número já estava em uso na `main` |

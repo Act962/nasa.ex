@@ -12,8 +12,8 @@
 | --- | --- |
 | 1. Runner + testes de regras puras | 🚧 Código pronto: Vitest 5, 166 testes em 12 arquivos, verdes localmente; job `unit` no `ci.yml`. Falta: PR, ver o job verde no GitHub, exigir o job na proteção da `main`. Quatro comportamentos suspeitos registrados em [`testing-strategy.md`](testing-strategy.md) §6 |
 | 2. Catraca de fronteiras | 🚧 Código pronto: `.dependency-cruiser.js` (R1–R7, 1 violação conhecida na baseline), `scripts/arch/` (R8, R9, R11 com baseline), job `arch` no `ci.yml`, regra de ESLint para Prisma em `modules/`, template de PR. Falta: ver o job verde no GitHub, exigir na proteção da `main`, revisar a classificação das camadas (R11) e decidir sobre `CODEOWNERS` |
-| Correção fora do plano | ✅ Lembrete mensal em mês curto (spec 0074). Reparo dos dados de produção pendente |
-| 3. Contenção de segurança | 🚧 S1, S2 e S4 em código, com teste unitário das regras ([spec 0075](../../specs/integrations/0075-rotas-anonimas-exigem-credencial.md)). Falta: implantar seguindo o roteiro da spec (começa em `log-only`), conferir com `curl` em homologação, teste de integração por rota (etapa 4). S7 e S6 aguardam decisão sobre como autenticar integradores |
+| Correção fora do plano | ✅ Lembrete mensal em mês curto (spec 0090). Reparo dos dados de produção pendente |
+| 3. Contenção de segurança | 🚧 S1, S2 e S4 em código, com teste unitário das regras ([spec 0091](../../specs/integrations/0091-rotas-anonimas-exigem-credencial.md)). Falta: implantar seguindo o roteiro da spec (começa em `log-only`), conferir com `curl` em homologação, teste de integração por rota (etapa 4). S7 e S6 aguardam decisão sobre como autenticar integradores |
 | 4 a 10 | ⬜ |
 
 ## 1. O que muda em relação ao roadmap de agosto
@@ -206,8 +206,8 @@ Planejamento detalhado só depois do piloto concluído: detalhar agora seria adi
 | Rotas públicas que mudam estado sem credencial | 7 ou mais | 0 nas tratadas (S1, S2, S4, S7) | 0 |
 | Procedures que aceitam ID com teste cross-org | 0 | 1 (molde) | 100% das classificadas como vulneráveis |
 | Violações de R1–R6 em `src/modules/` | não medido | 0, bloqueado | 0 |
-| Ciclos entre features | 57 pares mútuos | congelado | decrescente |
-| `orpc.*` fora de hook | 725 | congelado | decrescente |
+| Ciclos entre features | 74 pares mútuos (57 no commit auditado) | congelado | decrescente |
+| `orpc.*` fora de hook | 690 (726 no commit auditado) | congelado | decrescente |
 | `throw errors.X;` | 272 | 272 | 0, bloqueado por lint |
 | Módulos migrados na forma alvo | 0 (`social` nasceu nela) | 0 | 1 (`form`) |
 | Golden masters do piloto alterados durante a migração | — | — | 0 |

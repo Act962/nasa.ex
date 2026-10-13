@@ -1,5 +1,5 @@
 ---
-id: 0075
+id: 0091
 titulo: Rotas anônimas que mudam estado passam a exigir credencial
 dominio: integrations
 status: em-revisao
@@ -11,7 +11,7 @@ pr: https://github.com/Act962/nasa.ex/pull/459
 peso: leve
 ---
 
-# 0075 — Rotas anônimas que mudam estado passam a exigir credencial
+# 0091 — Rotas anônimas que mudam estado passam a exigir credencial
 
 ## 1. Contexto
 
@@ -102,3 +102,4 @@ Roteiro de implantação:
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-13 | João Gabriel | Criada junto com a implementação |
+| 2026-10-13 | João Gabriel | Renumerada de 0075 para 0091: o número já estava em uso na `main` |

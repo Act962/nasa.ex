@@ -63,7 +63,8 @@ volta, e `insights` hospedando componentes reutilizados.
 
 **Implementado em 2026-10-13** com a classificação acima (`scripts/arch/feature-tiers.ts`), ainda
 sujeita a revisão do time: mudar uma feature de camada é editar esse arquivo e regravar a baseline.
-Com ela, há 58 imports contra a direção das camadas, todos congelados na baseline:
+Com ela, havia 58 imports contra a direção das camadas no commit auditado (65 depois do merge da
+`main`, feito no mesmo dia), todos congelados na baseline. A distribuição no commit auditado:
 
 | Importado indevidamente | Por quantas features | Leitura |
 | --- | ---: | --- |
