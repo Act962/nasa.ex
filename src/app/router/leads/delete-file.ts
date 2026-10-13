@@ -32,7 +32,7 @@ export const deleteLeadFile = base
           where: { id: input.fileId, leadId: input.leadId },
           select: { id: true, name: true },
         });
-        if (!file) throw errors.NOT_FOUND;
+        if (!file) throw errors.NOT_FOUND();
 
         await tx.leadFile.delete({ where: { id: file.id } });
 

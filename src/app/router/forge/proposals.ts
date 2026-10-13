@@ -150,7 +150,7 @@ export const getForgeProposal = base
           },
         },
       });
-      if (!proposal) throw errors.NOT_FOUND;
+      if (!proposal) throw errors.NOT_FOUND();
       return {
         proposal: {
           ...proposal,
@@ -535,10 +535,10 @@ export const getForgeProposalPublic = base
           },
         },
       });
-      if (!proposal) throw errors.NOT_FOUND;
+      if (!proposal) throw errors.NOT_FOUND();
       return { proposal };
     } catch {
-      throw errors.NOT_FOUND;
+      throw errors.NOT_FOUND();
     }
   });
 

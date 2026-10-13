@@ -40,7 +40,7 @@ export const listActionByWorkspace = base
     });
 
     if (!member) {
-      throw errors.FORBIDDEN;
+      throw errors.FORBIDDEN();
     }
 
     const isMember = member.role === "member";

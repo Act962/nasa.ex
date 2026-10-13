@@ -70,21 +70,21 @@ export const listInChatMessages = base
   )
   .handler(async ({ input, context, errors }) => {
     const cookie = readCookie(context.headers, COOKIE_NAME);
-    if (!cookie) throw errors.UNAUTHORIZED;
+    if (!cookie) throw errors.UNAUTHORIZED();
     const [orgId, leadId] = cookie.split(":");
-    if (!orgId || !leadId) throw errors.UNAUTHORIZED;
+    if (!orgId || !leadId) throw errors.UNAUTHORIZED();
 
     const org = await prisma.organization.findFirst({
       where: { id: orgId, slug: input.slug },
       select: { id: true },
     });
-    if (!org) throw errors.UNAUTHORIZED;
+    if (!org) throw errors.UNAUTHORIZED();
 
     const lead = await prisma.lead.findFirst({
       where: { id: leadId, tracking: { organizationId: org.id } },
       select: { conversation: { select: { id: true } } },
     });
-    if (!lead?.conversation) throw errors.UNAUTHORIZED;
+    if (!lead?.conversation) throw errors.UNAUTHORIZED();
 
     const conversationId = lead.conversation.id;
 

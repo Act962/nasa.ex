@@ -9,13 +9,13 @@ export const deleteUser = base
   .input(z.object({ userId: z.string() }))
   .output(z.object({ success: z.boolean() }))
   .handler(async ({ input, context, errors }) => {
-    if (input.userId === context.adminUser.id) throw errors.FORBIDDEN;
+    if (input.userId === context.adminUser.id) throw errors.FORBIDDEN();
 
     const user = await prisma.user.findUnique({
       where: { id: input.userId },
       select: { id: true },
     });
-    if (!user) throw errors.NOT_FOUND;
+    if (!user) throw errors.NOT_FOUND();
 
     await prisma.user.delete({ where: { id: input.userId } });
 

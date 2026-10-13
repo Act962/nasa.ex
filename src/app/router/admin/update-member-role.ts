@@ -18,7 +18,7 @@ export const adminUpdateMemberRole = base
       where: { id: input.memberId },
       select: { id: true, role: true, organizationId: true, userId: true, user: { select: { email: true } } },
     });
-    if (!member) throw errors.NOT_FOUND;
+    if (!member) throw errors.NOT_FOUND();
 
     await prisma.member.update({
       where: { id: input.memberId },

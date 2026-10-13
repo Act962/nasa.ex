@@ -61,7 +61,7 @@ export const getLeadJourney = base
         metaHeadline: true,
       },
     });
-    if (!lead) throw errors.NOT_FOUND;
+    if (!lead) throw errors.NOT_FOUND();
 
     // 6 fontes independentes — uma query cada, todas em paralelo. A nova
     // (`historyRows`) trás o LeadHistory legado (status, responsável,

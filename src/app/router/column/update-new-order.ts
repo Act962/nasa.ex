@@ -32,7 +32,7 @@ export const updateNewOrder = base
         where: { id },
       });
 
-      if (!current) throw errors.NOT_FOUND;
+      if (!current) throw errors.NOT_FOUND();
 
       let newOrder: Decimal;
 

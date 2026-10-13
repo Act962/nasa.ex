@@ -349,7 +349,7 @@ export const requestPaymentOtp = base
           },
         },
       });
-      if (!access || !access.isAuthorized) throw errors.FORBIDDEN;
+      if (!access || !access.isAuthorized) throw errors.FORBIDDEN();
 
       // Rate-limit: 1 reenvio por minuto
       if (
@@ -540,7 +540,7 @@ export const listPaymentAccess = base
       const allowed =
         (await requireOwnerOrAdminAccess(context.user.id, context.org.id)) ||
         (await isMasterInBootstrap(context.user.id, context.org.id));
-      if (!allowed) throw errors.FORBIDDEN;
+      if (!allowed) throw errors.FORBIDDEN();
 
       const records = await prisma.paymentAccess.findMany({
         where: { organizationId: context.org.id },
@@ -614,7 +614,7 @@ export const grantPaymentAccess = base
         const anyAccess = await prisma.paymentAccess.findFirst({
           where: { organizationId: context.org.id, isAuthorized: true },
         });
-        if (anyAccess) throw errors.FORBIDDEN;
+        if (anyAccess) throw errors.FORBIDDEN();
       }
 
       // Aceita ID OU email — se não bate por ID, tenta por email
@@ -773,7 +773,7 @@ export const setupOwnerPaymentAccess = base
   .handler(async ({ input, context, errors }) => {
     try {
       const isOwner = await isOrgOwner(context.user.id, context.org.id);
-      if (!isOwner) throw errors.FORBIDDEN;
+      if (!isOwner) throw errors.FORBIDDEN();
 
       const existing = await prisma.paymentAccess.findUnique({
         where: {
@@ -785,7 +785,7 @@ export const setupOwnerPaymentAccess = base
       });
       // Já autorizado: este fluxo é só pra criar o acesso inicial, não pra
       // resetar PIN de quem já tem acesso.
-      if (existing?.isAuthorized) throw errors.FORBIDDEN;
+      if (existing?.isAuthorized) throw errors.FORBIDDEN();
 
       const user = await prisma.user.findUnique({
         where: { id: context.user.id },
@@ -842,7 +842,7 @@ export const revokePaymentAccess = base
   .handler(async ({ input, context, errors }) => {
     try {
       const isOwner = await requireOwnerAccess(context.user.id, context.org.id);
-      if (!isOwner) throw errors.FORBIDDEN;
+      if (!isOwner) throw errors.FORBIDDEN();
       await prisma.paymentAccess.updateMany({
         where: { userId: input.userId, organizationId: context.org.id },
         data: { isAuthorized: false },
@@ -890,7 +890,7 @@ export const updatePaymentRole = base
   .handler(async ({ input, context, errors }) => {
     try {
       const isOwner = await requireOwnerAccess(context.user.id, context.org.id);
-      if (!isOwner) throw errors.FORBIDDEN;
+      if (!isOwner) throw errors.FORBIDDEN();
       await prisma.paymentAccess.updateMany({
         where: { userId: input.userId, organizationId: context.org.id },
         data: { role: input.role },
@@ -939,7 +939,7 @@ export const updatePaymentPermissions = base
   .handler(async ({ input, context, errors }) => {
     try {
       const isOwner = await requireOwnerAccess(context.user.id, context.org.id);
-      if (!isOwner) throw errors.FORBIDDEN;
+      if (!isOwner) throw errors.FORBIDDEN();
       await prisma.paymentAccess.updateMany({
         where: { userId: input.userId, organizationId: context.org.id },
         data: { permissions: input.permissions ?? undefined },
@@ -1008,7 +1008,7 @@ export const startWebauthnRegistration = base
           },
         },
       });
-      if (!access || !access.isAuthorized) throw errors.FORBIDDEN;
+      if (!access || !access.isAuthorized) throw errors.FORBIDDEN();
 
       const { rpID } = getRpIdAndOrigin();
       const existing = parseCredentials(access.webauthnCredentials);
@@ -1057,7 +1057,7 @@ export const finishWebauthnRegistration = base
           },
         },
       });
-      if (!access || !access.isAuthorized) throw errors.FORBIDDEN;
+      if (!access || !access.isAuthorized) throw errors.FORBIDDEN();
 
       const challenge = popChallenge(context.user.id, context.org.id);
       if (!challenge)
@@ -1120,7 +1120,7 @@ export const startWebauthnAuth = base
           },
         },
       });
-      if (!access || !access.isAuthorized) throw errors.FORBIDDEN;
+      if (!access || !access.isAuthorized) throw errors.FORBIDDEN();
 
       const { rpID } = getRpIdAndOrigin();
       const existing = parseCredentials(access.webauthnCredentials);
@@ -1158,7 +1158,7 @@ export const finishWebauthnAuth = base
         },
       });
       const config = await getOrgConfig(context.org.id);
-      if (!access || !access.isAuthorized) throw errors.FORBIDDEN;
+      if (!access || !access.isAuthorized) throw errors.FORBIDDEN();
 
       const challenge = popChallenge(context.user.id, context.org.id);
       if (!challenge) {

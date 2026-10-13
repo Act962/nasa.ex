@@ -30,7 +30,7 @@ export const archiveLead = base
       });
 
       if (!leadExists) {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND();
       }
 
       await prisma.$transaction([

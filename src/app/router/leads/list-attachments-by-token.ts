@@ -35,7 +35,7 @@ export const listAttachmentsByToken = base
         select: { id: true },
       });
       const id = (lead as { id?: string } | null)?.id;
-      if (!id) throw errors.NOT_FOUND;
+      if (!id) throw errors.NOT_FOUND();
 
       const items = await resolveLeadAttachments(id, 250);
       return { items };

@@ -10,7 +10,7 @@ export const adminRemoveMember = base
   .output(z.object({ success: z.boolean() }))
   .handler(async ({ input, errors }) => {
     const member = await prisma.member.findUnique({ where: { id: input.memberId } });
-    if (!member) throw errors.NOT_FOUND;
+    if (!member) throw errors.NOT_FOUND();
     await prisma.member.delete({ where: { id: input.memberId } });
     return { success: true };
   });

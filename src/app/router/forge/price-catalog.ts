@@ -274,7 +274,7 @@ export const reviewForgePriceSuggestion = base
     const suggestion = await prisma.forgePriceSuggestion.findFirst({
       where: { id: input.id, organizationId: context.org.id },
     });
-    if (!suggestion) throw errors.NOT_FOUND;
+    if (!suggestion) throw errors.NOT_FOUND();
 
     try {
       await prisma.$transaction(async (tx) => {

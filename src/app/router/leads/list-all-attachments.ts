@@ -28,7 +28,7 @@ export const listAllAttachments = base
         where: { id: input.leadId },
         select: { id: true },
       });
-      if (!lead) throw errors.NOT_FOUND;
+      if (!lead) throw errors.NOT_FOUND();
 
       const items = await resolveLeadAttachments(input.leadId, 250);
       return { items };

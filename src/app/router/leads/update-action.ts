@@ -43,7 +43,7 @@ export const updateLeadAction = base
       });
 
       if (!leadExists) {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND();
       }
 
       const reasonExists = await prisma.winLossReason.findUnique({
@@ -51,7 +51,7 @@ export const updateLeadAction = base
       });
 
       if (!reasonExists) {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND();
       }
 
       const leadAction = reasonExists.type === "WIN" ? "WON" : "LOST";

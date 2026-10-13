@@ -14,14 +14,14 @@ export const setSystemAdmin = base
   .handler(async ({ input, context, errors }) => {
     // Prevent self-demotion
     if (input.userId === context.adminUser.id && !input.isSystemAdmin) {
-      throw errors.FORBIDDEN;
+      throw errors.FORBIDDEN();
     }
 
     const target = await prisma.user.findUnique({
       where: { id: input.userId },
       select: { id: true, email: true, isSystemAdmin: true },
     });
-    if (!target) throw errors.NOT_FOUND;
+    if (!target) throw errors.NOT_FOUND();
 
     await prisma.user.update({
       where: { id: input.userId },

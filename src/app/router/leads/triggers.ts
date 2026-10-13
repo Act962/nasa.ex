@@ -29,7 +29,7 @@ export const listLeadTriggers = base
   .input(z.object({ leadId: z.string() }))
   .handler(async ({ input, context, errors }) => {
     const lead = await findLeadInOrg(input.leadId, context.org.id);
-    if (!lead) throw errors.NOT_FOUND;
+    if (!lead) throw errors.NOT_FOUND();
     const triggers = await prisma.leadTrigger.findMany({
       where: { leadId: input.leadId },
       select: {
@@ -77,7 +77,7 @@ export const saveLeadTrigger = base
   )
   .handler(async ({ input, context, errors }) => {
     const lead = await findLeadInOrg(input.leadId, context.org.id);
-    if (!lead) throw errors.NOT_FOUND;
+    if (!lead) throw errors.NOT_FOUND();
     // CA-1: sem o nome do lead a mensagem não sai.
     if (!hasLeadNamePlaceholder(input.message)) {
       throw errors.BAD_REQUEST({ message: "A mensagem precisa ter {nome} — é onde entra o nome do lead." });

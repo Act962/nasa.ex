@@ -112,7 +112,7 @@ export const updateLead = base
       });
 
       if (!leadExists) {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND();
       }
 
       const isStatusChange =

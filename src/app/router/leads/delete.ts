@@ -116,7 +116,7 @@ export const deleteLead = base
       }
 
       if (err.code === "P2025") {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND();
       }
 
       console.error(err);

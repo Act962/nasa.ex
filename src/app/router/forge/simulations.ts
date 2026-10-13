@@ -173,7 +173,7 @@ export const getForgeSimulation = base
         where: { id: input.id, organizationId: context.org.id },
         include: { lineItems: { orderBy: { order: "asc" } }, bidItems: { orderBy: { order: "asc" } } },
       });
-      if (!simulation) throw errors.NOT_FOUND;
+      if (!simulation) throw errors.NOT_FOUND();
       return { simulation };
     } catch (err) {
       if (err && typeof err === "object" && "code" in err) throw err;
@@ -417,7 +417,7 @@ export const convertSimulationToProposal = base
       where: { id: input.simulationId, organizationId: context.org.id },
       include: { bidItems: true },
     });
-    if (!simulation) throw errors.NOT_FOUND;
+    if (!simulation) throw errors.NOT_FOUND();
 
     try {
       const orgId = context.org.id;

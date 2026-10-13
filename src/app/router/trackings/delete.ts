@@ -40,7 +40,7 @@ export const deleteTracking = base
     });
 
     if (!trackingExists) {
-      throw errors.NOT_FOUND;
+      throw errors.NOT_FOUND();
     }
 
     // Check if user is owner of tracking or moderator of organization

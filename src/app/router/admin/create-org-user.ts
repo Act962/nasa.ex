@@ -29,7 +29,7 @@ export const adminCreateOrgUser = base
   }))
   .handler(async ({ input, errors }) => {
     const org = await prisma.organization.findUnique({ where: { id: input.orgId }, select: { id: true } });
-    if (!org) throw errors.NOT_FOUND;
+    if (!org) throw errors.NOT_FOUND();
 
     const emailLower = input.email.toLowerCase().trim();
 
@@ -37,7 +37,7 @@ export const adminCreateOrgUser = base
     const existingMember = await prisma.member.findFirst({
       where: { organizationId: input.orgId, user: { email: emailLower } },
     });
-    if (existingMember) throw errors.BAD_REQUEST;
+    if (existingMember) throw errors.BAD_REQUEST({ message: "Usuário já é membro desta empresa." });
 
     const tempPassword = generateTempPassword();
     const hashedPassword = await hashPassword(tempPassword);

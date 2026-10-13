@@ -30,7 +30,7 @@ export const removeTagsFromLead = base
     });
 
     if (!lead) {
-      throw errors.UNAUTHORIZED;
+      throw errors.UNAUTHORIZED();
     }
 
     // Captura name/color das tags ANTES da remoção pra metadata da Jornada

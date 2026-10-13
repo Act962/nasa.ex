@@ -48,7 +48,7 @@ export const updateNewOrder = base
         },
       });
 
-      if (!currentLead) throw errors.NOT_FOUND;
+      if (!currentLead) throw errors.NOT_FOUND();
 
       const statusChanged = currentLead.statusId !== targetStatusId;
 

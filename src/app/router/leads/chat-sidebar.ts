@@ -29,7 +29,7 @@ export const getChatSidebarSummary = base
   .input(leadInput)
   .handler(async ({ input, context, errors }) => {
     const organizationId = context.org.id;
-    if (!(await assertLeadInOrg(input.leadId, organizationId))) throw errors.NOT_FOUND;
+    if (!(await assertLeadInOrg(input.leadId, organizationId))) throw errors.NOT_FOUND();
     const { leadId } = input;
     const [journeyEvents, history, files, forms, contracts, documents, appointments, campaigns, activeTriggers] =
       await Promise.all([
@@ -64,7 +64,7 @@ export const listLeadAppointments = base
   .input(leadInput)
   .handler(async ({ input, context, errors }) => {
     const organizationId = context.org.id;
-    if (!(await assertLeadInOrg(input.leadId, organizationId))) throw errors.NOT_FOUND;
+    if (!(await assertLeadInOrg(input.leadId, organizationId))) throw errors.NOT_FOUND();
     const appointments = await prisma.appointment.findMany({
       where: { leadId: input.leadId, agenda: { organizationId } },
       select: {
@@ -88,7 +88,7 @@ export const listLeadCampaigns = base
   .input(leadInput)
   .handler(async ({ input, context, errors }) => {
     const organizationId = context.org.id;
-    if (!(await assertLeadInOrg(input.leadId, organizationId))) throw errors.NOT_FOUND;
+    if (!(await assertLeadInOrg(input.leadId, organizationId))) throw errors.NOT_FOUND();
     const recipients = await prisma.broadcastRecipient.findMany({
       where: { leadId: input.leadId, broadcast: { organizationId } },
       select: {
@@ -127,7 +127,7 @@ export const listLeadCommandRuns = base
   .input(leadInput)
   .handler(async ({ input, context, errors }) => {
     const organizationId = context.org.id;
-    if (!(await assertLeadInOrg(input.leadId, organizationId))) throw errors.NOT_FOUND;
+    if (!(await assertLeadInOrg(input.leadId, organizationId))) throw errors.NOT_FOUND();
     const runs = await prisma.astroCommandRun.findMany({
       where: { organizationId, triggerKey: commandTriggerKey(input.leadId) },
       select: {

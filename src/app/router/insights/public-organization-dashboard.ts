@@ -50,7 +50,7 @@ export const publicOrganizationDashboard = base
       });
 
       if (!share) {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND();
       }
 
       // Extract filters saved on the share

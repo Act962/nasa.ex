@@ -1307,7 +1307,7 @@ CTA: [chamada para ação]`;
           where: { organizationId: orgId },
         });
         if (!firstTracking) {
-          throw errors.BAD_REQUEST;
+          throw errors.BAD_REQUEST({ message: "A empresa ainda não tem tracking." });
         }
 
         const firstStatus = await prisma.status.findFirst({
@@ -1315,7 +1315,7 @@ CTA: [chamada para ação]`;
           orderBy: { order: "asc" },
         });
         if (!firstStatus) {
-          throw errors.BAD_REQUEST;
+          throw errors.BAD_REQUEST({ message: "O tracking ainda não tem colunas." });
         }
 
         const leadName =

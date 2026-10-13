@@ -28,7 +28,7 @@ export const listLeadFiles = base
       });
 
       if (!lead) {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND();
       }
 
       const leadFiles = await prisma.leadFile.findMany({

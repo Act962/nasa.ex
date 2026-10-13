@@ -101,15 +101,15 @@ contrário.
 ## 6. Achados da primeira suíte (2026-10-13)
 
 A etapa 1 foi executada: Vitest 5, projeto `unit`, 166 testes em 12 arquivos, menos de 2 segundos.
-Os testes registram o comportamento atual. Quatro comportamentos pareciam errados. Dois foram corrigidos (itens 1 e 2); os outros dois seguem
-documentados por teste, sem correção, aguardando decisão:
+Os testes registram o comportamento atual. Quatro comportamentos pareciam errados; os quatro foram
+corrigidos:
 
 | # | Arquivo | Comportamento atual | Efeito | Gravidade sugerida |
 | --- | --- | --- | --- | --- |
 | 1 | `src/lib/reminder-recurrence.ts` (`computeNextRemindAt`) | ✅ **Corrigido em 2026-10-13** ([spec 0102](../../specs/tracking-chat/0102-lembrete-mensal-em-mes-curto.md)). Era: lembrete mensal em dia 29, 30 ou 31 pulava o mês sem esse dia e mudava de dia para sempre (31/01 → 03/03). Alcançável só em lembrete mensal sem dia fixo, porque o dia fixo é limitado a 1–28 nas três entradas | Lembrete mensal não disparava em meses curtos | Alta |
 | 2 | `src/lib/reminder-recurrence.ts` (`buildFirstRemindAt`) | ✅ **Corrigido junto** (spec 0102, CA-7). Era: dia 31 pedido em abril agendava 01/05. Inalcançável hoje pelo mesmo limite de 1–28 | — | Baixa |
-| 3 | `src/features/form/lib/form-readiness.ts` | Parágrafo com `text` vazio (string) é dado como sem conteúdo mesmo com `content` preenchido | Formulário pode aparecer como não pronto sem motivo | Baixa, se algum bloco real chegar nesse estado |
-| 4 | `src/features/form/lib/response-slug.ts` | Nome cortado em 80 caracteres pode terminar em hífen, gerando `--` antes da data | Cosmético: a URL resolve pelo id | Baixa |
+| 3 | `src/features/form/lib/form-readiness.ts` | ✅ **Corrigido em 2026-10-13** ([spec 0104](../../specs/form/0104-correcoes-achadas-na-caracterizacao.md), CA-7). Era: parágrafo com `text` vazio (string) dado como sem conteúdo mesmo com `content` preenchido | Formulário podia aparecer como não pronto sem motivo | Baixa |
+| 4 | `src/features/form/lib/response-slug.ts` | ✅ **Corrigido em 2026-10-13** ([spec 0104](../../specs/form/0104-correcoes-achadas-na-caracterizacao.md), CA-6). Era: nome cortado em 80 caracteres podia terminar em hífen, gerando `--` antes da data | Cosmético | Baixa |
 
 A causa dos itens 1 e 2 era a mesma: `addOneMonth` somava um mês a uma data cujo dia pode não existir no
 mês seguinte, e `Date.UTC` transbordava em vez de limitar. O limite ao último dia do mês
@@ -124,19 +124,20 @@ O arquivo de configuração é `vitest.config.mts`, porque o `package.json` não
 
 ## 7. Achados da caracterização do envio de formulário (2026-10-13)
 
-Comportamentos registrados em teste como estão hoje. Nenhum foi alterado; cada um precisa de decisão
-antes ou durante a extração do módulo `form`.
+Comportamentos registrados em teste. A coluna **Situação** diz o que foi feito com cada um em
+2026-10-13 ([spec 0104](../../specs/form/0104-correcoes-achadas-na-caracterizacao.md)): os defeitos foram corrigidos, os intencionais foram conferidos no código e
+mantidos, e três seguem como estão por serem decisão de produto.
 
-| # | Comportamento atual | Leitura |
-| --- | --- | --- |
-| 1 | Cada envio grava **dois** eventos `form_submit` na jornada do lead, e cada mudança de coluna grava **dois** `status_changed` | A rota registra o evento duas vezes por caminhos diferentes (histórico do lead e jornada). Provável duplicidade na linha do tempo |
-| 2 | Lead recém-criado volta na resposta com `publicToken: null` | O comentário no código diz que tenta buscar o link "agora"; ninguém o gera nesse caminho |
-| 3 | Sem telefone, cada envio cria um lead novo; dois envios iguais geram dois leads | Não há outra chave para reconhecer a pessoa |
-| 4 | Resposta que não é JSON válido é aceita, gravada como veio, e cria um lead "Sem nome" | A entrada não é validada além de ser texto |
-| 5 | Lead existente mantém o nome do cadastro; o nome digitado no formulário é ignorado | Pode ser intencional |
-| 6 | O salvamento parcial cria o lead no primeiro "Próximo". Quem abandona o formulário deixa um lead no funil, sem aviso à equipe além do board | Decisão de produto: é assim que o consultor acompanha o preenchimento ao vivo |
-| 7 | A pontuação da 10ª e da 100ª resposta só acontece se a regra existir no banco. A função que criava as regras padrão (`ensureGlobalSpacePointRules`) está com o corpo comentado | Em banco sem as regras cadastradas, ninguém pontua, sem erro e sem aviso |
-| 8 | A pontuação roda dentro da transação do envio, com o cliente global (regra 18). Não trava: o envio conclui normalmente | Violação da regra sem o efeito de espera circular |
+| # | Comportamento registrado | Leitura | Situação |
+| --- | --- | --- | --- |
+| 1 | Cada envio grava **dois** eventos `form_submit` na jornada do lead, e cada mudança de coluna grava **dois** `status_changed` | A rota registra o evento duas vezes por caminhos diferentes (histórico do lead e jornada). Provável duplicidade na linha do tempo | ✅ Corrigido (CA-4, CA-5): um registro por envio e um por mudança de coluna. Registros antigos continuam duplicados |
+| 2 | Lead recém-criado volta na resposta com `publicToken: null` | O comentário no código diz que tenta buscar o link "agora"; ninguém o gera nesse caminho | Mantido, intencional: o link público é gerado sob demanda por `leads.generatePublicLink` |
+| 3 | Sem telefone, cada envio cria um lead novo; dois envios iguais geram dois leads | Não há outra chave para reconhecer a pessoa | Mantido. Decisão de produto em aberto |
+| 4 | Resposta que não é JSON válido é aceita, gravada como veio, e cria um lead "Sem nome" | A entrada não é validada além de ser texto | Mantido, intencional (comentado em `save-partial-response.ts`). Corrigido só o JSON `null`, que dava erro interno (CA-9) |
+| 5 | Lead existente mantém o nome do cadastro; o nome digitado no formulário é ignorado | Pode ser intencional | Mantido. Decisão de produto em aberto |
+| 6 | O salvamento parcial cria o lead no primeiro "Próximo". Quem abandona o formulário deixa um lead no funil, sem aviso à equipe além do board | Decisão de produto: é assim que o consultor acompanha o preenchimento ao vivo | Mantido. Decisão de produto em aberto |
+| 7 | A pontuação da 10ª e da 100ª resposta só acontece se a regra existir no banco. A função que criava as regras padrão (`ensureGlobalSpacePointRules`) está com o corpo comentado | Em banco sem as regras cadastradas, ninguém pontua, sem erro e sem aviso | Mantido, intencional: as regras vêm de `prisma/seed-a.ts`. **A conferir em produção** se o seed rodou (`SELECT count(*) FROM space_point_rules`) |
+| 8 | A pontuação roda dentro da transação do envio, com o cliente global (regra 18). Não trava: o envio conclui normalmente | Violação da regra sem o efeito de espera circular | ✅ Corrigido (CA-8): roda depois do commit |
 
 Sobre a regra 18: `leads/create-lead-with-tags.ts` chama `logActivity` (cliente global) dentro da
 transação. O overview (§8, R3) afirma que isso causa espera circular e 500 por timeout. O teste de

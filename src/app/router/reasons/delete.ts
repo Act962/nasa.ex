@@ -18,7 +18,7 @@ export const deleteReason = base
     });
 
     if (!reasonExists) {
-      throw errors.BAD_REQUEST;
+      throw errors.BAD_REQUEST({ message: "Motivo não encontrado." });
     }
 
     await prisma.winLossReason.delete({

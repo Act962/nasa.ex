@@ -38,7 +38,7 @@ export const getTracking = base
     });
 
     if (!tracking) {
-      throw errors.NOT_FOUND;
+      throw errors.NOT_FOUND();
     }
 
     return {
