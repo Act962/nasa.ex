@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
 import { buildPublicFormUrl } from "@/features/form/lib/public-form-url";
+import { ensureLeadPublicToken } from "@/features/leads/lib/public-token";
 import { resolveSingleLead } from "../leads/resolve-lead";
 import { LEAD_FIELD_STEP, extractNameAfter } from "../leads/lead-steps";
 
@@ -164,7 +165,8 @@ export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
       };
     }
 
-    const url = buildPublicFormUrl({ formId: form.id, leadPublicToken: details.publicToken });
+    const leadPublicToken = details.publicToken ?? (dryRun ? null : await ensureLeadPublicToken({ leadId: lead.id, organizationId: ctx.organizationId }));
+    const url = buildPublicFormUrl({ formId: form.id, leadPublicToken });
     const text = input.message
       ? `${input.message}\n\n${url}`
       : `Olá ${lead.name}! Segue o formulário "${form.name}": ${url}`;
