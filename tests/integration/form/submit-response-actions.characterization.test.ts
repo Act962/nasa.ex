@@ -292,15 +292,14 @@ describe("envio público — marco de respostas", () => {
       data: { action: "form_10_responses", label: "Receber 10 respostas no formulário", points: 25 },
     });
 
-  it("a 10ª resposta pontua o dono do formulário, sem travar o envio", async () => {
+  it("CA-8 (spec 0104): a 10ª resposta pontua o dono do formulário, sem travar o envio", async () => {
     const { form, user } = await seedFormWithResponses(9);
     await seedMilestoneRule();
     const startedAt = Date.now();
 
     const result = await submit(form.id, { user_name: "Ana" });
 
-    // A pontuação roda dentro da transação com o cliente global (regra 18).
-    // Uma espera circular estouraria o timeout de 5 s da transação.
+    // CA-8 (spec 0104): a pontuação roda depois do commit, fora da transação.
     expect(Date.now() - startedAt).toBeLessThan(4500);
     expect(result.message).toBe("Response submitted");
     const userPoint = await testPrisma.userSpacePoint.findUniqueOrThrow({ where: { userId: user.id } });

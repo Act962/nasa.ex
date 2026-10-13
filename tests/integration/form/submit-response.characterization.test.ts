@@ -141,6 +141,14 @@ describe("envio público — formulário e validação de entrada", () => {
     const [response] = await readResponses(form.id);
     expect(response.jsonResponse).toBe("isto não é json");
   });
+
+  it("CA-9 (spec 0104): resposta com o JSON `null` é tratada como resposta vazia, sem erro interno", async () => {
+    const { form } = await seedFormWithTracking();
+
+    const result = await call(submitResponse, { id: form.id, response: "null" }, procedureContext);
+
+    expect(result.lead).toMatchObject({ name: "Sem nome" });
+  });
 });
 
 describe("spec 0001 — onde o lead fica depois do envio", () => {
@@ -181,19 +189,20 @@ describe("spec 0001 — onde o lead fica depois do envio", () => {
     expect(response.leadId).toBe(leads[0].id);
   });
 
-  it("lead inexistente: jornada registra o envio duas vezes e nenhuma mudança de coluna", async () => {
+  it("CA-4 (spec 0104): lead inexistente tem um registro do envio na jornada e nenhuma mudança de coluna", async () => {
     const { form } = await seedFormWithTracking();
 
     const result = await submit(form.id, { user_name: "Ana", user_phone: PHONE });
 
     const responses = await readResponses(form.id);
-    // Comportamento atual: dois eventos `form_submit` por envio — um com os
-    // dados da resposta (histórico do lead) e outro com `returning` (jornada).
     expect(await readJourney(result.lead!.id)).toEqual([
-      { kind: "form_submit", metadata: { formId: form.id, returning: false } },
       {
         kind: "form_submit",
-        metadata: expect.objectContaining({ formId: form.id, formResponseId: responses[0].id }),
+        metadata: expect.objectContaining({
+          formId: form.id,
+          formResponseId: responses[0].id,
+          returning: false,
+        }),
       },
     ]);
   });
@@ -224,8 +233,7 @@ describe("spec 0001 — onde o lead fica depois do envio", () => {
     expect(result.lead).toMatchObject({ id: existing.id, name: "Ana Antiga" });
     expect(await readLeads()).toHaveLength(1);
     expect(await readJourney(existing.id)).toEqual([
-      { kind: "form_submit", metadata: { formId: form.id, returning: true } },
-      { kind: "form_submit", metadata: expect.objectContaining({ formId: form.id }) },
+      { kind: "form_submit", metadata: expect.objectContaining({ formId: form.id, returning: true }) },
     ]);
     expect(attemptedFetchUrls()).toEqual([]);
   });
@@ -245,12 +253,18 @@ describe("spec 0001 — onde o lead fica depois do envio", () => {
       expect.objectContaining({ id: existing.id, tracking: "Funil do formulário", status: "Novo" }),
     ]);
     const journey = await readJourney(existing.id);
-    // Comportamento atual: a mudança de coluna também é registrada duas vezes.
-    expect(journey.filter((event) => event.kind === "status_changed")).toHaveLength(2);
-    expect(journey).toContainEqual({
-      kind: "status_changed",
-      metadata: { from: statuses["Em atendimento"].id, to: statuses["Novo"].id, source: "form_submit" },
-    });
+    // CA-5 (spec 0104): a mudança de coluna é registrada uma vez.
+    expect(journey.filter((event) => event.kind === "status_changed")).toEqual([
+      {
+        kind: "status_changed",
+        metadata: {
+          eventType: "STATUS_CHANGE",
+          previousStatusId: statuses["Em atendimento"].id,
+          newStatusId: statuses["Novo"].id,
+          source: "form_submit",
+        },
+      },
+    ]);
   });
 
   it("lead em outro tracking da mesma empresa: realoca a mesma linha, sem duplicar (o caso do 500)", async () => {
@@ -455,10 +469,10 @@ describe("envio público — rascunho, reenvio e contador", () => {
     await submit(form.id, { user_name: "Ana", user_phone: PHONE }, { responseId: draft.id });
 
     expect((await readLeads())[0]).toMatchObject({ id: draftLead.id, status: "Novo" });
-    expect(await readJourney(draftLead.id)).toContainEqual({
-      kind: "form_submit",
-      metadata: { formId: form.id, finalized: true },
-    });
+    const submits = (await readJourney(draftLead.id)).filter((event) => event.kind === "form_submit");
+    expect(submits).toEqual([
+      { kind: "form_submit", metadata: expect.objectContaining({ formId: form.id, finalized: true }) },
+    ]);
   });
 
   it("reenviar resposta já finalizada devolve o mesmo lead e não reprocessa nada", async () => {

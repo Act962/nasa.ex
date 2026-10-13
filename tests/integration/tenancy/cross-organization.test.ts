@@ -73,11 +73,8 @@ describe("isolamento entre empresas — procedure que já confere a empresa", ()
   });
 });
 
-describe("isolamento entre empresas — falhas conhecidas (S5)", () => {
-  // `it.fails` documenta a falha aberta: o teste descreve o comportamento
-  // correto e hoje não passa. Quando a procedure for corrigida, ele passa a
-  // falhar como "passou inesperadamente" — é a hora de trocar por `it`.
-  it.fails("form/delete: outra empresa não deveria conseguir apagar o formulário", async () => {
+describe("isolamento entre empresas — form/delete (S5, spec 0104)", () => {
+  it("CA-1: outra empresa não apaga o formulário e recebe NOT_FOUND", async () => {
     const companyA = await createOrganizationWithOwner();
     const companyB = await createOrganizationWithOwner();
     const form = await createForm({
@@ -86,18 +83,28 @@ describe("isolamento entre empresas — falhas conhecidas (S5)", () => {
     });
     signInAs(companyB);
 
-    await call(deleteForm, { id: form.id }, procedureContext).catch(() => undefined);
+    await expect(call(deleteForm, { id: form.id }, procedureContext)).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
 
     expect(await testPrisma.form.findUnique({ where: { id: form.id } })).not.toBeNull();
   });
 
-  // Comportamento atual (A1): o NOT_FOUND é lançado dentro do try e o catch o
-  // troca por erro interno. O cliente recebe 500 para formulário que não existe.
-  it("form/delete: formulário inexistente devolve INTERNAL_SERVER_ERROR, não NOT_FOUND", async () => {
+  it("CA-2: a própria empresa apaga o formulário", async () => {
+    const company = await createOrganizationWithOwner();
+    const form = await createForm({ organizationId: company.organization.id, userId: company.user.id });
+    signInAs(company);
+
+    await call(deleteForm, { id: form.id }, procedureContext);
+
+    expect(await testPrisma.form.findUnique({ where: { id: form.id } })).toBeNull();
+  });
+
+  it("CA-3: formulário inexistente devolve NOT_FOUND", async () => {
     signInAs(await createOrganizationWithOwner());
 
     await expect(
       call(deleteForm, { id: "formulario-que-nao-existe" }, procedureContext),
-    ).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });

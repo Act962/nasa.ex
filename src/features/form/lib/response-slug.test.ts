@@ -28,11 +28,9 @@ describe("buildResponseSlug", () => {
     expect(buildResponseSlug("a".repeat(100), localDate)).toBe(`${"a".repeat(80)}-20260105`);
   });
 
-  // Comportamento atual: o corte em 80 vem depois de aparar os hífens, então
-  // pode sobrar um hífen no fim do nome. Cosmético (a URL resolve pelo id).
-  it("pode deixar hífen duplo quando o corte cai num separador", () => {
+  it("CA-6 (spec 0104): corte em 80 que cai num separador não deixa hífen duplo", () => {
     expect(buildResponseSlug(`${"a".repeat(79)} b`, localDate)).toBe(
-      `${"a".repeat(79)}--20260105`,
+      `${"a".repeat(79)}-20260105`,
     );
   });
 });

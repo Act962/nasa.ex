@@ -80,9 +80,9 @@ describe("computeFormReadiness", () => {
     ]);
   });
 
-  // Comportamento atual: text vazio (string) não cai para content.
-  it("parágrafo com text vazio é problema mesmo com content preenchido", () => {
-    expect(problemMessages([block("texto", "Paragraph", { text: "", content: "Olá" })])).toEqual([
+  it("CA-7 (spec 0104): parágrafo com text vazio vale pelo content preenchido", () => {
+    expect(problemMessages([block("texto", "Paragraph", { text: "", content: "Olá" })])).toEqual([]);
+    expect(problemMessages([block("texto", "Paragraph", { text: "  ", content: " " })])).toEqual([
       "Adicione o conteúdo do parágrafo.",
     ]);
   });

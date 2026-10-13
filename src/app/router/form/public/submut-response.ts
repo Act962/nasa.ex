@@ -128,6 +128,10 @@ export const submitResponse = base
       // acabou de travar: a tx espera o insert, o insert espera a tx. Espera
       // circular que só o timeout de 5s desfaz, devolvendo 500 ao usuário.
       const pendingJourneyEvents: TrackLeadEventInput[] = [];
+      // Como o envio aconteceu (reenvio, rascunho finalizado). Vai no metadata do
+      // FORM_SUBMITTED, que é o único registro do envio na jornada (spec 0104).
+      const submitJourneyFlags: { returning?: boolean; finalized?: true } = {};
+      let pendingMilestone: { userId: string; organizationId: string; action: string } | null = null;
       // Mod 2: lead reposicionado (movido de coluna ou realocado de tracking)
       // ao submeter — publicado no realtime + alerta APÓS o commit.
       let movedLeadForBoard: MovedLeadForBoard | null = null;
@@ -188,7 +192,7 @@ export const submitResponse = base
 
         let parsedResponse: Record<string, string> = {};
         try {
-          parsedResponse = JSON.parse(response);
+          parsedResponse = JSON.parse(response) ?? {};
         } catch {}
 
         const userName = parsedResponse.user_name || "Sem nome";
@@ -233,15 +237,7 @@ export const submitResponse = base
             eventType: "STATUS_CHANGE",
             previousStatusId: fromStatusId,
             newStatusId: placement.to.statusId,
-          });
-          pendingJourneyEvents.push({
-            leadId: placement.lead.id,
-            kind: "status_changed",
-            metadata: {
-              from: fromStatusId,
-              to: placement.to.statusId,
-              source: "form_submit",
-            },
+            metadata: { source: "form_submit" },
           });
         };
 
@@ -289,11 +285,7 @@ export const submitResponse = base
                   skipDuplicates: true,
                 });
               }
-              pendingJourneyEvents.push({
-                leadId,
-                kind: "form_submit",
-                metadata: { formId: id, finalized: true },
-              });
+              submitJourneyFlags.finalized = true;
 
               // Mod 2: garante que o lead do draft termine no tracking/coluna
               // do form ao finalizar (move de coluna ou realoca de tracking).
@@ -344,11 +336,7 @@ export const submitResponse = base
             });
           }
 
-          pendingJourneyEvents.push({
-            leadId: placement.lead.id,
-            kind: "form_submit",
-            metadata: { formId: id, returning: placement.outcome !== "created" },
-          });
+          submitJourneyFlags.returning = placement.outcome !== "created";
 
           if (placement.outcome === "created") {
             createdLeadForBoard = {
@@ -465,13 +453,12 @@ export const submitResponse = base
           pendingLeadEvents.push({
             leadId,
             eventType: "FORM_SUBMITTED",
-            metadata: newResponseId
-              ? {
-                  formResponseId: newResponseId,
-                  formId: id,
-                  label: newResponseLabel,
-                }
-              : { formId: id, label: newResponseLabel },
+            metadata: {
+              ...(newResponseId ? { formResponseId: newResponseId } : {}),
+              formId: id,
+              label: newResponseLabel,
+              ...submitJourneyFlags,
+            },
           });
 
           // Action: "add_tag" do botão Próximo — aplica tag escolhida no lead.
@@ -514,29 +501,33 @@ export const submitResponse = base
           }
         }
 
-        // Gamificação em tempo real: Marcos de 10 e 100 respostas
         if (updatedForm.responses === 10 || updatedForm.responses === 100) {
-          const action =
-            updatedForm.responses === 10
-              ? "form_10_responses"
-              : "form_100_responses";
-
-          try {
-            await awardPoints(
-              updatedForm.userId,
-              updatedForm.organizationId,
-              action,
-              undefined,
-              { formId: id },
-            );
-          } catch (spErr) {
-            console.error("[form/submit] SpacePoint award error:", spErr);
-            // Não bloqueia o submit do formulário se a pontuação falhar
-          }
+          pendingMilestone = {
+            userId: updatedForm.userId,
+            organizationId: updatedForm.organizationId,
+            action: updatedForm.responses === 10 ? "form_10_responses" : "form_100_responses",
+          };
         }
 
         return { formMeta: form, createdLeadForBoard };
       });
+
+      // Marco de 10 e 100 respostas: `awardPoints` usa o cliente global, então roda
+      // só depois do commit (regra 18). Falha na pontuação não invalida o envio.
+      const milestoneToAward = pendingMilestone as { userId: string; organizationId: string; action: string } | null;
+      if (milestoneToAward) {
+        try {
+          await awardPoints(
+            milestoneToAward.userId,
+            milestoneToAward.organizationId,
+            milestoneToAward.action,
+            undefined,
+            { formId: id },
+          );
+        } catch (awardError) {
+          console.error("[form/submit] SpacePoint award error:", awardError);
+        }
+      }
 
       // Dispara Pusher/journey FORA da tx — recordLeadEvent chama Pusher e
       // não pode rodar dentro do $transaction (causa timeout).

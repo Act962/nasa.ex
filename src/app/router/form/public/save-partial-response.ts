@@ -106,7 +106,7 @@ export const savePartialResponse = base
       // Parse pra extrair dados do lead (mesma lógica do submitResponse).
       let parsedResponse: Record<string, unknown> = {};
       try {
-        parsedResponse = JSON.parse(response);
+        parsedResponse = JSON.parse(response) ?? {};
       } catch {
         // Response malformado — segue com objeto vazio; ainda criamos o
         // FormResponses (vai aparecer no kanban como "iniciado"/empty).

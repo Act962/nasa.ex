@@ -22,8 +22,8 @@ export function buildResponseSlug(
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80) || "formulario";
+    .slice(0, 80)
+    .replace(/^-+|-+$/g, "") || "formulario";
 
   return `${namePart}-${yyyy}${mm}${dd}`;
 }
