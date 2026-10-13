@@ -60,7 +60,7 @@ export const listForgeContracts = base
       });
       return { contracts: contracts.map((c) => ({ ...c, value: c.value.toString() })) };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -122,7 +122,7 @@ export const createForgeContract = base
       return { contract };
     } catch (err) {
       console.error("[forge/contracts create]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -250,7 +250,7 @@ export const updateForgeContract = base
     } catch (err) {
       if (err && typeof err === "object" && "code" in err) throw err;
       console.error("[forge/contracts update]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -267,6 +267,6 @@ export const deleteForgeContract = base
       });
       return { ok: true };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

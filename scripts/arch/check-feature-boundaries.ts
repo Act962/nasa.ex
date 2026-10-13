@@ -32,12 +32,17 @@ function totalOrpcCalls(snapshot: BoundarySnapshot): number {
   return Object.values(snapshot.orpcOutsideHooks).reduce((sum, callCount) => sum + callCount, 0);
 }
 
+function totalUninvokedThrows(snapshot: BoundarySnapshot): number {
+  return Object.values(snapshot.uninvokedErrorThrows ?? {}).reduce((sum, throwCount) => sum + throwCount, 0);
+}
+
 function printSummary(label: string, snapshot: BoundarySnapshot) {
   console.log(
     `${label}: ${snapshot.mutualFeaturePairs.length} ciclos entre features (R8), ` +
       `maior grupo interdependente com ${snapshot.largestFeatureKnot} features, ` +
       `${snapshot.tierViolations.length} imports contra as camadas (R11), ` +
-      `${totalOrpcCalls(snapshot)} orpc.* fora de hook em ${Object.keys(snapshot.orpcOutsideHooks).length} arquivos (R9)`,
+      `${totalOrpcCalls(snapshot)} orpc.* fora de hook em ${Object.keys(snapshot.orpcOutsideHooks).length} arquivos (R9), ` +
+      `${totalUninvokedThrows(snapshot)} throw errors.X; sem invocar (A1)`,
   );
 }
 

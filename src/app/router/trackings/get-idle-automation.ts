@@ -23,6 +23,6 @@ export const getTrackingIdleAutomation = base
       return { config: config ?? null };
     } catch (err) {
       console.error(err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

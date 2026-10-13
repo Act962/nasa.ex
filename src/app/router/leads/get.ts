@@ -132,6 +132,6 @@ export const getLead = base
     } catch (err) {
       if ((err as { code?: string } | null)?.code === "NOT_FOUND") throw err;
       console.error(err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

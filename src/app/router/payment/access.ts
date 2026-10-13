@@ -266,7 +266,7 @@ export const verifyPaymentPin = base
       };
     } catch (err) {
       console.error("[payment/access/verify]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -325,7 +325,7 @@ export const verifyPaymentOtp = base
       return { ok: true, sessionTimeoutMinutes: config.sessionTimeoutMinutes };
     } catch (err) {
       console.error("[payment/access/verifyOtp]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -394,7 +394,7 @@ export const requestPaymentOtp = base
       )
         throw err;
       console.error("[payment/access/requestOtp]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -455,7 +455,7 @@ export const getMyPaymentAccess = base
       };
     } catch (err) {
       console.error("[payment/access/getMy]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -521,7 +521,7 @@ export const claimOwnerPaymentAccess = base
     } catch (err) {
       if ((err as { code?: string }).code === "FORBIDDEN") throw err;
       console.error("[payment/access/claimOwner]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -577,7 +577,7 @@ export const listPaymentAccess = base
     } catch (err) {
       if ((err as { code?: string }).code === "FORBIDDEN") throw err;
       console.error("[payment/access/list]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -872,7 +872,7 @@ export const revokePaymentAccess = base
     } catch (err) {
       if ((err as { code?: string }).code === "FORBIDDEN") throw err;
       console.error("[payment/access/revoke]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -917,7 +917,7 @@ export const updatePaymentRole = base
     } catch (err) {
       if ((err as { code?: string }).code === "FORBIDDEN") throw err;
       console.error("[payment/access/updateRole]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -966,7 +966,7 @@ export const updatePaymentPermissions = base
     } catch (err) {
       if ((err as { code?: string }).code === "FORBIDDEN") throw err;
       console.error("[payment/access/updatePermissions]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -1033,7 +1033,7 @@ export const startWebauthnRegistration = base
     } catch (err) {
       if ((err as { code?: string }).code === "FORBIDDEN") throw err;
       console.error("[payment/access/startWebauthnReg]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -1100,7 +1100,7 @@ export const finishWebauthnRegistration = base
       )
         throw err;
       console.error("[payment/access/finishWebauthnReg]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -1137,7 +1137,7 @@ export const startWebauthnAuth = base
     } catch (err) {
       if ((err as { code?: string }).code === "FORBIDDEN") throw err;
       console.error("[payment/access/startWebauthnAuth]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -1216,7 +1216,7 @@ export const finishWebauthnAuth = base
       )
         throw err;
       console.error("[payment/access/finishWebauthnAuth]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 

@@ -144,6 +144,6 @@ export const listResponsesOfForm = base
         throw err;
       }
       console.error("[leads/listResponsesOfForm]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

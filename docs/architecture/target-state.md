@@ -118,7 +118,7 @@ Tudo abaixo é verificável por máquina. Documentação sozinha não segura, co
 | --- | --- | --- | :-: |
 | `dependency-cruiser` com R1–R6 como erro | `domain/` importar Prisma, Next, Zod; `application/` importar `infra/`; ciclo dentro de `modules/` | job `arch` no CI | 2 |
 | Baseline decrescente (`--ignore-known`) para R7–R9 e R11 | Novo ciclo entre features, novo `orpc.*` fora de hook, nova aresta contra a direção das camadas | job `arch` | 2 |
-| ESLint `no-restricted-syntax` para `throw errors.X;` | A forma sem invocação voltar depois do codemod | lint | 5 |
+| Contagem de `throw errors.X;` sem invocar na baseline de `scripts/arch/` | Ocorrência nova da forma sem invocação. Feito no job `arch`, e não por ESLint, porque o CI não roda lint | job `arch` | 5 |
 | ESLint `no-restricted-imports` de `@/lib/prisma` em `modules/*/{domain,application,ports}` | Atalho para o banco fora de `infra/` | lint | 2 |
 | Teste de arquitetura em Vitest | Toda classe `Prisma*Repository` em `modules/` exige `TenantScope` no construtor | job `unit` | 3 |
 | Teste cross-org obrigatório | Procedure que aceita ID sem conferir a empresa | job `integration` | 3 em diante |

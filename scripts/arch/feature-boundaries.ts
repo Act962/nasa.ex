@@ -17,6 +17,8 @@ export type BoundarySnapshot = {
   tierViolations: string[];
   /** R9: chamadas `orpc.*` fora de hooks, por arquivo. */
   orpcOutsideHooks: Record<string, number>;
+  /** A1: `throw errors.X;` sem invocar, por arquivo. Lança a função, e o cliente recebe 500. */
+  uninvokedErrorThrows: Record<string, number>;
 };
 
 export type BoundaryReport = {
@@ -29,6 +31,7 @@ const FEATURE_IMPORT = /(?:from\s+|import\(\s*|import\s+)["']@\/features\/([a-z0
 const ORPC_CALL = /\borpc\.[a-zA-Z]/g;
 const ORPC_ALLOWED_PATH = /\/hooks\/|^src\/lib\/|^src\/app\/router\//;
 const TEST_FILE = /\.test\.tsx?$/;
+const UNINVOKED_ERROR_THROW = /\bthrow\s+errors\.[A-Z_]+\s*;/g;
 
 export function buildFeatureGraph(files: readonly SourceFile[]): FeatureGraph {
   const graph: FeatureGraph = new Map();
@@ -119,7 +122,21 @@ export function countOrpcOutsideHooks(files: readonly SourceFile[]): Record<stri
     const callCount = file.content.match(ORPC_CALL)?.length ?? 0;
     if (callCount > 0) counts[file.path] = callCount;
   }
+  return sortByPath(counts);
+}
+
+function sortByPath(counts: Record<string, number>): Record<string, number> {
   return Object.fromEntries(Object.entries(counts).sort(([left], [right]) => left.localeCompare(right)));
+}
+
+export function countUninvokedErrorThrows(files: readonly SourceFile[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const file of files) {
+    if (TEST_FILE.test(file.path)) continue;
+    const throwCount = file.content.match(UNINVOKED_ERROR_THROW)?.length ?? 0;
+    if (throwCount > 0) counts[file.path] = throwCount;
+  }
+  return sortByPath(counts);
 }
 
 export function takeSnapshot(files: readonly SourceFile[]): BoundarySnapshot {
@@ -129,6 +146,7 @@ export function takeSnapshot(files: readonly SourceFile[]): BoundarySnapshot {
     largestFeatureKnot: findFeatureKnots(graph)[0]?.length ?? 0,
     tierViolations: findTierViolations(graph),
     orpcOutsideHooks: countOrpcOutsideHooks(files),
+    uninvokedErrorThrows: countUninvokedErrorThrows(files),
   };
 }
 
@@ -183,6 +201,20 @@ export function compareWithBaseline(
     if (callCount < baselineCount) {
       improvements.push(`R9 ${filePath}: ${baselineCount} -> ${callCount}`);
     }
+  }
+
+  const baselineThrows = baseline.uninvokedErrorThrows ?? {};
+  for (const [filePath, throwCount] of Object.entries(current.uninvokedErrorThrows)) {
+    const baselineCount = baselineThrows[filePath] ?? 0;
+    if (throwCount > baselineCount) {
+      regressions.push(
+        `A1 throw errors.X; sem invocar em ${filePath}: ${baselineCount} -> ${throwCount} (escreva throw errors.X())`,
+      );
+    }
+  }
+  for (const [filePath, baselineCount] of Object.entries(baselineThrows)) {
+    const throwCount = current.uninvokedErrorThrows[filePath] ?? 0;
+    if (throwCount < baselineCount) improvements.push(`A1 ${filePath}: ${baselineCount} -> ${throwCount}`);
   }
 
   return { regressions, improvements };

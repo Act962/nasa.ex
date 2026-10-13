@@ -456,6 +456,6 @@ export const updateLead = base
           message: `Não foi possível mover o lead: ${msg}`,
         });
       }
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

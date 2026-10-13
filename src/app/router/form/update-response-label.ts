@@ -133,6 +133,6 @@ export const updateResponseLabel = base
         throw err;
       }
       console.error("[form/updateResponseLabel]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

@@ -261,7 +261,7 @@ Bloco comentado como `// TEMP debug: log raw body for /api/rpc/nerp/* mutations.
 
 | | |
 | --- | --- |
-| **Status** | ⬜ |
+| **Status** | 🚧 Em 2026-10-13 os 169 `INTERNAL_SERVER_ERROR` foram corrigidos e o job `arch` do CI impede ocorrência nova. Restam 101, os que hoje devolvem 500 no lugar de 404/403/400/401: corrigir muda o status HTTP visto pelo front e aguarda aprovação |
 | **Escopo** | 228 ocorrências em `src/app/router/` |
 
 `errors.NOT_FOUND` é uma **função** (Proxy que devolve o construtor). `throw errors.NOT_FOUND;` lança
@@ -438,6 +438,7 @@ Registrados para não serem re-auditados sem motivo:
 | 2026-08-18 | Registro inicial. 8 críticos, 6 altos, 5 médios, a partir da auditoria de `f67796d2`. Todos os itens 🔴 confirmados por leitura direta do código. Nenhuma correção aplicada. |
 | 2026-09-29 | S8 corrigido: bloco de debug removido depois de gravar em log a API key do Asaas de uma loja durante teste de PIX real. Pendentes: logging com redação e rotação das chaves expostas. |
 | 2026-09-26 | M6 adicionado e corrigido (vazamento do Financeiro pelo ASTRO para membro sem acesso), achado pela bateria de testes do ASTRO. |
+| 2026-10-13 | A1: 169 `throw errors.INTERNAL_SERVER_ERROR;` corrigidos por codemod; catraca no job `arch` contra ocorrência nova. Restam 101. |
 | 2026-10-13 | S1, S2 e S4 ganharam teste de integração por rota. S1 e S2 passam a ✅ (falta implantar e conferir em homologação). S4 segue 🚧: Facebook e Instagram continuam em só-registro por padrão. |
 | 2026-10-13 | S1, S2 e S4 com correção em código ([spec 0091](../specs/integrations/0091-rotas-anonimas-exigem-credencial.md)), ainda sem teste de integração nem conferência em homologação, por isso 🚧 e não ✅. S4 fica só-registro por padrão em Facebook e Instagram. S7: removido o log de dados pessoais; autenticação segue pendente. |
 | 2026-10-13 | Reverificação por leitura sobre `7ead1bb6`, sem correção aplicada: S1, S2, S3, S5, S6, S7, A2, A3, A4 e M5 seguem abertos; A1 subiu de 228 para 272 ocorrências. S4: Facebook e `domain-providers` abertos; no Instagram a assinatura só é repassada ao ramo de comentários, o de mensagens diretas processa sem conferir. `s3/delete` e `upload-local` estão em uso (4 e 9 arquivos), então a correção é proteger, não remover. Detalhe em [`architecture/current-state.md`](architecture/current-state.md) §5. |

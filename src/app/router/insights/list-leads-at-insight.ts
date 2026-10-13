@@ -37,6 +37,6 @@ export const listLeadsAtInsights = base
       return leads;
     } catch (error) {
       console.error(error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

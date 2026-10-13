@@ -388,7 +388,7 @@ export const execute = base
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute forge proposal enhanced]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -434,7 +434,7 @@ export const execute = base
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute forge contract]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -502,7 +502,7 @@ export const execute = base
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute forge list]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -619,7 +619,7 @@ export const execute = base
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute move lead]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -749,7 +749,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute generate post]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -808,7 +808,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute nasa-planner]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1084,7 +1084,7 @@ CTA: [chamada para ação]`;
         const e = err as { code?: string; message?: string };
         if (e?.code === "BAD_REQUEST") throw err;
         console.error("[nasa-command/execute appointment semantic]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1165,7 +1165,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute agenda query]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1193,7 +1193,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute tracking list]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1241,7 +1241,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute leads list]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1296,7 +1296,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute create tracking]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1345,7 +1345,7 @@ CTA: [chamada para ação]`;
         const e = err as { code?: string };
         if (e?.code === "BAD_REQUEST") throw err;
         console.error("[nasa-command/execute create lead]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1364,7 +1364,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute count leads]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1399,7 +1399,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute query data]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1484,7 +1484,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute pesquisar]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1569,7 +1569,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute workspace-list]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1644,7 +1644,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute task-list]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1803,7 +1803,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute task-create]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1880,7 +1880,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute nbox-list]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1925,7 +1925,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute cosmic-form-list]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -1985,7 +1985,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute cosmic-responses]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -2048,7 +2048,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute nasa-chat-list]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -2144,7 +2144,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute planner-list]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -2179,7 +2179,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute star-history]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 
@@ -2204,7 +2204,7 @@ CTA: [chamada para ação]`;
         } satisfies ExecuteOutput;
       } catch (err) {
         console.error("[nasa-command/execute star-packages]", err);
-        throw errors.INTERNAL_SERVER_ERROR;
+        throw errors.INTERNAL_SERVER_ERROR();
       }
     }
 

@@ -135,6 +135,6 @@ export const createLeadFile = base
       return result;
     } catch (error) {
       console.error(error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

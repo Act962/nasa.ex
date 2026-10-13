@@ -146,6 +146,6 @@ export const getLeadPurchases = base
       return { purchases };
     } catch (err) {
       console.error("[trackings/getLeadPurchases]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

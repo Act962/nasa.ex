@@ -107,7 +107,7 @@ export const listForgePriceItems = base
       return { items: items.map(serializePriceItem) };
     } catch (err) {
       console.error("[forge/price-catalog list]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -162,7 +162,7 @@ export const createForgePriceItem = base
         throw new ORPCError("CONFLICT", { message: DUPLICATE_CODE_MESSAGE });
       }
       console.error("[forge/price-catalog create]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -201,7 +201,7 @@ export const updateForgePriceItem = base
         throw new ORPCError("CONFLICT", { message: DUPLICATE_CODE_MESSAGE });
       }
       console.error("[forge/price-catalog update]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -221,7 +221,7 @@ export const deleteForgePriceItem = base
       });
       return { ok: true };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -259,7 +259,7 @@ export const listForgePriceSuggestions = base
       });
       return { suggestions };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -322,6 +322,6 @@ export const reviewForgePriceSuggestion = base
       return { ok: true };
     } catch (err) {
       console.error("[forge/price-catalog review]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

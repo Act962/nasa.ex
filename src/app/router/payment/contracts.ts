@@ -123,6 +123,6 @@ export const listActiveContracts = base
       };
     } catch (err) {
       console.error("[payment/contracts/listActive]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

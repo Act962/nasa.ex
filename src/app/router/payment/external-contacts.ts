@@ -76,6 +76,6 @@ export const listExternalContacts = base
       return { contacts: results };
     } catch (err) {
       console.error("[payment/external-contacts]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

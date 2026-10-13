@@ -3,6 +3,7 @@ import {
   buildFeatureGraph,
   compareWithBaseline,
   countOrpcOutsideHooks,
+  countUninvokedErrorThrows,
   findFeatureKnots,
   findMutualFeaturePairs,
   findTierViolations,
@@ -20,6 +21,7 @@ const emptySnapshot: BoundarySnapshot = {
   largestFeatureKnot: 0,
   tierViolations: [],
   orpcOutsideHooks: {},
+  uninvokedErrorThrows: {},
 };
 
 describe("buildFeatureGraph", () => {
@@ -129,6 +131,21 @@ describe("countOrpcOutsideHooks", () => {
   });
 });
 
+describe("countUninvokedErrorThrows", () => {
+  it("conta o throw sem invocação e ignora a forma correta", () => {
+    const counts = countUninvokedErrorThrows([
+      file(
+        "src/app/router/leads/get.ts",
+        "throw errors.NOT_FOUND;\nthrow errors.FORBIDDEN ;\nthrow errors.NOT_FOUND({ message: 'x' });\nthrow errors.BAD_REQUEST();",
+      ),
+      file("src/app/router/leads/ok.ts", "throw errors.NOT_FOUND();"),
+      file("src/app/router/leads/get.test.ts", "throw errors.NOT_FOUND;"),
+    ]);
+
+    expect(counts).toEqual({ "src/app/router/leads/get.ts": 2 });
+  });
+});
+
 describe("compareWithBaseline", () => {
   it("estado igual à baseline não tem regressão nem melhoria", () => {
     const snapshot = takeSnapshot([
@@ -145,6 +162,7 @@ describe("compareWithBaseline", () => {
       largestFeatureKnot: 3,
       tierViolations: ["leads->admin"],
       orpcOutsideHooks: { "src/features/leads/a.tsx": 2 },
+      uninvokedErrorThrows: { "src/app/router/leads/get.ts": 1 },
     };
     const baseline: BoundarySnapshot = {
       ...emptySnapshot,
@@ -154,7 +172,8 @@ describe("compareWithBaseline", () => {
 
     const report = compareWithBaseline(current, baseline);
 
-    expect(report.regressions).toHaveLength(4);
+    expect(report.regressions).toHaveLength(5);
+    expect(report.regressions.join("\n")).toContain("throw errors.X; sem invocar em src/app/router/leads/get.ts");
     expect(report.regressions.join("\n")).toContain("form<->leads");
     expect(report.regressions.join("\n")).toContain("de 2 para 3");
     expect(report.regressions.join("\n")).toContain("leads->admin");
@@ -168,6 +187,7 @@ describe("compareWithBaseline", () => {
       largestFeatureKnot: 2,
       tierViolations: ["leads->admin"],
       orpcOutsideHooks: { "src/features/leads/a.tsx": 2 },
+      uninvokedErrorThrows: { "src/app/router/leads/get.ts": 3 },
     };
 
     expect(compareWithBaseline(snapshot, snapshot).regressions).toEqual([]);
@@ -179,11 +199,12 @@ describe("compareWithBaseline", () => {
       largestFeatureKnot: 2,
       tierViolations: ["leads->admin"],
       orpcOutsideHooks: { "src/features/leads/a.tsx": 2 },
+      uninvokedErrorThrows: { "src/app/router/leads/get.ts": 3 },
     };
 
     const report = compareWithBaseline(emptySnapshot, baseline);
 
     expect(report.regressions).toEqual([]);
-    expect(report.improvements).toHaveLength(4);
+    expect(report.improvements).toHaveLength(5);
   });
 });

@@ -85,6 +85,6 @@ export const listMessage = base
         remoteJid: conversation.remoteJid,
       };
     } catch (error) {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

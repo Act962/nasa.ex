@@ -42,6 +42,6 @@ export const listAttachmentsByToken = base
     } catch (err: any) {
       if (err?.code === "NOT_FOUND") throw err;
       console.error("[lead.listAttachmentsByToken]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

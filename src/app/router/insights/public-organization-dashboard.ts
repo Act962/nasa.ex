@@ -566,6 +566,6 @@ export const publicOrganizationDashboard = base
       };
     } catch (error) {
       console.error(error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

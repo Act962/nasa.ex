@@ -61,6 +61,6 @@ export const getPaymentProjection = base
       });
     } catch (err) {
       console.error("[payment/projection get]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

@@ -15,7 +15,8 @@
 | Correção fora do plano | ✅ Lembrete mensal em mês curto (spec 0090). Reparo dos dados de produção pendente |
 | 3. Contenção de segurança | 🚧 S1, S2 e S4 em código, com teste unitário das regras ([spec 0091](../../specs/integrations/0091-rotas-anonimas-exigem-credencial.md)). Falta: implantar seguindo o roteiro da spec (começa em `log-only`), conferir com `curl` em homologação, S7 e S6 aguardam decisão sobre como autenticar integradores |
 | 4. Integração com Postgres real | 🚧 Código pronto: `docker-compose.test.yml`, projeto `integration` no Vitest, suporte em `tests/integration/support/` (truncate, builders, sessão), job `integration` no `ci.yml`. 44 testes: as quatro rotas da etapa 3, o molde de isolamento entre empresas e os 8 scripts de QA das specs executados contra o banco de teste. As 254 migrations aplicam limpas em banco vazio. Falta: ver o job verde no GitHub e exigi-lo na `main`; converter os scripts de QA em testes nativos (hoje rodam como processo, um teste por script); teste de arquitetura exigindo `TenantScope` nos repositórios |
-| 5 a 10 | ⬜ |
+| 5. Erros de negócio que viram 500 | 🚧 Primeira parte: os 169 `throw errors.INTERNAL_SERVER_ERROR;` foram invocados (79 arquivos). O status HTTP não muda (já era 500); a mensagem que o cliente recebe passa de "Internal server error" para "Something went wrong". O job `arch` passa a impedir ocorrência nova de `throw errors.X;`. Restam 101 (65 `NOT_FOUND`, 23 `FORBIDDEN`, 8 `BAD_REQUEST`, 6 `UNAUTHORIZED`, menos um caso de teste), que mudam o status HTTP e aguardam aprovação |
+| 6 a 10 | ⬜ |
 
 ## 1. O que muda em relação ao roadmap de agosto
 
@@ -209,7 +210,7 @@ Planejamento detalhado só depois do piloto concluído: detalhar agora seria adi
 | Violações de R1–R6 em `src/modules/` | não medido | 0, bloqueado | 0 |
 | Ciclos entre features | 74 pares mútuos (57 no commit auditado) | congelado | decrescente |
 | `orpc.*` fora de hook | 690 (726 no commit auditado) | congelado | decrescente |
-| `throw errors.X;` | 272 | 272 | 0, bloqueado por lint |
+| `throw errors.X;` | 101 (eram 272 no commit auditado) | congelado pelo job `arch` | 0 |
 | Módulos migrados na forma alvo | 0 (`social` nasceu nela) | 0 | 1 (`form`) |
 | Golden masters do piloto alterados durante a migração | — | — | 0 |
 

@@ -54,7 +54,7 @@ export const getIncomeStatement = base
       return statement;
     } catch (err) {
       console.error("[payment/reports/dre]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -93,6 +93,6 @@ export const getOperationalResult = base
       return result;
     } catch (err) {
       console.error("[payment/reports/dro]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

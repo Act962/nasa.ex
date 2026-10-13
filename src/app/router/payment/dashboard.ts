@@ -102,7 +102,7 @@ export const getPaymentDashboard = base
       return summary;
     } catch (err) {
       console.error("[payment/dashboard]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -126,7 +126,7 @@ export const getCashflow = base
       return { rows };
     } catch (err) {
       console.error("[payment/dashboard/getCashflow]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -176,6 +176,6 @@ export const getCashflowDayEntries = base
       });
     } catch (err) {
       console.error("[payment/dashboard/cashflow-day]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

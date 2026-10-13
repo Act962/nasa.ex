@@ -60,6 +60,6 @@ export const deleteLeadFile = base
       return { ok: true };
     } catch (error) {
       console.error(error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

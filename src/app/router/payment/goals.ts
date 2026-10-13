@@ -76,7 +76,7 @@ export const getPaymentGoalStatus = base
       return { status, config: config ?? DEFAULT_CONFIG };
     } catch (err) {
       console.error("[payment/goals/status]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -104,7 +104,7 @@ export const updatePaymentGoalConfig = base
       return { success: true };
     } catch (err) {
       console.error("[payment/goals/update-config]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -144,6 +144,6 @@ export const upsertPaymentGoalMonth = base
       return { success: true };
     } catch (err) {
       console.error("[payment/goals/upsert-month]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

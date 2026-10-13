@@ -52,7 +52,7 @@ export const getForgeSettings = base
       }
       return { settings: { ...settings, commissionPercentage: settings.commissionPercentage.toString() } };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -120,6 +120,6 @@ export const updateForgeSettings = base
       return { ok: true };
     } catch (err) {
       console.error("[forge/settings update]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

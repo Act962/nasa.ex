@@ -50,7 +50,7 @@ export const listPaymentAccounts = base
       return { accounts: accounts.map((account) => withComputedBalance(account, movements)) };
     } catch (err) {
       console.error("[payment/accounts/listPaymentAccounts]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -85,7 +85,7 @@ export const createPaymentAccount = base
       return { account: withComputedBalance(account, {}) };
     } catch (err) {
       console.error("[payment/accounts/createPaymentAccount]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -131,7 +131,7 @@ export const updatePaymentAccount = base
       return { account: withComputedBalance(account, movements) };
     } catch (err) {
       console.error("[payment/accounts/update]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -157,6 +157,6 @@ export const deletePaymentAccount = base
       return { ok: true };
     } catch (err) {
       console.error("[payment/accounts/delete]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

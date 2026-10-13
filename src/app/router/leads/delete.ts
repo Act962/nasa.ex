@@ -120,6 +120,6 @@ export const deleteLead = base
       }
 
       console.error(err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

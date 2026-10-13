@@ -121,7 +121,7 @@ export const listForgeProposals = base
         })),
       };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -164,7 +164,7 @@ export const getForgeProposal = base
         },
       };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -270,7 +270,7 @@ export const createForgeProposal = base
       return { proposal };
     } catch (err) {
       console.error("[forge/proposals create]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -482,7 +482,7 @@ export const updateForgeProposal = base
       return { ok: true };
     } catch (err) {
       console.error("[forge/proposals update]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -503,7 +503,7 @@ export const deleteForgeProposal = base
       });
       return { ok: true };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 

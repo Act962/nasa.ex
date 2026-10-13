@@ -275,7 +275,7 @@ export const listStatementTransactions = base
       return await listStatementTransactionsRecord({ organizationId: context.org.id, ...input });
     } catch (error) {
       console.error("[payment/statements/transactions]", error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -297,7 +297,7 @@ export const reconcileStatementTransaction = base
       });
     } catch (error) {
       console.error("[payment/statements/reconcile]", error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
     if (!result.ok) throw toStatementError(errors, result);
     return { success: true, entryStatus: result.entryStatus };
@@ -319,7 +319,7 @@ export const unmatchStatementTransaction = base
       });
     } catch (error) {
       console.error("[payment/statements/unmatch]", error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
     if (!result.ok) throw toStatementError(errors, result);
     return { success: true };
@@ -352,7 +352,7 @@ export const createEntryFromTransaction = base
       });
     } catch (error) {
       console.error("[payment/statements/create-entry]", error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
     if (!result.ok) throw toStatementError(errors, result);
     return { entryId: result.entryId };
@@ -411,7 +411,7 @@ export const reviewStatementTransactionWithAstro = base
       });
     } catch (error) {
       console.error("[payment/statements/review-astro]", error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
     if (!result.ok) throw toStatementError(errors, result);
     return { success: true, review: result.review };

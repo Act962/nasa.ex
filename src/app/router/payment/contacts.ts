@@ -63,7 +63,7 @@ export const listPaymentContacts = base
       return { contacts, total };
     } catch (err) {
       console.error("[payment/contacts/listPaymentContacts]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -90,7 +90,7 @@ export const createPaymentContact = base
       return { contact };
     } catch (err) {
       console.error("[payment/contacts/create]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -123,7 +123,7 @@ export const updatePaymentContact = base
       return { contact };
     } catch (err) {
       console.error("[payment/contacts/update]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -149,6 +149,6 @@ export const deletePaymentContact = base
       return { ok: true };
     } catch (err) {
       console.error("[payment/contacts/delete]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
