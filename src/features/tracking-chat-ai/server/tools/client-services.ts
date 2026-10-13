@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { Decimal } from "@prisma/client/runtime/client";
@@ -6,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { sendRecordPix } from "@/features/form-records/server/record-pix";
 import { notifyNewTask } from "@/features/actions/server/lib/notify-new-task";
 import { buildPublicFormUrl } from "@/features/form/lib/public-form-url";
+import { ensureLeadPublicToken } from "@/features/leads/lib/public-token";
 import type { AiCapabilities } from "../../lib/capabilities";
 
 /**
@@ -46,11 +46,9 @@ function makeFormTool(scope: LeadServiceScope) {
         select: { id: true, name: true },
       });
       if (!form) return { error: "Formulário indisponível." };
-      const lead = await prisma.lead.findFirst({
-        where: { id: scope.leadId, tracking: { organizationId: scope.organizationId } },
-        select: { publicToken: true },
-      });
-      return { formName: form.name, link: buildPublicFormUrl({ formId: form.id, leadPublicToken: lead?.publicToken }) };
+      // Lead antigo nasce sem token: sem criá-lo aqui, o formulário abria sem nome e telefone preenchidos.
+      const leadPublicToken = await ensureLeadPublicToken({ leadId: scope.leadId, organizationId: scope.organizationId });
+      return { formName: form.name, link: buildPublicFormUrl({ formId: form.id, leadPublicToken }) };
     },
   });
 }
@@ -60,16 +58,8 @@ function makeMyRecordsLinkTool(scope: LeadServiceScope) {
     description: "Devolve o link com as fichas (atendimentos, itens) deste cliente. Inclua o link na sua resposta.",
     inputSchema: z.object({}),
     execute: async () => {
-      const lead = await prisma.lead.findFirst({
-        where: { id: scope.leadId, tracking: { organizationId: scope.organizationId } },
-        select: { publicToken: true },
-      });
-      if (!lead) return { error: "Não consegui gerar o link agora." };
-      let publicToken = lead.publicToken;
-      if (!publicToken) {
-        publicToken = crypto.randomBytes(18).toString("base64url");
-        await prisma.lead.update({ where: { id: scope.leadId }, data: { publicToken } });
-      }
+      const publicToken = await ensureLeadPublicToken({ leadId: scope.leadId, organizationId: scope.organizationId });
+      if (!publicToken) return { error: "Não consegui gerar o link agora." };
       return { link: `${appBaseUrl()}/lead/${publicToken}/fichas` };
     },
   });

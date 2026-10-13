@@ -3,6 +3,31 @@ import { GUIDE_RESULT_KINDS } from "../result-kinds";
 
 const BOARD_PATH = "^/tracking/[^/]+$";
 
+/** Passos de fluxo cujo pedido fala em "enviar mensagem": ficam antes do Chat no registro, senão o Chat responde. */
+export const TRACKING_FLOW_MESSAGE_GUIDES: GuideDef[] = [
+  {
+    key: "tracking.group-message-step",
+    app: "tracking",
+    title: "Enviar mensagem para um grupo de WhatsApp",
+    summary: "Um passo do fluxo manda um texto para um grupo, com os números do dia da empresa se você quiser. Com o gatilho Agendado, vira um resumo diário.",
+    topicPattern: /\b(envi\w*|mand\w*|dispar\w*|resumo|aviso|mensagem)\b.*\bgrupos? (de|do|no) (whatsapp|zap)\b|\bgrupos? (de|do|no) (whatsapp|zap)\b.*\b(fluxo|gatilho|automa\w*|todo dia|diari\w*|resumo)\b|\bresumo (do dia|diario)\b.*\bgrupo\b/,
+    steps: [
+      {
+        anchor: "workflowGroupMessageStep",
+        title: "Escolha o grupo e escreva o texto",
+        message: "Digite parte do nome do grupo e toque nele. No texto, toque nos botões para inserir os números do dia: leads, agendamentos, conversas esperando e demandas.",
+        position: "left",
+        advanceOn: "next",
+        missingMessage: "No editor de um fluxo em modo agente, adicione o passo \"Enviar para grupo\" e abra a configuração dele. O número do funil precisa estar conectado por QR code e participar do grupo.",
+      },
+    ],
+    finish: {
+      title: "Envio para grupo configurado ✨",
+      message: "Para mandar todo dia, comece o fluxo com o gatilho Agendado e escolha o horário e os dias. Todos no grupo veem a mensagem.",
+    },
+  },
+];
+
 export const TRACKING_GUIDES: GuideDef[] = [
   {
     key: "tracking.create-lead",

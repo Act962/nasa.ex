@@ -5,7 +5,7 @@ dominio: tracking-chat-ai
 status: em-revisao
 autor: Weydson
 criada: 2026-10-12
-atualizada: 2026-10-12
+atualizada: 2026-10-13
 branch: feature/W-atendimento-astro-formulario-chamada-email-20261012
 pr:
 peso: completa
@@ -93,7 +93,7 @@ O atendimento por menu funciona de ponta a ponta em número oficial: o link do f
 
 | # | Caso | Comportamento esperado |
 | --- | --- | --- |
-| CB-1 | Lead sem `publicToken` | Link sai sem `leadToken`; o formulário abre e pede nome e telefone. |
+| CB-1 | Lead sem `publicToken` | O token é criado na hora (`ensureLeadPublicToken`) e o link sai com `leadToken`. |
 | CB-2 | Formulário enviado duas vezes com a mesma tag | O fluxo dispara nas duas vezes; o limite de execuções por hora do fluxo protege contra excesso. |
 | CB-3 | Resposta com várias tags, cada uma com um fluxo | Cada fluxo dispara uma vez. |
 | CB-4 | Formulário sem funil e coluna configurados | Não há lead vinculado: nada dispara. |
@@ -180,6 +180,7 @@ Sem migration. `voiceCallMaxMinutes` vive no JSON `AiSettings.capabilities`.
 ## 13. Changelog da spec
 
 - 2026-10-12 — criada a partir do teste real da ÓRBITA HUB.
+- 2026-10-13 — teste real depois do deploy: o link saiu sem `leadToken` porque o lead não tinha token público (a maioria não tem; ele só nascia ao gerar o link público do lead). CB-1 mudou: o token passa a ser criado na hora.
 - 2026-10-12 — segundo teste real: o Astro pediu o e-mail já informado no formulário e o link do agendamento mostrava "Pendente". Entraram RF-11, RF-12 e CA-11 a CA-13; a criação automática do evento no Google com Meet ficou em "depois".
 - 2026-10-12 — terceiro lote, a pedido: Google Agenda com Meet ao agendar pelo Astro, lembrete de 30 minutos com o link e evento acompanhando remarcação e cancelamento (RF-13 a RF-16, CA-14 a CA-17, D-6, D-7).
 - 2026-10-12 — implementação: o e-mail roda numa etapa própria do Inngest (`send-booking-email`) para não sair duas vezes se a função repetir; data e hora da confirmação (WhatsApp e e-mail) passam a ser formatadas no fuso de São Paulo, antes dependiam do fuso do servidor. Sem runner de teste no projeto (CLAUDE.md, regra 20): os critérios de aceite ficam para teste manual.
