@@ -27,6 +27,8 @@ import { handleScriptMenu } from "./script-menu";
 import { isReplyForWaitingFlow } from "./flow-awaiting-reply";
 import { isTopicMenuName } from "./topic-menu";
 import { handleTopicMenu } from "./topic-menu-handler";
+import { handleCampaign } from "./campaign-handler";
+import { handleStoreInfo } from "./store-info-handler";
 import { MENU_PRESET_NAME } from "./attendance-setup/script-draft";
 import { joinAsSingleMessage, splitForWhatsapp } from "./split-message";
 import { persistOutboundMessage } from "./persist";
@@ -185,6 +187,15 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const isForWaitingFlow = await step.run("flow-awaiting-reply", () => isReplyForWaitingFlow(ctx, data.messageId));
     if (isForWaitingFlow) return { skipped: true, reason: "flow_awaiting_reply" };
+  }
+
+  // Campanha de sorteio e informações da loja (spec 0102): regras fixas, sem modelo. Vem antes dos
+  // menus porque a foto do cupom e o número digitado são respostas a uma pergunta da campanha.
+  if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
+    const campaign = await step.run("star-friends-campaign", () => handleCampaign(ctx, data.messageId));
+    if (campaign.handled) return { skipped: true, reason: "star_friends_campaign" };
+    const storeInfo = await step.run("store-info", () => handleStoreInfo(ctx, data.messageId));
+    if (storeInfo.handled) return { skipped: true, reason: "store_info" };
   }
 
   // Menu de botões (spec 0089): saudação e cliques do menu são resolvidos em código, sem modelo,

@@ -67,8 +67,43 @@ O app aparece na matriz como **🌟 STAR FRIENDS**. A regra vale no servidor (`r
 
 O Master sempre tem tudo. Os padrões dos outros papéis estão em `DEFAULT_PERMISSIONS`, no arquivo `features/permissions/lib/app-permission-catalog.ts`.
 
+## Campanha de sorteio por cupom (spec 0102)
+
+Aba **Campanha** do app. O cliente manda a foto do cupom pelo WhatsApp e ganha números da sorte; a empresa sorteia depois de uma varredura de duplicados.
+
+**Regra**: `números = floor((sobra + total do cupom) / valor por número)`. A sobra fica no cadastro do cliente e soma no próximo cupom. Cada número rende 1 star no extrato (fonte `CAMPAIGN_RECEIPT`) quando o programa está ativo.
+
+**Conversa** (regras fixas, sem modelo decidindo): a opção de menu `camp:start` abre a campanha.
+
+| Quem | O que vê |
+| --- | --- |
+| Cliente novo | Pede o nome → resumo das regras + link, com "Aceito" / "Não aceito" → pede a foto do cupom |
+| Cliente cadastrado | "Cadastrar novo cupom", "Ver meus pontos", "Ver meus códigos" |
+
+"Meus pontos" e "meus códigos" pedem o número cadastrado. Ele só é comparado com o número de quem escreve; diferente, a resposta é "Você não está acessando pelo dispositivo que se cadastrou na promoção." Nenhuma consulta usa o número digitado.
+
+**Cupom repetido**: recusado na hora por mesmo arquivo (`sha256`), mesma chave de acesso (44 dígitos) ou mesma impressão digital (CNPJ + número + dia + total), entre quaisquer clientes. Leitura incompleta é aceita com alerta. A **varredura** trata como a mesma compra o mesmo número de cupom, ou o mesmo CNPJ + dia + total (a hora só separa quando foi lida nos dois e difere em mais de 2 minutos), mantém o mais antigo e anula os números dos demais; depois confere se o cliente não ficou com mais números do que as compras válidas dão. O **sorteio** só roda com varredura feita depois do último cupom e grava a semente.
+
+A varredura anula números, mas não estorna as stars já creditadas por eles.
+
+**Opções de menu com resposta fixa** (aba "Botões" do Chatbot IA, campo "o que a opção faz"): abrir a campanha, ofertas (stories do Instagram cadastrado), Instagram e endereço (Localização da empresa).
+
+| Arquivo | Papel |
+| --- | --- |
+| `features/star-friends/utils/campaign.ts` | Regras puras: cálculo, impressão digital, varredura, comparação de telefone |
+| `features/star-friends/lib/campaign/extract-receipt.ts` | Leitura do cupom por IA (só transcreve) |
+| `features/star-friends/lib/campaign/register-receipt.ts` | Valida, barra repetido e grava cupom, números e stars |
+| `features/star-friends/lib/campaign/sweep-duplicates.ts`, `draw.ts` | Varredura e sorteio |
+| `features/tracking-chat-ai/lib/campaign-handler.ts` | Conversa da campanha |
+| `features/tracking-chat-ai/lib/store-info-handler.ts` | Ofertas, Instagram e endereço |
+| `app/router/star-friends/campaign.ts` | `starFriends.campaign.{get,upsert,receipts,exportNumbers,sweep,draw}` |
+| `features/pages/lib/templates/campanha-sorteio.ts` | Modelo de página do regulamento |
+
+Permissões: ver cupons e números = "Ver"; configurar = "Editar"; varredura e sorteio = "Aprovar". Conferência das regras: `pnpm tsx scripts/star-friends-campaign-check.ts`.
+
 ## Changelog
 
+- **2026-10-13** — Campanha de sorteio por cupom pelo WhatsApp: cadastro com aceite, leitura do cupom, bloqueio de repetido, varredura e sorteio (spec 0102).
 - **2026-09-29** — Níveis Terra/Lua/Galaxy, nível mínimo por prêmio, aba Níveis e regras e área do cliente no portal (spec 0041).
 - **2026-09-29** — Botão Star Friend dos Detalhes do lead no chat deixa de ser placeholder: mostra o card completo e estados de não instalado, pausado e sem permissão; resgates decididos direto no lead.
 - **2026-09-29** — Aviso automático ao cliente nas decisões de resgate pedido pelo Portal ou pelo Astro. Validado em teste ponta a ponta local (Gotham): 3 compras pagas → 10 stars → troca pela sacola no portal → aprovação e entrega.

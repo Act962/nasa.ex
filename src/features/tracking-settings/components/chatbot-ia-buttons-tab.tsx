@@ -51,6 +51,9 @@ import {
   useDeleteAiButtonPreset,
   useUpdateAiButtonPreset,
 } from "../hooks/use-ai-button-presets";
+import { CODED_MENU_ACTIONS, isCodedMenuAction } from "@/features/tracking-chat-ai/lib/coded-menu-options";
+
+const DEFAULT_OPTION_ACTION = "__assistant__";
 
 const buttonItemSchema = z.object({
   text: z.string().min(1, "Texto do botão é obrigatório"),
@@ -439,9 +442,29 @@ function PresetRow({
                         </Select>
                       )}
                     />
-                    <input
-                      type="hidden"
-                      {...form.register(`buttons.${index}.id`)}
+                    <Controller
+                      control={form.control}
+                      name={`buttons.${index}.id`}
+                      render={({ field: actionField }) => (
+                        <Select
+                          value={isCodedMenuAction(actionField.value) ? actionField.value : DEFAULT_OPTION_ACTION}
+                          onValueChange={(value) =>
+                            actionField.onChange(value === DEFAULT_OPTION_ACTION ? crypto.randomUUID() : value)
+                          }
+                        >
+                          <SelectTrigger className="w-44" aria-label="O que a opção faz ao ser clicada">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={DEFAULT_OPTION_ACTION}>Assistente responde</SelectItem>
+                            {CODED_MENU_ACTIONS.map((action) => (
+                              <SelectItem key={action.id} value={action.id}>
+                                {action.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     />
                     <Button
                       type="button"
