@@ -38,6 +38,28 @@ jobs:
             echo "affects-image=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # Regras puras, sem banco nem rede. Roda em paralelo ao build.
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Testes importam enums de src/generated/prisma, que não é versionado.
+      - run: pnpm exec prisma generate
+        env:
+          DATABASE_URL: postgresql://build:build@localhost:5432/build
+
+      - run: pnpm test:unit
+
   next-build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
