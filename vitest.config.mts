@@ -46,6 +46,7 @@ export default defineConfig({
             BETTER_AUTH_URL: "http://localhost:3000",
             AI_SECRETS_KEY: "chave-somente-de-teste-com-32-caracteres",
             NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+            NEXT_PUBLIC_BASE_URL: "http://localhost:3000",
           },
         },
       },

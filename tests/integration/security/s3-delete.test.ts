@@ -23,7 +23,7 @@ function deleteRequest(body: unknown) {
 const tokenFor = (objectKey: string) =>
   createUploadDeleteToken(objectKey, process.env.BETTER_AUTH_SECRET);
 
-describe("spec 0091 — DELETE /api/s3/delete (S2)", () => {
+describe("spec 0103 — DELETE /api/s3/delete (S2)", () => {
   it("RF-4: sem sessão e sem token, recusa com 401 e não apaga", async () => {
     const response = await DELETE(deleteRequest({ key: OBJECT_KEY }));
 

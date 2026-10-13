@@ -106,15 +106,15 @@ documentados por teste, sem correção, aguardando decisão:
 
 | # | Arquivo | Comportamento atual | Efeito | Gravidade sugerida |
 | --- | --- | --- | --- | --- |
-| 1 | `src/lib/reminder-recurrence.ts` (`computeNextRemindAt`) | ✅ **Corrigido em 2026-10-13** ([spec 0090](../../specs/tracking-chat/0090-lembrete-mensal-em-mes-curto.md)). Era: lembrete mensal em dia 29, 30 ou 31 pulava o mês sem esse dia e mudava de dia para sempre (31/01 → 03/03). Alcançável só em lembrete mensal sem dia fixo, porque o dia fixo é limitado a 1–28 nas três entradas | Lembrete mensal não disparava em meses curtos | Alta |
-| 2 | `src/lib/reminder-recurrence.ts` (`buildFirstRemindAt`) | ✅ **Corrigido junto** (spec 0090, CA-7). Era: dia 31 pedido em abril agendava 01/05. Inalcançável hoje pelo mesmo limite de 1–28 | — | Baixa |
+| 1 | `src/lib/reminder-recurrence.ts` (`computeNextRemindAt`) | ✅ **Corrigido em 2026-10-13** ([spec 0102](../../specs/tracking-chat/0102-lembrete-mensal-em-mes-curto.md)). Era: lembrete mensal em dia 29, 30 ou 31 pulava o mês sem esse dia e mudava de dia para sempre (31/01 → 03/03). Alcançável só em lembrete mensal sem dia fixo, porque o dia fixo é limitado a 1–28 nas três entradas | Lembrete mensal não disparava em meses curtos | Alta |
+| 2 | `src/lib/reminder-recurrence.ts` (`buildFirstRemindAt`) | ✅ **Corrigido junto** (spec 0102, CA-7). Era: dia 31 pedido em abril agendava 01/05. Inalcançável hoje pelo mesmo limite de 1–28 | — | Baixa |
 | 3 | `src/features/form/lib/form-readiness.ts` | Parágrafo com `text` vazio (string) é dado como sem conteúdo mesmo com `content` preenchido | Formulário pode aparecer como não pronto sem motivo | Baixa, se algum bloco real chegar nesse estado |
 | 4 | `src/features/form/lib/response-slug.ts` | Nome cortado em 80 caracteres pode terminar em hífen, gerando `--` antes da data | Cosmético: a URL resolve pelo id | Baixa |
 
 A causa dos itens 1 e 2 era a mesma: `addOneMonth` somava um mês a uma data cujo dia pode não existir no
 mês seguinte, e `Date.UTC` transbordava em vez de limitar. O limite ao último dia do mês
 era aplicado depois, já sobre o mês errado. Pendência: reparo dos lembretes já afetados em produção
-(spec 0090, §9).
+(spec 0102, §9).
 
 Desvios em relação ao planejado no §4: os testes **ficam** na checagem de tipos do `tsconfig.json`
 (são poucos arquivos, e erro de tipo em teste passa a quebrar o build, o que é desejável). Conferir o
@@ -122,7 +122,27 @@ tempo de `Finished TypeScript` no primeiro CI; se subir de forma perceptível, e
 O arquivo de configuração é `vitest.config.mts`, porque o `package.json` não declara
 `"type": "module"`.
 
-## 7. Limitações da reaferição
+## 7. Achados da caracterização do envio de formulário (2026-10-13)
+
+Comportamentos registrados em teste como estão hoje. Nenhum foi alterado; cada um precisa de decisão
+antes ou durante a extração do módulo `form`.
+
+| # | Comportamento atual | Leitura |
+| --- | --- | --- |
+| 1 | Cada envio grava **dois** eventos `form_submit` na jornada do lead, e cada mudança de coluna grava **dois** `status_changed` | A rota registra o evento duas vezes por caminhos diferentes (histórico do lead e jornada). Provável duplicidade na linha do tempo |
+| 2 | Lead recém-criado volta na resposta com `publicToken: null` | O comentário no código diz que tenta buscar o link "agora"; ninguém o gera nesse caminho |
+| 3 | Sem telefone, cada envio cria um lead novo; dois envios iguais geram dois leads | Não há outra chave para reconhecer a pessoa |
+| 4 | Resposta que não é JSON válido é aceita, gravada como veio, e cria um lead "Sem nome" | A entrada não é validada além de ser texto |
+| 5 | Lead existente mantém o nome do cadastro; o nome digitado no formulário é ignorado | Pode ser intencional |
+
+Sobre a regra 18: `leads/create-lead-with-tags.ts` chama `logActivity` (cliente global) dentro da
+transação. O overview (§8, R3) afirma que isso causa espera circular e 500 por timeout. O teste de
+caracterização **não reproduz**: a procedure conclui em bem menos que os 5 s do timeout, porque o log
+de atividade não referencia a linha travada. A violação existe (o log é gravado mesmo se a transação
+desfizer, e a procedure faz chamada de rede dentro da transação), mas a consequência descrita não foi
+confirmada neste caminho.
+
+## 8. Limitações da reaferição
 
 Nada foi executado: não havia teste para rodar e esta etapa não instala ferramenta. O passivo de
 `pnpm lint` segue desconhecido, porque o CI não roda lint e ele não foi rodado aqui. As contagens de

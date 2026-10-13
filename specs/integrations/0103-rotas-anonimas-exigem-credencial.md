@@ -1,5 +1,5 @@
 ---
-id: 0091
+id: 0103
 titulo: Rotas anônimas que mudam estado passam a exigir credencial
 dominio: integrations
 status: em-revisao
@@ -11,7 +11,7 @@ pr: https://github.com/Act962/nasa.ex/pull/459
 peso: leve
 ---
 
-# 0091 — Rotas anônimas que mudam estado passam a exigir credencial
+# 0103 — Rotas anônimas que mudam estado passam a exigir credencial
 
 ## 1. Contexto
 
@@ -104,3 +104,4 @@ Roteiro de implantação:
 | 2026-10-13 | João Gabriel | Criada junto com a implementação |
 | 2026-10-13 | João Gabriel | Renumerada de 0075 para 0091: o número já estava em uso na `main` |
 | 2026-10-13 | João Gabriel | CA-9 cumprido: testes de integração das quatro rotas contra Postgres real |
+| 2026-10-13 | João Gabriel | Renumerada de 0091 para 0103: a primeira renumeração conferiu só até 0089 e colidiu de novo com a `main` |

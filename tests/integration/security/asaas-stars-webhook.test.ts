@@ -59,7 +59,7 @@ async function readState(organizationId: string, paymentId: string) {
   return { starsBalance: organization.starsBalance, paymentStatus: payment.status };
 }
 
-describe("spec 0091 — webhook Asaas de recarga de Stars (S1)", () => {
+describe("spec 0103 — webhook Asaas de recarga de Stars (S1)", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });

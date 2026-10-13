@@ -52,7 +52,7 @@ function addDays(localDate: string, days: number): string {
 /**
  * Data "YYYY-MM-DD" no mês pedido, com o dia limitado ao último dia do mês.
  * Limitar aqui, e não depois de montar a data, é o que impede o dia 31 de
- * transbordar para o mês seguinte (spec 0090).
+ * transbordar para o mês seguinte (spec 0102).
  */
 function dateInMonth(year: number, month: number, anchorDay: number): string {
   const day = Math.min(anchorDay, daysInMonth(year, month));
@@ -104,7 +104,7 @@ export function computeNextRemindAt(reminder: ReminderBase): Date | null {
  * Dia de referência a gravar em `Reminder.dayOfMonth`.
  *
  * Mensal sem dia fixo guarda o dia da data de início: sem isso, depois de um
- * mês curto o lembrete de dia 31 ficaria no dia 28 para sempre (spec 0090).
+ * mês curto o lembrete de dia 31 ficaria no dia 28 para sempre (spec 0102).
  */
 export function resolveMonthlyAnchorDay(
   recurrenceType: ReminderRecurrenceType,

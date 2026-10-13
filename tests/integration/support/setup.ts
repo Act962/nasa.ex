@@ -32,10 +32,11 @@ vi.mock("@/lib/pusher", () => ({
   },
 }));
 
-const blockedFetch: typeof fetch = async (input) => {
+// `fetch` nunca sai para a rede. É um `vi.fn` para o teste poder conferir o que o código tentou chamar.
+const blockedFetch = vi.fn<typeof fetch>(async (input) => {
   const target = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   throw new Error(`Rede bloqueada nos testes de integração: ${target}`);
-};
+});
 vi.stubGlobal("fetch", blockedFetch);
 
 beforeEach(async () => {

@@ -98,3 +98,82 @@ export async function createPendingStarsPayment(input: {
     },
   });
 }
+
+/** Tracking com colunas na ordem dada. Devolve as colunas indexadas pelo nome. */
+export async function createTrackingWithStatuses(input: {
+  organizationId: string;
+  name?: string;
+  statusNames: string[];
+}) {
+  const tracking = await testPrisma.tracking.create({
+    data: { name: input.name ?? `Tracking ${shortId()}`, organizationId: input.organizationId },
+  });
+  const statuses: Record<string, { id: string; name: string }> = {};
+  for (const [index, statusName] of input.statusNames.entries()) {
+    statuses[statusName] = await testPrisma.status.create({
+      data: { name: statusName, trackingId: tracking.id, order: index * 1000 },
+      select: { id: true, name: true },
+    });
+  }
+  return { tracking, statuses };
+}
+
+export async function createLead(input: {
+  trackingId: string;
+  statusId: string;
+  name?: string;
+  phone?: string | null;
+  email?: string | null;
+}) {
+  return testPrisma.lead.create({
+    data: {
+      name: input.name ?? "Lead existente",
+      phone: input.phone ?? null,
+      email: input.email ?? null,
+      trackingId: input.trackingId,
+      statusId: input.statusId,
+    },
+  });
+}
+
+export async function createTag(input: { organizationId: string; name: string }) {
+  return testPrisma.tag.create({
+    data: { name: input.name, slug: `${input.name.toLowerCase()}-${shortId()}`, organizationId: input.organizationId },
+  });
+}
+
+/** Formulário publicado. Com `trackingId` e `statusId`, o envio cria ou reposiciona lead. */
+export async function createPublishedForm(input: {
+  organizationId: string;
+  userId: string;
+  name?: string;
+  published?: boolean;
+  jsonBlock?: unknown[];
+  trackingId?: string;
+  statusId?: string;
+  whatsappChats?: unknown[];
+}) {
+  const form = await testPrisma.form.create({
+    data: {
+      organizationId: input.organizationId,
+      userId: input.userId,
+      name: input.name ?? "Formulário de teste",
+      content: "",
+      shareUrl: `form-${shortId()}`,
+      published: input.published ?? true,
+      jsonBlock: JSON.stringify(input.jsonBlock ?? []),
+    },
+  });
+  await testPrisma.formSettings.create({
+    data: {
+      formId: form.id,
+      primaryColor: "#1447e6",
+      backgroundColor: "#ffffff",
+      trackingId: input.trackingId ?? null,
+      statusId: input.statusId ?? null,
+      whatsappChats: (input.whatsappChats ?? []) as never,
+    },
+  });
+  return form;
+}
+
