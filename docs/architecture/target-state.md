@@ -61,8 +61,17 @@ violações de maior retorno são conhecidas: `logActivity` morando em `admin` (
 `modules/shared`), o registro de ações e consultas do `astro` importando features que o importam de
 volta, e `insights` hospedando componentes reutilizados.
 
-A lista exata de quem fica em cada camada é decisão do time e precisa de revisão antes de virar
-regra. A proposta acima é o ponto de partida.
+**Implementado em 2026-10-13** com a classificação acima (`scripts/arch/feature-tiers.ts`), ainda
+sujeita a revisão do time: mudar uma feature de camada é editar esse arquivo e regravar a baseline.
+Com ela, há 58 imports contra a direção das camadas, todos congelados na baseline:
+
+| Importado indevidamente | Por quantas features | Leitura |
+| --- | ---: | --- |
+| `insights` | 17 | Hospeda componentes e helpers reutilizados |
+| `admin` | 15 | `logActivity` e notificações moram aqui |
+| `astro` | 14 | Registro de ações e consultas importado de volta |
+| `astro-commander` | 7 | |
+| domínios importados pelo núcleo (`alerts`, `stars`) | 5 | `alerts` → `accounting`, `ai-credits`, `workflows`; `stars` → `billing`, `ia` |
 
 ### A3. `astro` entra no plano
 

@@ -5,12 +5,15 @@
 > revista pela reaferição de 2026-10-13 ([`current-state.md`](current-state.md)).
 >
 > **Status:** ordem aprovada em 2026-10-13. **Etapa 1 implementada na branch, aguardando PR** (o job
-> `unit` ainda não rodou no GitHub nem é exigido na proteção da `main`). Etapas 2 a 10 não iniciadas.
+> `unit` ainda não é exigido na proteção da `main`). Etapa 2 implementada na mesma branch. Etapas 3 a 10
+> não iniciadas.
 
 | Etapa | Status |
 | --- | --- |
 | 1. Runner + testes de regras puras | 🚧 Código pronto: Vitest 5, 166 testes em 12 arquivos, verdes localmente; job `unit` no `ci.yml`. Falta: PR, ver o job verde no GitHub, exigir o job na proteção da `main`. Quatro comportamentos suspeitos registrados em [`testing-strategy.md`](testing-strategy.md) §6 |
-| 2 a 10 | ⬜ |
+| 2. Catraca de fronteiras | 🚧 Código pronto: `.dependency-cruiser.js` (R1–R7, 1 violação conhecida na baseline), `scripts/arch/` (R8, R9, R11 com baseline), job `arch` no `ci.yml`, regra de ESLint para Prisma em `modules/`, template de PR. Falta: ver o job verde no GitHub, exigir na proteção da `main`, revisar a classificação das camadas (R11) e decidir sobre `CODEOWNERS` |
+| Correção fora do plano | ✅ Lembrete mensal em mês curto (spec 0074). Reparo dos dados de produção pendente |
+| 3 a 10 | ⬜ |
 
 ## 1. O que muda em relação ao roadmap de agosto
 

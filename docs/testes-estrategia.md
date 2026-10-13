@@ -213,6 +213,7 @@ tudo. Vira gate na Fase 3, e só em `src/modules/**`.
 | `ci.yml` → `next-build` | todo PR | `pnpm install` (cache do store) + `prisma generate` + `next build` direto no runner: checagem de tipos, coleta de páginas, bundling. `.next/cache` por PR via `actions/cache`. |
 | `ci.yml` → `docker-image` | PR que mexe em `Dockerfile`, `docker/`, dependências, `next.config.ts`, Prisma, workflows | Builda a imagem (sem push, sem checagem de tipos) lendo o cache `buildcache` do GHCR. |
 | `ci.yml` → `unit` | todo PR (desde 2026-10-13) | `pnpm install` + `prisma generate` + `pnpm test:unit`: regras puras, sem banco nem rede. Paralelo ao `next-build`. |
+| `ci.yml` → `arch` | todo PR (desde 2026-10-13) | `pnpm arch`: dependency-cruiser (R1–R7 em `src/modules`, ~1 min) + baseline entre features (R8, R9, R11). Sem banco, sem `prisma generate`. |
 | `deploy-image.yml` | push na `main` | Builda a imagem (sem checagem de tipos — o PR é o portão), publica no GHCR, grava o cache `buildcache`, avisa o Coolify. |
 | `typecheck-diagnostics.yml` | manual | Mede memória/tempo/instanciações do `tsc` e lista os arquivos mais caros. |
 
@@ -352,6 +353,7 @@ testes não há o que mutar).
 
 | Data | O quê |
 | --- | --- |
+| 2026-10-13 | **Job `arch`** no CI: regras de fronteira com baseline decrescente (etapa 2 do plano). A lógica da baseline entre features tem testes próprios em `scripts/arch/feature-boundaries.test.ts`, incluídos no projeto `unit`. Suíte em 191 testes. |
 | 2026-10-13 | **Primeiro runner e primeira suíte.** Vitest 5 (`vitest.config.mts`, projeto `unit`, alias `@`), scripts `test`/`test:unit`/`test:watch`, job `unit` no `ci.yml`. 166 testes de caracterização sobre 7 arquivos de regra pura e o domínio de `modules/social`, com os ids da spec 0024 no nome onde o código os cita. Nenhum arquivo de produção alterado. Quatro comportamentos suspeitos registrados sem correção (lembrete mensal pula meses curtos, entre eles). O job ainda não é exigido para merge. |
 | 2026-10-13 | Reaferição (antes da suíte acima): seguia sem runner e sem testes; 5 scripts `scripts/*-qa-check.ts` fazem o papel de testes de integração manuais. Ordem de implantação revista, primeira suíte unitária com arquivos verificados como puros e configuração exigida pelo projeto em [`architecture/testing-strategy.md`](architecture/testing-strategy.md) — **pendente de aprovação**. `can-edit-response.ts` (§2) importa o Prisma e não serve como teste unitário sem separar a política do carregamento. |
 | 2026-08-18 | Documento inicial. Pirâmide, metas de cobertura por área, 12 cenários E2E priorizados, pipeline de PR e main, quality gates faseados. Nenhuma ferramenta instalada ainda. |
