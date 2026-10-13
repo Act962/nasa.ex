@@ -134,6 +134,9 @@ antes ou durante a extração do módulo `form`.
 | 3 | Sem telefone, cada envio cria um lead novo; dois envios iguais geram dois leads | Não há outra chave para reconhecer a pessoa |
 | 4 | Resposta que não é JSON válido é aceita, gravada como veio, e cria um lead "Sem nome" | A entrada não é validada além de ser texto |
 | 5 | Lead existente mantém o nome do cadastro; o nome digitado no formulário é ignorado | Pode ser intencional |
+| 6 | O salvamento parcial cria o lead no primeiro "Próximo". Quem abandona o formulário deixa um lead no funil, sem aviso à equipe além do board | Decisão de produto: é assim que o consultor acompanha o preenchimento ao vivo |
+| 7 | A pontuação da 10ª e da 100ª resposta só acontece se a regra existir no banco. A função que criava as regras padrão (`ensureGlobalSpacePointRules`) está com o corpo comentado | Em banco sem as regras cadastradas, ninguém pontua, sem erro e sem aviso |
+| 8 | A pontuação roda dentro da transação do envio, com o cliente global (regra 18). Não trava: o envio conclui normalmente | Violação da regra sem o efeito de espera circular |
 
 Sobre a regra 18: `leads/create-lead-with-tags.ts` chama `logActivity` (cliente global) dentro da
 transação. O overview (§8, R3) afirma que isso causa espera circular e 500 por timeout. O teste de

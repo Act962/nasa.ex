@@ -177,3 +177,26 @@ export async function createPublishedForm(input: {
   return form;
 }
 
+/** Workspace ligado a um tracking, com colunas na ordem dada. */
+export async function createWorkspaceWithColumns(input: {
+  organizationId: string;
+  createdBy: string;
+  trackingId?: string;
+  columnNames: string[];
+}) {
+  const workspace = await testPrisma.workspace.create({
+    data: {
+      name: `Workspace ${shortId()}`,
+      organizationId: input.organizationId,
+      createdBy: input.createdBy,
+      trackingId: input.trackingId ?? null,
+    },
+  });
+  for (const [index, columnName] of input.columnNames.entries()) {
+    await testPrisma.workspaceColumn.create({
+      data: { name: columnName, workspaceId: workspace.id, order: index },
+    });
+  }
+  return workspace;
+}
+
