@@ -1,6 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
-import { buildFirstRemindAt } from "@/lib/reminder-recurrence";
+import { buildFirstRemindAt, resolveMonthlyAnchorDay } from "@/lib/reminder-recurrence";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
@@ -63,7 +63,7 @@ export const createReminder = base
         createdByUserId: context.user.id,
         message,
         recurrenceType,
-        dayOfMonth: dayOfMonth ?? null,
+        dayOfMonth: resolveMonthlyAnchorDay(recurrenceType, dayOfMonth, nextRemindAt),
         remindTime,
         notifyPhone: notifyPhone ?? null,
         nextRemindAt,

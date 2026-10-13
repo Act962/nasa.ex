@@ -101,19 +101,20 @@ contrário.
 ## 6. Achados da primeira suíte (2026-10-13)
 
 A etapa 1 foi executada: Vitest 5, projeto `unit`, 166 testes em 12 arquivos, menos de 2 segundos.
-Os testes registram o comportamento atual. Quatro comportamentos parecem errados e **não foram
-corrigidos**; cada um tem um teste que o documenta e precisa de decisão:
+Os testes registram o comportamento atual. Quatro comportamentos pareciam errados. Dois foram corrigidos (itens 1 e 2); os outros dois seguem
+documentados por teste, sem correção, aguardando decisão:
 
 | # | Arquivo | Comportamento atual | Efeito | Gravidade sugerida |
 | --- | --- | --- | --- | --- |
-| 1 | `src/lib/reminder-recurrence.ts` (`computeNextRemindAt`) | Lembrete mensal em dia 29, 30 ou 31 pula o mês que não tem esse dia. Com dia fixo 31: 31/01 → 31/03 → 31/05. Sem dia fixo: 31/01 → 03/03, e a partir daí o lembrete passa a cair no dia 3 | Lembrete mensal não dispara em fevereiro, abril, junho, setembro e novembro | Alta: o usuário perde o aviso sem erro nenhum |
-| 2 | `src/lib/reminder-recurrence.ts` (`buildFirstRemindAt`) | Dia fixo que não existe no mês corrente transborda: dia 31 pedido em abril agenda 01/05, não 30/04 | Primeiro disparo um dia depois do esperado | Média |
+| 1 | `src/lib/reminder-recurrence.ts` (`computeNextRemindAt`) | ✅ **Corrigido em 2026-10-13** ([spec 0074](../../specs/tracking-chat/0074-lembrete-mensal-em-mes-curto.md)). Era: lembrete mensal em dia 29, 30 ou 31 pulava o mês sem esse dia e mudava de dia para sempre (31/01 → 03/03). Alcançável só em lembrete mensal sem dia fixo, porque o dia fixo é limitado a 1–28 nas três entradas | Lembrete mensal não disparava em meses curtos | Alta |
+| 2 | `src/lib/reminder-recurrence.ts` (`buildFirstRemindAt`) | ✅ **Corrigido junto** (spec 0074, CA-7). Era: dia 31 pedido em abril agendava 01/05. Inalcançável hoje pelo mesmo limite de 1–28 | — | Baixa |
 | 3 | `src/features/form/lib/form-readiness.ts` | Parágrafo com `text` vazio (string) é dado como sem conteúdo mesmo com `content` preenchido | Formulário pode aparecer como não pronto sem motivo | Baixa, se algum bloco real chegar nesse estado |
 | 4 | `src/features/form/lib/response-slug.ts` | Nome cortado em 80 caracteres pode terminar em hífen, gerando `--` antes da data | Cosmético: a URL resolve pelo id | Baixa |
 
-A causa dos itens 1 e 2 é a mesma: `addOneMonth` soma um mês a uma data cujo dia pode não existir no
-mês seguinte, e `Date.UTC` transborda em vez de limitar. O limite ao último dia do mês
-(`daysInMonth`) é aplicado depois, já sobre o mês errado.
+A causa dos itens 1 e 2 era a mesma: `addOneMonth` somava um mês a uma data cujo dia pode não existir no
+mês seguinte, e `Date.UTC` transbordava em vez de limitar. O limite ao último dia do mês
+era aplicado depois, já sobre o mês errado. Pendência: reparo dos lembretes já afetados em produção
+(spec 0074, §9).
 
 Desvios em relação ao planejado no §4: os testes **ficam** na checagem de tipos do `tsconfig.json`
 (são poucos arquivos, e erro de tipo em teste passa a quebrar o build, o que é desejável). Conferir o

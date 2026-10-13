@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ReminderRecurrenceType } from "@/generated/prisma/enums";
-import { buildFirstRemindAt, computeNextRemindAt } from "./reminder-recurrence";
+import {
+  buildFirstRemindAt,
+  computeNextRemindAt,
+  resolveMonthlyAnchorDay,
+} from "./reminder-recurrence";
 
 // Horários em BRT (UTC-3): 09:00 BRT = 12:00Z.
 const utc = (iso: string) => new Date(iso);
@@ -63,27 +67,100 @@ describe("computeNextRemindAt", () => {
     );
   });
 
-  // Comportamento atual, candidato a correção (ver docs/architecture/testing-strategy.md §6):
-  // somar um mês a partir de um dia que não existe no mês seguinte transborda
-  // para o mês depois dele, e o mês curto é pulado.
-  describe("dias 29 a 31 pulam o mês que não tem esse dia", () => {
-    it("sem dia fixo, 31/01 vai para 03/03", () => {
-      expect(nextRemindAtFor(ReminderRecurrenceType.MONTHLY, "2026-01-31T12:00:00Z")).toEqual(
-        utc("2026-03-03T12:00:00Z"),
+  describe("spec 0074: mês que não tem o dia de referência", () => {
+    it("CA-1: dia 31 em 31/01 vai para o último dia de fevereiro", () => {
+      expect(nextRemindAtFor(ReminderRecurrenceType.MONTHLY, "2026-01-31T12:00:00Z", 31)).toEqual(
+        utc("2026-02-28T12:00:00Z"),
       );
     });
 
-    it("com dia fixo 31, 31/01 vai para 31/03, sem disparar em fevereiro", () => {
-      expect(nextRemindAtFor(ReminderRecurrenceType.MONTHLY, "2026-01-31T12:00:00Z", 31)).toEqual(
+    it("CA-1: em ano bissexto, fevereiro vai até o dia 29", () => {
+      expect(nextRemindAtFor(ReminderRecurrenceType.MONTHLY, "2028-01-31T12:00:00Z", 31)).toEqual(
+        utc("2028-02-29T12:00:00Z"),
+      );
+    });
+
+    it("CA-2: depois do mês curto, volta ao dia de referência", () => {
+      expect(nextRemindAtFor(ReminderRecurrenceType.MONTHLY, "2026-02-28T12:00:00Z", 31)).toEqual(
         utc("2026-03-31T12:00:00Z"),
       );
     });
 
-    it("com dia fixo 31, 31/03 vai para 31/05, sem disparar em abril", () => {
+    it("CA-3: dia 31 em 31/03 vai para 30/04", () => {
       expect(nextRemindAtFor(ReminderRecurrenceType.MONTHLY, "2026-03-31T12:00:00Z", 31)).toEqual(
-        utc("2026-05-31T12:00:00Z"),
+        utc("2026-04-30T12:00:00Z"),
       );
     });
+
+    it("CA-4: dezembro vai para janeiro do ano seguinte", () => {
+      expect(nextRemindAtFor(ReminderRecurrenceType.MONTHLY, "2026-12-31T12:00:00Z", 31)).toEqual(
+        utc("2027-01-31T12:00:00Z"),
+      );
+    });
+
+    it("RF-1: um ano de ocorrências com dia 31 passa por todos os meses", () => {
+      const occurrences: string[] = [];
+      let current: Date | null = utc("2026-01-31T12:00:00Z");
+      for (let i = 0; i < 12 && current; i++) {
+        occurrences.push(current.toISOString().slice(0, 10));
+        current = computeNextRemindAt({
+          recurrenceType: ReminderRecurrenceType.MONTHLY,
+          dayOfMonth: 31,
+          nextRemindAt: current,
+        });
+      }
+
+      expect(occurrences).toEqual([
+        "2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30", "2026-05-31", "2026-06-30",
+        "2026-07-31", "2026-08-31", "2026-09-30", "2026-10-31", "2026-11-30", "2026-12-31",
+      ]);
+    });
+
+    it("CB-1: lembrete antigo sem dia de referência não pula o mês, mas fica no dia 28", () => {
+      const february = nextRemindAtFor(ReminderRecurrenceType.MONTHLY, "2026-01-31T12:00:00Z");
+      const march = computeNextRemindAt({
+        recurrenceType: ReminderRecurrenceType.MONTHLY,
+        dayOfMonth: null,
+        nextRemindAt: february,
+      });
+
+      expect(february).toEqual(utc("2026-02-28T12:00:00Z"));
+      expect(march).toEqual(utc("2026-03-28T12:00:00Z"));
+    });
+
+    it("CB-3: às 22:30 BRT do dia 31/01, a conta usa a data em BRT", () => {
+      expect(nextRemindAtFor(ReminderRecurrenceType.MONTHLY, "2026-02-01T01:30:00Z", 31)).toEqual(
+        utc("2026-03-01T01:30:00Z"),
+      );
+    });
+  });
+});
+
+describe("resolveMonthlyAnchorDay", () => {
+  it("CA-5: mensal sem dia fixo grava o dia da data de início", () => {
+    expect(
+      resolveMonthlyAnchorDay(ReminderRecurrenceType.MONTHLY, undefined, utc("2026-01-31T12:00:00Z")),
+    ).toBe(31);
+  });
+
+  it("CB-3: o dia vem da data em BRT, não em UTC", () => {
+    expect(
+      resolveMonthlyAnchorDay(ReminderRecurrenceType.MONTHLY, undefined, utc("2026-02-01T01:30:00Z")),
+    ).toBe(31);
+  });
+
+  it("CB-4: dia fixo informado prevalece", () => {
+    expect(
+      resolveMonthlyAnchorDay(ReminderRecurrenceType.MONTHLY, 15, utc("2026-01-31T12:00:00Z")),
+    ).toBe(15);
+  });
+
+  it.each([
+    ReminderRecurrenceType.ONCE,
+    ReminderRecurrenceType.WEEKLY,
+    ReminderRecurrenceType.BIWEEKLY,
+  ])("CA-6: %s não deriva dia de referência", (recurrenceType) => {
+    expect(resolveMonthlyAnchorDay(recurrenceType, undefined, utc("2026-01-31T12:00:00Z"))).toBeNull();
   });
 });
 
@@ -128,11 +205,15 @@ describe("buildFirstRemindAt", () => {
     expect(buildFirstRemindAt("09:00", undefined, 10)).toEqual(utc("2026-06-10T12:00:00Z"));
   });
 
-  // Comportamento atual, candidato a correção: abril não tem dia 31 e o
-  // primeiro disparo cai em 01/05, não em 30/04.
-  it("dia fixo que não existe no mês corrente transborda para o dia 1 do mês seguinte", () => {
+  it("CA-7: dia fixo que não existe no mês corrente cai no último dia do mês", () => {
     freezeNowAt("2026-04-10T15:00:00Z");
 
-    expect(buildFirstRemindAt("09:00", undefined, 31)).toEqual(utc("2026-05-01T12:00:00Z"));
+    expect(buildFirstRemindAt("09:00", undefined, 31)).toEqual(utc("2026-04-30T12:00:00Z"));
+  });
+
+  it("CB-6: se o último dia válido do mês já passou, vai para o mês seguinte", () => {
+    freezeNowAt("2026-04-30T23:00:00Z");
+
+    expect(buildFirstRemindAt("09:00", undefined, 31)).toEqual(utc("2026-05-31T12:00:00Z"));
   });
 });
