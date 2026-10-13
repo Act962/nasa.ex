@@ -180,6 +180,7 @@ export function buildPlannerWriteTools(ctx: AgentContext): ToolSet {
         caption: z.string().max(2200).optional(),
         hashtags: z.array(z.string()).max(30).optional(),
         intendedAtIso: z.string().optional().describe("Horário pretendido (ISO). SÓ se o usuário disse quando publicar; senão omita."),
+        instagramHandles: z.array(z.string()).max(10).optional().describe("@ das contas do Instagram em que o conteúdo sai. SÓ se o usuário pediu contas específicas ou mais de uma; senão omita."),
       }),
       execute: async ({ organizationId, ...draft }) => {
         const access = await resolvePlannerOrganization(ctx, organizationId, "create");
@@ -197,6 +198,7 @@ export function buildPlannerWriteTools(ctx: AgentContext): ToolSet {
             ...(draft.caption ? [{ label: "Legenda", value: draft.caption.slice(0, 400) }] : []),
             ...(draft.hashtags?.length ? [{ label: "Hashtags", value: draft.hashtags.map((hashtag) => `#${hashtag.replace(/^#/, "")}`).join(" ") }] : []),
             ...(draft.intendedAtIso ? [{ label: "Quando", value: formatWhen(draft.intendedAtIso) }] : []),
+            ...(draft.instagramHandles?.length ? [{ label: "Contas", value: draft.instagramHandles.map((handle) => `@${handle.replace(/^@/, "")}`).join(", ") }] : []),
           ],
         });
       },

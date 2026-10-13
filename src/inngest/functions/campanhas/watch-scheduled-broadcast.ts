@@ -1,6 +1,8 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { beginBroadcastDispatch } from "@/features/campanhas/server/lib/begin-broadcast-dispatch";
+import { notifyBroadcastDeferredWithoutCredit } from "@/features/campanhas/server/lib/notify-broadcast-deferred";
+import { hasStarsCredit } from "@/features/stars/lib/stars-credit";
 
 /**
  * Acompanha UMA campanha agendada até a hora dela.
@@ -71,6 +73,13 @@ export const watchScheduledBroadcast = inngest.createFunction(
       }
       if (broadcast.scheduledAt?.toISOString() !== new Date(scheduledAt).toISOString()) {
         return { broadcastId, skipped: "rescheduled" as const };
+      }
+
+      // Sem crédito na hora marcada, a campanha fica agendada (spec 0087, Parte F). Quem a solta depois
+      // da recarga é a rede de segurança (`dispatch-due-broadcasts`), que confere o crédito de novo.
+      if (!(await hasStarsCredit(organizationId))) {
+        await notifyBroadcastDeferredWithoutCredit(broadcastId);
+        return { broadcastId, skipped: "no_credit" as const };
       }
 
       const claimed = await beginBroadcastDispatch({

@@ -15,9 +15,9 @@ export function useBackgroundRemoval() {
       toast.dismiss(toastId);
       toast.success("Fundo removido!");
       return result;
-    } catch (err: any) {
+    } catch (error) {
       toast.error("Erro ao remover fundo. Tente novamente.");
-      console.error("[BG Removal]", err?.message);
+      console.error("[BG Removal]", error instanceof Error ? error.message : error);
       return null;
     } finally {
       setIsRemoving(false);

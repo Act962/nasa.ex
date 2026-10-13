@@ -1,13 +1,15 @@
 // Construtor rápido de Gatilhos Automáticos (spec 0039): montar por frase,
 // conferir duplicação e criar a partir dos passos lineares.
 
+import { resolveAiFor } from "@/features/ia/server/resolve-ai-for";
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
+import { AUTOMATION_DENIAL, checkTrackingAutomationsAccess } from "@/features/workflows/server/workflow-access";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { generateObject } from "ai";
-import { openai } from "@ai-sdk/openai";
 import { BLUEPRINT_GENERATION_PROMPT } from "@/features/astro/server/tools/workflows/blueprint-system-prompt";
 import { GeneratedBlueprintSchema } from "@/features/astro/server/tools/workflows";
 import {
@@ -41,6 +43,7 @@ const suggestedTagSchema = z.object({
   name: z.string(),
   color: z.string().optional(),
   reason: z.string().optional(),
+  aiDescription: z.string().max(300).optional(),
 });
 
 async function findTrackingInOrg(trackingId: string, organizationId: string) {
@@ -60,8 +63,9 @@ export const quickDraftWorkflow = base
     if (!(await findTrackingInOrg(input.trackingId, context.org.id))) throw errors.NOT_FOUND;
     const lead = input.leadId ? await findLeadInTracking(input.leadId, input.trackingId) : null;
 
+    const resolvedAi = await resolveAiFor({ resourceId: "workflows.quick-builder", organizationId: context.org.id, provider: "openai", modelId: "gpt-4o" });
     const result = await generateObject({
-      model: openai("gpt-4o"),
+      model: resolvedAi.model,
       schema: GeneratedBlueprintSchema,
       system: `${BLUEPRINT_GENERATION_PROMPT}\n${QUICK_BUILDER_RULES}`,
       prompt: [
@@ -75,6 +79,16 @@ export const quickDraftWorkflow = base
       // O blueprint tem campos opcionais e `data` livre por nó; o modo estrito
       // da OpenAI recusa esse schema.
       providerOptions: { openai: { strictJsonSchema: false } },
+    });
+    await recordAiUsage({
+      resourceId: "workflows.quick-builder",
+      organizationId: context.org.id,
+      userId: context.user.id,
+      provider: "openai",
+      modelId: resolvedAi.modelId,
+      keySource: resolvedAi.keySource,
+      usage: result.usage,
+      trackingId: input.trackingId,
     });
     const blueprint = result.object;
     const { steps, isLinear } = blueprintToSteps(blueprint.nodes, blueprint.edges);
@@ -155,6 +169,11 @@ export const quickCreateWorkflow = base
   )
   .handler(async ({ input, context, errors }) => {
     if (!(await findTrackingInOrg(input.trackingId, context.org.id))) throw errors.NOT_FOUND;
+
+    // Criar fluxo pede a permissão de criar Automações do papel da pessoa (spec 0092).
+    if ((await checkTrackingAutomationsAccess(input.trackingId, context.user.id, "canCreate")) !== "allowed") {
+      throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canCreate });
+    }
     if (input.leadId && !(await findLeadInTracking(input.leadId, input.trackingId))) throw errors.NOT_FOUND;
     if (!QUICK_TRIGGER_TYPES.has(input.steps[0].type)) {
       throw errors.BAD_REQUEST({ message: "O primeiro passo precisa ser um gatilho (\"Quando\")." });

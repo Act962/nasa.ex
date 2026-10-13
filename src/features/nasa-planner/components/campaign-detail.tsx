@@ -18,8 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
+import { useWorkspaces, useWorkspaceColumnOptions } from "@/features/workspace/hooks/use-workspace";
 import {
   useCampaign,
   useCreateCampaignEvent, useDeleteCampaignEvent,
@@ -28,6 +27,10 @@ import {
   useUpdateCampaign,
 } from "../hooks/use-campaign-planner";
 import { cn } from "@/lib/utils";
+import {
+  CAMPAIGN_ASSET_TYPE_VALUES, CAMPAIGN_EVENT_TYPE_VALUES, CAMPAIGN_STATUS_VALUES,
+  CAMPAIGN_TASK_PRIORITY_VALUES, CAMPAIGN_TASK_STATUS_VALUES, isOneOf,
+} from "../lib/campaign-options";
 import { toast } from "sonner";
 
 function buildGoogleCalendarUrl(title: string, scheduledAt: string, durationMinutes: number, description?: string, location?: string) {
@@ -98,26 +101,16 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const [eventColumnId, setEventColumnId] = useState("");
   const [reflectInAgenda, setReflectInAgenda] = useState(false);
 
-  const { data: workspacesData } = useQuery({
-    ...orpc.workspace.list.queryOptions({ input: {} }),
-    enabled: eventOpen || taskOpen,
-  });
+  const { data: workspacesData } = useWorkspaces({ enabled: eventOpen || taskOpen });
   const workspaces = workspacesData?.workspaces ?? [];
 
-  const { data: columnsData } = useQuery({
-    ...orpc.workspace.getColumnsByWorkspace.queryOptions({ input: { workspaceId: eventWorkspaceId } }),
-    enabled: !!eventWorkspaceId,
-  });
-  const columns = columnsData?.columns ?? [];
+  const { columns } = useWorkspaceColumnOptions(eventWorkspaceId);
   const [taskForm, setTaskForm] = useState({ title: "", description: "", priority: "MEDIUM", dueDate: "" });
   const [taskWorkspaceId, setTaskWorkspaceId] = useState("");
   const [taskColumnId, setTaskColumnId] = useState("");
   const [assetForm, setAssetForm] = useState({ assetType: "LOGO", name: "", url: "" });
 
-  const { data: taskColumnsData } = useQuery({
-    ...orpc.workspace.getColumnsByWorkspace.queryOptions({ input: { workspaceId: taskWorkspaceId } }),
-    enabled: !!taskWorkspaceId,
-  });
+  const { columns: taskColumns } = useWorkspaceColumnOptions(taskWorkspaceId);
 
   const handleCopyCode = () => {
     if (!campaign?.companyCode) return;
@@ -129,10 +122,12 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
 
   const handleAddEvent = async () => {
     if (!eventForm.title || !eventForm.scheduledAt) return;
+    const eventType = eventForm.eventType;
+    if (!isOneOf(CAMPAIGN_EVENT_TYPE_VALUES, eventType)) return;
     const result = await createEvent.mutateAsync({
       campaignId,
       ...eventForm,
-      eventType: eventForm.eventType as any,
+      eventType,
       workspaceId: eventWorkspaceId || undefined,
       columnId: eventColumnId || undefined,
       reflectInAgenda,
@@ -144,19 +139,20 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
     setEventWorkspaceId(""); setEventColumnId(""); setReflectInAgenda(false);
   };
 
-  const taskColumns = taskColumnsData?.columns ?? [];
 
   const handleAddTask = async () => {
     if (!taskForm.title) return;
+    const priority = taskForm.priority;
+    if (!isOneOf(CAMPAIGN_TASK_PRIORITY_VALUES, priority)) return;
     const result = await createTask.mutateAsync({
       campaignId,
       ...taskForm,
-      priority: taskForm.priority as any,
+      priority,
       dueDate: taskForm.dueDate || undefined,
       workspaceId: taskWorkspaceId || undefined,
       columnId: taskColumnId || undefined,
     });
-    if ((result as any).linkedActionId) toast.success("Card criado no Workspace ✓");
+    if (result.linkedActionId) toast.success("Card criado no Workspace ✓");
     setTaskOpen(false);
     setTaskForm({ title: "", description: "", priority: "MEDIUM", dueDate: "" });
     setTaskWorkspaceId(""); setTaskColumnId("");
@@ -164,7 +160,9 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
 
   const handleAddAsset = async () => {
     if (!assetForm.name) return;
-    await createAsset.mutateAsync({ campaignId, assetType: assetForm.assetType as any, name: assetForm.name, url: assetForm.url || undefined });
+    const assetType = assetForm.assetType;
+    if (!isOneOf(CAMPAIGN_ASSET_TYPE_VALUES, assetType)) return;
+    await createAsset.mutateAsync({ campaignId, assetType, name: assetForm.name, url: assetForm.url || undefined });
     setAssetOpen(false);
     setAssetForm({ assetType: "LOGO", name: "", url: "" });
   };
@@ -227,7 +225,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                 </Button>
               </div>
             )}
-            <Select value={campaign.status} onValueChange={(v) => updateCampaign.mutateAsync({ campaignId, status: v as any })}>
+            <Select value={campaign.status} onValueChange={(status) => { if (isOneOf(CAMPAIGN_STATUS_VALUES, status)) updateCampaign.mutateAsync({ campaignId, status }); }}>
               <SelectTrigger className="w-36 h-8 text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(STATUS_CONFIG).map(([v, c]) => (
@@ -262,7 +260,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               <p className="text-sm text-muted-foreground text-center py-8">Nenhuma ação cadastrada.</p>
             ) : (
               <div className="space-y-2">
-                {campaign.events.map((ev: any) => (
+                {campaign.events.map((ev) => (
                   <Card key={ev.id}>
                     <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -297,7 +295,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               <p className="text-sm text-muted-foreground text-center py-8">Nenhuma sub-ação cadastrada.</p>
             ) : (
               <div className="space-y-2">
-                {campaign.tasks.map((task: any) => (
+                {campaign.tasks.map((task) => (
                   <Card key={task.id}>
                     <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
                       <div className="flex-1">
@@ -307,7 +305,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                         </div>
                         {task.dueDate && <p className="text-xs text-muted-foreground mt-0.5">Prazo: {new Date(task.dueDate).toLocaleDateString("pt-BR")}</p>}
                       </div>
-                      <Select value={task.status} onValueChange={(v) => updateTask.mutateAsync({ campaignId, taskId: task.id, status: v as any })}>
+                      <Select value={task.status} onValueChange={(status) => { if (isOneOf(CAMPAIGN_TASK_STATUS_VALUES, status)) updateTask.mutateAsync({ campaignId, taskId: task.id, status }); }}>
                         <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {TASK_STATUS_OPTS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
@@ -329,7 +327,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
               <p className="text-sm text-muted-foreground text-center py-8">Nenhum material cadastrado.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {campaign.brandAssets.map((asset: any) => (
+                {campaign.brandAssets.map((asset) => (
                   <Card key={asset.id} className="group">
                     <CardHeader className="pb-2 pt-3 px-4">
                       <div className="flex items-start justify-between">
@@ -421,7 +419,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Nenhum" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Nenhum</SelectItem>
-                      {workspaces.map((w: any) => (
+                      {workspaces.map((w) => (
                         <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -432,7 +430,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                   <Select value={eventColumnId} onValueChange={setEventColumnId} disabled={!eventWorkspaceId}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                     <SelectContent>
-                      {columns.map((c: any) => (
+                      {columns.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -504,7 +502,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Nenhum" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Nenhum</SelectItem>
-                      {workspaces.map((w: any) => (
+                      {workspaces.map((w) => (
                         <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -515,7 +513,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                   <Select value={taskColumnId} onValueChange={setTaskColumnId} disabled={!taskWorkspaceId}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                     <SelectContent>
-                      {taskColumns.map((c: any) => (
+                      {taskColumns.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
                     </SelectContent>

@@ -36,6 +36,8 @@ interface DispatchMessageIncomingArgs {
   mimetype?: string;
   /** Nome original do arquivo (só pra DocumentMessage — boleto.pdf, comprovante.jpg, etc). */
   fileName?: string;
+  /** Id da opção quando a mensagem é o clique num botão ou item de lista (spec 0090, seção F). */
+  interactiveReplyId?: string;
 }
 
 export async function dispatchMessageIncoming(args: DispatchMessageIncomingArgs) {
@@ -52,6 +54,7 @@ export async function dispatchMessageIncoming(args: DispatchMessageIncomingArgs)
         ...(args.mediaType ? { mediaType: args.mediaType } : {}),
         ...(args.mimetype ? { mimetype: args.mimetype } : {}),
         ...(args.fileName ? { fileName: args.fileName } : {}),
+        ...(args.interactiveReplyId ? { interactiveReplyId: args.interactiveReplyId } : {}),
       },
     });
   } catch (err) {

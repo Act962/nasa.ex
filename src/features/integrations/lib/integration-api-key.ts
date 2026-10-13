@@ -14,6 +14,17 @@ export function isAiKeyPlatform(platform: string): boolean {
   return (AI_KEY_PLATFORMS as readonly string[]).includes(platform);
 }
 
+/**
+ * Plataformas cujo `apiKey` é segredo e por isso é cifrado e mascarado. Inclui o Hugging Face, que
+ * ficava em texto puro e voltava inteiro para o navegador (spec 0093, etapa 0). Lista separada de
+ * `AI_KEY_PLATFORMS`, que continua sendo só "os três provedores que o seletor de IA conhece".
+ */
+const SEALED_KEY_PLATFORMS: readonly string[] = [...AI_KEY_PLATFORMS, "HUGGING_FACE"];
+
+export function isSealedKeyPlatform(platform: string): boolean {
+  return SEALED_KEY_PLATFORMS.includes(platform);
+}
+
 function isEncryptedSecret(value: string): boolean {
   return ENCRYPTED_SECRET_PATTERN.test(value);
 }
@@ -37,7 +48,7 @@ export function sealIntegrationConfig(
   incomingConfig: Record<string, string>,
   currentConfig: IntegrationConfig,
 ): Record<string, string> {
-  if (!isAiKeyPlatform(platform)) return incomingConfig;
+  if (!isSealedKeyPlatform(platform)) return incomingConfig;
 
   const incomingKey = incomingConfig.apiKey?.trim() ?? "";
   if (!incomingKey) {
@@ -50,7 +61,7 @@ export function sealIntegrationConfig(
 
 /** Config que vai para o navegador: sem a chave, só se ela existe e os 4 últimos dígitos. */
 export function maskIntegrationConfig(platform: string, config: IntegrationConfig): IntegrationConfig {
-  if (!isAiKeyPlatform(platform) || !config) return config;
+  if (!isSealedKeyPlatform(platform) || !config) return config;
   const storedKey = config.apiKey;
   const hasStoredKey = typeof storedKey === "string" && storedKey.length > 0;
   const keyLast4 =

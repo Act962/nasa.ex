@@ -2,38 +2,43 @@ import {
   CreatedMessageProps,
   MessageStatus,
 } from "@/features/tracking-chat/types";
+import type { WhatsAppChatProvider } from "@/features/tracking-chat/lib/providers";
 import { useConstructUrl } from "@/hooks/use-construct-url";
-import { sendMedia } from "@/http/uazapi/send-media";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import {
+  sendWithWorkflowErrors,
+  WORKFLOW_TYPING_DELAY_MS,
+} from "../../../lib/workflow-outbound";
 
 interface SendDocumentMessageProps {
   conversationId: string;
   body: string;
   leadPhone: string;
-  token: string;
+  provider: WhatsAppChatProvider;
   mediaUrl: string;
   fileName: string;
 }
 
 export const sendDocumentMessage = async (params: SendDocumentMessageProps) => {
-  const response = await sendMedia(params.token, {
-    file: useConstructUrl(params.mediaUrl),
-    text: params.body,
-    docName: params.fileName,
-    number: params.leadPhone,
-    delay: 2000,
-    type: "document",
-    readchat: true,
-    readmessages: true,
-  });
+  const sent = await sendWithWorkflowErrors(() =>
+    params.provider.sendMedia({
+      kind: "media",
+      mediaKind: "document",
+      to: params.leadPhone,
+      mediaUrl: useConstructUrl(params.mediaUrl),
+      caption: params.body || undefined,
+      fileName: params.fileName,
+      typingDelayMs: WORKFLOW_TYPING_DELAY_MS,
+    }),
+  );
 
   const message = await prisma.message.create({
     data: {
       conversationId: params.conversationId,
       body: params.body,
       mediaUrl: params.mediaUrl,
-      messageId: response.id,
+      messageId: sent.externalMessageId,
       fromMe: true,
       fileName: params.fileName,
       status: MessageStatus.SENT,

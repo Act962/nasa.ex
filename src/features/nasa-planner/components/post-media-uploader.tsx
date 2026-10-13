@@ -24,14 +24,7 @@ import {
   useUploadPlannerPostImage, useAttachVideo,
   useTranscribeVideo, useRemovePostMedia, useRemovePostSlide, useAddSlidesBatch,
 } from "../hooks/use-nasa-planner";
-
-const S3_BASE = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL
-  ? `https://${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}`
-  : "";
-
-function resolveUrl(key: string) {
-  return key.startsWith("http") ? key : `${S3_BASE}/${key}`;
-}
+import { getPlannerMediaUrl } from "../lib/post-media";
 
 interface Slide {
   id: string;
@@ -91,8 +84,8 @@ export function PostMediaUploader({
       await uploadSingleImage(file, 1);
       toast.success("Imagem adicionada!");
       onDone?.();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao fazer upload");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao fazer upload");
     } finally {
       setUploading(false);
     }
@@ -118,8 +111,8 @@ export function PostMediaUploader({
       await addSlidesBatch.mutateAsync({ postId, imageKeys: keys });
       toast.success(`${keys.length} slide${keys.length !== 1 ? "s" : ""} adicionado${keys.length !== 1 ? "s" : ""}!`);
       onDone?.();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao fazer upload");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao fazer upload");
     } finally {
       setUploading(false);
       setUploadingIdx(null);
@@ -139,8 +132,8 @@ export function PostMediaUploader({
       await attachVideo.mutateAsync({ postId, videoKey: key });
       toast.success("Vídeo adicionado!");
       onDone?.();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao fazer upload do vídeo");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao fazer upload do vídeo");
     } finally {
       setUploading(false);
     }
@@ -195,7 +188,7 @@ export function PostMediaUploader({
                 {slide.imageKey ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={resolveUrl(slide.imageKey)}
+                    src={getPlannerMediaUrl(slide.imageKey)}
                     alt={`Slide ${idx + 1}`}
                     className="w-full h-full object-cover"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
@@ -284,7 +277,7 @@ export function PostMediaUploader({
               {thumbnailUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={resolveUrl(thumbnailUrl)}
+                  src={getPlannerMediaUrl(thumbnailUrl)}
                   alt="thumbnail"
                   className="size-12 rounded object-cover shrink-0"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}

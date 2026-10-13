@@ -121,20 +121,20 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
 
   const stats = useMemo(() => {
     const total = posts.length;
-    const published = posts.filter((p: any) => p.status === "PUBLISHED").length;
-    const scheduled = posts.filter((p: any) => p.status === "SCHEDULED").length;
-    const draft = posts.filter((p: any) => p.status === "DRAFT").length;
-    const pending = posts.filter((p: any) => p.status === "PENDING_APPROVAL").length;
-    const approved = posts.filter((p: any) => p.status === "APPROVED").length;
-    const failed = posts.filter((p: any) => p.status === "FAILED").length;
+    const published = posts.filter((p) => p.status === "PUBLISHED").length;
+    const scheduled = posts.filter((p) => p.status === "SCHEDULED").length;
+    const draft = posts.filter((p) => p.status === "DRAFT").length;
+    const pending = posts.filter((p) => p.status === "PENDING_APPROVAL").length;
+    const approved = posts.filter((p) => p.status === "APPROVED").length;
+    const failed = posts.filter((p) => p.status === "FAILED").length;
     return { total, published, scheduled, draft, pending, approved, failed };
   }, [posts]);
 
   const cardStats = useMemo(() => {
     const total = cards.length;
-    const todo = cards.filter((c: any) => c.status === "TODO").length;
-    const inProgress = cards.filter((c: any) => c.status === "IN_PROGRESS").length;
-    const done = cards.filter((c: any) => c.status === "DONE").length;
+    const todo = cards.filter((c) => c.status === "PENDING").length;
+    const inProgress = cards.filter((c) => c.status === "IN_PROGRESS").length;
+    const done = cards.filter((c) => c.status === "COMPLETED").length;
     return { total, todo, inProgress, done };
   }, [cards]);
 
@@ -142,10 +142,10 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
   const companies = useMemo(() => {
     const map = new Map<string, { name: string; count: number; logo?: string }>();
     for (const p of posts) {
-      const name = (p as any).clientOrgName?.trim();
+      const name = p.clientOrgName?.trim();
       if (!name) continue;
       const existing = map.get(name);
-      const logo = (organizations ?? []).find((o: any) => o.name === name)?.logo ?? undefined;
+      const logo = (organizations ?? []).find((o) => o.name === name)?.logo ?? undefined;
       if (existing) existing.count += 1;
       else map.set(name, { name, count: 1, logo });
     }
@@ -155,7 +155,7 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
   // Participantes (createdBy)
   const participants = useMemo(() => {
     const map = new Map<string, { id: string; name: string; image?: string; count: number }>();
-    for (const p of posts as any[]) {
+    for (const p of posts) {
       const u = p.createdBy;
       if (!u?.id) continue;
       const existing = map.get(u.id);
@@ -169,7 +169,7 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
   const integrations = integrationsData?.integrations ?? [];
   const platformsState = useMemo(() => {
     return KNOWN_PLATFORMS.map((p) => {
-      const match = integrations.find((i: any) => i.platform === p.key);
+      const match = integrations.find((i) => i.platform === p.key);
       return { ...p, isActive: !!match?.isActive };
     });
   }, [integrations]);
@@ -178,7 +178,7 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
   // Atividades recentes (mistura posts + cards)
   const recentActivities = useMemo(() => {
     const events: Array<{ id: string; type: "post" | "card"; title: string; date: Date; status: string; sub?: string }> = [];
-    for (const p of posts as any[]) {
+    for (const p of posts) {
       events.push({
         id: `post-${p.id}`,
         type: "post",
@@ -188,7 +188,7 @@ export function DashboardTab({ plannerId }: { plannerId: string }) {
         sub: p.clientOrgName ?? undefined,
       });
     }
-    for (const c of cards as any[]) {
+    for (const c of cards) {
       events.push({
         id: `card-${c.id}`,
         type: "card",

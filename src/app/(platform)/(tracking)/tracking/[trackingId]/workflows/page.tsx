@@ -1,12 +1,15 @@
+import Link from "next/link";
+import { ZapIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { getQueryClient, HydrateClient } from "@/lib/query/hydration";
 import { CreateWorkflowButton } from "./create-workflow";
 import { WorkflowContainer } from "./workflow-container";
 import { Suspense } from "react";
 import { prefetchWorkflows } from "@/features/workflows/server/prefetch";
 import { QuickWorkflowButton } from "@/features/workflows/components/quick-builder/quick-workflow-button";
-import { AiLeadButton } from "@/features/trackings/components/modal/ai-lead-button";
-import { Button } from "@/components/ui/button";
-import { SparklesIcon } from "lucide-react";
+import { AttendanceTemplateButton } from "@/features/tracking-chat-ai/components/attendance-template-button";
+import { AstroFlowBar } from "@/features/automations-hub/components/astro-flow-bar";
 
 interface WorkflowPageProps {
   params: Promise<{
@@ -34,14 +37,14 @@ export default async function WorkflowsPage({ params }: WorkflowPageProps) {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <AiLeadButton trackingId={trackingId}>
-            <Button variant="outline" size="sm">
-              <SparklesIcon className="size-4 text-info" />
-              <span className="hidden sm:inline bg-linear-to-r from-info to-info bg-clip-text text-transparent font-semibold">
-                Agente de Gatilhos Automáticos
-              </span>
-            </Button>
-          </AiLeadButton>
+          <Button asChild variant="ghost" size="sm" data-guide={GUIDE_ANCHORS.trackingFlowsOpenCentral.id}>
+            <Link href="/gatilhos" title="Ver todas as automações da empresa">
+              <ZapIcon className="size-4" />
+              <span className="hidden sm:inline">Central de Gatilhos</span>
+            </Link>
+          </Button>
+          <AstroFlowBar trackingId={trackingId} />
+          <AttendanceTemplateButton trackingId={trackingId} />
           <QuickWorkflowButton trackingId={trackingId} />
           <CreateWorkflowButton />
         </div>

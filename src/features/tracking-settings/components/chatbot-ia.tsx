@@ -1,5 +1,6 @@
 "use client";
 
+import { useOrgRole } from "@/hooks/use-org-role";
 import { BotIcon } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import {
@@ -9,7 +10,9 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { ChatBotIaGeneralTab } from "./chatbot-ia-general-tab";
+import { ChatBotIaCapabilitiesTab } from "./chatbot-ia-capabilities-tab";
 import { ChatBotIaButtonsTab } from "./chatbot-ia-buttons-tab";
+import { AiStatusBadge } from "@/features/ia/components/ai-status-badge";
 import { ChatBotIaModelTab } from "./chatbot-ia-model-tab";
 import { ChatBotIaUsageTab } from "./chatbot-ia-usage-tab";
 
@@ -18,6 +21,9 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
     "iaTab",
     parseAsString.withDefault("general"),
   );
+  // O consumo de IA do funil é só para dono e admin; o servidor recusa os demais (spec 0093).
+  const { isMaster, isAdmin } = useOrgRole();
+  const canSeeUsage = isMaster || isAdmin;
 
   return (
     <div className="space-y-8 pb-10">
@@ -25,24 +31,30 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <BotIcon className="size-4 " />
-            <h2 className="text-xl font-semibold">Chatbot IA</h2>
+            <h2 className="text-xl font-semibold">Fluxo de atendimento</h2>
           </div>
           <p className="text-muted-foreground text-sm">
             Personalize seu agente de IA para respoder de acordo com seu negócio
           </p>
         </div>
+        <AiStatusBadge resourceId="attendance.chat" trackingId={trackingId} />
       </div>
 
-      <Tabs value={iaTab} onValueChange={setIaTab} className="gap-6">
+      <Tabs value={!canSeeUsage && iaTab === "usage" ? "general" : iaTab} onValueChange={setIaTab} className="gap-6">
         <TabsList>
           <TabsTrigger value="general">Geral</TabsTrigger>
           <TabsTrigger value="buttons">Botões</TabsTrigger>
+          <TabsTrigger value="capabilities">O que o Astro pode fazer</TabsTrigger>
           <TabsTrigger value="model">Modelo</TabsTrigger>
-          <TabsTrigger value="usage">Uso</TabsTrigger>
+          {canSeeUsage && <TabsTrigger value="usage">Uso</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="general">
           <ChatBotIaGeneralTab trackingId={trackingId} />
+        </TabsContent>
+
+        <TabsContent value="capabilities">
+          <ChatBotIaCapabilitiesTab trackingId={trackingId} />
         </TabsContent>
 
         <TabsContent value="buttons">
@@ -53,9 +65,11 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
           <ChatBotIaModelTab trackingId={trackingId} />
         </TabsContent>
 
-        <TabsContent value="usage">
-          <ChatBotIaUsageTab trackingId={trackingId} />
-        </TabsContent>
+        {canSeeUsage && (
+          <TabsContent value="usage">
+            <ChatBotIaUsageTab trackingId={trackingId} />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

@@ -15,7 +15,7 @@ interface Props {
 export const NewLeadTriggerDialog = ({ open, onOpenChange }: Props) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>Novo Lead</DialogTitle>
           <DialogDescription>Configure o novo lead</DialogDescription>

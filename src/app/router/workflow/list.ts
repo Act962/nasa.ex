@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { Connection, Node, Workflow } from "@/generated/prisma/client";
+import { AUTOMATION_DENIAL, checkTrackingAutomationsAccess } from "@/features/workflows/server/workflow-access";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -21,11 +22,12 @@ export const listWorkflows = base
       workflows: z.array(z.custom<WorkflowWithGraph>()),
     })
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const trackingExists = await prisma.tracking.findUnique({
       where: {
         id: input.trackingId,
       },
+      select: { id: true, organizationId: true },
     });
 
     if (!trackingExists) {
@@ -33,6 +35,11 @@ export const listWorkflows = base
         message: "Tracking não encontrado",
       });
     }
+
+    // Só membro da empresa do funil, e com a permissão de ver Automações (spec 0090, S-2; spec 0092).
+    const access = await checkTrackingAutomationsAccess(input.trackingId, context.user.id, "canView");
+    if (access === "not-found") throw errors.NOT_FOUND({ message: "Tracking não encontrado" });
+    if (access === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canView });
 
     // SELECT explícito pra evitar erro P2022 quando a migration
     // `workflow_folders` ainda não foi aplicada no DB (folder_id ausente).
@@ -50,6 +57,7 @@ export const listWorkflows = base
         trackingId: true,
         workspaceId: true,
         isActive: true,
+        agentMode: true,
         createdAt: true,
         updatedAt: true,
         // Tentamos selecionar folderId. Se a coluna não existir, Prisma

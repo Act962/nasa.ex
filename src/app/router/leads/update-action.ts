@@ -5,6 +5,7 @@ import { z } from "zod";
 import { awardPoints } from "../space-point/utils";
 import { pusherServer } from "@/lib/pusher";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
+import { createReceivableFromWonLead } from "@/features/payment/server/entries/create-receivable-from-won-lead";
 
 // 🟦 UPDATE
 export const updateLeadAction = base
@@ -102,6 +103,13 @@ export const updateLeadAction = base
           notes: input.observation,
         },
       });
+
+      if (leadAction === "WON") {
+        await createReceivableFromWonLead({
+          leadId: input.leadId,
+          actor: context.user,
+        });
+      }
 
       return {
         lead: leadExists,

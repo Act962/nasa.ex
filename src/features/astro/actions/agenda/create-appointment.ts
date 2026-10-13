@@ -3,7 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import type { AstroAction, AstroActionResult } from "../types";
-import { formatAgendaDateTime, formatAgendaTime, resolveWhenOrAsk } from "./schedule-steps";
+import { buildAppointmentPublicUrl, formatAgendaDateTime, formatAgendaTime, resolveWhenOrAsk } from "./schedule-steps";
 import { resolveSingleLead } from "../leads/resolve-lead";
 import { rankBySimilarity } from "../fuzzy-match";
 import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
@@ -178,6 +178,7 @@ export const createAppointmentAction: AstroAction<typeof inputSchema> = {
   input: inputSchema,
   inferFields: inferAppointmentFields,
   codeOnlyFields: ["spokenWhen", "answeredWhen", "confirmedTitle", "meetingPlace"],
+  accumulatingFields: ["answeredWhen"],
   intentPatterns: [
     /\b(quero|queria|preciso|gostaria de|vamos)\s+(agendar|marcar)\b/,
     /\b(marca|marque|marcar|agenda|agende|agendar)\b.{0,40}\b(reuniao|compromisso|consulta|call|visita|atendimento|horario|encontro)\b/,
@@ -413,7 +414,7 @@ export const createAppointmentAction: AstroAction<typeof inputSchema> = {
       };
     }
 
-    await prisma.appointment.create({
+    const appointment = await prisma.appointment.create({
       data: {
         title,
         startsAt,
@@ -423,6 +424,7 @@ export const createAppointmentAction: AstroAction<typeof inputSchema> = {
         leadId: leadId ?? null,
         userId: ctx.userId,
       },
+      select: { id: true },
     });
 
     if (noticePhone && noticeTracking) {
@@ -447,8 +449,10 @@ export const createAppointmentAction: AstroAction<typeof inputSchema> = {
       status: "done",
       title: "Compromisso marcado",
       description: `"${title}" em ${formatAgendaDateTime(startsAt)}, na agenda ${agenda.name}.${noticeSummary}`,
-      internalUrl: "/agendas",
+      internalUrl: `/agendas?appointment=${appointment.id}`,
       openLabel: "Abrir Agendas",
+      // Página pública do compromisso: é por ela que o cliente remarca ou cancela. No WhatsApp o link vai na resposta.
+      publicUrl: buildAppointmentPublicUrl(appointment.id),
       appName: "Agendas",
     };
   },

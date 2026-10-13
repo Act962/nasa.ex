@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { notifyNewTask } from "../lib/notify-new-task";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { Prisma } from "@/generated/prisma/client";
@@ -142,6 +143,16 @@ export const createAction = base
           ).map((userId) => ({ userId })),
         },
       },
+    });
+
+    await notifyNewTask({
+      actionId: action.id,
+      title: action.title,
+      workspaceId: action.workspaceId,
+      organizationId: context.org.id,
+      actorId: context.user.id,
+      actorName: context.user.name,
+      userIds: input.participantIds ?? [],
     });
 
     try {

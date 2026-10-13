@@ -1,3 +1,4 @@
+import { recordTrafegoAiUsage } from "@/features/trafego/server/lib/record-trafego-ai-usage";
 import "server-only";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateObject } from "ai";
@@ -91,7 +92,7 @@ export async function checkAdCompliance(
 
   try {
     const anthropic = createAnthropic({ apiKey });
-    const { object } = await generateObject({
+    const { object, usage } = await generateObject({
       model: anthropic("claude-haiku-4-5-20251001"),
       schema: llmResultSchema,
       system: [
@@ -112,6 +113,7 @@ export async function checkAdCompliance(
       ].join("\n"),
       maxRetries: 1,
     });
+    await recordTrafegoAiUsage({ feature: "trafego.compliance", provider: "anthropic", modelId: "claude-haiku-4-5", usage, isAgencyKey: apiKey !== process.env.ANTHROPIC_API_KEY });
 
     const modelHits: PolicyHit[] = object.issues.map((issue, index) => ({
       ruleId: `llm-${index}`,

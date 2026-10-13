@@ -17,7 +17,7 @@ export const FirstChatInteractionTriggerDialog = ({
 }: Props) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>Primeira Interação no Chat</DialogTitle>
           <DialogDescription>

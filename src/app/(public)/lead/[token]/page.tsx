@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { ClientRecordsCard } from "@/features/form-records/components/client-records-page";
 import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -163,6 +164,8 @@ export default function PublicLeadPage() {
             </div>
           </div>
         </header>
+
+        <ClientRecordsCard token={token} />
 
         <Card>
           <CardHeader className="pb-3">

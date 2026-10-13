@@ -2,11 +2,12 @@ import "server-only";
 import { tool } from "ai";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { sendText } from "@/http/uazapi/send-text";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import {
-  requireUazapiToken,
-  requireUazapiBaseUrl,
-} from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+  isFreeFormWindowOpen,
+  isFreeFormWindowOpenForPhone,
+  WINDOW_CLOSED_FOR_PHONE_MESSAGE,
+} from "@/features/tracking-chat/lib/providers/automated-outbound";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import {
   userBelongsToOrg,
@@ -517,43 +518,28 @@ export function buildMutationTools(ctx: AgentContext) {
         // 1) Se trackingId foi passado, tenta a instância dele.
         // 2) Senão (ou se a dele não tá CONNECTED), pega a primeira
         //    instância CONNECTED de qualquer tracking da org.
-        let inst: {
-          apiKey: string;
-          baseUrl: string;
-          status: string;
-        } | null = null;
+        let inst: { trackingId: string; status: string } | null = null;
         if (trackingId) {
           const tk = await prisma.tracking.findFirst({
             where: { id: trackingId, organizationId: ctx.organizationId },
             select: {
               whatsappInstance: {
-                select: { apiKey: true, baseUrl: true, status: true },
+                select: { trackingId: true, status: true },
               },
             },
           });
           if (tk?.whatsappInstance?.status === "CONNECTED") {
-            inst = {
-              ...tk.whatsappInstance,
-              apiKey: requireUazapiToken(tk.whatsappInstance.apiKey),
-              baseUrl: requireUazapiBaseUrl(tk.whatsappInstance.baseUrl),
-            };
+            inst = tk.whatsappInstance;
           }
         }
         if (!inst) {
-          const fallback = await prisma.whatsAppInstance.findFirst({
+          inst = await prisma.whatsAppInstance.findFirst({
             where: {
               status: "CONNECTED",
               organizationId: ctx.organizationId,
             },
-            select: { apiKey: true, baseUrl: true, status: true },
+            select: { trackingId: true, status: true },
           });
-          inst = fallback
-            ? {
-                ...fallback,
-                apiKey: requireUazapiToken(fallback.apiKey),
-                baseUrl: requireUazapiBaseUrl(fallback.baseUrl),
-              }
-            : null;
         }
         if (!inst || inst.status !== "CONNECTED") {
           return {
@@ -563,7 +549,19 @@ export function buildMutationTools(ctx: AgentContext) {
         }
 
         try {
-          await sendText(inst.apiKey, { number: normalized, text }, inst.baseUrl);
+          const resolved = await resolveOutboundProvider(inst.trackingId);
+          const canSendFreeForm = await isFreeFormWindowOpenForPhone(resolved, {
+            trackingId: inst.trackingId,
+            phone: normalized,
+          });
+          if (!canSendFreeForm) {
+            return { error: WINDOW_CLOSED_FOR_PHONE_MESSAGE };
+          }
+          await resolved.provider.sendText({
+            kind: "text",
+            to: normalized,
+            body: text,
+          });
           return {
             success: true,
             summary: `Mensagem enviada pro WhatsApp ${normalized}.`,
@@ -597,12 +595,12 @@ export function buildMutationTools(ctx: AgentContext) {
             id: true,
             name: true,
             phone: true,
+            trackingId: true,
+            conversation: { select: { id: true } },
             tracking: {
               select: {
                 organizationId: true,
-                whatsappInstance: {
-                  select: { apiKey: true, baseUrl: true, status: true },
-                },
+                whatsappInstance: { select: { status: true } },
               },
             },
           },
@@ -619,11 +617,18 @@ export function buildMutationTools(ctx: AgentContext) {
           };
         }
         try {
-          await sendText(
-            requireUazapiToken(inst.apiKey),
-            { number: lead.phone, text },
-            inst.baseUrl ?? undefined,
-          );
+          const resolved = await resolveOutboundProvider(lead.trackingId);
+          if (!(await isFreeFormWindowOpen(resolved, lead.conversation?.id))) {
+            return {
+              error:
+                "A janela de 24h da API Oficial está fechada para esse lead. Envie um template aprovado.",
+            };
+          }
+          await resolved.provider.sendText({
+            kind: "text",
+            to: lead.phone,
+            body: text,
+          });
           return {
             success: true,
             summary: `Mensagem enviada pro WhatsApp de "${lead.name}".`,

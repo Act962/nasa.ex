@@ -28,12 +28,18 @@ export interface TagRequest {
   color?: string;
   /** Pro caller mostrar "por quê essa tag" — não vai pro banco. */
   reason?: string;
+  /**
+   * Quando a IA do atendimento deve aplicar a tag sozinha (spec 0085). Vira
+   * `Tag.description`: sem ela a IA não enxerga a tag e o gatilho nunca dispara.
+   * Vazio em tag de controle interno, que só o fluxo aplica.
+   */
+  aiDescription?: string;
 }
 
 export interface FindOrCreateTagsResult {
   tagMap: Record<string, string>;
   reused: Array<{ slug: string; id: string; name: string; matchedBy: "slug" | "similarity" }>;
-  created: Array<{ slug: string; id: string; name: string; reason?: string }>;
+  created: Array<{ slug: string; id: string; name: string; reason?: string; aiDescription?: string }>;
 }
 
 export async function findOrCreateTags(
@@ -53,7 +59,7 @@ export async function findOrCreateTags(
   // Cache local pra match por slug exato + similaridade.
   const existing = await client.tag.findMany({
     where: { organizationId, archivedAt: null },
-    select: { id: true, slug: true, name: true },
+    select: { id: true, slug: true, name: true, description: true },
   });
   const bySlug = new Map(existing.map((t) => [t.slug.toLowerCase(), t]));
 
@@ -63,6 +69,7 @@ export async function findOrCreateTags(
     // 1. Match exato por slug
     const exact = bySlug.get(slugLower);
     if (exact) {
+      await fillMissingDescription(client, exact, req.aiDescription);
       tagMap[req.slug] = exact.id;
       reused.push({
         slug: req.slug,
@@ -83,6 +90,7 @@ export async function findOrCreateTags(
       }
     }
     if (best) {
+      await fillMissingDescription(client, best.tag, req.aiDescription);
       tagMap[req.slug] = best.tag.id;
       reused.push({
         slug: req.slug,
@@ -100,8 +108,9 @@ export async function findOrCreateTags(
         slug: req.slug,
         name: req.name,
         color: req.color ?? "#6B7280",
+        description: req.aiDescription?.trim() || null,
       },
-      select: { id: true, slug: true, name: true },
+      select: { id: true, slug: true, name: true, description: true },
     });
     tagMap[req.slug] = newTag.id;
     bySlug.set(slugLower, newTag); // adiciona ao cache pra próximo req não duplicar
@@ -111,10 +120,23 @@ export async function findOrCreateTags(
       id: newTag.id,
       name: newTag.name,
       reason: req.reason,
+      aiDescription: req.aiDescription,
     });
   }
 
   return { tagMap, reused, created };
+}
+
+/** Tag reaproveitada sem descrição ganha a regra; descrição que a empresa já escreveu nunca é trocada. */
+async function fillMissingDescription(
+  client: Prisma.TransactionClient,
+  tag: { id: string; description: string | null },
+  aiDescription: string | undefined,
+): Promise<void> {
+  const description = aiDescription?.trim();
+  if (!description || tag.description?.trim()) return;
+  await client.tag.update({ where: { id: tag.id }, data: { description } });
+  tag.description = description;
 }
 
 // ── Tokenização + Jaccard (mesma estratégia do fallback-ai.ts) ──

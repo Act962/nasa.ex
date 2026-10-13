@@ -1,4 +1,5 @@
 import { meterOrThrow } from "@/features/stars/lib/metering";
+import { syncPublishGroupContent } from "@/features/nasa-planner/server/publish-group";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -87,5 +88,6 @@ export const generateImageFromPrompt = base
       data: { thumbnail: imageKey, starsSpent: { increment: debit.stars } },
     });
 
+    await syncPublishGroupContent(post.id, context.user.id);
     return { imageKey, starsSpent: debit.stars, balanceAfter: debit.balanceAfter, provider: providerInfo.provider };
   });

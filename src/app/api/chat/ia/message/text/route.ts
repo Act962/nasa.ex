@@ -1,7 +1,10 @@
 import { CreatedMessageProps } from "@/features/tracking-chat/types";
 import { MessageStatus } from "@/generated/prisma/enums";
-import { sendText } from "@/http/uazapi/send-text";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  isFreeFormWindowOpen,
+  toLegacyUazapiMessageId,
+} from "@/features/tracking-chat/lib/providers/automated-outbound";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { NextResponse } from "next/server";
@@ -36,12 +39,7 @@ export async function POST(request: Request) {
       },
       select: {
         id: true,
-        whatsappInstance: {
-          select: {
-            apiKey: true,
-            baseUrl: true,
-          },
-        },
+        whatsappInstance: { select: { id: true } },
       },
     });
 
@@ -75,17 +73,30 @@ export async function POST(request: Request) {
       );
     }
 
-    const response = await sendText(requireUazapiToken(tracking.whatsappInstance.apiKey), {
-      text: message,
-      number: phone,
-      delay: 2000,
+    const resolved = await resolveOutboundProvider(trackingId);
+    if (!(await isFreeFormWindowOpen(resolved, conversation.id))) {
+      return NextResponse.json(
+        {
+          status: "error",
+          message:
+            "Janela de 24h da API Oficial fechada: só template aprovado pode ser enviado.",
+        },
+        { status: 409 },
+      );
+    }
+
+    const sent = await resolved.provider.sendText({
+      kind: "text",
+      to: phone,
+      body: message,
+      typingDelayMs: 2000,
     });
 
     const sendedMessage = await prisma.message.create({
       data: {
         body: message,
         fromMe: true,
-        messageId: response.messageid,
+        messageId: toLegacyUazapiMessageId(sent),
         status: MessageStatus.SENT,
         conversationId: conversation.id,
       },

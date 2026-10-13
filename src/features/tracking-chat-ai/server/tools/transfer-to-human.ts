@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import type { AgentContext } from "../../lib/context";
+import { signalLeadAwaitingHuman } from "../../lib/awaiting-human";
 
 export const makeTransferToHumanTool = (ctx: AgentContext) =>
   tool({
@@ -15,8 +16,12 @@ export const makeTransferToHumanTool = (ctx: AgentContext) =>
         .describe(
           "Motivo da transferência — registro interno (não enviado ao lead)",
         ),
+        clientAsked: z
+        .boolean()
+        .optional()
+        .describe("true quando o próprio cliente pediu uma pessoa; false quando você não conseguiu resolver."),
     }),
-    execute: async ({ reason }) => {
+    execute: async ({ reason, clientAsked }) => {
       await prisma.lead.update({
         where: { id: ctx.lead.id },
         data: {
@@ -27,6 +32,13 @@ export const makeTransferToHumanTool = (ctx: AgentContext) =>
 
       await pusherServer.trigger(ctx.trackingId, "lead:updated", {
         leadId: ctx.lead.id,
+      });
+
+      await signalLeadAwaitingHuman({
+        organizationId: ctx.organizationId,
+        leadId: ctx.lead.id,
+        conversationId: ctx.conversation.id,
+        reason: clientAsked === false ? "assistant_could_not_solve" : "client_asked",
       });
 
       return { ok: true, transferredReason: reason };

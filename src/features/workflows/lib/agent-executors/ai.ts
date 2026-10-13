@@ -13,6 +13,8 @@
  * e tracking-chat-ai usam). Cobrança em Stars via chargeStarsByAction com as
  * actions definidas em `agent-stars-actions.ts`.
  */
+import type { LanguageModel } from "ai";
+import { resolveAiFor } from "@/features/ia/server/resolve-ai-for";
 import "server-only";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
@@ -56,6 +58,31 @@ function defaultModel() {
 /** Modelo com Vision (analisa imagem). */
 function visionModel() {
   return openai("gpt-4o-mini");
+}
+
+interface StepModel {
+  model: LanguageModel;
+  modelId: string;
+  /** Chave da própria empresa, ligada em Satélites para os passos de IA (spec 0093, etapa 2). */
+  usingCompanyKey: boolean;
+}
+
+/**
+ * Modelo de um passo de IA. Vale o de sempre (chave da plataforma), a não ser que a empresa tenha
+ * ligado a própria chave para os Gatilhos. Qualquer falha na escolha volta ao de sempre: um fluxo
+ * em produção não para por causa de preferência de IA.
+ */
+async function pickStepModel(organizationId: string, kind: "default" | "vision"): Promise<StepModel> {
+  const platformModelId = kind === "vision" ? VISION_MODEL_ID : DEFAULT_MODEL_ID;
+  const platformModel = (): StepModel => ({ model: kind === "vision" ? visionModel() : defaultModel(), modelId: platformModelId, usingCompanyKey: false });
+  if (!organizationId) return platformModel();
+  try {
+    const resolvedAi = await resolveAiFor({ resourceId: "workflows.ai-steps", organizationId, provider: "openai", modelId: platformModelId });
+    if (resolvedAi.keySource !== "organization") return platformModel();
+    return { model: resolvedAi.model, modelId: resolvedAi.modelId, usingCompanyKey: true };
+  } catch {
+    return platformModel();
+  }
 }
 
 // ─── AI_DECISION ───────────────────────────────────
@@ -143,9 +170,12 @@ export const aiDecisionExecutor: NodeExecutor = async ({
   ].join("\n");
 
   let result: Awaited<ReturnType<typeof generateText>>;
+
+  let stepModel: StepModel | null = null;
   try {
+    stepModel = await pickStepModel(orgId, "default");
     result = await generateText({
-      model: defaultModel(),
+      model: stepModel.model,
       system: systemPrompt,
       prompt: userPrompt,
       temperature: 0,
@@ -153,7 +183,7 @@ export const aiDecisionExecutor: NodeExecutor = async ({
   } catch (err) {
     const parsed = parseAiError(err);
     if (parsed.code === "QUOTA_EXCEEDED" && orgId) {
-      void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: false, source: "workflows.ai" });
+      void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: stepModel?.usingCompanyKey ?? false, source: "workflows.ai" });
     }
 
     // ── Fallback heurístico quando LLM caiu por motivo não-recuperável ──
@@ -304,7 +334,9 @@ export const aiDecisionExecutor: NodeExecutor = async ({
   const ctxFields = extractAiContextFields(context, data);
   await persistAiChatRunFromUsage({
     ...ctxFields,
-    modelId: DEFAULT_MODEL_ID,
+    modelId: stepModel?.modelId ?? DEFAULT_MODEL_ID,
+    provider: stepModel?.usingCompanyKey ? "OPENAI" : null,
+    usingCustom: stepModel?.usingCompanyKey ?? false,
     usage: result.usage,
   });
 
@@ -370,11 +402,15 @@ export const aiGenerateTextExecutor: NodeExecutor = async ({
 
   // Tenta até 2x — se cosine similarity passar do threshold, injeta
   // instrução de variação no prompt e regera.
+  let lastStepModel: StepModel | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     let result: Awaited<ReturnType<typeof generateText>>;
+    let stepModel: StepModel | null = null;
     try {
+      stepModel = await pickStepModel(orgId, "default");
+      lastStepModel = stepModel;
       result = await generateText({
-        model: defaultModel(),
+        model: stepModel.model,
         system:
           attempt === 0
             ? systemPrompt
@@ -387,7 +423,7 @@ export const aiGenerateTextExecutor: NodeExecutor = async ({
     } catch (err) {
       const parsed = parseAiError(err);
       if (parsed.code === "QUOTA_EXCEEDED" && orgId) {
-        void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: false, source: "workflows.ai" });
+        void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: stepModel?.usingCompanyKey ?? false, source: "workflows.ai" });
       }
       // Fallback: template fixo "humano vai te chamar"
       if (shouldUseFallback(parsed.code)) {
@@ -446,7 +482,9 @@ export const aiGenerateTextExecutor: NodeExecutor = async ({
   const ctxFields = extractAiContextFields(context, data);
   await persistAiChatRunFromUsage({
     ...ctxFields,
-    modelId: DEFAULT_MODEL_ID,
+    modelId: lastStepModel?.modelId ?? DEFAULT_MODEL_ID,
+    provider: lastStepModel?.usingCompanyKey ? "OPENAI" : null,
+    usingCustom: lastStepModel?.usingCompanyKey ?? false,
     usage: {
       inputTokens: accumInput,
       outputTokens: accumOutput,
@@ -494,9 +532,12 @@ export const aiVisionExecutor: NodeExecutor = async ({
   }
 
   let result: Awaited<ReturnType<typeof generateText>>;
+
+  let stepModel: StepModel | null = null;
   try {
+    stepModel = await pickStepModel(orgId, "vision");
     result = await generateText({
-      model: visionModel(),
+      model: stepModel.model,
       system:
         "Você analisa imagens enviadas por leads (comprovantes, documentos, fotos). Extraia informações solicitadas em formato estruturado (JSON quando possível). Seja preciso e conciso.",
       messages: [
@@ -513,7 +554,7 @@ export const aiVisionExecutor: NodeExecutor = async ({
   } catch (err) {
     const parsed = parseAiError(err);
     if (parsed.code === "QUOTA_EXCEEDED" && orgId) {
-      void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: false, source: "workflows.ai" });
+      void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: stepModel?.usingCompanyKey ?? false, source: "workflows.ai" });
     }
     if (shouldUseFallback(parsed.code)) {
       // Tier 1: tenta Gemini Vision (free tier robusto). Só cai pro
@@ -597,7 +638,9 @@ export const aiVisionExecutor: NodeExecutor = async ({
   const ctxFields = extractAiContextFields(context, data);
   await persistAiChatRunFromUsage({
     ...ctxFields,
-    modelId: VISION_MODEL_ID,
+    modelId: stepModel?.modelId ?? VISION_MODEL_ID,
+    provider: stepModel?.usingCompanyKey ? "OPENAI" : null,
+    usingCustom: stepModel?.usingCompanyKey ?? false,
     usage: result.usage,
   });
 
@@ -694,9 +737,12 @@ export const readPdfExecutor: NodeExecutor = async ({
   }
 
   let result: Awaited<ReturnType<typeof generateText>>;
+
+  let stepModel: StepModel | null = null;
   try {
+    stepModel = await pickStepModel(orgId, "default");
     result = await generateText({
-      model: defaultModel(),
+      model: stepModel.model,
       system:
         "Você lê PDFs e responde perguntas baseado no conteúdo. Cite trechos quando relevante. Não invente nada que não esteja no documento.",
       prompt: [
@@ -710,7 +756,7 @@ export const readPdfExecutor: NodeExecutor = async ({
   } catch (err) {
     const parsed = parseAiError(err);
     if (parsed.code === "QUOTA_EXCEEDED" && orgId) {
-      void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: false, source: "workflows.ai" });
+      void reportAiQuotaExhausted({ organizationId: orgId, usingCustomKey: stepModel?.usingCompanyKey ?? false, source: "workflows.ai" });
     }
     if (shouldUseFallback(parsed.code)) {
       const fb = fallbackReadPdf(extractedText);
@@ -749,7 +795,9 @@ export const readPdfExecutor: NodeExecutor = async ({
   const ctxFields = extractAiContextFields(context, data);
   await persistAiChatRunFromUsage({
     ...ctxFields,
-    modelId: DEFAULT_MODEL_ID,
+    modelId: stepModel?.modelId ?? DEFAULT_MODEL_ID,
+    provider: stepModel?.usingCompanyKey ? "OPENAI" : null,
+    usingCustom: stepModel?.usingCompanyKey ?? false,
     usage: result.usage,
   });
 

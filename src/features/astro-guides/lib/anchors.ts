@@ -59,6 +59,78 @@ export const GUIDE_ANCHORS = {
     id: "comments.connect-with-meta",
     description: "Botão \"Usar @conta\" que conecta o Instagram já ligado na Meta",
   },
+  workflowViewModeToggle: {
+    id: "workflow-editor.view-mode",
+    description: "Chave \"Ícones / Visual\" ao lado do botão Salvar no editor de Gatilhos Automáticos, que troca o desenho dos quadros",
+  },
+  workflowsViewToggle: {
+    id: "workflows.view-toggle",
+    description: "Chave \"Lista / Mapa\" na página de Gatilhos Automáticos do funil; o Mapa mostra todos os fluxos numa tela só",
+  },
+  workflowToolsButton: {
+    id: "workflow-editor.tools-button",
+    description: "Botão de engrenagem \"Configurações\" no editor de Gatilhos Automáticos, que mostra Histórico, Testar passo a passo e Clipboard",
+  },
+  automationsHubButton: {
+    id: "automations-hub.button",
+    description: "Botão \"Gatilhos Automáticos\" no rodapé da barra lateral, que abre a central de automações",
+  },
+  astroFlowButton: {
+    id: "automations-hub.astro-flow-button",
+    description: "Botão \"Criar fluxo com ASTRO\" nos Gatilhos Automáticos, que abre o campo para descrever a automação",
+  },
+  gatilhosOpenTrackingFlows: {
+    id: "automations-hub.open-tracking-flows",
+    description: "Botão da central de Gatilhos Automáticos que abre os fluxos e o mapa do último funil visitado",
+  },
+  trackingFlowsOpenCentral: {
+    id: "workflows.open-central",
+    description: "Botão \"Central de Gatilhos\" na página de fluxos de um funil, que leva à lista de todas as automações da empresa",
+  },
+  trackingFlowsAttendanceTemplate: {
+    id: "workflows.attendance-template",
+    description: "Botão \"Criar modelo de atendimento\" na página de fluxos de um funil, que cria um exemplo de atendimento por menu, desligado",
+  },
+  workflowMenuOptionOutputs: {
+    id: "workflows.menu-option-outputs",
+    description: "Lista de opções do menu salvo dentro do quadro Enviar Mensagem, no editor de um fluxo: cada pergunta tem um ponto de saída à direita para ligar um passo",
+  },
+  agendaLevelsFields: {
+    id: "agenda.levels-fields",
+    description: "Campos Especialidade, Unidade e Ficha do profissional na aba Geral de uma agenda, que organizam o agendamento pelo WhatsApp em níveis",
+  },
+  workflowConsentStep: {
+    id: "workflows.consent-step",
+    description: "Janela de configuração do passo \"Pedir aceite\" de um fluxo: texto dos termos, link da política e os dois botões",
+  },
+  workflowGroupMessageStep: {
+    id: "workflows.group-message-step",
+    description: "Janela de configuração do passo \"Enviar para grupo\" de um fluxo: grupo de WhatsApp que recebe e o texto, com os números do dia",
+  },
+  workflowFormChatStep: {
+    id: "workflows.form-chat-step",
+    description: "Janela de configuração do passo \"Preencher formulário pela conversa\": formulário do Órbita Forms e os campos que serão perguntados no WhatsApp",
+  },
+  astroFlowEditButton: {
+    id: "automations-hub.astro-flow-edit-button",
+    description: "Botão \"Pedir ao ASTRO\" no editor de um fluxo, que abre o campo para pedir uma mudança naquele fluxo",
+  },
+  astroFlowEditField: {
+    id: "automations-hub.astro-flow-edit-field",
+    description: "Campo na base do editor de fluxo onde a pessoa diz o que o Astro deve inserir, tirar ou trocar",
+  },
+  astroFlowField: {
+    id: "automations-hub.astro-flow-field",
+    description: "Campo na base da página dos Gatilhos Automáticos onde a pessoa descreve o fluxo para o Astro montar",
+  },
+  automationsHubList: {
+    id: "automations-hub.list",
+    description: "Lista das automações da empresa na central de Gatilhos Automáticos, com busca, filtros e interruptor de ligar",
+  },
+  chatbotIaKnowledgePicker: {
+    id: "tracking.chatbot-ia.knowledge-picker",
+    description: "Seletor \"Documentos que o atendimento pode usar\" na aba \"O que o Astro pode fazer\" do Fluxo de atendimento",
+  },
   trackingList: {
     id: "tracking.list",
     description: "Lista de trackings da organização em /tracking",
@@ -234,6 +306,38 @@ export const GUIDE_ANCHORS = {
   formCreateSubmit: {
     id: "form.create.submit",
     description: "Botão \"Criar\" no modal de novo formulário",
+  },
+  formRecordsClosingButton: {
+    id: "form.records.closing-button",
+    description: "Botão \"Fechamento por cliente\" na lista de fichas de um formulário",
+  },
+  formWorkspaceNewRecord: {
+    id: "form.workspace.new-record",
+    description: "Botão grande que abre uma ficha nova na tela inicial das fichas de um formulário",
+  },
+  formWorkspaceSendLink: {
+    id: "form.workspace.send-link",
+    description: "Atalho \"Enviar link ao cliente\" na tela inicial das fichas, para o cliente conferir as fichas dele",
+  },
+  formRecordsDateFilter: {
+    id: "form.records.date-filter",
+    description: "Filtro de datas da lista de fichas, que também muda os números do painel",
+  },
+  leadMembersTab: {
+    id: "lead.members.tab",
+    description: "Aba \"Vinculados\" nos detalhes do lead (filhos, filiais, unidades ligados a ele)",
+  },
+  leadMembersNewButton: {
+    id: "lead.members.new-button",
+    description: "Botão \"Novo vinculado\" na aba Vinculados do lead",
+  },
+  leadMemberName: {
+    id: "lead.members.name",
+    description: "Campo de nome no cadastro de um vinculado do lead",
+  },
+  leadMemberSave: {
+    id: "lead.members.save",
+    description: "Botão \"Salvar\" no cadastro de um vinculado do lead",
   },
   formPublishButton: {
     id: "form.publish",
@@ -527,6 +631,18 @@ export const GUIDE_ANCHORS = {
     id: "planner.composer.client",
     description: "Escolha do cliente e da conta no criador de post",
   },
+  plannerComposerAccounts: {
+    id: "planner.composer.accounts",
+    description: "Escolha das contas do Instagram (uma ou várias) no criador de post",
+  },
+  plannerComposerGroupAccounts: {
+    id: "planner.composer.group-accounts",
+    description: "Barra com as contas do grupo no criador de post: status de cada conta e \"conteúdo diferente nesta conta\"",
+  },
+  plannerComposerScheduleScope: {
+    id: "planner.composer.schedule-scope",
+    description: "Escolha entre programar em todas as contas ou só nesta, e o intervalo entre contas",
+  },
   plannerComposerType: {
     id: "planner.composer.type",
     description: "Escolha do formato no criador de post",
@@ -630,6 +746,10 @@ export const GUIDE_ANCHORS = {
   integrationsConnectButton: {
     id: "integrations.connect",
     description: "Botão \"Conectar\" de um card de integração",
+  },
+  integrationsAiCompany: {
+    id: "integrations.ai-company",
+    description: "Seção IA da empresa em Satélites: consumo de IA, chaves e modelo de cada uso",
   },
   integrationsConfigDialog: {
     id: "integrations.config-dialog",

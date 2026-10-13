@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { NodeType, Workflow } from "@/generated/prisma/client";
+import { AUTOMATION_DENIAL, checkWorkflowAccess } from "@/features/workflows/server/workflow-access";
 import prisma from "@/lib/prisma";
 import { Edge, Node } from "@xyflow/react";
 import { z } from "zod";
@@ -19,7 +20,12 @@ export const getWorkflow = base
       edges: z.array(z.custom<Edge>()),
     })
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
+    // Ser da empresa não basta: vale a permissão de Automações do papel da pessoa (spec 0092).
+    const access = await checkWorkflowAccess(input.workflowId, context.user.id, "canView");
+    if (access === "not-found") throw errors.NOT_FOUND({ message: "Workflow não encontrado" });
+    if (access === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canView });
+
     const workflow = await prisma.workflow.findUnique({
       where: {
         id: input.workflowId,

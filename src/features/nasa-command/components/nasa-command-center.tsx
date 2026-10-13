@@ -28,6 +28,7 @@ import type { DropdownType, ModelType } from "../types";
 import type { CommandInputHandle, CommandInputProps } from "./command-input";
 import { SpaceScene } from "./space-scene";
 import { HomeHeader } from "./home-header";
+import { AiKeyBanner } from "@/features/ia/components/ai-key-banner";
 import { AstroPlusSheet } from "./astro-plus-sheet";
 import { WelcomeScreen } from "./welcome-screen";
 import { ConversationStack } from "./conversation-stack";
@@ -380,8 +381,13 @@ export function NasaCommandCenter() {
     >
       <SpaceScene />
       <HomeHeader />
+      {!hasMessages && (
+        <div className="relative z-10 mx-auto w-full max-w-3xl px-4">
+          <AiKeyBanner />
+        </div>
+      )}
 
-      <div className="flex-1 overflow-y-auto relative z-10">
+      <div data-home-scroll className="flex-1 overflow-y-auto relative z-10">
         <WelcomeScreen
           isConversationActive={hasMessages}
           onOpenLastConversation={!hasMessages && lastConversationId ? openLastConversation : undefined}

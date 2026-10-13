@@ -211,6 +211,43 @@ export const PLANNER_GUIDES: GuideDef[] = [
     finish: { title: "Conteúdo aprovado! ✅", message: "Agora ele pode ser programado na aba Programação." },
   },
   {
+    key: "planner.multi-account",
+    app: "planner",
+    title: "Publicar o mesmo conteúdo em várias contas",
+    summary: "Escolha duas ou mais contas do Instagram e crie, aprove e programe uma vez só.",
+    topicPattern: /\b(varias|multiplas|duas|tres|mais de uma|todas as)\s+contas\b|\bmesm[oa]\s+(posts?|conteudos?|publicac\w*|reels?|stor(y|ies))\b.*\bcontas?\b/,
+    steps: [
+      {
+        anchor: "plannerCreateMenu",
+        route: "/nasa-planner?tab=calendar",
+        title: "Clique em Criar",
+        message: "Escolha o formato do conteúdo que vai sair nas contas.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "plannerComposerAccounts",
+        title: "Marque as contas",
+        message: "Clique em cada conta do Instagram em que o conteúdo deve sair. Dá para marcar duas ou mais. Depois clique em Próximo.",
+        position: "bottom",
+        advanceOn: "next",
+        missingMessage: "Abra o criador de conteúdo e escolha um cliente com mais de uma conta do Instagram.",
+      },
+      {
+        anchor: "plannerPostSubmit",
+        title: "Crie o conteúdo",
+        message: "Preencha o roteiro e clique em Criar e continuar. O sistema cria um post para cada conta.",
+        position: "top",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.plannerPostCreated,
+      },
+    ],
+    finish: {
+      title: "Conteúdo criado nas contas! 📲",
+      message: "No topo do criador você vê o status de cada conta. O que você editar vale para todas; na Programação, escolha \"Todas as contas\" para programar de uma vez.",
+    },
+  },
+  {
     key: "planner.schedule-post",
     app: "planner",
     title: "Programar um post",

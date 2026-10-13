@@ -67,6 +67,20 @@ function readSlot(sessionId: string): GuidedSlot | null {
  * sem resposta porque a leitura estava desligada enquanto o Astro esperava
  * o nome de uma conta.
  */
+/**
+ * "Quero desmarcar um agendamento", dito enquanto o Astro perguntava o horário de um agendamento
+ * novo, virava resposta e ele respondia "horário ocupado". Frase que casa sozinha com o padrão de
+ * OUTRO verbo é pedido novo. Campo que dá nome a algo novo fica de fora: o título de uma demanda
+ * pode ser "Cancelar reunião do João".
+ */
+function startsAnotherAction(text: string, pending: Pick<GuidedSlot, "actionKey" | "awaitingField">): boolean {
+  if (parsePickedAnswer(text).id) return false;
+  const pendingAction = getAstroAction(pending.actionKey);
+  if (pending.awaitingField && (pendingAction?.newNameFields ?? []).includes(pending.awaitingField)) return false;
+  const matchedActionKey = matchIntentPattern(text)?.candidates[0]?.action;
+  return Boolean(matchedActionKey) && matchedActionKey !== pending.actionKey;
+}
+
 /** Há pergunta do ciclo guiado esperando resposta? */
 export function isAwaitingAnswer(sessionId: string): boolean {
   return readSlot(sessionId) !== null || readPlanSlot(sessionId) !== null;
@@ -182,7 +196,7 @@ export async function resolveGuided(params: {
       };
     }
 
-    if (looksLikeNewRequest(params.text, pending.options)) {
+    if (looksLikeNewRequest(params.text, pending.options) || startsAnotherAction(params.text, pending)) {
       slots.delete(params.sessionId);
     }
 
@@ -190,7 +204,12 @@ export async function resolveGuided(params: {
     if (action) {
       const answer = answerToValue(params.text, pending.options);
       const fields = { ...pending.fields };
-      if (pending.awaitingField) fields[pending.awaitingField] = answer;
+      if (pending.awaitingField) {
+        const previousAnswer = fields[pending.awaitingField];
+        const isAccumulating = (action.accumulatingFields ?? []).includes(pending.awaitingField);
+        fields[pending.awaitingField] =
+          isAccumulating && previousAnswer && !parsePickedAnswer(answer).id ? `${answer} ${previousAnswer}` : answer;
+      }
 
       const resolved = await resolveActionWithFields({
         ctx: params.ctx,

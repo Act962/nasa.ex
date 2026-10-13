@@ -1,3 +1,4 @@
+import { AUTOMATION_DENIAL, checkTrackingAutomationsAccess } from "@/features/workflows/server/workflow-access";
 import { createId } from "@paralleldrive/cuid2";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
@@ -66,6 +67,11 @@ export const duplicateWorkflow = base
       throw errors.FORBIDDEN({
         message: "Tracking de destino pertence a outra organização",
       });
+    }
+
+    // Criar fluxo pede a permissão de criar Automações do papel da pessoa (spec 0092).
+    if ((await checkTrackingAutomationsAccess(targetTracking.id, context.user.id, "canCreate")) !== "allowed") {
+      throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canCreate });
     }
 
     const newName = (input.name?.trim() || `${source.name} (cópia)`).slice(

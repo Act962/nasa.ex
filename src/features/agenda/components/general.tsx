@@ -21,6 +21,7 @@ import z from "zod";
 import { useUpdateAgenda } from "../hooks/use-agenda";
 import { slugify } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const url = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
@@ -29,6 +30,9 @@ const formSchema = z.object({
   description: z.string().optional().nullable(),
   slug: z.string().optional(),
   slotDuration: z.number().optional(),
+  specialty: z.string().max(60).optional().nullable(),
+  unit: z.string().max(60).optional().nullable(),
+  professionalNotes: z.string().max(900).optional().nullable(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -39,6 +43,9 @@ interface Agenda {
   description: string | null;
   slug: string;
   slotDuration: number;
+  specialty?: string | null;
+  unit?: string | null;
+  professionalNotes?: string | null;
 }
 
 interface GeneralProps {
@@ -66,6 +73,9 @@ export function General({ defaultValues }: GeneralProps) {
       description: data.description,
       slug: data.slug,
       slotDuration: data.slotDuration,
+      specialty: data.specialty ?? null,
+      unit: data.unit ?? null,
+      professionalNotes: data.professionalNotes ?? null,
     });
   };
 
@@ -139,6 +149,36 @@ export function General({ defaultValues }: GeneralProps) {
             <FieldError>
               {form.formState.errors.slotDuration?.message}
             </FieldError>
+          </Field>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-transparent" data-guide={GUIDE_ANCHORS.agendaLevelsFields.id}>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-sm font-medium">Agendamento pelo WhatsApp em níveis</p>
+            <p className="text-xs text-muted-foreground">
+              Opcional. Com especialidade ou unidade preenchidas, o cliente escolhe primeiro a especialidade, depois a unidade e depois esta agenda. Em branco, a agenda
+              aparece na lista única de sempre.
+            </p>
+          </div>
+          <Field>
+            <FieldLabel>Especialidade</FieldLabel>
+            <Input placeholder="Ex.: Oftalmologia Geral" maxLength={60} disabled={isSubbmitting} {...form.register("specialty")} />
+          </Field>
+          <Field>
+            <FieldLabel>Unidade</FieldLabel>
+            <Input placeholder="Ex.: Unidade Centro" maxLength={60} disabled={isSubbmitting} {...form.register("unit")} />
+          </Field>
+          <Field>
+            <FieldLabel>Ficha do profissional</FieldLabel>
+            <Textarea
+              rows={4}
+              maxLength={900}
+              placeholder="Enviada ao cliente antes dos dias. Ex.: atende a partir de 8 anos; todos os convênios, exceto Intermed; consulta particular: R$ 400,00."
+              disabled={isSubbmitting}
+              {...form.register("professionalNotes")}
+            />
           </Field>
         </CardContent>
       </Card>

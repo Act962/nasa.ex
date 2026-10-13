@@ -6,6 +6,7 @@ import { tagGroupsRouter } from "./tag-groups";
 import { reasonsRouter } from "./reasons";
 import { orgRoutes } from "./org";
 import { workflowRoutes } from "./workflow";
+import { automationsHubRouter } from "./automations-hub";
 import { workflowFolderRoutes } from "./workflow-folder";
 import { messageRouter } from "./message";
 import { conversationRouter } from "./conversation";
@@ -30,6 +31,8 @@ import { nasaCommandRouter } from "./nasa-command";
 import { permissionsRouter } from "./permissions";
 import { activityRouter } from "./activity";
 import { formRouter } from "./form";
+import { formRecordsRouter } from "./form-records";
+import { leadMembersRouter } from "./lead-members";
 import { adminRouter } from "./admin";
 import { userNotificationsRouter } from "./user-notifications";
 import { userChatPreferencesRoutes } from "./user-chat-preferences";
@@ -99,6 +102,7 @@ export const router = {
   reasons: reasonsRouter,
   orgs: orgRoutes,
   workflow: workflowRoutes,
+  automationsHub: automationsHubRouter,
   workflowFolder: workflowFolderRoutes,
   message: messageRouter,
   conversation: conversationRouter,
@@ -121,6 +125,8 @@ export const router = {
   permissions: permissionsRouter,
   activity: activityRouter,
   form: formRouter,
+  formRecords: formRecordsRouter,
+  leadMembers: leadMembersRouter,
   admin: adminRouter,
   userNotifications: userNotificationsRouter,
   userChatPreferences: userChatPreferencesRoutes,

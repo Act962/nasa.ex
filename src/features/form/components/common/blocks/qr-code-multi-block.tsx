@@ -46,12 +46,13 @@ import { getContrastColor } from "@/utils/get-contrast-color";
  * QrCodeMulti — bloco que mostra um QR Code "vivo" com dropdown pra
  * trocar entre múltiplos QRs configurados no builder. Cada item tem:
  *   - title: texto exibido acima do QR
- *   - source: "url" | "client-link" | "form-edit-link"
+ *   - source: "url" | "client-link" | "client-records-link" | "form-edit-link"
  *   - url: usado quando source = "url"
  *
  * As fontes de link automáticas (`client-link` / `form-edit-link`)
  * resolvem em runtime usando o `FormLeadContext` da página atual:
  *   - client-link → `${origin}/lead/<publicToken>`
+ *   - client-records-link → `${origin}/lead/<publicToken>/fichas` (todas as fichas do cliente)
  *   - form-edit-link → `${origin}/formulario/novo/<formId>/<leadId>`
  *
  * Quando o contexto não está disponível (ex: form público sem lead
@@ -67,7 +68,7 @@ import { getContrastColor } from "@/utils/get-contrast-color";
 const blockCategory: FormCategoryType = "Field";
 const blockType: FormBlockType = "QrCodeMulti";
 
-type QrSource = "url" | "client-link" | "form-edit-link";
+type QrSource = "url" | "client-link" | "client-records-link" | "form-edit-link";
 
 type QrItem = {
   id: string;
@@ -135,6 +136,15 @@ function resolveUrl(
       };
     }
     return { url: `${origin}/lead/${ctx.leadPublicToken}` };
+  }
+  if (item.source === "client-records-link") {
+    if (!ctx.leadPublicToken) {
+      return {
+        url: null,
+        reason: "Disponível após gerar o link do cliente do lead",
+      };
+    }
+    return { url: `${origin}/lead/${ctx.leadPublicToken}/fichas` };
   }
   if (item.source === "form-edit-link") {
     if (!ctx.leadId || !ctx.formId) {
@@ -478,6 +488,9 @@ function PropertiesView({
                     </SelectItem>
                     <SelectItem value="client-link" className="text-xs">
                       Link do cliente (/lead/&lt;token&gt;)
+                    </SelectItem>
+                    <SelectItem value="client-records-link" className="text-xs">
+                      Fichas do cliente (/lead/&lt;token&gt;/fichas)
                     </SelectItem>
                     <SelectItem value="form-edit-link" className="text-xs">
                       Link de edição do formulário

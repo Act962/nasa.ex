@@ -7,6 +7,8 @@ import {
   applyVariables,
   buildLeadVariables,
 } from "@/features/tracking-executions/lib/interpolate-message";
+import { buildPublicFormUrl } from "@/features/form/lib/public-form-url";
+import { ensureLeadPublicToken } from "@/features/leads/lib/public-token";
 
 /**
  * Tools de envio de links pra lead via WhatsApp — auto-agent invoca
@@ -108,7 +110,8 @@ export const sendFormTool = (userId: string) =>
         });
         if (!form) return { success: false, error: "Formulário não encontrado" };
 
-        const url = `${baseUrl()}/formulario/${form.shareUrl}?lead=${lead.id}`;
+        const leadPublicToken = lead.publicToken ?? (await ensureLeadPublicToken({ leadId: lead.id, organizationId: lead.tracking.organizationId }));
+        const url = buildPublicFormUrl({ formId: form.id, leadPublicToken });
         const template =
           messageTemplate?.trim() ||
           "Olá {{nome}}! Preencha esse formulário rapidinho: {{url}}";

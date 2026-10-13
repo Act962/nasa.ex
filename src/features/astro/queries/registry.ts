@@ -1,4 +1,5 @@
 import "server-only";
+import { ASTRO_READ_DENIAL } from "@/features/astro/lib/permission-denial";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import {
   COMPOSE_VERB_ANYWHERE,
@@ -8,6 +9,7 @@ import {
   type AstroQueryResult,
 } from "./types";
 import { TRACKING_QUERIES } from "./tracking";
+import { LEAD_INTEREST_QUERIES } from "./lead-interest";
 import { AGENDA_QUERIES } from "./agenda";
 import { APP_QUERIES } from "./apps";
 import { FORGE_QUERIES } from "./forge";
@@ -19,6 +21,7 @@ import { ANALYSIS_QUERIES } from "./analysis";
 import { PLATFORM_QUERIES } from "./platform";
 import { RESPONSE_QUERIES } from "./responses";
 import { LEAD_LOOKUP_QUERIES } from "./lead-lookup";
+import { RECORD_QUERIES } from "./records";
 import { matchesAnyIntentPattern } from "@/features/astro/actions/match-intent-pattern";
 import { isAccountingQuestion } from "./accounting-question";
 
@@ -33,7 +36,12 @@ export const ASTRO_QUERIES: AstroQuery[] = [
   // Análises com filtro e período antes de tudo: são as perguntas mais
   // específicas e devolvem `null` quando o filtro não existe na org.
   ...LEAD_LOOKUP_QUERIES,
+  // Fichas antes de tudo que fala de clientes, vencimentos e listas: a consulta devolve `null`
+  // quando a empresa não usa fichas ou a frase não é sobre elas (spec 0081, RNF-3).
+  ...RECORD_QUERIES,
   ...RESPONSE_QUERIES,
+  // Antes das análises: "leads com interesse alto" casaria com o filtro de leads "quentes" (spec 0085).
+  ...LEAD_INTEREST_QUERIES,
   ...ANALYSIS_QUERIES,
   // Insights antes do tracking: "quantos leads com a tag X" é relatório, e
   // a contagem genérica de leads casaria primeiro.
@@ -106,7 +114,7 @@ async function runSingleQuery(
     // Casou a frase, mas quem pergunta não pode ver: a recusa sai em código.
     // Seguir para o orquestrador custava ~23 mil tokens para dizer o mesmo.
     if (!(await canAstroRead(ctx, query.appKey))) {
-      return { key: "permission.denied", result: { text: "Você não tem acesso a esse App, então não posso trazer esses dados. Peça ao administrador da empresa." } };
+      return { key: "permission.denied", result: { text: ASTRO_READ_DENIAL } };
     }
     // O Financeiro tem acesso próprio, além da matriz: sem ele, a tela
     // recusa — e o ASTRO recusa igual (F2-12).

@@ -21,7 +21,8 @@ export const BLUEPRINT_GENERATION_PROMPT = `Você é o ASTRO — gerador de work
       "slug": "kebab-case-slug",
       "name": "Nome legível",
       "color": "#7C3AED",
-      "reason": "Pra que serve essa tag no fluxo"
+      "reason": "Pra que serve essa tag no fluxo",
+      "aiDescription": "Quando a IA do atendimento deve aplicar esta tag sozinha"
     }
   ],
   "nodes": [
@@ -115,7 +116,22 @@ export const BLUEPRINT_GENERATION_PROMPT = `Você é o ASTRO — gerador de work
 4. **WAIT_FOR_EVENT depois de envio assíncrono** — quando envia proposta/contrato/email/menu, use WAIT_FOR_EVENT com timeout razoável (24-72h) pra captar resposta.
 5. **Cadência longa**: pra cobrança/follow-up, repita o pattern \`SEND_MESSAGE → WAIT_FOR_EVENT → AI_DECISION → branches\` em 3-5 toques (D+0/D+3/D+7/D+15/D+30). Pode pegar inspiração do preset "proposta-contrato".
 6. **needsReview generoso** — se há QUALQUER dúvida sobre um ID concreto (qual produto, qual agenda, qual user), MARQUE \`needsReview: true\`. É melhor o user revisar do que o workflow falhar.
+8. **aiDescription nas tags de interesse** — se a tag marca o que o CLIENTE quer ou pergunta (ex: "Óculos", "Polimento", "Quer agendar"), preencha \`aiDescription\` com uma frase curta dizendo quando aplicar ("Cliente perguntou por óculos, lentes ou convênio com ótica."). É por ela que a IA do atendimento aplica a tag sozinha e este fluxo dispara; sem ela, o gatilho LEAD_TAGGED nunca roda. Em tag de controle interno do fluxo ("Proposta Pendente", "Pago"), NÃO preencha.
+9. **Fluxo que responde a um interesse do cliente** — comece por \`LEAD_TAGGED\` com a tag de interesse (com \`aiDescription\`) e responda com \`SEND_MESSAGE\`. Para "menu de serviços", liste os serviços no texto e, se houver agenda, siga com \`SEND_AGENDA\` (needsReview: true para o usuário escolher a agenda). Para "lista de parceiros / convênios", use um \`SEND_MESSAGE\` de texto com um modelo a preencher, uma linha por parceiro — "• [Nome do parceiro] — [telefone] — código [CÓDIGO]" — e marque needsReview: true com reviewReason "Preencha os parceiros, contatos e códigos reais". NUNCA invente nome de parceiro, telefone, código de desconto ou preço.
 7. **Tags semânticas** — sugira tags como "Lead Quente", "Proposta Aceita", "Sem Interesse". Cores: laranja #FFA500 (pendente), verde #3DB88B (positivo), azul #1090E0 (assinado/fechado), cinza #6B7280 (negativo/inativo), roxo #7C3AED (info).
+
+## REGRAS DO WHATSAPP (o pedido informa o "Canal do funil")
+
+Valem quando o canal é **API oficial**. São regras da Meta: fluxo que as ignora não entrega a mensagem.
+
+1. **Janela de 24 h** — texto livre (\`SEND_MESSAGE\` TEXT, \`SEND_MEDIA\`) só chega se o cliente escreveu nas últimas 24 h. Depois de \`WAIT\` de 24 h ou mais, ou de \`WAIT_FOR_EVENT\` com \`timeoutMinutes\` de 1440 ou mais sem resposta, o envio precisa de um modelo aprovado. Você não conhece os modelos da empresa: marque esse \`SEND_MESSAGE\` com \`needsReview: true\` e \`reviewReason: "Fora das 24 h: escolha o modelo aprovado"\`.
+2. **Prefira esperas curtas** — se o pedido não fixa o prazo, use lembretes dentro de 23 h para o texto livre chegar.
+3. **Gatilho sem fala recente do cliente** (\`NEW_LEAD\`, \`LEAD_TAGGED\`, \`MOVE_LEAD_STATUS\`, \`SCHEDULE_TRIGGER\`, \`PAYMENT_RECEIVED\`, \`LAST_INBOUND_TIMEOUT\`) — a janela pode estar fechada. Diga isso na \`description\` do fluxo.
+4. **Sem menu de botões** — não use \`SEND_MESSAGE\` com \`type: "BUTTONS"\`. Escreva as opções numeradas no texto.
+5. **Sem áudio de voz** — não use \`SEND_VOICE\`.
+
+Canal **não oficial**: sem a regra das 24 h; botões e voz liberados. Menu: no máximo 3 botões, título com até 20 caracteres.
+**Sem número conectado**: gere o fluxo normalmente e avise na \`description\` que falta conectar um número.
 
 ## EXEMPLOS DE INTENT → BLUEPRINT
 

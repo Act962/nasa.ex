@@ -59,8 +59,7 @@ import {
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
-import { orpc } from "@/lib/orpc";
-import { useQuery } from "@tanstack/react-query";
+import { useActiveOrgProjectsByOrg } from "@/features/org-projects/hooks/use-org-projects";
 import {
   useNasaPlanners,
   useCreatePlanner,
@@ -91,15 +90,9 @@ export function NasaPlannerListPage() {
 
   const { data: organizations } = authClient.useListOrganizations();
 
-  const { data: projectsData } = useQuery({
-    ...orpc.orgProjects.list.queryOptions({
-      input: { orgId: selectedOrgId ?? undefined, isActive: true },
-    }),
-    enabled: !!selectedOrgId,
-  });
-  const orgProjects = projectsData?.projects ?? [];
+  const { projects: orgProjects } = useActiveOrgProjectsByOrg(selectedOrgId);
   const selectedProject = orgProjects.find(
-    (p: any) => p.id === selectedProjectId,
+    (p) => p.id === selectedProjectId,
   );
 
   const resetForm = () => {
@@ -183,7 +176,7 @@ export function NasaPlannerListPage() {
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
             data-guide={GUIDE_ANCHORS.plannerList.id}
           >
-            {planners.map((planner: any) => (
+            {planners.map((planner) => (
               <Card
                 key={planner.id}
                 className="group cursor-pointer hover:shadow-md transition-all border hover:border-info/40"
@@ -312,7 +305,7 @@ export function NasaPlannerListPage() {
                     <CommandList>
                       <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
                       <CommandGroup>
-                        {(organizations ?? []).map((org: any) => (
+                        {(organizations ?? []).map((org) => (
                           <CommandItem
                             key={org.id}
                             value={org.name}
@@ -364,11 +357,11 @@ export function NasaPlannerListPage() {
                             className="size-3 rounded-full shrink-0"
                             style={{
                               backgroundColor:
-                                (selectedProject as any).color ?? "#7c3aed",
+                                selectedProject.color ?? "#7c3aed",
                             }}
                           />
                           <span className="truncate">
-                            {(selectedProject as any).name}
+                            {selectedProject.name}
                           </span>
                         </div>
                       ) : (
@@ -396,7 +389,7 @@ export function NasaPlannerListPage() {
                             <FolderIcon className="size-4 mr-2 opacity-50" />{" "}
                             Nenhum
                           </CommandItem>
-                          {orgProjects.map((p: any) => (
+                          {orgProjects.map((p) => (
                             <CommandItem
                               key={p.id}
                               value={p.name}

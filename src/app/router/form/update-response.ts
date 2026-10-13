@@ -12,6 +12,13 @@ import {
   resolveEditPolicy,
   EDIT_BLOCKED_MESSAGE,
 } from "@/features/form/lib/can-edit-response";
+import { applyAutoNumbers } from "@/features/form-records/lib/auto-number";
+import { prepareRecordResponse } from "@/features/form-records/server/prepare-record-response";
+import {
+  RECORD_LOCKED_MESSAGE,
+  isRecordLockedByClosing,
+  syncFormRecord,
+} from "@/features/form-records/server/sync-form-record";
 
 /**
  * Atualiza o `jsonResponse` de uma `FormResponses` existente. Usado no fluxo
@@ -45,7 +52,7 @@ export const updateResponse = base
   )
   .handler(async ({ input, context, errors }) => {
     try {
-      const { id, response, isFinal } = input;
+      const { id, isFinal } = input;
       const userId = context.user.id;
 
       // Carrega resposta + settings do form (pra Direcionamento quando
@@ -60,6 +67,7 @@ export const updateResponse = base
           labelManuallyEdited: true,
           authorKind: true,
           createdById: true,
+          jsonResponse: true,
           lead: { select: { trackingId: true } },
           form: {
             select: {
@@ -109,6 +117,23 @@ export const updateResponse = base
         throw errors.FORBIDDEN({ message });
       }
 
+      if (await isRecordLockedByClosing(existing.id)) {
+        throw errors.FORBIDDEN({ message: RECORD_LOCKED_MESSAGE });
+      }
+
+      // Preço das listas de itens e campos de cálculo saem do servidor (spec 0075).
+      const pricedResponse = await prepareRecordResponse({
+        organizationId: existing.form.organizationId,
+        jsonBlock: existing.form.jsonBlock,
+        response: input.response,
+        previousResponse: existing.jsonResponse,
+      });
+      const response = applyAutoNumbers({
+        jsonBlock: existing.form.jsonBlock,
+        response: pricedResponse,
+        previousResponse: existing.jsonResponse,
+      });
+
       // Re-deriva label automático SOMENTE quando o user nunca fez
       // override manual (`labelManuallyEdited === false`). Caso contrário
       // mantém o `label` que está salvo (manual prevalece).
@@ -132,6 +157,8 @@ export const updateResponse = base
           label: true,
         },
       });
+
+      await syncFormRecord({ responseId: updated.id, isFinal });
 
       // Propaga label pra Lead.description (textareas no card + observações)
       // — fire-and-forget, não bloqueia a resposta da procedure.

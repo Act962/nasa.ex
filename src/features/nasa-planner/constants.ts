@@ -28,8 +28,14 @@ export const POST_STATUSES = [
 ] as const;
 
 /** Status que dá para escolher na mão; programar e publicar passam pelo fluxo próprio (spec 0057). */
-export const MANUAL_POST_STATUSES = POST_STATUSES.filter((status) =>
-  status.key === "DRAFT" || status.key === "PENDING_APPROVAL" || status.key === "APPROVED",
+const MANUAL_POST_STATUS_KEYS = ["DRAFT", "PENDING_APPROVAL", "APPROVED"] as const;
+
+export type ManualPostStatus = (typeof MANUAL_POST_STATUS_KEYS)[number];
+
+type ManualPostStatusOption = Extract<(typeof POST_STATUSES)[number], { key: ManualPostStatus }>;
+
+export const MANUAL_POST_STATUSES = POST_STATUSES.filter((status): status is ManualPostStatusOption =>
+  MANUAL_POST_STATUS_KEYS.some((manualKey) => manualKey === status.key),
 );
 
 export const POST_TYPES: Record<string, string> = {

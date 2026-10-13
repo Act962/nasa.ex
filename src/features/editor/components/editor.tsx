@@ -1,4 +1,5 @@
 "use client";
+import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-button-presets";
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { createId } from "@paralleldrive/cuid2";
@@ -8,12 +9,14 @@ import {
   ReactFlow,
   applyNodeChanges,
   applyEdgeChanges,
+  reconnectEdge,
   addEdge,
   type Node,
   type Edge,
   NodeChange,
   EdgeChange,
   Connection,
+  type FinalConnectionState,
   Background,
   MiniMap,
   Controls,
@@ -26,21 +29,31 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import "@xyflow/react/dist/style.css";
 import { Spinner } from "@/components/ui/spinner";
 import { nodeComponents } from "@/config/node-components";
-import { AddNodeButton } from "./add-node-button";
 import { OptimizeLayoutButton } from "./optimize-layout-button";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   editorAtom,
   lastSavedSnapshotAtom,
   workflowDirtyAtom,
+  flowDiagnosticsAtom,
+  editorReadOnlyAtom,
+  connectionHoverAtom,
+  insertOnEdgeIdAtom,
 } from "../store/atoms";
 import { NodeType } from "@/generated/prisma/enums";
 import { ExecuteWorkflowButton } from "./execute-workflow-button";
 import { NodeSelector } from "@/components/node-selector";
 import { MenuOptions } from "../../../components/menu-options";
+import { nearestSide, oppositeSide, readNodeSides } from "../lib/node-sides";
+import { REFUSAL_MESSAGES, refuseConnection } from "../lib/connection-rules";
+import { collectFlowProblems } from "@/features/workflows/lib/flow-problems";
+import { InspectorMode } from "./inspector-mode";
+import { useAutomationPermissions } from "@/features/workflows/hooks/use-automation-permissions";
+import { StageSectionsLayer } from "./stage-sections-layer";
+import { PauseAnimationsWhenAway } from "./pause-animations-when-away";
+import { resolveOverlaps } from "../lib/resolve-overlaps";
 import { triggerNodes } from "@/features/tracking-executions/lib/node-options";
 import { WorkflowAgentModeProvider } from "@/features/workflows/lib/agent-mode-context";
-import { DryRunButton } from "@/features/workflows/components/dry-run-button";
 import { AgentDetailButton } from "@/features/workflows/components/agent-detail-button";
 import { StepByStepContainer } from "./step-by-step-container";
 import { RateLimitBadge } from "@/features/workflows/components/rate-limit-badge";
@@ -49,7 +62,15 @@ import { WorkflowIssuesProvider } from "@/features/workflows/components/workflow
 import { useWorkflowValidation } from "@/features/workflows/hooks/use-workflow-validation";
 import type { GraphIssue } from "@/features/workflows/lib/validate-workflow-graph";
 import { ValidatedEdge } from "./validated-edge";
+import { SettingsIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { EMPTY_FLOW_DIAGNOSTICS, type FlowChannelProvider } from "@/features/workflows/lib/flow-diagnostics";
+import { useQueryInstances } from "@/features/tracking-settings/hooks/use-integration";
+import { useParams } from "next/navigation";
 import { WorkflowClipboardButton } from "@/features/workflow-clipboard/components/workflow-clipboard-button";
+
+const TRIGGER_TYPE_SET = new Set(triggerNodes.map((trigger) => String(trigger.type)));
 
 const edgeTypes = {
   // Edge default ganha validação automática — quando algum endpoint tem
@@ -60,6 +81,13 @@ const edgeTypes = {
 
 export function Editor({ workflowId }: { workflowId: string }) {
   const [openSelector, setOpenSelector] = useState(false);
+  const { canEdit } = useAutomationPermissions();
+  const isReadOnly = !canEdit;
+  const setEditorReadOnly = useSetAtom(editorReadOnlyAtom);
+  useEffect(() => {
+    setEditorReadOnly(isReadOnly);
+    return () => setEditorReadOnly(false);
+  }, [isReadOnly, setEditorReadOnly]);
 
   const { data } = useSuspenseQuery(
     orpc.workflow.getOne.queryOptions({
@@ -158,6 +186,139 @@ export function Editor({ workflowId }: { workflowId: string }) {
       setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot)),
     [],
   );
+
+  const onReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) =>
+      setEdges((edgesSnapshot) => reconnectEdge(oldEdge, newConnection, edgesSnapshot)),
+    [],
+  );
+
+  // Soltar a ponta da ligação em cima do quadro, fora do pontinho: a ligação encosta no lado mais
+  // próximo de onde foi solta. O lado é só desenho (`data.ui`); o identificador da ligação não muda.
+  const dropConnectionOnNodeSide = useCallback(
+    (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState, reconnectingEdge?: Edge) => {
+      const fixedHandle = connectionState.fromHandle;
+      if (connectionState.isValid || !fixedHandle) return;
+      const pointer = "changedTouches" in event ? event.changedTouches[0] : event;
+      const nodeElement = document.elementFromPoint(pointer.clientX, pointer.clientY)?.closest(".react-flow__node");
+      const droppedNodeId = nodeElement?.getAttribute("data-id");
+      const droppedNode = nodes.find((node) => node.id === droppedNodeId);
+      if (!nodeElement || !droppedNode || droppedNode.id === fixedHandle.nodeId) return;
+
+      const movingEnd = fixedHandle.type === "source" ? "target" : "source";
+      const isSideChangeOnly = movingEnd === "source" && reconnectingEdge?.source === droppedNode.id;
+      // Só religa a saída em outro quadro quando ele tem a saída comum; saídas com nome (sim/não, cada botão) pedem o pontinho certo.
+      const hasPlainOutput = Boolean(nodeElement.querySelector('[data-handleid="source-1"]'));
+      if (movingEnd === "source" && !isSideChangeOnly && (!reconnectingEdge || !hasPlainOutput)) return;
+
+      if (!isSideChangeOnly) {
+        const refusal = refuseConnection({
+          sourceId: movingEnd === "target" ? fixedHandle.nodeId : droppedNode.id,
+          targetId: movingEnd === "target" ? droppedNode.id : fixedHandle.nodeId,
+          nodes,
+          edges,
+          triggerTypes: TRIGGER_TYPE_SET,
+          ignoreEdgeId: reconnectingEdge?.id,
+        });
+        if (refusal) {
+          toast.error(REFUSAL_MESSAGES[refusal]);
+          return;
+        }
+      }
+
+      const droppedSide = nearestSide(nodeElement.getBoundingClientRect(), pointer.clientX, pointer.clientY);
+      const sides = readNodeSides(droppedNode.data);
+      const changedSides =
+        movingEnd === "target"
+          ? { inputSide: droppedSide, outputSide: sides.outputSide === droppedSide ? oppositeSide(droppedSide) : sides.outputSide }
+          : { outputSide: droppedSide, inputSide: sides.inputSide === droppedSide ? oppositeSide(droppedSide) : sides.inputSide };
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => (node.id === droppedNode.id ? { ...node, data: { ...node.data, ui: changedSides } } : node)),
+      );
+      if (isSideChangeOnly) return;
+      setEdges((currentEdges) => {
+        if (!reconnectingEdge) {
+          return addEdge(
+            { source: fixedHandle.nodeId, sourceHandle: fixedHandle.id ?? null, target: droppedNode.id, targetHandle: "target-1" },
+            currentEdges,
+          );
+        }
+        return currentEdges.map((edge) => {
+          if (edge.id !== reconnectingEdge.id) return edge;
+          return movingEnd === "target"
+            ? { ...edge, target: droppedNode.id, targetHandle: "target-1" }
+            : { ...edge, source: droppedNode.id, sourceHandle: "source-1" };
+        });
+      });
+    },
+    [nodes, edges],
+  );
+
+  const reconnectingEdgeIdRef = useRef<string | null>(null);
+  const connectingFromRef = useRef<{ nodeId: string; handleType: string } | null>(null);
+  const isValidConnection = useCallback(
+    (connection: Connection | Edge) =>
+      !refuseConnection({
+        sourceId: connection.source,
+        targetId: connection.target,
+        nodes,
+        edges,
+        triggerTypes: TRIGGER_TYPE_SET,
+        ignoreEdgeId: reconnectingEdgeIdRef.current ?? undefined,
+      }),
+    [nodes, edges],
+  );
+
+  // Enquanto uma ligação é arrastada, o quadro debaixo do ponteiro mostra se aceita a ligação.
+  const [connectionHover, setConnectionHover] = useAtom(connectionHoverAtom);
+  const trackConnectionHover = useCallback(
+    (hoveredNodeId: string | null) => {
+      const from = connectingFromRef.current;
+      if (!from || !hoveredNodeId || hoveredNodeId === from.nodeId) {
+        setConnectionHover(null);
+        return;
+      }
+      const isAllowed = !refuseConnection({
+        sourceId: from.handleType === "source" ? from.nodeId : hoveredNodeId,
+        targetId: from.handleType === "source" ? hoveredNodeId : from.nodeId,
+        nodes,
+        edges,
+        triggerTypes: TRIGGER_TYPE_SET,
+        ignoreEdgeId: reconnectingEdgeIdRef.current ?? undefined,
+      });
+      setConnectionHover({ nodeId: hoveredNodeId, isAllowed });
+    },
+    [nodes, edges, setConnectionHover],
+  );
+  const endConnectionDrag = useCallback(() => {
+    connectingFromRef.current = null;
+    reconnectingEdgeIdRef.current = null;
+    setConnectionHover(null);
+  }, [setConnectionHover]);
+
+  // Quadro nenhum fica em cima de outro: ao soltar um quadro, e quando os tamanhos mudam (troca de
+  // visão, cartão que cresceu), os vizinhos abrem espaço.
+  const spreadOverlappingNodes = useCallback((fixedNodeId?: string) => {
+    setNodes((currentNodes) => {
+      const movedPositions = resolveOverlaps(currentNodes, fixedNodeId);
+      if (movedPositions.size === 0) return currentNodes;
+      return currentNodes.map((node) => (movedPositions.has(node.id) ? { ...node, position: movedPositions.get(node.id)! } : node));
+    });
+  }, []);
+  const measuredSizesSignature = useMemo(
+    () => nodes.map((node) => `${node.id}:${Math.round(node.measured?.width ?? 0)}x${Math.round(node.measured?.height ?? 0)}`).join("|"),
+    [nodes],
+  );
+  useEffect(() => {
+    // Em somente leitura ninguém salva: mexer nas posições só deixaria um "alteração não salva" falso.
+    if (isReadOnly) return;
+    spreadOverlappingNodes();
+  }, [measuredSizesSignature, spreadOverlappingNodes, isReadOnly]);
+
+  const [insertOnEdgeId, setInsertOnEdgeId] = useAtom(insertOnEdgeIdAtom);
+  useEffect(() => {
+    if (insertOnEdgeId) setOpenSelector(true);
+  }, [insertOnEdgeId]);
 
   const hasManuelTrigger = useMemo(() => {
     return nodes.some((node) => node.type === NodeType.MANUAL_TRIGGER);
@@ -277,13 +438,46 @@ export function Editor({ workflowId }: { workflowId: string }) {
     [validationData],
   );
 
+  // Previsão de erros sobre o desenho da tela (spec 0090): recalcula quando o conteúdo ou as
+  // ligações mudam, não a cada arrasto. O tipo de número do funil decide quais regras valem.
+  const { trackingId } = useParams<{ trackingId: string }>();
+  const { instance, instanceLoading } = useQueryInstances(trackingId);
+  const { presets: savedMenus } = useAiButtonPresets(trackingId ?? "");
+  const channelProvider: FlowChannelProvider = !instance ? "none" : instance.provider === "META_CLOUD" ? "meta" : "uazapi";
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const setFlowDiagnostics = useSetAtom(flowDiagnosticsAtom);
+  const diagnosticsSignature = useMemo(
+    () =>
+      JSON.stringify({
+        nodes: nodes.map((node) => [node.id, node.type, node.data]),
+        edges: edges.map((edge) => [edge.id, edge.source, edge.target, edge.sourceHandle]),
+      }),
+    [nodes, edges],
+  );
+  useEffect(() => {
+    if (instanceLoading) return;
+    const flowDiagnostics = collectFlowProblems(nodes, edges, channelProvider, savedMenus);
+    setFlowDiagnostics(flowDiagnostics);
+    // A assinatura já resume nós e ligações: depender deles direto recalcularia a cada arrasto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diagnosticsSignature, channelProvider, instanceLoading, setFlowDiagnostics, savedMenus]);
+  useEffect(
+    () => () => {
+      setFlowDiagnostics(EMPTY_FLOW_DIAGNOSTICS);
+    },
+    [setFlowDiagnostics],
+  );
+
   return (
     <WorkflowAgentModeProvider workflowId={workflowId} agentMode={agentMode}>
+      <InspectorMode />
+      <PauseAnimationsWhenAway />
      <WorkflowIssuesProvider value={issuesContextValue}>
       <div className="size-full">
         <MenuOptions
           handelOpenSelector={setOpenSelector}
           workflowId={workflowId}
+          isDisabled={isReadOnly}
         >
           <ReactFlow
             nodes={nodes}
@@ -291,6 +485,38 @@ export function Editor({ workflowId }: { workflowId: string }) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onReconnect={onReconnect}
+            // Sem a permissão de editar Automações o desenho fica travado: dá para olhar e navegar, não mexer.
+            nodesDraggable={!isReadOnly}
+            nodesConnectable={!isReadOnly}
+            edgesReconnectable={!isReadOnly}
+            deleteKeyCode={isReadOnly ? null : undefined}
+            onNodeDragStop={(_event, node) => spreadOverlappingNodes(node.id)}
+            isValidConnection={isValidConnection}
+            onConnectStart={(_event, params) => {
+              connectingFromRef.current = params.nodeId ? { nodeId: params.nodeId, handleType: params.handleType ?? "source" } : null;
+            }}
+            onConnectEnd={(event, connectionState) => {
+              dropConnectionOnNodeSide(event, connectionState);
+              endConnectionDrag();
+            }}
+            onReconnectStart={(_event, edge, handleType) => {
+              reconnectingEdgeIdRef.current = edge.id;
+              // `handleType` é a ponta que a pessoa pegou; a ligação parte da ponta oposta, que fica presa.
+              connectingFromRef.current =
+                handleType === "target" ? { nodeId: edge.source, handleType: "source" } : { nodeId: edge.target, handleType: "target" };
+            }}
+            onReconnectEnd={(event, edge, _handleType, connectionState) => {
+              dropConnectionOnNodeSide(event, connectionState, edge);
+              endConnectionDrag();
+            }}
+            onNodeMouseEnter={(_event, node) => trackConnectionHover(node.id)}
+            onNodeMouseLeave={() => trackConnectionHover(null)}
+            connectionLineStyle={{
+              stroke: connectionHover && !connectionHover.isAllowed ? "var(--destructive)" : "var(--info)",
+              strokeWidth: 3,
+              strokeDasharray: "10 6",
+            }}
             nodeTypes={nodeComponents}
             edgeTypes={edgeTypes}
             onInit={setEditor}
@@ -302,6 +528,7 @@ export function Editor({ workflowId }: { workflowId: string }) {
             // selectionOnDrag
           >
             <Background variant={BackgroundVariant.Dots} />
+            <StageSectionsLayer />
             <MiniMap position="bottom-right" className="bg-background!" />
             <Controls
               position="bottom-left"
@@ -319,22 +546,34 @@ export function Editor({ workflowId }: { workflowId: string }) {
                   }
                 />
               )}
-              {agentMode && <AgentDetailButton workflowId={workflowId} />}
               <WorkflowIssuesPanel workflowId={workflowId} />
-              {agentMode && <DryRunButton workflowId={workflowId} />}
-              <StepByStepContainer workflowId={workflowId} />
-              {/* Copy/paste de workflow ou nodes selecionados. Cobre
-                  cross-tracking + cross-org via dialog de mapping. */}
-              <WorkflowClipboardButton
-                workflowId={workflowId}
-                trackingId={
-                  (data?.workflow as { trackingId?: string })?.trackingId
-                }
-              />
+              {/* Histórico, passo a passo e clipboard ficam recolhidos em "Configurações". Só escondidos,
+                  nunca desmontados: um teste passo a passo em andamento não pode sumir ao recolher. */}
+              <div className={isToolsOpen ? "flex items-center gap-2" : "hidden"}>
+                {agentMode && <AgentDetailButton workflowId={workflowId} />}
+                <StepByStepContainer workflowId={workflowId} />
+                <WorkflowClipboardButton
+                  workflowId={workflowId}
+                  trackingId={(data?.workflow as { trackingId?: string })?.trackingId}
+                />
+              </div>
               {/* Auto-layout via Dagre — recalcula positions pra eliminar
                   sobreposições. Marca workflow como dirty pra user salvar. */}
-              <OptimizeLayoutButton />
-              <AddNodeButton />
+              {!isReadOnly && <OptimizeLayoutButton />}
+              {!isReadOnly && (
+              <Button
+                variant={isToolsOpen ? "secondary" : "outline"}
+                size="icon"
+                className="bg-background"
+                title="Configurações: histórico, testar passo a passo e clipboard"
+                aria-label="Configurações do fluxo"
+                aria-expanded={isToolsOpen}
+                onClick={() => setIsToolsOpen((wasOpen) => !wasOpen)}
+                data-guide={GUIDE_ANCHORS.workflowToolsButton.id}
+              >
+                <SettingsIcon className="size-4" />
+              </Button>
+              )}
             </Panel>
             {hasManuelTrigger && (
               <Panel position="bottom-center">
@@ -343,7 +582,11 @@ export function Editor({ workflowId }: { workflowId: string }) {
             )}
             <NodeSelector
               open={openSelector}
-              onOpenChange={setOpenSelector}
+              onOpenChange={(isOpen) => {
+                setOpenSelector(isOpen);
+                if (!isOpen) setInsertOnEdgeId(null);
+              }}
+              insertOnEdgeId={insertOnEdgeId}
             />
           </ReactFlow>
         </MenuOptions>

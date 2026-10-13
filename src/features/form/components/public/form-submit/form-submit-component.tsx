@@ -1,4 +1,5 @@
 "use client";
+import { formSurfaceThemeClass } from "@/features/form/lib/form-surface-theme";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FieldValue,
@@ -606,7 +607,7 @@ export function FormSubmitComponent({
       <div
         data-form-readonly={readOnly ? "true" : undefined}
         data-form-scroll-container
-        className="scrollbar w-full h-full overflow-y-auto pt-3 transition-all duration-300"
+        className={cn("scrollbar w-full h-full overflow-y-auto pt-3 transition-all duration-300", formSurfaceThemeClass(backgroundColor))}
         style={{
           backgroundColor: backgroundColor || undefined,
           backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,

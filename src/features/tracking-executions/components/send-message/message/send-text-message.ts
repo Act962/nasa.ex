@@ -2,35 +2,42 @@ import {
   CreatedMessageProps,
   MessageStatus,
 } from "@/features/tracking-chat/types";
-import { markReadMessage } from "@/http/uazapi/mark-read-message";
-import { sendText } from "@/http/uazapi/send-text";
+import type { WhatsAppChatProvider } from "@/features/tracking-chat/lib/providers";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import {
+  sendWithWorkflowErrors,
+  toStoredMessageId,
+  WORKFLOW_TYPING_DELAY_MS,
+} from "../../../lib/workflow-outbound";
 
 interface SendTextMessageProps {
   body: string;
   conversationId: string;
   leadPhone: string;
-  token: string;
+  provider: WhatsAppChatProvider;
 }
 
 export const sendTextMessage = async ({
   body,
   conversationId,
   leadPhone,
-  token,
+  provider,
 }: SendTextMessageProps) => {
-  const response = await sendText(token, {
-    text: body,
-    number: leadPhone,
-    delay: 2000,
-  });
+  const sent = await sendWithWorkflowErrors(() =>
+    provider.sendText({
+      kind: "text",
+      to: leadPhone,
+      body,
+      typingDelayMs: WORKFLOW_TYPING_DELAY_MS,
+    }),
+  );
 
   const message = await prisma.message.create({
     data: {
       conversationId: conversationId,
       body: body,
-      messageId: response.messageid,
+      messageId: toStoredMessageId(sent),
       fromMe: true,
       status: MessageStatus.SENT,
       quotedMessageId: null,

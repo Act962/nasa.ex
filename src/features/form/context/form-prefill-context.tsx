@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo } from "react";
 import type { FieldValue } from "@/features/form/types";
+import { useRecordFillValue } from "@/features/form-records/hooks/use-record-fill-store";
 
 /**
  * Contexto opcional que alimenta valores iniciais nos blocos do formulário.
@@ -129,9 +130,14 @@ export function useLeadIdentityValue(
 export function useResolvedInitialValue(
   blockId: string,
   source: LeadPrefillSource | null | undefined,
+  /** Nome-chave do campo: recebe o dado trazido por uma "Busca no Órbita" (spec 0075). */
+  fieldKey?: string | null,
 ): { initialValue: string | undefined; identityValue: string | undefined } {
   const savedValue = usePrefillValue(blockId);
-  const identityValue = useLeadIdentityValue(source);
+  const leadIdentityValue = useLeadIdentityValue(source);
+  const recordFillValue = useRecordFillValue(fieldKey);
+  // A ficha escolhida na busca é mais específica que a identificação do lead.
+  const identityValue = recordFillValue ?? leadIdentityValue;
   const hasSaved = savedValue !== undefined && savedValue.trim().length > 0;
   return {
     initialValue: hasSaved ? savedValue : identityValue,

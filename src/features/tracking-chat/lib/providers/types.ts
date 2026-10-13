@@ -214,6 +214,11 @@ interface SendBase {
    * flag).
    */
   readonly markPreviousAsRead?: boolean;
+  /**
+   * Atraso de "digitando…" antes da entrega, em ms. Só a Uazapi tem isso
+   * (`delay`); a Meta ignora. Usado pelas automações, que simulam digitação.
+   */
+  readonly typingDelayMs?: number;
 }
 
 export interface SendCanonicalText extends SendBase {
@@ -295,6 +300,22 @@ export interface SendResult {
   readonly raw: unknown;
 }
 
+export interface UploadCanonicalMedia {
+  readonly file: Buffer;
+  readonly mimetype: string;
+  readonly fileName?: string;
+}
+
+/** Pergunta com opções clicáveis (spec 0079): até 3 viram botões, de 4 a 10 viram lista. */
+export interface SendCanonicalInteractive extends SendBase {
+  readonly kind: "interactive";
+  readonly body: string;
+  readonly footer?: string;
+  readonly options: ReadonlyArray<{ readonly id: string; readonly title: string; readonly description?: string }>;
+  /** Texto do botão que abre a lista. */
+  readonly listButtonLabel?: string;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // PORT
 // ════════════════════════════════════════════════════════════════════════════
@@ -331,6 +352,16 @@ export interface WhatsAppChatProvider {
    * `UazapiProvider` lança `ProviderFeatureUnsupportedError`.
    */
   sendTemplate(input: SendCanonicalTemplate): Promise<SendResult>;
+  /**
+   * Botões de resposta ou lista. Opcional: só a Meta Cloud implementa; quem chama
+   * confere a presença e cai para texto quando o provider não tem.
+   */
+  sendInteractive?(input: SendCanonicalInteractive): Promise<SendResult>;
+  /**
+   * Sobe um arquivo para o provider e devolve o `mediaId` para `sendMedia`.
+   * Opcional: só a Meta Cloud implementa. Evita expor o arquivo em URL pública.
+   */
+  uploadMedia?(input: UploadCanonicalMedia): Promise<{ mediaId: string }>;
 
   // ── Webhook inbound ─────────────────────────────────────────────────────
 

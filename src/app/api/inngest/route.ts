@@ -81,10 +81,13 @@ import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-aband
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
 import { worldEventOccupancyTick } from "@/inngest/functions/crons/world-event-occupancy-tick";
 import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-due-soon";
+import { sendRecordNotices } from "@/inngest/functions/crons/send-record-notices";
+import { snapshotMetaDailySpendCron } from "@/inngest/functions/campanhas/snapshot-meta-daily-spend";
 import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
-import { chatAiWhatsappAgent } from "@/inngest/functions/chat-ai/whatsapp-agent";
+import { chatAiWhatsappAgent, chatAiWhatsappButtonClick } from "@/inngest/functions/chat-ai/whatsapp-agent";
 import { syncCatalogOrderToNerp } from "@/inngest/functions/nerp-catalog/sync-order-to-nerp";
 import { awaitReplyTagCheck } from "@/inngest/functions/org-defaults/await-reply-tag";
+import { astroBotInactivityNotice } from "@/inngest/functions/astro-bot/inactivity-notice";
 import { seedSampleContent } from "@/inngest/functions/org-defaults/seed-sample-content";
 import { emailLeadCaptureCron } from "@/inngest/functions/crons/email-lead-capture";
 import { watchCatalogOrderPayment } from "@/inngest/functions/nerp-catalog/watch-order-payment";
@@ -211,10 +214,12 @@ export const { GET, POST, PUT } = serve({
     chatSyncMessages,
     // ── Chat AI (WhatsApp agent interno) ──
     chatAiWhatsappAgent,
+    chatAiWhatsappButtonClick,
     // ── Catálogo online NERP → Órbita: pagamento e confirmação da venda ──
     watchCatalogOrderPayment,
     syncCatalogOrderToNerp,
     awaitReplyTagCheck,
+    astroBotInactivityNotice,
     seedSampleContent,
     emailLeadCaptureCron,
     // ── STAR FRIENDS: validade das stars ──
@@ -236,6 +241,8 @@ export const { GET, POST, PUT } = serve({
     // ── NASA World — convention occupancy ──
     worldEventOccupancyTick,
     detectActionsDueSoon,
+    sendRecordNotices,
+    snapshotMetaDailySpendCron,
     // ── Idle automation por tracking (substitui detect-leads-waiting-attention + LAST_INBOUND_TIMEOUT) ──
     scheduleIdleChecks,
     checkNoFirstResponse,

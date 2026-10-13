@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { sendWorkspaceWorkflowEvent } from "@/inngest/utils";
 import { z } from "zod";
 import { findActionInOrg, isOrgMember } from "../lib/action-access";
+import { notifyNewTask } from "../lib/notify-new-task";
 
 export const addParticipant = base
   .use(requiredAuthMiddleware)
@@ -24,6 +25,11 @@ export const addParticipant = base
         message: "Usuário não pertence a esta organização",
       });
     }
+
+    const wasAlreadyInTask = await prisma.actionsUserParticipant.findUnique({
+      where: { actionId_userId: { actionId: input.actionId, userId: input.userId } },
+      select: { userId: true },
+    });
 
     const participant = await prisma.actionsUserParticipant.upsert({
       where: {
@@ -45,6 +51,7 @@ export const addParticipant = base
           select: {
             id: true,
             workspaceId: true,
+            title: true,
           },
         },
       },
@@ -61,6 +68,18 @@ export const addParticipant = base
         "[workspace-workflow] failed to emit action.participant.added",
         err,
       );
+    }
+
+    if (!wasAlreadyInTask) {
+      await notifyNewTask({
+        actionId: participant.action.id,
+        title: participant.action.title,
+        workspaceId: participant.action.workspaceId,
+        organizationId: context.org.id,
+        actorId: context.user.id,
+        actorName: context.user.name,
+        userIds: [input.userId],
+      });
     }
 
     return { participant };

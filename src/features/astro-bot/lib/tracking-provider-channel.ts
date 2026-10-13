@@ -16,10 +16,13 @@ import "server-only";
 import "@/features/tracking-chat/lib/providers";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
 import type { WhatsappBotChannel, ButtonPayload } from "./types";
+import { withListExtras } from "./menu/menu-flow";
 
 const MAX_TEXT_LEN = 4000;
 /** A Uazapi renderiza N botões, mas acima disto a leitura piora. */
 const MAX_BUTTONS = 6;
+/** Corpo de mensagem interativa da Meta: 1024 caracteres. */
+const MAX_INTERACTIVE_BODY_LEN = 1024;
 const MIN_DELAY_MS = 1500;
 const MAX_DELAY_MS = 4000;
 
@@ -63,6 +66,7 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
   async sendText(
     phone: string,
     text: string,
+    options?: { isImmediate?: boolean },
   ): Promise<{ messageId: string | null }> {
     const resolved = await resolveOutboundProvider(this.trackingId);
     const chunks = chunkText(text);
@@ -70,7 +74,7 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
     for (let i = 0; i < chunks.length; i++) {
       // Delay próprio (Meta não tem o `delay` nativo do Uazapi); humaniza
       // respostas multi-chunk sem depender de flag provider-specific.
-      await delay(humanDelayMs());
+      if (!options?.isImmediate) await delay(humanDelayMs());
       const result = await resolved.provider.sendText({
         kind: "text",
         to: phone,
@@ -95,6 +99,33 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
     payload: ButtonPayload,
   ): Promise<{ messageId: string | null }> {
     const resolved = await resolveOutboundProvider(this.trackingId);
+    // Em lista numerada só entram as opções que são resposta de verdade.
+    const numberedButtons = payload.buttons.filter((button) => !button.interactiveOnly);
+
+    // API oficial (spec 0079): botões até 3 opções, lista até 10. `ASTRO_BOT_INTERACTIVE=false`
+    // desliga sem deploy; qualquer falha cai para o texto abaixo — pergunta nunca fica sem chegar.
+    if (
+      process.env.ASTRO_BOT_INTERACTIVE !== "false" &&
+      resolved.provider.sendInteractive &&
+      payload.buttons.length > 0
+    ) {
+      try {
+        const options = withListExtras(payload.buttons);
+        const isBodyTooLong = payload.bodyText.length > MAX_INTERACTIVE_BODY_LEN;
+        if (isBodyTooLong) await this.sendText(phone, payload.bodyText, { isImmediate: payload.isImmediate });
+        const result = await resolved.provider.sendInteractive({
+          kind: "interactive",
+          to: phone,
+          body: isBodyTooLong ? "Escolha uma opção:" : payload.bodyText,
+          footer: payload.footerText,
+          options: options.map((button) => ({ id: button.id, title: button.text, description: button.description })),
+          listButtonLabel: payload.listButtonLabel,
+        });
+        return { messageId: result.externalMessageId ?? null };
+      } catch (error) {
+        console.error("[astro-bot/channel] interativo da API oficial falhou, usando texto", error);
+      }
+    }
 
     // Botões ficam atrás de flag, desligados.
     //
@@ -106,7 +137,7 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
     if (
       process.env.ASTRO_BOT_BUTTONS === "true" &&
       resolved.uazapiToken &&
-      payload.buttons.length > 0
+      numberedButtons.length > 0
     ) {
       try {
         const { sendButtons } = await import("@/http/uazapi/send-menu");
@@ -116,7 +147,7 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
             number: phone,
             text: payload.bodyText,
             footer: payload.footerText,
-            buttons: payload.buttons.slice(0, MAX_BUTTONS),
+            buttons: numberedButtons.slice(0, MAX_BUTTONS).map((button) => ({ id: button.id, text: button.text })),
             readchat: true,
           },
           resolved.uazapiBaseUrl,
@@ -138,19 +169,38 @@ export class TrackingProviderBotChannel implements WhatsappBotChannel {
       }
     }
 
-    const lines = payload.buttons.map(
+    const lines = numberedButtons.map(
       (button, index) => `*${index + 1}.* ${button.text}`,
     );
     const body = [payload.bodyText, ...lines, payload.footerText]
       .filter(Boolean)
       .join("\n");
-    return this.sendText(phone, body);
+    return this.sendText(phone, body, { isImmediate: payload.isImmediate });
   }
 
   async sendMedia(phone: string, media: { url: string; caption?: string }): Promise<{ messageId: string | null }> {
     const resolved = await resolveOutboundProvider(this.trackingId);
     const result = await resolved.provider.sendMedia({ kind: "media", to: phone, mediaKind: "image", mediaUrl: media.url, caption: media.caption });
     return { messageId: result.externalMessageId ?? null };
+  }
+
+  async sendVoice(phone: string, voice: { audio: Buffer; mimetype: string }): Promise<{ messageId: string | null }> {
+    const resolved = await resolveOutboundProvider(this.trackingId);
+    if (resolved.provider.uploadMedia) {
+      // API oficial: sobe direto para a Meta, sem link público (spec 0083, RS-4).
+      const uploaded = await resolved.provider.uploadMedia({ file: voice.audio, mimetype: voice.mimetype, fileName: "resposta.ogg" });
+      const result = await resolved.provider.sendMedia({ kind: "media", to: phone, mediaKind: "audio", mediaId: uploaded.mediaId, mimetype: voice.mimetype, isVoice: true });
+      return { messageId: result.externalMessageId ?? null };
+    }
+    if (!resolved.uazapiToken) throw new Error("Provider sem envio de nota de voz");
+    const { sendMedia: sendUazapiMedia } = await import("@/http/uazapi/send-media");
+    const response = await sendUazapiMedia(
+      resolved.uazapiToken,
+      { number: phone, type: "ptt", file: `data:${voice.mimetype};base64,${voice.audio.toString("base64")}` },
+      resolved.uazapiBaseUrl,
+    );
+    const sent = response as { id?: unknown; messageid?: unknown };
+    return { messageId: typeof sent?.messageid === "string" ? sent.messageid : typeof sent?.id === "string" ? sent.id : null };
   }
 
   async sendTyping(_phone: string, _durationMs: number): Promise<void> {

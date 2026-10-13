@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { NodeType } from "@/generated/prisma/enums";
+import { AUTOMATION_DENIAL, checkWorkflowAccess } from "@/features/workflows/server/workflow-access";
 import prisma from "@/lib/prisma";
 import z from "zod";
 
@@ -23,6 +24,11 @@ export const updateName = base
     }),
   )
   .handler(async ({ input, context, errors }) => {
+    // Ser da empresa não basta: vale a permissão de Automações do papel da pessoa (spec 0092).
+    const access = await checkWorkflowAccess(input.workflowId, context.user.id, "canEdit");
+    if (access === "not-found") throw errors.NOT_FOUND({ message: "Workflow não encontrado" });
+    if (access === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canEdit });
+
     const workflow = await prisma.workflow.findUnique({
       where: { id: input.workflowId },
       include: {
@@ -100,6 +106,11 @@ export const updateNodes = base
   )
   .handler(async ({ input, context, errors }) => {
     const { id, nodes, edges } = input;
+
+    // Ser da empresa não basta: vale a permissão de Automações do papel da pessoa (spec 0092).
+    const access = await checkWorkflowAccess(id, context.user.id, "canEdit");
+    if (access === "not-found") throw errors.NOT_FOUND({ message: "Workflow não encontrado" });
+    if (access === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canEdit });
 
     const workflow = await prisma.workflow.findUniqueOrThrow({
       where: { id },

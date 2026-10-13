@@ -68,6 +68,8 @@ export interface FirePostInboundParams {
    * callers que não têm o texto em mãos.
    */
   leadMessage?: WorkflowLeadMessage;
+  /** Toque em botão ou item de lista: mensagem completa, não espera o cliente terminar de digitar. */
+  isButtonClick?: boolean;
   /** Dados serializáveis pro Pusher per-conversation event. */
   messagePayload: Record<string, any>;
   /** Dados serializáveis pro Pusher per-tracking event (lista de conversas). */
@@ -91,6 +93,8 @@ export interface FirePostInboundParams {
  * Cada etapa é try/catch interno — falha numa não bloqueia as outras.
  * Comportamento espelha o webhook do WhatsApp (linhas 830-947 do route.ts).
  */
+export const WHATSAPP_BUTTON_CLICK_EVENT = "chat/ai.whatsapp-button-clicked";
+
 export async function firePostInboundAutomations(
   params: FirePostInboundParams,
 ): Promise<void> {
@@ -228,7 +232,10 @@ export async function firePostInboundAutomations(
         // Mantém o nome legado pra não quebrar handler existente em
         // src/inngest/functions/chat-ai-respond.ts. Channel no data
         // permite o listener distinguir origem (WhatsApp vs In-Chat).
-        name: "chat/ai.whatsapp-message-received",
+        name:
+          params.isButtonClick && process.env.ATTENDANCE_CLICK_NO_DEBOUNCE === "true"
+            ? WHATSAPP_BUTTON_CLICK_EVENT
+            : "chat/ai.whatsapp-message-received",
         data: {
           trackingId: params.trackingId,
           leadId: params.lead.id,

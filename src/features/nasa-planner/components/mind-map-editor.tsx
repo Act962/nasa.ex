@@ -24,6 +24,7 @@ import {
   type Edge,
   type NodeTypes,
   type EdgeTypes,
+  type NodeChange,
   Panel,
   getBezierPath,
   EdgeLabelRenderer,
@@ -101,508 +102,62 @@ import { usePlannerCalendarPosts } from "../hooks/use-planner-calendar";
 import { usePlannerWeekdayThemes } from "../hooks/use-planner-weekly-script";
 import { BRANCH_COLORS, ROOT_NODE_ID, findDayTopic, layoutTree, type MapEdge } from "../lib/mind-map/map-graph";
 import { listPendingContents, mergeWeeklyPosts } from "../lib/mind-map/weekly-map";
-import { LinkNode, MindMapPostsContext, PostNode, type MapPostInfo } from "./mind-map/content-nodes";
+import { getBranchColor, getNodeDepth, isNodeCollapsed, parseStoredEdges, parseStoredNodes, readNodeColor, readNodeText } from "../lib/mind-map/editor-graph";
+import { registerMindMapEditorActions } from "../lib/mind-map/editor-bridge";
+import { useMindMapHistory } from "../hooks/use-mind-map-history";
+import { MindMapPostsContext, type MapPostInfo } from "./mind-map/content-nodes";
+import { ActionCardDialog, AiSuggestionsDialog, type AiSuggestionRequest } from "./mind-map/editor-dialogs";
+import { mindMapEdgeTypes, mindMapNodeTypes } from "./mind-map/editor-nodes";
+import { MindMapDesktopActions, MindMapMobileMenu, type MindMapToolbarActions, type MindMapToolbarState } from "./mind-map/editor-toolbar";
 import { MapItemDialog, type MapItemKind, type MapItemRequest, type MapItemValues } from "./mind-map/item-dialog";
 import { MindMapOutlineView } from "./mind-map/outline-view";
 import { WeeklyContentsDialog } from "./mind-map/weekly-contents-dialog";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function getNodeDepth(nodeId: string, nodes: Node[], edges: Edge[]): number {
-  if (nodeId === "root") return 0;
-  let depth = 0;
-  let current = nodeId;
-  const visited = new Set<string>();
-  while (true) {
-    if (visited.has(current)) break;
-    visited.add(current);
-    const parentEdge = edges.find((e) => e.target === current);
-    if (!parentEdge) break;
-    current = parentEdge.source;
-    depth++;
-    if (depth > 20) break;
-  }
-  return depth;
-}
-
-function getBranchColor(nodeId: string, nodes: Node[], edges: Edge[]): string {
-  // Walk up to find the first-level child of root
-  let current = nodeId;
-  const visited = new Set<string>();
-  while (true) {
-    if (visited.has(current)) break;
-    visited.add(current);
-    const parentEdge = edges.find((e) => e.target === current);
-    if (!parentEdge) break;
-    if (parentEdge.source === "root") {
-      // current is a first-level child
-      const node = nodes.find((n) => n.id === current);
-      return (node?.data as any)?.color ?? BRANCH_COLORS[0];
-    }
-    current = parentEdge.source;
-  }
-  const node = nodes.find((n) => n.id === nodeId);
-  return (node?.data as any)?.color ?? BRANCH_COLORS[0];
-}
-
-// ─── Inline Edit Input ────────────────────────────────────────────────────────
-function InlineEdit({
-  value,
-  onDone,
-  onCancel,
-  style,
-}: {
-  value: string;
-  onDone: (v: string) => void;
-  onCancel: () => void;
-  style?: React.CSSProperties;
-}) {
-  const [text, setText] = useState(value);
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-  return (
-    <input
-      ref={ref}
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onKeyDown={(e) => {
-        e.stopPropagation();
-        if (e.key === "Enter") { e.preventDefault(); onDone(text); }
-        if (e.key === "Escape") { onCancel(); }
-      }}
-      onBlur={() => onDone(text)}
-      className="nodrag bg-transparent border-none outline-none text-inherit font-inherit text-center w-full"
-      style={style}
-    />
-  );
-}
-
-// ─── Node Toolbar (contextual) ────────────────────────────────────────────────
-function NodeContextToolbar({
-  nodeId,
-  color,
-  onAddChild,
-  onAddSibling,
-  onDelete,
-  onChangeColor,
-  onGenerateAI,
-  onCreatePost,
-  isGenerating,
-}: {
-  nodeId: string;
-  color: string;
-  onAddChild: () => void;
-  onAddSibling: () => void;
-  onDelete: () => void;
-  onChangeColor: (c: string) => void;
-  onGenerateAI: () => void;
-  onCreatePost: () => void;
-  isGenerating: boolean;
-}) {
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  return (
-    <NodeToolbar isVisible position={Position.Top} offset={8}>
-      <div className="flex items-center gap-1 bg-popover border rounded-xl shadow-lg px-2 py-1.5">
-        <button
-          title="Adicionar filho (Tab)"
-          onClick={onAddChild}
-          className="size-6 flex items-center justify-center rounded-full hover:bg-info/15 text-info transition-colors"
-        >
-          <PlusIcon className="size-3.5" />
-        </button>
-        <div className="w-px h-4 bg-border" />
-        <button
-          title="Gerar com IA (Ctrl+G)"
-          onClick={onGenerateAI}
-          disabled={isGenerating}
-          className="size-6 flex items-center justify-center rounded-full hover:bg-warning/15 text-warning transition-colors disabled:opacity-40"
-        >
-          {isGenerating ? <OrbitaSpinner className="size-3 " /> : <BotIcon className="size-3.5" />}
-        </button>
-        <button
-          title="Criar Post"
-          onClick={onCreatePost}
-          className="size-6 flex items-center justify-center rounded-full hover:bg-info/15 text-info transition-colors"
-        >
-          <FileImageIcon className="size-3.5" />
-        </button>
-        <div className="w-px h-4 bg-border" />
-        <div className="relative">
-          <button
-            title="Cor"
-            onClick={() => setShowColorPicker((p) => !p)}
-            className="size-6 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
-          >
-            <div className="size-3.5 rounded-full border border-white/50" style={{ background: color }} />
-          </button>
-          {showColorPicker && (
-            <div className="absolute top-8 left-0 z-50 bg-popover border rounded-xl shadow-xl p-2 flex flex-wrap gap-1.5 w-[130px]">
-              {BRANCH_COLORS.map((c) => (
-                <button
-                  key={c}
-                  className={cn("size-6 rounded-full border-2 transition-transform hover:scale-110", color === c ? "border-white scale-110 ring-2 ring-offset-1" : "border-transparent")}
-                  style={{ background: c }}
-                  onClick={() => { onChangeColor(c); setShowColorPicker(false); }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="w-px h-4 bg-border" />
-        <button
-          title="Excluir (Delete)"
-          onClick={onDelete}
-          className="size-6 flex items-center justify-center rounded-full hover:bg-destructive/15 text-destructive transition-colors"
-        >
-          <Trash2Icon className="size-3.5" />
-        </button>
-      </div>
-    </NodeToolbar>
-  );
-}
-
-// ─── Root Node ────────────────────────────────────────────────────────────────
-function MindMapRootNode({ id, data, selected }: { id: string; data: any; selected?: boolean }) {
-  const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();
-
-  const handleAddChild = useCallback(() => {
-    (window as any).__mmAddChild?.(id);
-  }, [id]);
-  const handleDelete = useCallback(() => {
-    (window as any).__mmDeleteNode?.(id);
-  }, [id]);
-  const handleChangeColor = useCallback((c: string) => {
-    (window as any).__mmChangeColor?.(id, c);
-  }, [id]);
-  const handleGenerateAI = useCallback(() => {
-    (window as any).__mmGenerateAI?.(id);
-  }, [id]);
-  const handleCreatePost = useCallback(() => {
-    (window as any).__mmCreatePost?.(id, data.label ?? "");
-  }, [id, data.label]);
-
-  return (
-    <>
-      {selected && (
-        <NodeContextToolbar
-          nodeId={id}
-          color={data.color ?? "#7C3AED"}
-          onAddChild={handleAddChild}
-          onAddSibling={() => {}}
-          onDelete={handleDelete}
-          onChangeColor={handleChangeColor}
-          onGenerateAI={handleGenerateAI}
-          onCreatePost={handleCreatePost}
-          isGenerating={data.isGenerating ?? false}
-        />
-      )}
-      <Handle type="source" position={Position.Right} className="!opacity-0" />
-      <Handle type="target" position={Position.Left} className="!opacity-0" />
-      <div
-        className={cn(
-          "px-6 py-3.5 rounded-2xl text-white font-bold shadow-xl min-w-[140px] text-center select-none cursor-pointer",
-          selected && "ring-2 ring-white/70 ring-offset-2 ring-offset-transparent",
-        )}
-        style={{
-          background: `linear-gradient(135deg, ${data.color ?? "#7C3AED"}, ${data.color ?? "#7C3AED"}cc)`,
-          fontSize: "15px",
-          letterSpacing: "0.02em",
-        }}
-      >
-        {data.editing ? (
-          <InlineEdit
-            value={data.label ?? ""}
-            onDone={(v) => (window as any).__mmFinishEdit?.(id, v)}
-            onCancel={() => (window as any).__mmCancelEdit?.(id)}
-          />
-        ) : (
-          <span>{data.label ?? "Ideia Central"}</span>
-        )}
-      </div>
-    </>
-  );
-}
-
-// ─── Topic Node ───────────────────────────────────────────────────────────────
-function TopicNode({ id, data, selected }: { id: string; data: any; selected?: boolean }) {
-  const depth = data.depth ?? 1;
-  const fontSize = depth === 1 ? "14px" : depth === 2 ? "13px" : "12px";
-
-  const handleAddChild = () => (window as any).__mmAddChild?.(id);
-  const handleAddSibling = () => (window as any).__mmAddSibling?.(id);
-  const handleDelete = () => (window as any).__mmDeleteNode?.(id);
-  const handleChangeColor = (c: string) => (window as any).__mmChangeColor?.(id, c);
-  const handleGenerateAI = () => (window as any).__mmGenerateAI?.(id);
-  const handleCreatePost = () => (window as any).__mmCreatePost?.(id, data.label ?? "");
-  const handleCollapse = () => (window as any).__mmToggleCollapse?.(id);
-
-  const hasChildren = data.hasChildren ?? false;
-  const collapsed = data.collapsed ?? false;
-
-  return (
-    <>
-      {selected && (
-        <NodeContextToolbar
-          nodeId={id}
-          color={data.color ?? "#7C3AED"}
-          onAddChild={handleAddChild}
-          onAddSibling={handleAddSibling}
-          onDelete={handleDelete}
-          onChangeColor={handleChangeColor}
-          onGenerateAI={handleGenerateAI}
-          onCreatePost={handleCreatePost}
-          isGenerating={data.isGenerating ?? false}
-        />
-      )}
-      <Handle type="target" position={Position.Left} className="!opacity-0" />
-      <Handle type="source" position={Position.Right} className="!opacity-0" />
-
-      <div
-        className={cn(
-          "relative group px-4 py-2 rounded-xl text-white shadow-md min-w-[100px] max-w-[220px] text-center select-none cursor-pointer transition-all",
-          selected && "ring-2 ring-white/70 ring-offset-1 ring-offset-transparent",
-          data.aiSuggested && "opacity-70 border-2 border-dashed border-white/50",
-        )}
-        style={{
-          background: `linear-gradient(135deg, ${data.color ?? "#7C3AED"}ee, ${data.color ?? "#7C3AED"}aa)`,
-          fontSize,
-        }}
-      >
-        {data.editing ? (
-          <InlineEdit
-            value={data.label ?? ""}
-            onDone={(v) => (window as any).__mmFinishEdit?.(id, v)}
-            onCancel={() => (window as any).__mmCancelEdit?.(id)}
-            style={{ fontSize }}
-          />
-        ) : (
-          <>
-            <span className="block leading-snug">{data.label ?? "Tópico"}</span>
-            {data.theme && <span className="block truncate text-[10.5px] font-normal opacity-90">{data.theme}</span>}
-            {/* Quick add on hover */}
-            {!data.aiSuggested && (
-              <button
-                onClick={(e) => { e.stopPropagation(); handleAddChild(); }}
-                className="absolute -right-3 top-1/2 -translate-y-1/2 size-5 rounded-full bg-card/90 text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-card hover:scale-110 border border-line"
-                title="Adicionar filho"
-              >
-                <PlusIcon className="size-3" />
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Collapse toggle */}
-      {hasChildren && !data.editing && (
-        <button
-          onClick={(e) => { e.stopPropagation(); handleCollapse(); }}
-          className={cn(
-            "absolute -right-1.5 top-1/2 -translate-y-1/2 translate-x-full flex items-center justify-center rounded-full border-2 bg-card shadow-sm transition-colors hover:bg-muted z-10",
-            collapsed ? "size-5 text-xs font-bold" : "size-4",
-          )}
-          style={{ borderColor: data.color ?? "#7C3AED", color: data.color ?? "#7C3AED" }}
-        >
-          {collapsed
-            ? <span style={{ fontSize: "9px" }}>{data.collapsedCount ?? ""}</span>
-            : <ChevronRightIcon className="size-2.5" />
-          }
-        </button>
-      )}
-    </>
-  );
-}
-
-// ─── Sticky Note ──────────────────────────────────────────────────────────────
-function StickyNoteNode({ id, data, selected }: { id: string; data: any; selected?: boolean }) {
-  return (
-    <>
-      <Handle type="target" position={Position.Left} className="!opacity-0" />
-      <Handle type="source" position={Position.Right} className="!opacity-0" />
-      <div
-        className={cn("px-3 py-2 rounded-lg text-sm shadow min-w-[120px] max-w-[200px] select-none cursor-pointer", selected && "ring-2 ring-info")}
-        style={{ background: data.color ?? "#FEF08A", color: "#1F2937" }}
-      >
-        {data.editing ? (
-          <InlineEdit
-            value={data.label ?? ""}
-            onDone={(v) => (window as any).__mmFinishEdit?.(id, v)}
-            onCancel={() => (window as any).__mmCancelEdit?.(id)}
-          />
-        ) : (
-          <span>{data.label ?? "Nota"}</span>
-        )}
-      </div>
-    </>
-  );
-}
-
-// ─── Card Node ────────────────────────────────────────────────────────────────
-function CardNode({ data, selected }: { data: any; selected?: boolean }) {
-  const priorityColors: Record<string, string> = {
-    LOW: "bg-temp-cold/15 text-temp-cold",
-    MEDIUM: "bg-temp-warm/15 text-temp-warm",
-    HIGH: "bg-temp-hot/15 text-temp-hot",
-    URGENT: "bg-temp-very-hot/15 text-temp-very-hot",
-  };
-  const statusColors: Record<string, string> = {
-    PENDING: "bg-muted text-muted-foreground",
-    IN_PROGRESS: "bg-info/15 text-info",
-    COMPLETED: "bg-success/15 text-success",
-    CANCELLED: "bg-destructive/15 text-destructive",
-  };
-  return (
-    <>
-      <Handle type="target" position={Position.Left} className="!opacity-0" />
-      <div
-        className={cn("bg-card rounded-xl border shadow-md p-3 min-w-[180px] max-w-[240px] select-none cursor-pointer", selected && "ring-2 ring-info")}
-      >
-        <p className="text-sm font-semibold line-clamp-2 mb-2">{data.title ?? "Card"}</p>
-        <div className="flex flex-wrap gap-1">
-          {data.status && (
-            <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", statusColors[data.status] ?? "bg-muted")}>
-              {data.status === "PENDING" ? "Pendente" : data.status === "IN_PROGRESS" ? "Em andamento" : data.status === "COMPLETED" ? "Concluído" : "Cancelado"}
-            </span>
-          )}
-          {data.priority && (
-            <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", priorityColors[data.priority] ?? "bg-muted")}>{data.priority}</span>
-          )}
-          {data.dueDate && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-              📅 {new Date(data.dueDate).toLocaleDateString("pt-BR")}
-            </span>
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
-
-const nodeTypes: NodeTypes = {
-  mindMapRoot: MindMapRootNode as any,
-  topic: TopicNode as any,
-  stickyNote: StickyNoteNode as any,
-  cardNode: CardNode as any,
-  postNode: PostNode as any,
-  linkNode: LinkNode as any,
-};
-
-// ─── Custom Edge ──────────────────────────────────────────────────────────────
-function CustomEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, markerEnd, data }: EdgeProps & { data?: any }) {
-  const { setEdges } = useReactFlow();
-  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
-  const color = (data as any)?.color;
-  return (
-    <>
-      <BaseEdge path={edgePath} markerEnd={markerEnd} style={{ ...style, stroke: color, strokeWidth: style?.strokeWidth ?? 2 }} />
-      <EdgeLabelRenderer>
-        <div
-          style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, pointerEvents: "all" }}
-          className="nodrag nopan"
-        >
-          <button
-            className="size-4 rounded-full bg-destructive text-white text-[8px] flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-            onClick={() => setEdges((eds) => eds.filter((e) => e.id !== id))}
-          >×</button>
-        </div>
-      </EdgeLabelRenderer>
-    </>
-  );
-}
-
-const edgeTypes: EdgeTypes = { custom: CustomEdge };
-
-// ─── History ──────────────────────────────────────────────────────────────────
-type HistoryEntry = { nodes: Node[]; edges: Edge[] };
 
 // ─── Main Editor ──────────────────────────────────────────────────────────────
 function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindMapId: string }) {
   const { mindMap, isLoading } = useNasaPlannerMindMap(mindMapId);
   const updateMindMap = useUpdateMindMap();
-  const createCard = useCreateCard();
   const { cards } = useNasaPlannerCards({ mindMapId });
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [cardDialogOpen, setCardDialogOpen] = useState(false);
-  const [cardForm, setCardForm] = useState({ title: "", description: "", priority: "MEDIUM" as const, dueDate: "" });
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isGeneratingAI, setIsGeneratingAI] = useState<string | null>(null);
-  const [aiSuggestionDialog, setAiSuggestionDialog] = useState<{ nodeId: string; label: string; suggestions: string[] } | null>(null);
+  const [aiSuggestionDialog, setAiSuggestionDialog] = useState<AiSuggestionRequest | null>(null);
   const [mmPostDialog, setMmPostDialog] = useState<{ open: boolean; title: string }>({ open: false, title: "" });
 
-  // Undo/Redo
-  const historyRef = useRef<HistoryEntry[]>([]);
-  const historyIndexRef = useRef<number>(-1);
-  const skipHistoryRef = useRef(false);
+  const { pushHistory, resetHistory, undo, redo, canUndo, canRedo } = useMindMapHistory(setNodes, setEdges);
 
   const { screenToFlowPosition, fitView, getNodes, getEdges } = useReactFlow();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const reactFlowRef = useRef<HTMLDivElement>(null);
 
-  // Push history snapshot
-  const pushHistory = useCallback((ns: Node[], es: Edge[]) => {
-    if (skipHistoryRef.current) return;
-    const idx = historyIndexRef.current;
-    historyRef.current = historyRef.current.slice(0, idx + 1);
-    historyRef.current.push({ nodes: JSON.parse(JSON.stringify(ns)), edges: JSON.parse(JSON.stringify(es)) });
-    if (historyRef.current.length > 50) historyRef.current.shift();
-    historyIndexRef.current = historyRef.current.length - 1;
-  }, []);
-
-  const undo = useCallback(() => {
-    if (historyIndexRef.current <= 0) return;
-    historyIndexRef.current--;
-    const entry = historyRef.current[historyIndexRef.current];
-    if (!entry) return;
-    skipHistoryRef.current = true;
-    setNodes(entry.nodes);
-    setEdges(entry.edges);
-    skipHistoryRef.current = false;
-  }, [setNodes, setEdges]);
-
-  const redo = useCallback(() => {
-    if (historyIndexRef.current >= historyRef.current.length - 1) return;
-    historyIndexRef.current++;
-    const entry = historyRef.current[historyIndexRef.current];
-    if (!entry) return;
-    skipHistoryRef.current = true;
-    setNodes(entry.nodes);
-    setEdges(entry.edges);
-    skipHistoryRef.current = false;
-  }, [setNodes, setEdges]);
-
   // Load mind map data
   useEffect(() => {
     if (!mindMap) return;
-    const rawNodes = (mindMap.nodes as any[]) ?? [];
-    const rawEdges = (mindMap.edges as any[]) ?? [];
+    const rawNodes = parseStoredNodes(mindMap.nodes);
+    const rawEdges = parseStoredEdges(mindMap.edges);
 
-    const cardNodes: Node[] = cards.map((card: any) => {
+    const cardNodes: Node[] = cards.map((card) => {
       const nodeId = `card-${card.id}`;
       return {
         id: nodeId,
         type: "cardNode",
-        position: rawNodes.find((n: any) => n.id === nodeId)?.position ?? { x: 600, y: Math.random() * 400 },
+        position: rawNodes.find((n) => n.id === nodeId)?.position ?? { x: 600, y: Math.random() * 400 },
         data: { title: card.title, status: card.status, priority: card.priority, dueDate: card.dueDate, cardId: card.id },
       };
     });
 
-    const nonCardNodes = rawNodes.filter((n: any) => !n.id.startsWith("card-"));
+    const nonCardNodes = rawNodes.filter((n) => !n.id.startsWith("card-"));
     const allNodes = [...nonCardNodes, ...cardNodes];
     const allEdges = rawEdges;
 
-    skipHistoryRef.current = true;
     setNodes(allNodes);
     setEdges(allEdges);
-    skipHistoryRef.current = false;
-    // init history
-    historyRef.current = [{ nodes: JSON.parse(JSON.stringify(allNodes)), edges: JSON.parse(JSON.stringify(allEdges)) }];
-    historyIndexRef.current = 0;
+    resetHistory(allNodes, allEdges);
   }, [mindMap, cards]);
 
   // Auto-save
@@ -613,8 +168,8 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
       try {
         await updateMindMap.mutateAsync({
           mindMapId,
-          nodes: ns.filter((n) => !n.id.startsWith("card-")) as any,
-          edges: es as any,
+          nodes: ns.filter((n) => !n.id.startsWith("card-")),
+          edges: es,
         });
       } finally {
         setIsSaving(false);
@@ -628,8 +183,8 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
     try {
       await updateMindMap.mutateAsync({
         mindMapId,
-        nodes: nodes.filter((n) => !n.id.startsWith("card-")) as any,
-        edges: edges as any,
+        nodes: nodes.filter((n) => !n.id.startsWith("card-")),
+        edges,
       });
       toast.success("Mapa salvo!");
     } finally {
@@ -650,7 +205,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
   // ── Node manipulation helpers ─────────────────────────────────────────────
 
   const getNextBranchColor = useCallback((currentNodes: Node[]) => {
-    const usedColors = new Set(currentNodes.filter((n) => n.type === "topic" || n.type === "mindMapRoot").map((n) => (n.data as any).color).filter(Boolean));
+    const usedColors = new Set(currentNodes.filter((n) => n.type === "topic" || n.type === "mindMapRoot").map((n) => readNodeColor(n)).filter(Boolean));
     for (const c of BRANCH_COLORS) {
       if (!usedColors.has(c)) return c;
     }
@@ -812,7 +367,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
       const currentNodes = getNodes();
       const currentEdges = getEdges();
       const node = currentNodes.find((n) => n.id === nodeId);
-      const isCollapsed = (node?.data as any)?.collapsed ?? false;
+      const isCollapsed = isNodeCollapsed(node);
 
       // Find direct children
       const directChildren = currentEdges.filter((e) => e.source === nodeId).map((e) => e.target);
@@ -874,37 +429,27 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
     [setNodes],
   );
 
-  // Expose to node components via window globals
-  useEffect(() => {
-    (window as any).__mmAddChild = addChildNode;
-    (window as any).__mmAddSibling = addSiblingNode;
-    (window as any).__mmDeleteNode = deleteNode;
-    (window as any).__mmChangeColor = changeColor;
-    (window as any).__mmToggleCollapse = toggleCollapse;
-    (window as any).__mmFinishEdit = finishEdit;
-    (window as any).__mmCancelEdit = cancelEdit;
-    (window as any).__mmGenerateAI = generateAI;
-    (window as any).__mmCreatePost = (_nodeId: string, label: string) =>
-      setMmPostDialog({ open: true, title: label });
-    return () => {
-      delete (window as any).__mmAddChild;
-      delete (window as any).__mmAddSibling;
-      delete (window as any).__mmDeleteNode;
-      delete (window as any).__mmChangeColor;
-      delete (window as any).__mmToggleCollapse;
-      delete (window as any).__mmFinishEdit;
-      delete (window as any).__mmCancelEdit;
-      delete (window as any).__mmGenerateAI;
-      delete (window as any).__mmCreatePost;
-    };
-  });
+  // Sem dependências de propósito: registra a cada render para os nós sempre chamarem a versão atual.
+  useEffect(() =>
+    registerMindMapEditorActions({
+      addChild: addChildNode,
+      addSibling: addSiblingNode,
+      deleteNode,
+      changeColor,
+      toggleCollapse,
+      finishEdit,
+      cancelEdit,
+      generateAI,
+      createPost: (_nodeId, label) => setMmPostDialog({ open: true, title: label }),
+    }),
+  );
 
   // ── AI Generation ─────────────────────────────────────────────────────────
   const generateAI = useCallback(async (nodeId: string) => {
     const currentNodes = getNodes();
     const node = currentNodes.find((n) => n.id === nodeId);
     if (!node) return;
-    const label = (node.data as any).label ?? "";
+    const label = typeof node.data.label === "string" ? node.data.label : "";
     if (!label) return;
 
     setIsGeneratingAI(nodeId);
@@ -1045,7 +590,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
   // ── Search ────────────────────────────────────────────────────────────────
   const searchResults = searchQuery
     ? nodes.filter((n) => {
-        const label = ((n.data as any).label ?? (n.data as any).title ?? "").toLowerCase();
+        const label = readNodeText(n).toLowerCase();
         return label.includes(searchQuery.toLowerCase());
       })
     : [];
@@ -1057,7 +602,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
     }
     setNodes((nds) =>
       nds.map((n) => {
-        const label = ((n.data as any).label ?? (n.data as any).title ?? "").toLowerCase();
+        const label = readNodeText(n).toLowerCase();
         return { ...n, data: { ...n.data, searchHighlight: label.includes(searchQuery.toLowerCase()) } };
       })
     );
@@ -1071,10 +616,10 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
     startEdit(node.id);
   }, [startEdit]);
 
-  const handleNodesChange = useCallback((changes: any) => {
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChange(changes);
     // track position changes for history
-    const hasMoved = changes.some((c: any) => c.type === "position" && c.dragging === false);
+    const hasMoved = changes.some((c) => c.type === "position" && c.dragging === false);
     if (hasMoved) {
       const ns = getNodes();
       const es = getEdges();
@@ -1231,8 +776,27 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
     );
   }
 
-  const canUndo = historyIndexRef.current > 0;
-  const canRedo = historyIndexRef.current < historyRef.current.length - 1;
+  const toolbarState: MindMapToolbarState = {
+    canUndo: canUndo(),
+    canRedo: canRedo(),
+    isSaving,
+    isWeekly,
+    pendingContentCount: pendingContents.length,
+  };
+  const toolbarActions: MindMapToolbarActions = {
+    onUndo: undo,
+    onRedo: redo,
+    onToggleSearch: () => setSearchOpen((isOpen) => !isOpen),
+    onSearchInMap: () => { setChosenView("map"); setSearchOpen(true); },
+    onAddItem: (kind) => requestAddItem(kind),
+    onAddActionCard: () => setCardDialogOpen(true),
+    onOrganize: organizeMap,
+    onSyncWithScript: syncWithScript,
+    onOpenContents: () => setIsContentsOpen(true),
+    onExportPng: exportPNG,
+    onExportJson: exportJSON,
+    onSave: handleSave,
+  };
 
   return (
     <MindMapPostsContext.Provider value={postsById}>
@@ -1242,7 +806,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
         <Link href="/nasa-planner?tab=mindmaps" aria-label="Voltar aos mapas" className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-muted">
           <ArrowLeftIcon className="size-4" />
         </Link>
-        <span className="min-w-0 truncate text-sm font-semibold">{(mindMap as any)?.name ?? "Mapa Mental"}</span>
+        <span className="min-w-0 truncate text-sm font-semibold">{mindMap?.name ?? "Mapa Mental"}</span>
         <div className="ml-1 inline-flex shrink-0 rounded-full bg-muted p-[3px]">
           {(["map", "list"] as const).map((viewOption) => (
             <button
@@ -1264,62 +828,7 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
           </span>
         )}
 
-        {/* Computador: ações na barra. No celular elas ficam no menu de baixo. */}
-        <div className="flex items-center gap-1.5 max-md:hidden">
-          <Button size="icon" variant="ghost" onClick={undo} disabled={!canUndo} title="Desfazer (Ctrl+Z)" className="size-8 rounded-full">
-            <Undo2Icon className="size-3.5" />
-          </Button>
-          <Button size="icon" variant="ghost" onClick={redo} disabled={!canRedo} title="Refazer (Ctrl+Y)" className="size-8 rounded-full">
-            <Redo2Icon className="size-3.5" />
-          </Button>
-          <Button size="icon" variant="ghost" onClick={() => setSearchOpen((isOpen) => !isOpen)} title="Buscar (Ctrl+F)" className="size-8 rounded-full">
-            <SearchIcon className="size-3.5" />
-          </Button>
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={() => requestAddItem("topic")}>
-            <PlusIcon className="size-3.5" /> Tópico
-          </Button>
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={() => (isWeekly ? requestAddItem("post") : setCardDialogOpen(true))}>
-            <ZapIcon className="size-3.5" /> Card
-          </Button>
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={() => requestAddItem("link")}>
-            <Link2Icon className="size-3.5" /> Link
-          </Button>
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={() => requestAddItem("note")}>
-            <StickyNoteIcon className="size-3.5" /> Nota
-          </Button>
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={organizeMap}>
-            <WorkflowIcon className="size-3.5" /> Organizar
-          </Button>
-          {isWeekly && (
-            <>
-              <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full" onClick={syncWithScript}>
-                <RefreshCwIcon className="size-3.5" /> Atualizar com o roteiro
-              </Button>
-              <Button size="sm" className="h-8 gap-1.5 rounded-full" onClick={() => setIsContentsOpen(true)}>
-                <SparklesIcon className="size-3.5" /> Criar conteúdos{pendingContents.length > 0 && ` (${pendingContents.length})`}
-              </Button>
-            </>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" title="Exportar" className="size-8 rounded-full">
-                <DownloadIcon className="size-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={exportPNG}>
-                <ImageIcon className="mr-2 size-3.5" /> PNG
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportJSON}>
-                <FileJsonIcon className="mr-2 size-3.5" /> JSON
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button size="icon" variant="ghost" onClick={handleSave} disabled={isSaving} title="Salvar agora" className="size-8 rounded-full">
-            <SaveIcon className="size-3.5" />
-          </Button>
-          <FullscreenControls />
-        </div>
+        <MindMapDesktopActions state={toolbarState} actions={toolbarActions} />
       </div>
 
       {/* Search bar */}
@@ -1370,8 +879,8 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
           onConnect={onConnect}
           onNodeDoubleClick={onNodeDoubleClick}
           onNodeClick={onNodeClick}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
+          nodeTypes={mindMapNodeTypes}
+          edgeTypes={mindMapEdgeTypes}
           fitView
           deleteKeyCode={null}
           defaultEdgeOptions={{ type: "custom" }}
@@ -1384,79 +893,15 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
           <Controls showInteractive={false} />
           <MiniMap
             nodeColor={(n) => {
-              if ((n.data as any)?.searchHighlight === false && searchQuery) return "#e5e7eb";
-              return (n.data as any).color ?? "#7C3AED";
+              if (n.data.searchHighlight === false && searchQuery) return "#e5e7eb";
+              return readNodeColor(n) ?? "#7C3AED";
             }}
             className="!bottom-4 !right-4 max-md:!hidden"
           />
         </ReactFlow>
       </div>
 
-      {/* Celular: ações no menu de baixo, com toque de 44px. */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
-        <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-card p-1.5 shadow-xl">
-          <button type="button" aria-label="Desfazer" onClick={undo} disabled={!canUndo} className="grid size-11 place-items-center rounded-full disabled:opacity-30">
-            <Undo2Icon className="size-4" />
-          </button>
-          <button type="button" aria-label="Organizar" onClick={organizeMap} className="grid size-11 place-items-center rounded-full">
-            <WorkflowIcon className="size-4" />
-          </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className="inline-flex h-11 items-center gap-1.5 rounded-full bg-foreground px-4 text-sm font-semibold text-background">
-                <PlusIcon className="size-4" /> Adicionar
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" side="top" className="w-56 rounded-[18px] p-1.5">
-              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={() => requestAddItem("topic")}>
-                <WorkflowIcon className="size-4" /> Tópico
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={() => (isWeekly ? requestAddItem("post") : setCardDialogOpen(true))}>
-                <LayoutListIcon className="size-4" /> Card
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={() => requestAddItem("link")}>
-                <Link2Icon className="size-4" /> Link
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={() => requestAddItem("note")}>
-                <StickyNoteIcon className="size-4" /> Nota
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {isWeekly && (
-            <button type="button" aria-label="Criar conteúdos" onClick={() => setIsContentsOpen(true)} className="relative grid size-11 place-items-center rounded-full">
-              <SparklesIcon className="size-4" />
-              {pendingContents.length > 0 && <span className="absolute top-1 right-1 grid size-4 place-items-center rounded-full bg-destructive text-[9px] font-bold text-white">{pendingContents.length}</span>}
-            </button>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" aria-label="Mais ações" className="grid size-11 place-items-center rounded-full">
-                <MoreHorizontalIcon className="size-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="top" className="w-60 rounded-[18px] p-1.5">
-              {isWeekly && (
-                <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={syncWithScript}>
-                  <RefreshCwIcon className="size-4" /> Atualizar com o roteiro
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={redo} disabled={!canRedo}>
-                <Redo2Icon className="size-4" /> Refazer
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={() => { setChosenView("map"); setSearchOpen(true); }}>
-                <SearchIcon className="size-4" /> Buscar no mapa
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={exportPNG}>
-                <ImageIcon className="size-4" /> Exportar PNG
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2 rounded-xl py-2.5" onSelect={exportJSON}>
-                <FileJsonIcon className="size-4" /> Exportar JSON
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+      <MindMapMobileMenu state={toolbarState} actions={toolbarActions} />
 
       <MapItemDialog
         request={itemRequest}
@@ -1472,97 +917,8 @@ function MindMapEditorInner({ plannerId, mindMapId }: { plannerId: string; mindM
       {weeklyOrganizationId && (
         <WeeklyContentsDialog isOpen={isContentsOpen} organizationId={weeklyOrganizationId} pendingContents={pendingContents} onCreated={linkCreatedPost} onClose={() => setIsContentsOpen(false)} />
       )}
-
-      {/* Card Creation Dialog */}
-      <Dialog open={cardDialogOpen} onOpenChange={setCardDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Novo Card de Ação</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Título *</Label>
-              <Input
-                placeholder="O que precisa ser feito?"
-                value={cardForm.title}
-                onChange={(e) => setCardForm((f) => ({ ...f, title: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Descrição</Label>
-              <Textarea
-                rows={3}
-                placeholder="Detalhes..."
-                value={cardForm.description}
-                onChange={(e) => setCardForm((f) => ({ ...f, description: e.target.value }))}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Prioridade</Label>
-                <Select value={cardForm.priority} onValueChange={(v) => setCardForm((f) => ({ ...f, priority: v as any }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">Baixa</SelectItem>
-                    <SelectItem value="MEDIUM">Média</SelectItem>
-                    <SelectItem value="HIGH">Alta</SelectItem>
-                    <SelectItem value="URGENT">Urgente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Data limite</Label>
-                <Input type="date" value={cardForm.dueDate} onChange={(e) => setCardForm((f) => ({ ...f, dueDate: e.target.value }))} />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCardDialogOpen(false)}>Cancelar</Button>
-            <Button
-              onClick={async () => {
-                if (!cardForm.title.trim()) return;
-                await createCard.mutateAsync({ mindMapId, plannerId, title: cardForm.title, description: cardForm.description, priority: cardForm.priority, dueDate: cardForm.dueDate || undefined });
-                setCardDialogOpen(false);
-                setCardForm({ title: "", description: "", priority: "MEDIUM", dueDate: "" });
-              }}
-              disabled={!cardForm.title.trim() || createCard.isPending}
-            >
-              {createCard.isPending ? "Criando..." : "Criar Card"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* AI Suggestion Dialog */}
-      {aiSuggestionDialog && (
-        <Dialog open onOpenChange={() => setAiSuggestionDialog(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <BotIcon className="size-4 text-warning" />
-                Sugestões de IA para “{aiSuggestionDialog.label}”
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Selecione as sugestões que deseja adicionar como filhos:</p>
-              <ul className="space-y-1.5">
-                {aiSuggestionDialog.suggestions.map((s, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-muted/50">
-                    <span className="size-5 rounded-full bg-warning/15 text-warning flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
-                    {s}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={() => setAiSuggestionDialog(null)}>Cancelar</Button>
-              <Button onClick={() => applyAISuggestions(aiSuggestionDialog.nodeId, aiSuggestionDialog.suggestions)}>
-                Adicionar todos
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      <ActionCardDialog isOpen={cardDialogOpen} onOpenChange={setCardDialogOpen} plannerId={plannerId} mindMapId={mindMapId} />
+      <AiSuggestionsDialog request={aiSuggestionDialog} onApply={applyAISuggestions} onClose={() => setAiSuggestionDialog(null)} />
 
       {/* Mind Map → Post Dialog */}
       <MindMapToPostDialog

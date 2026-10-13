@@ -22,6 +22,24 @@ function hasNonEmptyString(v: unknown): boolean {
   return typeof v === "string" && v.trim().length > 0;
 }
 
+function findTemplateProblems(
+  template: Record<string, unknown>,
+  templateLabel: string,
+): string[] {
+  const problems: string[] = [];
+  if (!hasNonEmptyString(template.templateName))
+    problems.push(`Selecione o ${templateLabel} aprovado`);
+  const templateParameters = [
+    ...(Array.isArray(template.headerParameters)
+      ? template.headerParameters
+      : []),
+    ...(Array.isArray(template.bodyParameters) ? template.bodyParameters : []),
+  ];
+  if (templateParameters.some((parameter) => !hasNonEmptyString(parameter)))
+    problems.push(`Preencha todas as variáveis do ${templateLabel}`);
+  return problems;
+}
+
 function hasNonEmptyArray(v: unknown): boolean {
   return Array.isArray(v) && v.length > 0;
 }
@@ -168,10 +186,31 @@ export function validateNode(
           if (buttons.length > 9)
             errs.push("Máximo 9 botões");
         }
+      } else if (t === "TEMPLATE") {
+        errs.push(...findTemplateProblems(payload, "template"));
+      } else if (t === "CONSENT") {
+        if (!hasNonEmptyString(payload.termsText)) errs.push("Escreva o texto dos termos");
+        if (!hasNonEmptyString(payload.acceptLabel) || !hasNonEmptyString(payload.refuseLabel)) errs.push("Informe o texto dos dois botões");
+      } else if (t === "GROUP_TEXT") {
+        if (!hasNonEmptyString(payload.groupJid)) errs.push("Escolha o grupo que vai receber a mensagem");
+        if (!hasNonEmptyString(payload.trackingId)) errs.push("Escolha o funil cujo número envia");
+        if (!hasNonEmptyString(payload.message)) errs.push("Escreva a mensagem que será enviada");
+      } else if (t === "FORM_CHAT") {
+        if (!hasNonEmptyString(payload.formId)) errs.push("Escolha o formulário");
+        if (!Array.isArray(payload.fieldIds) || payload.fieldIds.length === 0) errs.push("Marque ao menos um campo para perguntar");
       } else {
         // Default = TEXT
         if (!hasNonEmptyString(payload.message))
           errs.push("Escreva a mensagem que será enviada");
+      }
+      const fallbackTemplate = d.fallbackTemplate;
+      if (fallbackTemplate && typeof fallbackTemplate === "object") {
+        errs.push(
+          ...findTemplateProblems(
+            fallbackTemplate as Record<string, unknown>,
+            "template reserva",
+          ),
+        );
       }
       break;
     }

@@ -1,3 +1,5 @@
+import { resolveNumberedTextReply } from "@/features/tracking-chat/lib/inbound/numbered-reply";
+import { isButtonsOfficialOnly } from "@/features/tracking-chat/lib/numbered-menu";
 import { type NextRequest, NextResponse } from "next/server";
 import { pusherServer } from "@/lib/pusher";
 import prisma from "@/lib/prisma";
@@ -333,7 +335,20 @@ export async function POST(request: NextRequest) {
         "fromMe:",
         fromMe,
       );
-      if (!fromMe && interactiveReply) {
+      // Número fora da API oficial (spec 0095): o menu sai em texto numerado, e a resposta com o
+      // número vale como clique. Só entra com a opção ligada; desligada, este trecho não roda.
+      const numberedReply =
+        !fromMe && !interactiveReply && isButtonsOfficialOnly()
+          ? await resolveNumberedTextReply({
+              phone,
+              trackingId,
+              texts: normalized.messages.flatMap((message) => (message.type === "text" ? [message.body] : [])),
+            }).catch((numberedReplyError: unknown) => {
+              console.error("[btn-tag] resposta por número falhou", numberedReplyError);
+              return null;
+            })
+          : null;
+      if (!fromMe && (interactiveReply || numberedReply)) {
         const buttonTagLead = await prisma.lead.findUnique({
           where: { phone_trackingId: { phone, trackingId } },
           select: { id: true, conversation: { select: { id: true } } },
@@ -354,7 +369,8 @@ export async function POST(request: NextRequest) {
           // Os campos extras abaixo são fallback defensivo pra formatos que o
           // adapter ainda não cobre (selectedID, singleSelectReply, buttonReply).
           const clickedButtonId: string | undefined =
-            interactiveReply.replyId ||
+            interactiveReply?.replyId ||
+            numberedReply?.optionId ||
             interactiveContent.selectedButtonId ||
             interactiveContent.selectedID ||
             interactiveContent.selectedRowId ||

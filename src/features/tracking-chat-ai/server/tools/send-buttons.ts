@@ -1,7 +1,10 @@
+import { hasPlaceholderText } from "@/features/workflows/lib/placeholder-text";
+import { sendText } from "@/http/uazapi/send-text";
+import { formatNumberedMenu, isButtonsOfficialOnly, numberedMenuMetadata } from "@/features/tracking-chat/lib/numbered-menu";
 import { tool } from "ai";
 import { z } from "zod";
 import { sendButtons, sendItemsAsList } from "@/http/uazapi/send-menu";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import { persistOutboundMessage } from "../../lib/persist";
 import type { AgentContext } from "../../lib/context";
 
@@ -18,6 +21,9 @@ function parsePresetButtons(raw: unknown) {
     return r.success ? [r.data] : [];
   });
 }
+
+/** Limite da Meta para lista interativa. */
+const MAX_OFFICIAL_OPTIONS = 10;
 
 export const makeSendButtonsTool = (ctx: AgentContext) =>
   tool({
@@ -39,6 +45,12 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
       const preset = ctx.availableButtonPresets.find((p) => p.id === presetId);
       if (!preset) return { error: "preset_not_found", presetId };
 
+      // Última barreira (spec 0097): texto de exemplo do modelo nunca chega a um cliente.
+      if (hasPlaceholderText([preset.bodyText, preset.footerText])) {
+        console.error("[send-buttons] menu com texto de exemplo não enviado", { presetId, trackingId: ctx.trackingId });
+        return { error: "preset_has_placeholder_text", presetId };
+      }
+
       const buttons = parsePresetButtons(preset.buttons);
       if (buttons.length === 0) {
         return { error: "preset_has_no_buttons", presetId };
@@ -46,9 +58,66 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
 
       const asList = preset.menuFormat === "LIST";
       try {
+        const resolved = await resolveOutboundProvider(ctx.trackingId);
+        if (!resolved.uazapiToken) {
+          // API oficial (spec 0085, RF-9): botões até 3 opções, lista até 10, com a mesma tag por opção.
+          const sendInteractive = resolved.provider.sendInteractive?.bind(resolved.provider);
+          const optionsWithId = buttons.filter((button) => button.id);
+          if (!sendInteractive || optionsWithId.length === 0 || optionsWithId.length > MAX_OFFICIAL_OPTIONS) {
+            return {
+              error: "buttons_unsupported_on_official_api",
+              message: "Este menu não pode ser enviado neste número. Responda em texto com as opções.",
+            };
+          }
+          const sent = await sendInteractive({
+            kind: "interactive",
+            to: ctx.lead.phone,
+            body: preset.bodyText,
+            footer: preset.footerText ?? undefined,
+            options: optionsWithId.map((button) => ({ id: button.id as string, title: button.text })),
+            listButtonLabel: preset.listButton ?? undefined,
+          });
+          const officialTagMap: Record<string, string> = {};
+          for (const button of optionsWithId) {
+            if (button.tagId) officialTagMap[button.id as string] = button.tagId;
+          }
+          await persistOutboundMessage({
+            conversationId: ctx.conversation.id,
+            leadId: ctx.lead.id,
+            trackingId: ctx.trackingId,
+            body: `${preset.bodyText}\n\n[Menu]\n${optionsWithId.map((button) => `• ${button.text}`).join("\n")}`,
+            senderName: ctx.settings?.assistantName ?? "IA",
+            externalMessageId: sent.externalMessageId,
+            metadata: Object.keys(officialTagMap).length > 0 ? { buttonTagMap: officialTagMap } : null,
+          });
+          return { ok: true, presetName: preset.name };
+        }
+        const uazapiToken = resolved.uazapiToken;
+        const uazapiBaseUrl = resolved.uazapiBaseUrl;
+        // Número fora da API oficial (spec 0095): o menu sai como texto numerado, e a resposta com o
+        // número vale como clique (o webhook lê `numberedOptions` da mensagem).
+        if (isButtonsOfficialOnly()) {
+          const numberedOptions = buttons.filter((button) => button.id).map((button) => ({ id: button.id, title: button.text }));
+          const numberedText = formatNumberedMenu({ body: preset.bodyText, options: numberedOptions, footer: preset.footerText });
+          const sentText = await sendText(uazapiToken, { number: ctx.lead.phone, text: numberedText, readchat: true, readmessages: true }, uazapiBaseUrl);
+          const numberedTagMap: Record<string, string> = {};
+          for (const button of buttons) {
+            if (button.id && button.tagId) numberedTagMap[button.id] = button.tagId;
+          }
+          await persistOutboundMessage({
+            conversationId: ctx.conversation.id,
+            leadId: ctx.lead.id,
+            trackingId: ctx.trackingId,
+            body: numberedText,
+            senderName: ctx.settings?.assistantName ?? "IA",
+            externalMessageId: sentText.messageid,
+            metadata: { ...numberedMenuMetadata(numberedOptions), ...(Object.keys(numberedTagMap).length > 0 ? { buttonTagMap: numberedTagMap } : {}) },
+          });
+          return { ok: true, presetName: preset.name };
+        }
         const result = asList
           ? await sendItemsAsList(
-              requireUazapiToken(ctx.instance.apiKey),
+              uazapiToken,
               {
                 number: ctx.lead.phone,
                 text: preset.bodyText,
@@ -58,10 +127,10 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
                 readchat: true,
                 readmessages: true,
               },
-              ctx.instance.baseUrl ?? undefined,
+              uazapiBaseUrl,
             )
           : await sendButtons(
-              requireUazapiToken(ctx.instance.apiKey),
+              uazapiToken,
               {
                 number: ctx.lead.phone,
                 text: preset.bodyText,
@@ -72,7 +141,7 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
                 readchat: true,
                 readmessages: true,
               },
-              ctx.instance.baseUrl ?? undefined,
+              uazapiBaseUrl,
             );
 
         const summary = buttons.map((b) => `• ${b.text}`).join("\n");

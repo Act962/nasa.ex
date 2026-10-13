@@ -107,7 +107,7 @@ export function parseAiError(err: unknown): ParsedAiError {
         "Chave de API inválida ou revogada. IA não consegue autenticar.",
       recoverable: false,
       actionHint:
-        "Verifique a env OPENAI_API_KEY ou a chave custom em Tracking → Configurações → Chatbot IA.",
+        "Verifique a env OPENAI_API_KEY ou a chave custom em Tracking → Configurações → Fluxo de atendimento.",
       rawMessage,
     };
   }

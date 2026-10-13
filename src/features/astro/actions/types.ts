@@ -125,12 +125,23 @@ export interface AstroAction<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
    */
   codeOnlyFields?: string[];
   /**
+   * Campos respondidos em partes, que se somam em vez de se substituir. "Para quando?" →
+   * "amanhã" → "que horas?" → "meio dia": a segunda resposta apagava o dia e o Astro voltava
+   * a perguntar "para quando?". A resposta nova entra na frente, então corrigir o dia continua valendo.
+   */
+  accumulatingFields?: string[];
+  /**
    * Frases inequívocas deste verbo, sobre o texto sem acento e em minúsculas.
    * Casou só este verbo, o roteiro começa sem classificador: "quero agendar"
    * não precisa de modelo — e cada vez que ele escapava, o orquestrador
    * gastava ~23 mil tokens para perguntar o mesmo (spec 0033, RF-9).
    */
   intentPatterns?: RegExp[];
+  /**
+   * A ação reconhece a mensagem inteira sozinha, pelo texto original (ex.: um roteiro longo colado).
+   * Vence os padrões de frase: num texto de várias páginas, palavras soltas casariam com muitos verbos.
+   */
+  claimsText?: (text: string) => boolean;
   /**
    * Como perguntar cada campo que faltar: título, pergunta e seletor. Sem
    * isto, o ciclo guiado perguntava "me diga: leadName" em texto aberto — e

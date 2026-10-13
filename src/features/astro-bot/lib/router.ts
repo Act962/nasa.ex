@@ -25,6 +25,11 @@ import {
 import { assessBotInboundMedia, storeBotInboundDocument } from "./inbound-media";
 import { chargeBotPromptStake, debitBotTokenUsage } from "./stars-billing";
 import { tryCheapLayers } from "./cheap-layers";
+import { isAwaitingAnswer } from "@/features/astro/actions/guided-slots";
+import { resolveMenu } from "./menu/menu-flow";
+import { isClickFromOldQuestion } from "./open-question";
+import { isTaskImage, receiveTaskImage, resolveTaskImageChoice, type TaskImageOutcome } from "./task-image";
+import { ANSWER_ID_PREFIX, MENU_ROOT_ID, SEARCH_ANSWER_ID } from "./menu/menu-tree";
 import { transcribeBotAudio, type AudioDownloader } from "./audio-transcription";
 import { tryWhatsappCorrection } from "@/features/astro-corrections/lib/whatsapp-correction-flow";
 import type { BotCommandResult, BotInboundMedia, WhatsappBotChannel } from "./types";
@@ -38,6 +43,10 @@ interface RouteContext {
   /** uazapi instance deviceId (pra detectar SIM swap). */
   deviceId?: string;
   media?: BotInboundMedia;
+  /** Id do botão ou da linha clicada (`menu:…` ou `ans:…`), quando a mensagem é um clique (spec 0079). */
+  interactiveReplyId?: string;
+  /** Id da mensagem que tinha o botão clicado. */
+  interactiveContextId?: string;
   /** Troca o download do áudio (bateria de QA); padrão: provider do funil. */
   downloadAudio?: AudioDownloader;
 }
@@ -81,6 +90,8 @@ function historyToLines(history: unknown[]): string[] {
     .filter(Boolean);
 }
 
+const AUDIO_LOG_PREFIX = "[áudio]";
+
 export async function handleBotCommand(
   ctx: RouteContext,
   messageText: string,
@@ -89,8 +100,19 @@ export async function handleBotCommand(
   // Áudio vira texto depois do stake (spec 0036); daqui em diante, "mídia" é
   // só documento ou imagem.
   const audio = ctx.media?.kind === "audio" ? ctx.media : undefined;
-  const media = audio ? undefined : ctx.media;
-  let loggedText = audio ? "[áudio]" : buildLoggedMessageText(messageText, media);
+  let media = audio ? undefined : ctx.media;
+  // Imagem destinada a uma demanda deixa de ser "mídia" e a legenda segue como pedido escrito.
+  let hasInboundMedia = Boolean(ctx.media);
+  let loggedText = audio ? AUDIO_LOG_PREFIX : buildLoggedMessageText(messageText, media);
+  const sessionId = `whatsapp:${binding.id}`;
+  const menuContext: AgentContext = {
+    userId: binding.userId,
+    organizationId: binding.organizationId,
+    restrictToOrgId: binding.organizationId,
+    route: {},
+    channel: "WHATSAPP",
+    sessionId,
+  };
 
   if (!binding.isActive) {
     return logAndReturn(binding, loggedText, {
@@ -115,8 +137,90 @@ export async function handleBotCommand(
     });
   }
 
+  // Imagem para o Workspace (spec 0080): guarda o arquivo e pergunta o destino, ou segue a legenda.
+  if (media?.kind === "image" && isTaskImage(messageText, botConfig.financeEnabled)) {
+    const imageOutcome = await receiveTaskImage({
+      binding,
+      trackingId: ctx.trackingId,
+      media,
+      caption: messageText.trim(),
+      ctx: menuContext,
+    }).catch((imageError: unknown): TaskImageOutcome => {
+      console.error("[astro-bot/router] imagem para demanda falhou", imageError);
+      return { kind: "reply", result: { status: "media_failed", reply: "❌ Não consegui tratar essa imagem. Tenta mandar de novo." } };
+    });
+    if (imageOutcome.kind === "reply") {
+      return logAndReturn(binding, loggedText, { ...imageOutcome.result, toolsCalled: ["imagem"], starsCharged: 0 });
+    }
+    messageText = imageOutcome.text;
+    media = undefined;
+    hasInboundMedia = false;
+  }
+
+  // Menu e clique vêm antes do stake: navegar não usa IA nem custa Stars (spec 0079, RNF-1).
+  if (!hasInboundMedia) {
+    let clickedId = ctx.interactiveReplyId;
+    const imageChoice = await resolveTaskImageChoice({
+      sessionId,
+      interactiveReplyId: clickedId,
+      text: messageText,
+      isAwaitingAnswer: isAwaitingAnswer(sessionId),
+    });
+    if (imageChoice?.kind === "reply") {
+      return logAndReturn(binding, loggedText, { status: "ok", reply: imageChoice.reply, toolsCalled: ["imagem"], starsCharged: 0 });
+    }
+    if (imageChoice?.kind === "prompt") {
+      messageText = imageChoice.prompt;
+      clickedId = undefined;
+    }
+    if (clickedId === SEARCH_ANSWER_ID) {
+      return logAndReturn(binding, loggedText, { status: "ok", reply: "Digite parte do nome.", toolsCalled: ["menu"], starsCharged: 0 });
+    }
+    if (clickedId?.startsWith(ANSWER_ID_PREFIX)) {
+      const answer = clickedId.slice(ANSWER_ID_PREFIX.length);
+      // Botão fica na conversa para sempre; resposta de pergunta que já fechou não pode virar pedido novo.
+      // Confirmar/Cancelar ficam de fora: a proposta pendente tem validade própria e responde por si.
+      const isConfirmationAnswer = answer === "sim" || answer === "não";
+      const isFromOldQuestion = isClickFromOldQuestion(binding.id, ctx.interactiveContextId);
+      if (!isConfirmationAnswer && (isFromOldQuestion || !isAwaitingAnswer(sessionId))) {
+        return logAndReturn(binding, loggedText, {
+          status: "ok",
+          reply: isFromOldQuestion && isAwaitingAnswer(sessionId)
+            ? "Esse botão é de uma pergunta anterior. Responda a última pergunta, ou mande *Menu* para recomeçar."
+            : "Essa pergunta já foi encerrada. Mande *Menu* para recomeçar.",
+          buttons: [{ id: MENU_ROOT_ID, text: "Menu", interactiveOnly: true }],
+          toolsCalled: ["menu"],
+          starsCharged: 0,
+        });
+      }
+      messageText = answer;
+    }
+    const menu = await resolveMenu({
+      ctx: menuContext,
+      bindingId: binding.id,
+      text: messageText,
+      interactiveReplyId: clickedId,
+      isAwaitingAnswer: isAwaitingAnswer(sessionId),
+      isFinanceEnabled: botConfig.financeEnabled,
+    }).catch((menuError: unknown) => {
+      console.error("[astro-bot/router] menu falhou", menuError);
+      return null;
+    });
+    if (menu?.kind === "reply") {
+      return logAndReturn(binding, loggedText, {
+        status: "ok",
+        reply: menu.reply,
+        buttons: menu.buttons,
+        listButtonLabel: menu.listButtonLabel,
+        toolsCalled: ["menu"],
+        starsCharged: 0,
+      });
+    }
+    if (menu?.kind === "prompt") messageText = menu.prompt;
+  }
+
   // "Errou" vem antes do stake: avisar que o ASTRO errou não custa Stars.
-  if (!ctx.media) {
+  if (!hasInboundMedia) {
     const correctionReply = await tryWhatsappCorrection({ binding, text: messageText });
     if (correctionReply) {
       return logAndReturn(binding, loggedText, { status: "feedback", reply: correctionReply, toolsCalled: ["correcao"], starsCharged: 0 });
@@ -159,7 +263,7 @@ export async function handleBotCommand(
       });
     }
     messageText = transcription.text;
-    loggedText = `[áudio] ${transcription.text}`;
+    loggedText = `${AUDIO_LOG_PREFIX} ${transcription.text}`;
     stake.starsCharged += transcription.starsCharged;
     const spokenCorrectionReply = await tryWhatsappCorrection({ binding, text: messageText });
     if (spokenCorrectionReply) {
@@ -205,7 +309,7 @@ export async function handleBotCommand(
       route: {},
       channel: "WHATSAPP",
       // Estável por número: agrupa as propostas pendentes deste binding.
-      sessionId: `whatsapp:${binding.id}`,
+      sessionId,
       attachments,
     };
 
@@ -321,6 +425,8 @@ export async function handleBotCommand(
     return logAndReturn(binding, loggedText, {
       status: reply ? "ok" : "empty_reply",
       reply: reply || (isFinanceEnabled ? ASSISTANT_FALLBACK_REPLY : INSIGHTS_FALLBACK_REPLY),
+      // Não entendeu o pedido: o menu é a saída (spec 0079, RF-3).
+      buttons: reply ? undefined : [{ id: MENU_ROOT_ID, text: "Menu", interactiveOnly: true }],
       toolsCalled: toolNames,
       tokensUsed: usage?.totalTokens ?? undefined,
       starsCharged: stake.starsCharged + tokenStars,
@@ -341,8 +447,10 @@ async function logAndReturn(
   messageText: string,
   result: BotCommandResult,
 ): Promise<BotCommandResult> {
+  // Todo áudio é registrado com o prefixo "[áudio]"; é o que liga a resposta em voz (spec 0083).
+  const wasAudioInput = messageText.startsWith(AUDIO_LOG_PREFIX);
   try {
-    await prisma.whatsappBotCommand.create({
+    const commandLog = await prisma.whatsappBotCommand.create({
       data: {
         bindingId: binding.id,
         organizationId: binding.organizationId,
@@ -353,9 +461,11 @@ async function logAndReturn(
         tokensUsed: result.tokensUsed ?? null,
         starsCharged: result.starsCharged ?? null,
       },
+      select: { id: true },
     });
+    return { ...result, wasAudioInput, commandLogId: commandLog.id };
   } catch (logError) {
     console.warn("[astro-bot/router] log command failed", logError);
   }
-  return result;
+  return { ...result, wasAudioInput };
 }

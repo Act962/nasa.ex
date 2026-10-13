@@ -26,7 +26,7 @@ export function CalendarPostChip({
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `post:${post.id}`,
-    data: { kind: "post", postId: post.id, status: post.status },
+    data: { kind: "post", postId: post.id, status: post.status, groupPostIds: post.groupPostIds },
     disabled: post.status === "PUBLISHED" || post.status === "PUBLISHING",
   });
   const typeMeta = POST_TYPE_META[post.type];
@@ -36,7 +36,8 @@ export function CalendarPostChip({
   const isFailed = post.status === "FAILED";
   // Com uma conta só, o avatar do cliente já diz de quem é o post.
   const instagramAccount = instagramAccountsOf(client).length > 1 ? resolvePostInstagramAccount(post, client) : null;
-  const accountHandle = instagramAccount ? `@${instagramAccount.igUsername ?? instagramAccount.igUserId}` : null;
+  const groupAccountCount = post.groupAccountCount ?? 1;
+  const accountHandle = groupAccountCount > 1 ? `${groupAccountCount} contas` : instagramAccount ? `@${instagramAccount.igUsername ?? instagramAccount.igUserId}` : null;
 
   return (
     <div

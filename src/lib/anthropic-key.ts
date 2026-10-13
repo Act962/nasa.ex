@@ -35,3 +35,8 @@ export async function resolveAnthropicApiKey(
 
   return planner?.anthropicApiKey ?? null;
 }
+
+/** De onde saiu a chave devolvida acima, para o registro de uso de IA (spec 0093). */
+export function anthropicKeySourceOf(apiKey: string): "platform" | "organization" {
+  return apiKey === process.env.ANTHROPIC_API_KEY ? "platform" : "organization";
+}

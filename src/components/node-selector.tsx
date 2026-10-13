@@ -85,6 +85,8 @@ interface NodeSelectorProps {
   onOpenChange: (open: boolean) => void;
   sourceId?: string;
   children?: React.ReactNode;
+  /** Encaixa o passo novo no meio desta ligação, em vez de pendurá-lo num quadro. */
+  insertOnEdgeId?: string | null;
   /** ID do workflow atual — necessário pra toggle "Modo Agente IA". */
   workflowId?: string;
   /** Workflow está em Modo Agente IA? Libera multi-trigger + nodes novos. */
@@ -95,6 +97,7 @@ export function NodeSelector({
   open,
   onOpenChange,
   sourceId,
+  insertOnEdgeId,
   children,
   workflowId: workflowIdProp,
   agentMode: agentModeProp,
@@ -106,7 +109,7 @@ export function NodeSelector({
   const workflowId = workflowIdProp ?? ctx?.workflowId;
   const agentMode = agentModeProp ?? ctx?.agentMode ?? false;
 
-  const { setNodes, getNodes, setEdges, screenToFlowPosition } = useReactFlow();
+  const { setNodes, getNodes, getEdges, setEdges, screenToFlowPosition } = useReactFlow();
   // useNodes é REATIVO — re-renderiza quando nodes mudam (add/remove).
   // Necessário pra esconder a seção "Gatilhos" assim que o user adicionar
   // um gatilho, e voltar a mostrar quando ele apagar.
@@ -181,6 +184,29 @@ export function NodeSelector({
         return [...nodes, newNode];
       });
 
+      if (insertOnEdgeId && selection.category !== "trigger") {
+        const splitEdge = getEdges().find((edge) => edge.id === insertOnEdgeId);
+        if (splitEdge) {
+          const currentNodes = getNodes();
+          const sourceNode = currentNodes.find((node) => node.id === splitEdge.source);
+          const targetNode = currentNodes.find((node) => node.id === splitEdge.target);
+          if (sourceNode && targetNode) {
+            const middle = {
+              x: (sourceNode.position.x + targetNode.position.x) / 2,
+              y: (sourceNode.position.y + targetNode.position.y) / 2 + 80,
+            };
+            setNodes((nodes) => nodes.map((node) => (node.id === newNodeId ? { ...node, position: middle } : node)));
+          }
+          setEdges((edges) => [
+            ...edges.filter((edge) => edge.id !== splitEdge.id),
+            { id: createId(), source: splitEdge.source, sourceHandle: splitEdge.sourceHandle, target: newNodeId, targetHandle: "target-1" },
+            { id: createId(), source: newNodeId, sourceHandle: "source-1", target: splitEdge.target, targetHandle: splitEdge.targetHandle },
+          ]);
+          onOpenChange(false);
+          return;
+        }
+      }
+
       if (sourceId) {
         setEdges((edges) => {
           return [
@@ -209,6 +235,8 @@ export function NodeSelector({
       screenToFlowPosition,
       sourceId,
       agentMode,
+      insertOnEdgeId,
+      getEdges,
     ],
   );
 

@@ -4,13 +4,7 @@ import type { NasaPlannerPostStatus, NasaPlannerPostType } from "@/generated/pri
 
 /** Peças comuns do Planner v2 (spec 0058): status, formatos, mídia e períodos do calendário. */
 
-const S3_BASE = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL ? `https://${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}` : "";
-
-export function plannerMediaUrl(key: string | null | undefined) {
-  if (!key) return undefined;
-  if (key.startsWith("http") || key.startsWith("data:") || key.startsWith("/")) return key;
-  return `${S3_BASE}/${key}`;
-}
+export { toPlannerMediaUrl as plannerMediaUrl } from "../../lib/post-media";
 
 export interface PostStatusMeta {
   label: string;

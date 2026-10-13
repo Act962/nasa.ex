@@ -3,7 +3,47 @@ import { GUIDE_RESULT_KINDS } from "../result-kinds";
 
 const BUILDER_PATH = "^/form/builder/[^/]+";
 
+const RESPONSES_PATH = "^/form/responses/[^/]+";
+
 export const FORM_GUIDES: GuideDef[] = [
+  {
+    key: "form.records.closing",
+    app: "form",
+    title: "Fechar o período das fichas",
+    summary: "Some as fichas do mês por cliente, rateie os custos e gere as contas a receber.",
+    topicPattern: /\b(fech\w*|rate\w*)\b.*\b(periodo|mes|fichas?|custos?)\b|\bfechamento por cliente\b/,
+    steps: [
+      {
+        anchor: "formList",
+        route: "/form",
+        skipWhenPath: RESPONSES_PATH,
+        title: "Abra o formulário das fichas",
+        message: "Clique no formulário para ver as respostas e a lista de fichas.",
+        position: "top",
+        advanceOn: "click",
+        missingMessage: "Você ainda não tem formulário. Me peça: \"como crio um formulário?\"",
+      },
+      {
+        anchor: "formRecordsDateFilter",
+        title: "Confira o período",
+        message: "O painel acima da lista mostra os números do filtro: fichas, total dos itens e os clientes com maior valor. Clique para escolher as datas.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: "A lista de fichas aparece em formulários que têm lista de itens ou campos com nome-chave.",
+      },
+      {
+        anchor: "formRecordsClosingButton",
+        title: "Clique em Fechamento por cliente",
+        message: "Lá você lança os custos do mês, vê o total de cada cliente e gera as contas a receber.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+    ],
+    finish: {
+      title: "Fechamento aberto! 🧾",
+      message: "Salve os custos compartilhados, clique em \"Fechar período\" e depois em \"Gerar contas a receber\". Fechar trava as fichas do mês.",
+    },
+  },
   {
     key: "form.publish",
     app: "form",

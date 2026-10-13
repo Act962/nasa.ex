@@ -30,6 +30,7 @@ import { SelectItem } from "../ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import { toast } from "sonner";
+import { Spinner } from "../ui/spinner";
 
 const schemaLostOrWinner = z.object({
   observation: z.string().optional(),
@@ -83,7 +84,7 @@ export function LostOrWinModal() {
   );
 
   const onSubmit = (data: FromLostOrWinner) => {
-    if (!leadId) return;
+    if (!leadId || mutation.isPending) return;
 
     mutation.mutate({
       leadId,
@@ -162,7 +163,10 @@ export function LostOrWinModal() {
             </InputGroup>
           </div>
           <div className="flex justify-end">
-            <Button type="submit">Confirmar</Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending && <Spinner />}
+              {mutation.isPending ? "Confirmando..." : "Confirmar"}
+            </Button>
           </div>
         </form>
       </DialogContent>

@@ -1,8 +1,11 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { NonRetriableError } from "inngest";
-import { sendText } from "@/http/uazapi/send-text";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  isFreeFormWindowOpen,
+  toLegacyUazapiMessageId,
+} from "@/features/tracking-chat/lib/providers/automated-outbound";
 import { persistOutboundMessage } from "@/features/tracking-chat-ai/lib/persist";
 import { renderIdleTemplate } from "@/features/tracking-settings/lib/idle-template";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
@@ -370,9 +373,21 @@ async function executeIdleActions(args: {
   if (c.messageMode === "FIXED" && c.message && lead.phone) {
     const instance = await prisma.whatsAppInstance.findUnique({
       where: { trackingId: lead.trackingId },
-      select: { apiKey: true, baseUrl: true, status: true },
+      select: { status: true },
     });
-    if (instance && instance.status === "CONNECTED") {
+    const resolved =
+      instance?.status === "CONNECTED"
+        ? await resolveOutboundProvider(lead.trackingId).catch((error) => {
+            console.error("[idle-automation] provider_unavailable", error);
+            return null;
+          })
+        : null;
+    // Na API Oficial, fora da janela de 24h só template chega: pula o envio
+    // (sem cobrar) e segue para a notificação do responsável.
+    if (
+      resolved &&
+      (await isFreeFormWindowOpen(resolved, lead.conversation?.id))
+    ) {
       const charge = await chargeStarsByAction(
         lead.tracking.organizationId,
         "message_send",
@@ -394,11 +409,12 @@ async function executeIdleActions(args: {
           },
           minutesWaiting,
         });
-        const res = await sendText(
-          requireUazapiToken(instance.apiKey),
-          { number: lead.phone, text: rendered, delay: 0 },
-          instance.baseUrl ?? undefined,
-        );
+        const sent = await resolved.provider.sendText({
+          kind: "text",
+          to: lead.phone,
+          body: rendered,
+          typingDelayMs: 0,
+        });
         if (lead.conversation?.id) {
           await persistOutboundMessage({
             conversationId: lead.conversation.id,
@@ -406,7 +422,7 @@ async function executeIdleActions(args: {
             trackingId: lead.trackingId,
             body: rendered,
             senderName: "Automação",
-            externalMessageId: res.messageid,
+            externalMessageId: toLegacyUazapiMessageId(sent),
           });
         }
       }

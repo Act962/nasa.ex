@@ -79,6 +79,33 @@ export function ChatBotIaUsageTab({ trackingId }: { trackingId: string }) {
     provider,
   );
 
+  // Antes de qualquer retorno: hook chamado só depois do carregamento muda a ordem dos hooks e derruba a aba.
+  // Preenche dias sem atividade com 0 pra deixar o eixo X contínuo
+  // (mais legível: 30 barras visíveis em vez de só os dias com runs).
+  const chartData = useMemo(() => {
+    const usageByDay = new Map<string, { totalTokens: number; runs: number }>();
+    for (const dayUsage of usage?.daily ?? []) {
+      const isoDay = new Date(dayUsage.day).toISOString().slice(0, 10);
+      usageByDay.set(isoDay, { totalTokens: dayUsage.totalTokens, runs: dayUsage.runs });
+    }
+
+    const points: { day: string; label: string; totalTokens: number; runs: number }[] = [];
+    const lastDay = new Date();
+    const firstDay = new Date();
+    firstDay.setUTCDate(lastDay.getUTCDate() - (Number(days) - 1));
+
+    for (let cursor = new Date(firstDay); cursor <= lastDay; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+      const isoDay = cursor.toISOString().slice(0, 10);
+      const point = usageByDay.get(isoDay) ?? { totalTokens: 0, runs: 0 };
+      points.push({
+        day: isoDay,
+        label: `${String(cursor.getUTCDate()).padStart(2, "0")}/${String(cursor.getUTCMonth() + 1).padStart(2, "0")}`,
+        ...point,
+      });
+    }
+    return points;
+  }, [usage?.daily, days]);
+
   if (isLoadingUsage || !usage) {
     return (
       <div className="flex items-center justify-center h-40">
@@ -88,32 +115,6 @@ export function ChatBotIaUsageTab({ trackingId }: { trackingId: string }) {
   }
 
   const { totals, daily, recent } = usage;
-
-  // Preenche dias sem atividade com 0 pra deixar o eixo X contínuo
-  // (mais legível: 30 barras visíveis em vez de só os dias com runs).
-  const chartData = useMemo(() => {
-    const map = new Map<string, { totalTokens: number; runs: number }>();
-    for (const d of daily) {
-      const iso = new Date(d.day).toISOString().slice(0, 10);
-      map.set(iso, { totalTokens: d.totalTokens, runs: d.runs });
-    }
-
-    const out: { day: string; label: string; totalTokens: number; runs: number }[] = [];
-    const end = new Date();
-    const start = new Date();
-    start.setUTCDate(end.getUTCDate() - (Number(days) - 1));
-
-    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
-      const iso = d.toISOString().slice(0, 10);
-      const point = map.get(iso) ?? { totalTokens: 0, runs: 0 };
-      out.push({
-        day: iso,
-        label: `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`,
-        ...point,
-      });
-    }
-    return out;
-  }, [daily, days]);
 
   return (
     <div className="space-y-6">

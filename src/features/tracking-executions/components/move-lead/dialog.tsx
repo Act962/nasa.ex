@@ -88,7 +88,7 @@ export const MoveLeadDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>Move Lead</DialogTitle>
           <DialogDescription>Configure the move lead</DialogDescription>

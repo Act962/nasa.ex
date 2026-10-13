@@ -1,3 +1,6 @@
+import { buttonReplyOutputs } from "@/features/workflows/lib/button-reply-flow";
+import { DEFAULT_DAILY_SUMMARY_MESSAGE, DEFAULT_GROUP_MESSAGE_PAYLOAD } from "@/features/workflows/lib/group-message";
+import { DEFAULT_CONSENT_PAYLOAD, DEFAULT_FORM_CHAT_PAYLOAD, conversationStepOutputs, isFormChatOn } from "@/features/workflows/lib/conversation-steps";
 import { NodeType } from "@/generated/prisma/enums";
 import {
   ArrowLeftRightIcon,
@@ -30,6 +33,7 @@ import {
   RouteIcon,
   ScaleIcon,
   SendIcon,
+  ShieldCheckIcon,
   ShuffleIcon,
   SparklesIcon,
   SunriseIcon,
@@ -40,6 +44,8 @@ import {
   UserPlusIcon,
   UserRoundPlusIcon,
   WebhookIcon,
+  PhoneCallIcon,
+  UsersIcon,
 } from "lucide-react";
 
 export type NodeTypeOption = {
@@ -100,6 +106,11 @@ export function getNodeOutputs(
         .filter(Boolean);
       return outs.length > 0 ? [...outs, "default"] : ["main"];
     }
+    case "SEND_MESSAGE": {
+      // Menu de botões que espera o clique: uma saída por botão e "sem clique" (spec 0090, seção F).
+      const replyOutputs = buttonReplyOutputs(data) ?? conversationStepOutputs(data);
+      return replyOutputs ? replyOutputs.map((replyOutput) => replyOutput.id) : ["main"];
+    }
     default:
       return ["main"];
   }
@@ -124,8 +135,9 @@ export const triggerNodes: NodeTypeOption[] = [
   {
     type: NodeType.MOVE_LEAD_STATUS,
     category: "trigger",
-    label: "Mover Lead para Status",
-    description: "Executa o fluxo ao mover um lead para um status",
+    // Gatilho, não ação: o nome antigo ("Mover Lead para Status") se confundia com a ação "Mover Lead".
+    label: "Lead entrou na coluna",
+    description: "Começa o fluxo quando um lead chega na coluna escolhida",
     icon: MoveHorizontalIcon,
   },
   {
@@ -410,10 +422,61 @@ export const executionNodes: NodeTypeOption[] = [
     category: "execution",
     label: "Menu de Botões",
     description:
-      "Envia menu interativo com até 9 botões (reusa presets do Chatbot IA ou inline)",
+      "Envia menu interativo com até 9 botões (reusa presets do Fluxo de atendimento ou inline)",
     icon: MousePointerIcon,
     defaultData: {
       action: { payload: { type: "BUTTONS", mode: "preset" } },
+    },
+  },
+  // Passos de conversa (spec 0099): reusam o Enviar Mensagem, sem tipo novo de quadro. Só aparecem
+  // com a opção de liberação ligada.
+  ...(isFormChatOn()
+    ? [
+        {
+          type: NodeType.SEND_MESSAGE,
+          category: "execution" as const,
+          label: "Pedir aceite",
+          description: "Mostra os termos (LGPD) e registra no lead se o cliente aceitou, antes de pedir dados",
+          icon: ShieldCheckIcon,
+          defaultData: { action: { payload: DEFAULT_CONSENT_PAYLOAD } },
+        },
+        {
+          type: NodeType.SEND_MESSAGE,
+          category: "execution" as const,
+          label: "Preencher formulário pela conversa",
+          description: "Pergunta os campos de um formulário do Órbita Forms um a um, valida as respostas e grava a ficha no lead",
+          icon: ClipboardListIcon,
+          defaultData: { action: { payload: DEFAULT_FORM_CHAT_PAYLOAD } },
+        },
+      ]
+    : []),
+  {
+    // Envio para grupo (spec 0101): reusa o Enviar Mensagem, sem tipo novo de quadro.
+    type: NodeType.SEND_MESSAGE,
+    category: "execution",
+    label: "Enviar para grupo",
+    description: "Manda um texto para um grupo de WhatsApp, com os números do dia se você quiser. Só em número conectado por QR code",
+    icon: UsersIcon,
+    agentModeOnly: true,
+    defaultData: { action: { payload: { ...DEFAULT_GROUP_MESSAGE_PAYLOAD, message: DEFAULT_DAILY_SUMMARY_MESSAGE } } },
+  },
+  {
+    // "Fazer ligação com IA", etapa do convite (spec 0090, seção G, 8A): o cliente recebe o convite,
+    // liga pelo WhatsApp e a assistente atende. Reusa o Enviar Mensagem, sem tipo novo de quadro.
+    type: NodeType.SEND_MESSAGE,
+    category: "execution",
+    label: "Fazer ligação com IA",
+    description:
+      "Convida o cliente a ligar pelo WhatsApp; a assistente atende a chamada. Exige a chamada de voz ligada no Fluxo de atendimento",
+    icon: PhoneCallIcon,
+    defaultData: {
+      action: {
+        payload: {
+          type: "TEXT",
+          message:
+            "Olá {{lead.name}}! Se preferir resolver por voz, é só tocar no ícone de telefone aqui na conversa: nossa assistente atende a ligação na hora.",
+        },
+      },
     },
   },
   {

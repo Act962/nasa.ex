@@ -177,11 +177,18 @@ export function TagCreateForm({ open, trackingId }: TagCreateFormProps) {
         </InputGroup>
 
         {showDescription ? (
-          <Textarea
-            placeholder="Descrição da tag"
-            rows={3}
-            {...form.register("description")}
-          />
+          <div className="space-y-1">
+            <Textarea
+              placeholder="Descrição da tag"
+              rows={3}
+              {...form.register("description")}
+            />
+            <p className="text-xs text-muted-foreground">
+              É por esta descrição que a IA do atendimento sabe quando aplicar a tag sozinha. Ex.:
+              “Cliente perguntou por óculos ou convênio com ótica.” Sem descrição, só pessoas e
+              gatilhos aplicam.
+            </p>
+          </div>
         ) : (
           <Button
             type="button"

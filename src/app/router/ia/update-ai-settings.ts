@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { encryptSecret, last4 } from "@/lib/crypto";
 import prisma from "@/lib/prisma";
 import { AiProvider } from "@/generated/prisma/client";
@@ -14,6 +15,7 @@ const aiProviderEnum = z.nativeEnum(AiProvider);
 
 export const updateAiSettings = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .input(
     z.object({
       trackingId: z.string(),
@@ -26,7 +28,7 @@ export const updateAiSettings = base
       aiApiKey: z.string().optional(),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const {
       trackingId,
       aiEnabled,
@@ -37,6 +39,13 @@ export const updateAiSettings = base
       aiModelId,
       aiApiKey,
     } = input;
+
+    // Sem conferir a empresa, o id de um tracking alheio bastaria para reescrever o atendimento (spec 0088, S-3).
+    const ownedTracking = await prisma.tracking.findFirst({
+      where: { id: trackingId, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!ownedTracking) throw errors.NOT_FOUND({ message: "Tracking não encontrado" });
 
     // Estado atual pra validar combinações provider+key.
     const current = await prisma.aiSettings.findUnique({

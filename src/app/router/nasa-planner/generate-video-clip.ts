@@ -1,4 +1,5 @@
 import { meterOrThrow } from "@/features/stars/lib/metering";
+import { syncPublishGroupContent } from "@/features/nasa-planner/server/publish-group";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -10,7 +11,6 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { S3 } from "@/lib/s3-client";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { readIntegrationApiKey } from "@/features/integrations/lib/integration-api-key";
 
 const STARS_VIDEO_FALAI = 3;   // fal.ai kling 5s ~$0.04 = R$0.23 × 1.5 ÷ 0.15
 const STARS_VIDEO_RUNWAY = 15; // RunwayML 5s ~$0.25 = R$1.43 × 1.5 ÷ 0.15
@@ -35,7 +35,7 @@ export const generateVideoClip = base
 
     const starsNeeded = input.provider === "runway" ? STARS_VIDEO_RUNWAY : STARS_VIDEO_FALAI;
 
-    // Try to find fal.ai key from OPENAI integration (user stores fal.ai key there)
+    // A chave do fal.ai da empresa fica num campo à parte da integração OpenAI (`falaiKey`).
     const openaiIntegration = await prisma.platformIntegration.findFirst({
       where: {
         organizationId: context.org.id,
@@ -43,10 +43,10 @@ export const generateVideoClip = base
         isActive: true,
       },
     });
-    const apiKey = openaiIntegration
-      ? ((openaiIntegration.config as Record<string, string>).falaiKey ??
-         readIntegrationApiKey(openaiIntegration.config as Record<string, unknown> | null))
-      : process.env.FAL_API_KEY;
+    const companyFalKey = (openaiIntegration?.config as Record<string, unknown> | null | undefined)?.falaiKey;
+    // Sem `falaiKey`, vale a chave do fal.ai da plataforma. A chave da OpenAI da empresa NUNCA é
+    // usada aqui: antes ela era enviada ao fal.ai, um terceiro que não é dono dela (spec 0093, etapa 0).
+    const apiKey = typeof companyFalKey === "string" && companyFalKey.trim() ? companyFalKey.trim() : process.env.FAL_API_KEY;
 
     if (!apiKey) {
       throw new ORPCError("PRECONDITION_FAILED", {
@@ -132,5 +132,6 @@ export const generateVideoClip = base
       data: { postId: input.postId, videoKey: key, order: slideCount + 1 },
     });
 
+    await syncPublishGroupContent(input.postId, context.user.id);
     return { slide, videoKey: key, starsSpent: starsCharged, balanceAfter };
   });

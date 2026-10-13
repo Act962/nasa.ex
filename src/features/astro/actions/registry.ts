@@ -11,9 +11,15 @@ import { addLeadNoteAction } from "./leads/add-lead-note";
 import { createLeadAction } from "./leads/create-lead";
 import { createTrackingAction } from "./tracking/create-tracking";
 import { createAgendaAction } from "./agenda/create-agenda";
+import { setupAttendanceFromSiteAction } from "./tracking/setup-attendance-from-site";
+import { createFlowAction } from "./tracking/create-flow";
+import { IS_ASTRO_FLOW_EDIT_ON, editFlowAction } from "./tracking/edit-flow";
+import { setupAttendanceFromScriptAction } from "./tracking/setup-attendance-from-script";
 import { createAppointmentAction } from "./agenda/create-appointment";
 import { createWorkspaceAction } from "./workspace/create-workspace";
 import { createWorkspaceActionItem } from "./workspace/create-action";
+import { completeWorkspaceActionItem } from "./workspace/complete-action";
+import { attachImageToWorkspaceActionItem } from "./workspace/attach-image";
 import { updateWorkspaceActionItem } from "./workspace/update-action";
 import { addChecklistItemAction } from "./workspace/add-checklist-item";
 import { createTagAction } from "./tags/create-tag";
@@ -37,6 +43,8 @@ import { createReminderAction } from "./agenda/create-reminder";
 import { addTrackingParticipantAction } from "./tracking/add-participant";
 import { sendFormToLeadAction } from "./form/send-to-lead";
 import { toggleFormPublishAction } from "./form/toggle-publish";
+import { markRecordPaidAction, sendRecordPixAction } from "./form/record-pix";
+import { scheduleDailyRecordsAction } from "./form/schedule-record-notice";
 import { sendMessageAction } from "./chat/send-message";
 import { addLeadTagAction } from "./leads/add-lead-tag";
 
@@ -56,9 +64,16 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   createLeadAction,
   createTrackingAction,
   createAgendaAction,
+  setupAttendanceFromSiteAction,
+  createFlowAction,
+  // Editar fluxo existente (spec 0094): fora do registro enquanto a flag está desligada, para nada mudar.
+  ...(IS_ASTRO_FLOW_EDIT_ON ? [editFlowAction] : []),
+  setupAttendanceFromScriptAction,
   createAppointmentAction,
   createWorkspaceAction,
   createWorkspaceActionItem,
+  completeWorkspaceActionItem,
+  attachImageToWorkspaceActionItem,
   updateWorkspaceActionItem,
   addChecklistItemAction,
   createTagAction,
@@ -82,6 +97,9 @@ export const ASTRO_ACTIONS: AstroAction[] = [
   addTrackingParticipantAction,
   sendFormToLeadAction,
   toggleFormPublishAction,
+  sendRecordPixAction,
+  markRecordPaidAction,
+  scheduleDailyRecordsAction,
   sendMessageAction,
   addLeadTagAction,
 ];

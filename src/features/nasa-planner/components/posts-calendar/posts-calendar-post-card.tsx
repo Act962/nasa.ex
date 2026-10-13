@@ -1,13 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { getPlannerMediaUrl } from "../../lib/post-media";
 import { PostCardDropdownMenu } from "./post-card-dropdown-menu";
 import type { MenuAction } from "./types";
 import { useNetworkConnectionStatus } from "../../hooks/use-network-status";
-
-const S3_BASE = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL
-  ? `https://${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}`
-  : "";
 
 const NETWORK_COLORS: Record<string, string> = {
   INSTAGRAM: "#e1306c",
@@ -59,7 +56,7 @@ export function PostsCalendarPostCard({ post, selected, onSelect, onMenuAction }
       {post.thumbnail ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={post.thumbnail.startsWith("http") ? post.thumbnail : `${S3_BASE}/${post.thumbnail}`}
+          src={getPlannerMediaUrl(post.thumbnail)}
           alt={post.title ?? ""}
           className="absolute inset-0 h-full w-full object-cover opacity-80"
           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}

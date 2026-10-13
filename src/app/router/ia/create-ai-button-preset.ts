@@ -1,6 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
+import { canAccessTrackingMenus } from "./button-preset-access";
 import z from "zod";
 
 const buttonSchema = z.object({
@@ -26,7 +27,10 @@ export const createAiButtonPreset = base
       isActive: z.boolean().default(true),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
+    if (!(await canAccessTrackingMenus(input.trackingId, context.user.id))) {
+      throw errors.NOT_FOUND({ message: "Funil não encontrado" });
+    }
     const preset = await prisma.aiButtonPreset.create({
       data: {
         trackingId: input.trackingId,

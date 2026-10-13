@@ -1,3 +1,5 @@
+import { anthropicKeySourceOf } from "@/lib/anthropic-key";
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import { auth } from "@/lib/auth";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
@@ -76,7 +78,7 @@ Responda APENAS com um JSON válido no seguinte formato (sem markdown, sem expli
 }`;
 
   try {
-    const { text } = await generateText({
+    const { text, usage } = await generateText({
       model: anthropic("claude-haiku-4-5-20251001"),
       prompt,
       maxOutputTokens: 1500,
@@ -85,6 +87,16 @@ Responda APENAS com um JSON válido no seguinte formato (sem markdown, sem expli
         functionId: "extract-brand",
         metadata: { posthog_distinct_id: session.user.id },
       },
+    });
+
+    await recordAiUsage({
+      resourceId: "brand.extract",
+      organizationId: session.session.activeOrganizationId,
+      userId: session.user.id,
+      provider: "anthropic",
+      modelId: "claude-haiku-4-5",
+      keySource: anthropicKeySourceOf(apiKey),
+      usage,
     });
 
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();

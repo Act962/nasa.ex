@@ -1,5 +1,6 @@
 "use client";
 
+import { useAutomationPermissions } from "@/features/workflows/hooks/use-automation-permissions";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,8 +55,11 @@ export function FolderGroup({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const deleteFolder = useDeleteWorkflowFolder(trackingId);
 
+  const permissions = useAutomationPermissions();
   const isVirtual = folderId === null; // "Sem pasta" não tem CRUD
   const canDelete = !isVirtual && workflowCount === 0;
+  // Sem permissão de editar nem de excluir, o menu da pasta não tem o que oferecer.
+  const showsFolderMenu = !isVirtual && (permissions.canEdit || permissions.canDelete);
 
   return (
     <>
@@ -101,7 +105,7 @@ export function FolderGroup({
               size="sm"
               variant="ghost"
             />
-            {!isVirtual && (
+            {showsFolderMenu && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -113,11 +117,14 @@ export function FolderGroup({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem onClick={() => setRenameOpen(true)}>
-                    <PencilIcon className="size-3.5" />
-                    Renomear
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  {permissions.canEdit && (
+                    <DropdownMenuItem onClick={() => setRenameOpen(true)}>
+                      <PencilIcon className="size-3.5" />
+                      Renomear
+                    </DropdownMenuItem>
+                  )}
+                  {permissions.canEdit && permissions.canDelete && <DropdownMenuSeparator />}
+                  {permissions.canDelete && (
                   <DropdownMenuItem
                     onClick={() => setConfirmDeleteOpen(true)}
                     disabled={!canDelete}
@@ -130,6 +137,7 @@ export function FolderGroup({
                       ? "Excluir pasta"
                       : `Contém ${workflowCount} automação(ões)`}
                   </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}

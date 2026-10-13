@@ -30,6 +30,8 @@ const nextConfig: NextConfig = {
     "@aws-sdk/client-s3",
     "@aws-sdk/lib-storage",
     "@aws-sdk/s3-request-presigner",
+    // Conexão de áudio em tempo real das chamadas pelo WhatsApp (spec 0086): usa UDP e criptografia do Node.
+    "werift",
   ],
   experimental: {
     // Não cacheia respostas de `fetch` de Server Components entre refreshes de

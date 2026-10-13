@@ -9,6 +9,7 @@ import {
   DAY_WORDS,
   MEMBER_PICKER,
   PRIORITY_OPTIONS,
+  PRIORITY_PICKER_OPTIONS,
   TIME_OF_DAY,
   findTeamMember,
   formatDay,
@@ -17,6 +18,7 @@ import {
   priorityLabel,
   toPriority,
 } from "./task-fields";
+import { notifyNewTask } from "@/features/actions/server/lib/notify-new-task";
 
 // Editar uma demanda que já existe (spec 0072, RF-9). Sem este verbo, "quero
 // editar a última demanda" caía em `action.create` e abria uma demanda nova.
@@ -35,7 +37,7 @@ const NEW_VALUE_PICKERS: Record<ChangeField, AstroPicker> = {
   newTitle: { kind: "text", placeholder: "Novo título", maxLength: 200 },
   dueAnswer: { kind: "datetime", mode: "date" },
   responsibleName: MEMBER_PICKER,
-  priorityName: { kind: "select", options: PRIORITY_OPTIONS.map((option) => ({ ...option })) },
+  priorityName: { kind: "select", options: PRIORITY_PICKER_OPTIONS },
 };
 
 const inputSchema = z.object({
@@ -199,6 +201,17 @@ export const updateWorkspaceActionItem: AstroAction<typeof inputSchema> = {
           : {}),
       },
     });
+
+    if (newResponsibleId) {
+      await notifyNewTask({
+        actionId: task.id,
+        title: changes.title ?? task.title,
+        workspaceId: task.workspaceId,
+        organizationId: ctx.organizationId,
+        actorId: ctx.userId,
+        userIds: [newResponsibleId],
+      });
+    }
 
     return {
       status: "done",

@@ -44,6 +44,7 @@
  * é o `accessToken` da instância — preserva semântica de "token que
  * recebeu a mensagem".
  */
+import { extractCallEvents, handleOfficialCallEvents } from "@/features/astro-bot/lib/voice-call/call-webhook";
 import { type NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 
@@ -57,6 +58,7 @@ import { WhatsAppProvider } from "@/generated/prisma/enums";
 import { decryptSecret } from "@/lib/crypto";
 import { getTrackingByMetaPhoneNumberId } from "@/features/tracking-chat/lib/get-tracking-by-meta-phone-number-id";
 import { getCachedTrackingContext } from "@/features/tracking-chat/lib/get-cached-tracking-context";
+import { isAstroBotReplyId } from "@/features/astro-bot/lib/menu/menu-tree";
 import { createProvider } from "@/features/tracking-chat/lib/providers";
 import { persistCanonicalInbound } from "@/features/tracking-chat/lib/inbound/persist-canonical-inbound";
 import { applyStatusUpdates } from "@/features/tracking-chat/lib/inbound/apply-status-updates";
@@ -247,6 +249,23 @@ export async function POST(request: NextRequest) {
     return new NextResponse("Invalid signature", { status: 401 });
   }
 
+  // ── 3b. Chamadas de voz (spec 0086) ─────────────────────────────────
+  // Evento à parte das mensagens, já com a assinatura conferida. Sem a função
+  // ligada no ambiente, a chamada é só recusada; o resto do webhook não muda.
+  const callEvents = extractCallEvents(json);
+  if (callEvents) {
+    const callOutcomes = await handleOfficialCallEvents(callEvents, {
+      accessToken: instance.accessToken,
+      phoneNumberId: instance.phoneNumberId,
+      trackingId: instance.trackingId,
+      organizationId: instance.organizationId,
+    }).catch((callError: unknown) => {
+      console.error("[webhook:official:POST] call_handler_failed", callError);
+      return ["failed"];
+    });
+    return NextResponse.json({ ok: true, calls: callOutcomes }, { status: 200 });
+  }
+
   // ── 4. Parse Zod ────────────────────────────────────────────────────
   const parsed = parseWhatsAppOfficialWebhook(json);
   if (!parsed) {
@@ -346,14 +365,24 @@ export async function POST(request: NextRequest) {
     singleMessage?.type === "text"
       ? singleMessage.body.trim()
       : (singleBotMedia?.caption ?? "").trim();
-  if (singleMessage && ((singleMessage.type === "text" && bodyForBot) || singleBotMedia)) {
+  // Clique em botão ou lista do Astro (spec 0079). Só os ids com prefixo do Astro entram: o clique
+  // em botão de automação do tracking (tag por botão) segue para o fluxo dele.
+  const botInteractiveReplyId =
+    singleMessage?.type === "interactive_reply" && isAstroBotReplyId(singleMessage.replyId)
+      ? singleMessage.replyId
+      : undefined;
+  if (singleMessage && ((singleMessage.type === "text" && bodyForBot) || singleBotMedia || botInteractiveReplyId)) {
     try {
       const { maybeHandleBotMessage } = await import(
         "@/features/astro-bot/lib/webhook-handler"
       );
       const botResult = await maybeHandleBotMessage({
         fromPhone: singleMessage.sender.phone,
-        messageText: bodyForBot,
+        messageText:
+          singleMessage.type === "interactive_reply" ? (singleMessage.replyText ?? "").trim() : bodyForBot,
+        externalMessageId: singleMessage.externalMessageId,
+        interactiveReplyId: botInteractiveReplyId,
+        interactiveContextId: botInteractiveReplyId ? singleMessage.replyToExternalMessageId : undefined,
         media:
           singleBotMedia &&
           (singleBotMedia.kind === "document" ||

@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { WhatsAppProvider } from "@/generated/prisma/enums";
+import { getCustomerWindow } from "@/features/tracking-chat/lib/customer-window";
 import z from "zod";
 
 /**
@@ -12,8 +13,6 @@ import z from "zod";
  * preciso enviar um template aprovado. Para Uazapi (ou outros), devolve
  * `applicable: false` e a UI não restringe nada.
  */
-
-const WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export const getCustomerWindowState = base
   .use(requiredAuthMiddleware)
@@ -43,17 +42,9 @@ export const getCustomerWindowState = base
       return { applicable: false as const };
     }
 
-    const lastInbound = await prisma.message.findFirst({
-      where: { conversationId: input.conversationId, fromMe: false },
-      orderBy: { createdAt: "desc" },
-      select: { createdAt: true },
-    });
-
-    const lastInboundAt = lastInbound?.createdAt ?? null;
-    const expiresAt = lastInboundAt
-      ? new Date(lastInboundAt.getTime() + WINDOW_MS)
-      : null;
-    const withinWindow = expiresAt ? expiresAt.getTime() > Date.now() : false;
+    const { withinWindow, lastInboundAt, expiresAt } = await getCustomerWindow(
+      input.conversationId,
+    );
 
     return {
       applicable: true as const,

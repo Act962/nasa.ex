@@ -52,7 +52,7 @@ export const TemperatureDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>Temperatura</DialogTitle>
           <DialogDescription>Mude a temperatura do lead</DialogDescription>

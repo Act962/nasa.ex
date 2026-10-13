@@ -1,5 +1,6 @@
 "use client";
 
+import { WhatsappIcon } from "@/components/whatsapp";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangleIcon, GitBranchIcon, PlusIcon, SparklesIcon, XIcon } from "lucide-react";
@@ -13,8 +14,12 @@ import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { useQuickCreateWorkflow, useQuickDraftWorkflow, useQuickDuplicates } from "@/features/workflows/hooks/use-quick-builder";
 import type { QuickBlueprintEdge, QuickBlueprintNode, QuickStep } from "@/features/workflows/lib/quick-builder/steps";
-import { QUICK_CATALOG, QUICK_CATEGORY_LABELS, findCatalogItem, type QuickCategory } from "./quick-catalog";
+import { QUICK_CATALOG, QUICK_CATEGORY_LABELS, findCatalogItem, type QuickCategory, type QuickCatalogItem } from "./quick-catalog";
 import { QuickStepFields } from "./quick-step-fields";
+import {
+  isTemplateSelectionComplete,
+  type WorkflowTemplateSelection,
+} from "@/features/tracking-executions/components/send-message/template-fields";
 
 // Construtor rápido de Gatilhos Automáticos (spec 0039): frase ou selects,
 // passos lineares "Quando → Então", alerta de duplicação e modo avançado.
@@ -39,6 +44,15 @@ function stepLabel(step: QuickStep): string {
   return findCatalogItem(step.type)?.label ?? step.name ?? step.type;
 }
 
+/** Passos que falam com o cliente pelo WhatsApp ganham a logo do canal (spec 0090, RF-1). */
+const WHATSAPP_STEP_TYPES = new Set(["SEND_MESSAGE", "SEND_MEDIA", "SEND_VOICE", "MESSAGE_INCOMING", "FIRST_CHAT_INTERACTION", "FIRST_INTERACTION_OF_DAY"]);
+
+function QuickCatalogIcon({ item, className }: { item: QuickCatalogItem; className?: string }) {
+  if (WHATSAPP_STEP_TYPES.has(item.type)) return <WhatsappIcon className={cn(className, "text-brand-whatsapp")} />;
+  const Icon = item.icon;
+  return <Icon className={className} />;
+}
+
 export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }: QuickWorkflowBuilderProps) {
   const router = useRouter();
   const draftWorkflow = useQuickDraftWorkflow();
@@ -56,7 +70,11 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
   const trigger = steps[0];
   const actions = steps.slice(1);
   const hasReviewStep = steps.some((step) => step.data.needsReview === true);
-  const canCreate = Boolean(trigger) && (branchedFlow !== null || actions.length > 0);
+  const hasIncompleteTemplate = actions.some((step) => {
+    const payload = (step.data.action as { payload?: Partial<WorkflowTemplateSelection> & { type?: string } } | undefined)?.payload;
+    return step.type === "SEND_MESSAGE" && payload?.type === "TEMPLATE" && !isTemplateSelectionComplete(payload);
+  });
+  const canCreate = Boolean(trigger) && (branchedFlow !== null || actions.length > 0) && !hasIncompleteTemplate;
   const examples = [
     `Todo dia às 9h me lembra de retornar para ${leadName ?? "o lead"}`,
     leadName ? `Se ${leadName} mandar mensagem, me avisa` : "Quando o lead receber a tag Quente, envia uma mensagem de boas-vindas",
@@ -174,7 +192,7 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
             <SelectContent>
               {QUICK_CATALOG.filter((item) => item.category === "trigger").map((item) => (
                 <SelectItem key={item.type} value={item.type}>
-                  <item.icon className="size-3.5" />
+                  <QuickCatalogIcon item={item} className="size-3.5" />
                   {item.label}
                 </SelectItem>
               ))}
@@ -185,7 +203,6 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
 
         {actions.map((step, actionIndex) => {
           const item = findCatalogItem(step.type);
-          const Icon = item?.icon;
           return (
             <StepShell
               key={`${step.type}-${actionIndex}`}
@@ -194,7 +211,7 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
               onRemove={() => removeStep(actionIndex + 1)}
             >
               <div className="flex items-center gap-2 text-sm font-medium">
-                {Icon && <Icon className="size-4 text-muted-foreground" />}
+                {item && <QuickCatalogIcon item={item} className="size-4 text-muted-foreground" />}
                 {stepLabel(step)}
                 {step.data.needsReview === true && (
                   <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">revisar no avançado</span>
@@ -220,7 +237,7 @@ export function QuickWorkflowBuilder({ trackingId, leadId, leadName, onCreated }
                     <SelectLabel>{QUICK_CATEGORY_LABELS[category]}</SelectLabel>
                     {QUICK_CATALOG.filter((item) => item.category === category).map((item) => (
                       <SelectItem key={item.type} value={item.type}>
-                        <item.icon className="size-3.5" />
+                        <QuickCatalogIcon item={item} className="size-3.5" />
                         {item.label}
                       </SelectItem>
                     ))}

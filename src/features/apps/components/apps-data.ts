@@ -19,6 +19,7 @@ import {
   Sparkles,
   Store,
   TrendingUp,
+  Zap,
 } from "lucide-react";
 import type { FC } from "react";
 import {
@@ -39,6 +40,7 @@ import {
   SpaceStationIcon,
   StarFriendsIcon,
   BoostIcon,
+  GatilhosIcon,
 } from "./app-icons";
 
 export type AppStatus = "installed" | "development" | "available";
@@ -218,6 +220,23 @@ export const APPS: AppDef[] = [
     activeUsers: null,
     theme: "purple",
     sidebarKey: "cosmic",
+  },
+  {
+    id: "gatilhos",
+    name: "Gatilhos Automáticos",
+    byline: "by ÓRBITA®",
+    status: "installed",
+    icon: GatilhosIcon,
+    lineIcon: Zap,
+    shortDesc: "Todas as automações da empresa em um lugar",
+    fullDesc:
+      "Veja o que está ligado, o que tem problema e crie novos gatilhos numa frase. Reúne os fluxos do Tracking, do Workspace e do Comments, com atalhos para os gatilhos de lead, a inatividade, os comandos do Astro e os alertas.",
+    category: "Automação",
+    integration: "WhatsApp, Instagram",
+    action: "internal",
+    href: "/gatilhos",
+    activeUsers: null,
+    theme: "purple",
   },
   {
     id: "linnker",

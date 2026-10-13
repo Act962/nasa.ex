@@ -1,3 +1,4 @@
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import "server-only";
 
 import { generateObject } from "ai";
@@ -257,7 +258,7 @@ export async function extractFinancialDocument(params: {
     candidate: ResolvedExtractionModel,
     fileContent: ModelFileContent,
   ) => {
-    const { object } = await generateObject({
+    const { object, usage } = await generateObject({
       model: candidate.model,
       schema: financialDocumentExtractionSchema,
       messages: [
@@ -272,6 +273,16 @@ export async function extractFinancialDocument(params: {
         functionId: "astro-finance-extract-document",
         metadata: { posthog_distinct_id: params.userId },
       },
+    });
+    await recordAiUsage({
+      resourceId: "finance.documents",
+      organizationId: params.organizationId,
+      userId: params.userId,
+      provider: candidate.provider,
+      modelId: candidate.modelId,
+      keySource: candidate.keySource === "integration" ? "organization" : "platform",
+      usage,
+      starsCharged: charge.cost,
     });
     return object;
   };

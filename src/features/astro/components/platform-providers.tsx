@@ -1,5 +1,6 @@
 "use client";
 
+import { AutomationsHubDialog } from "@/features/automations-hub/components/automations-hub-dialog";
 import { type ReactNode } from "react";
 import { MarketplaceProvider } from "@/features/integrations/context/marketplace-context";
 import { AstroProvider } from "./astro-provider";
@@ -42,6 +43,7 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
               <AstroWidgetPanel />
               <AstroAppBriefingBalloon />
               <AstroCreateCommandHost />
+              <AutomationsHubDialog />
               <TourOverlay />
               <HeartbeatProvider />
             </AstroProvider>
@@ -62,6 +64,7 @@ export function PlatformProviders({ children }: { children: ReactNode }) {
             <AstroWidgetPanel />
             <AstroAppBriefingBalloon />
             <AstroCreateCommandHost />
+            <AutomationsHubDialog />
             <CmdkPalette />
             <ConnectionWizardDialog />
             <TourOverlay />

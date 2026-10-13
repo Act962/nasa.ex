@@ -29,6 +29,8 @@ import {
   sendOfficialMedia,
   sendOfficialTemplate,
   sendOfficialText,
+  sendOfficialInteractive,
+  uploadOfficialMedia,
   type MetaApiError,
   type WhatsAppOfficialInboundMessage,
   type WhatsAppOfficialMetadata,
@@ -54,7 +56,9 @@ import type {
   SendCanonicalMedia,
   SendCanonicalTemplate,
   SendCanonicalText,
+  SendCanonicalInteractive,
   SendResult,
+  UploadCanonicalMedia,
   WhatsAppChatProvider,
 } from "../../types";
 
@@ -375,6 +379,25 @@ export class OfficialProvider implements WhatsAppChatProvider {
     };
   }
 
+  async sendInteractive(input: SendCanonicalInteractive): Promise<SendResult> {
+    const response = await sendOfficialInteractive(
+      this.config.accessToken,
+      this.config.phoneNumberId,
+      {
+        to: normalizePhoneToMetaE164(input.to),
+        body: input.body,
+        footer: input.footer,
+        options: input.options.map((option) => ({ ...option })),
+        listButtonLabel: input.listButtonLabel,
+        replyToWamid: input.replyToExternalMessageId,
+      },
+    ).catch(rethrowWindowClosed);
+    return {
+      externalMessageId: extractWamid(response, "sendInteractive"),
+      raw: response,
+    };
+  }
+
   async sendMedia(input: SendCanonicalMedia): Promise<SendResult> {
     const mediaIdOrLink = input.mediaId ?? input.mediaUrl;
     if (!mediaIdOrLink) {
@@ -400,6 +423,15 @@ export class OfficialProvider implements WhatsAppChatProvider {
       externalMessageId: extractWamid(response, "sendMedia"),
       raw: response,
     };
+  }
+
+  async uploadMedia(input: UploadCanonicalMedia): Promise<{ mediaId: string }> {
+    const uploaded = await uploadOfficialMedia(this.config.accessToken, this.config.phoneNumberId, {
+      file: input.file,
+      mimetype: input.mimetype,
+      filename: input.fileName,
+    });
+    return { mediaId: uploaded.id };
   }
 
   async sendTemplate(input: SendCanonicalTemplate): Promise<SendResult> {

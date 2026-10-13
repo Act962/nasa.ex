@@ -1,5 +1,6 @@
 "use client";
 
+import { useTokenUsageOverview } from "@/features/ia/hooks/use-ai-resources";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Brain, CircleQuestionMarkIcon, Map, Sparkles } from "lucide-react";
@@ -30,10 +31,7 @@ export function AccountMenuItems() {
     ...orpc.stars.getBalance.queryOptions(),
     staleTime: 30_000,
   });
-  const { data: overview } = useQuery({
-    ...orpc.ia.usage.overview.queryOptions(),
-    staleTime: 30_000,
-  });
+  const { data: overview, isError: isUsageHidden } = useTokenUsageOverview();
 
   return (
     <>
@@ -52,19 +50,21 @@ export function AccountMenuItems() {
         )}
       </DropdownMenuItem>
 
-      <DropdownMenuItem
-        onClick={() => setIsUsageOpen(true)}
-        className="cursor-pointer"
-      >
-        <Brain />
-        Tokens IA
-        {overview && (
-          <span className="ml-auto tabular-nums text-xs text-muted-foreground">
-            {formatTokens(overview.currentCycle.totalTokens)} ·{" "}
-            {formatBrl(overview.currentCycle.costBrl)}
-          </span>
-        )}
-      </DropdownMenuItem>
+      {!isUsageHidden && (
+        <DropdownMenuItem
+          onClick={() => setIsUsageOpen(true)}
+          className="cursor-pointer"
+        >
+          <Brain />
+          Tokens IA
+          {overview && (
+            <span className="ml-auto tabular-nums text-xs text-muted-foreground">
+              {formatTokens(overview.currentCycle.totalTokens)} ·{" "}
+              {formatBrl(overview.currentCycle.costBrl)}
+            </span>
+          )}
+        </DropdownMenuItem>
+      )}
 
       <DropdownMenuItem
         onClick={() => startTour(NASA_TOUR_STEPS)}

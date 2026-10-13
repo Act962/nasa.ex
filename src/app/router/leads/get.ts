@@ -17,7 +17,7 @@ export const getLead = base
     }),
   )
 
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     try {
       const _lead = await prisma.lead.findUnique({
         where: {
@@ -27,6 +27,7 @@ export const getLead = base
           id: true,
           name: true,
           nickname: true,
+          publicToken: true,
           addressZipCode: true,
           addressStreet: true,
           addressNumber: true,
@@ -104,7 +105,17 @@ export const getLead = base
       });
 
       if (!_lead) {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND({ message: "Lead não encontrado" });
+      }
+
+      // Lead de outra empresa responde como inexistente: sem esta conferência,
+      // qualquer usuário logado lia os dados de um lead pelo id.
+      const membership = await prisma.member.findFirst({
+        where: { organizationId: _lead.tracking.organizationId, userId: context.user.id },
+        select: { id: true },
+      });
+      if (!membership) {
+        throw errors.NOT_FOUND({ message: "Lead não encontrado" });
       }
 
       const lead = {
@@ -119,6 +130,7 @@ export const getLead = base
 
       return { lead };
     } catch (err) {
+      if ((err as { code?: string } | null)?.code === "NOT_FOUND") throw err;
       console.error(err);
       throw errors.INTERNAL_SERVER_ERROR;
     }

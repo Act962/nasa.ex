@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import { NasaPlannerPostStatus } from "@/generated/prisma/enums";
 import { isApprovalRequired } from "./cross-org";
+import { resolveInstagramTarget } from "./publishing/instagram-channels";
 import { validatePostForPublishing } from "./publishing/validate-post";
 import type { PublishTrigger } from "./publishing/publish-workflow";
 
@@ -27,6 +28,9 @@ const SCHEDULABLE_WITHOUT_APPROVAL: NasaPlannerPostStatus[] = [
   NasaPlannerPostStatus.PENDING_APPROVAL,
 ];
 
+export const PUBLISH_QUEUE_UNAVAILABLE_MESSAGE =
+  "Não consegui iniciar a publicação agora. O post ficou programado e será publicado sozinho em alguns minutos; se preferir cancelar, desprograme.";
+
 async function loadSchedulablePost(postId: string) {
   const post = await prisma.nasaPlannerPost.findUniqueOrThrow({
     where: { id: postId },
@@ -43,6 +47,11 @@ async function loadSchedulablePost(postId: string) {
   }
   const problems = validatePostForPublishing({ ...post, targetNetworks: post.targetNetworks ?? [] });
   if (problems.length > 0) throw new ORPCError("BAD_REQUEST", { message: problems.join(" ") });
+  // Conta conferida já no pedido, não só no horário de publicar (spec 0074, RF-19).
+  if (post.targetNetworks.includes("INSTAGRAM") && !post.externalIgPostId) {
+    const instagramTarget = await resolveInstagramTarget(post.organizationId, post.targetIgAccountId);
+    if (!instagramTarget.ok) throw new ORPCError("BAD_REQUEST", { message: instagramTarget.problem });
+  }
   return post;
 }
 
@@ -61,16 +70,19 @@ export async function schedulePlannerPost(postId: string, scheduledAt: Date) {
       publishErrorCode: null,
     },
   });
-  await inngest.send({
-    name: "nasa-planner/post.scheduled",
-    id: `schedule-${postId}-v${scheduledPost.scheduleVersion}`,
-    data: {
-      postId,
-      organizationId: scheduledPost.organizationId,
-      scheduleVersion: scheduledPost.scheduleVersion,
-      scheduledAt: scheduledAt.toISOString(),
-    },
-  });
+  // A fila fora do ar não desfaz a programação: a varredura de 5 min publica o post no horário, com pouco atraso.
+  await inngest
+    .send({
+      name: "nasa-planner/post.scheduled",
+      id: `schedule-${postId}-v${scheduledPost.scheduleVersion}`,
+      data: {
+        postId,
+        organizationId: scheduledPost.organizationId,
+        scheduleVersion: scheduledPost.scheduleVersion,
+        scheduledAt: scheduledAt.toISOString(),
+      },
+    })
+    .catch((error: unknown) => console.error("[planner/scheduling] agendamento não enfileirado; a varredura publica no horário:", postId, error));
   return scheduledPost;
 }
 
@@ -98,10 +110,16 @@ export async function requestImmediatePublish(postId: string, trigger: Extract<P
       publishErrorCode: null,
     },
   });
-  await inngest.send({
-    name: "nasa-planner/post.publish-now",
-    id: `publish-${postId}-v${queuedPost.scheduleVersion}`,
-    data: { postId, organizationId: queuedPost.organizationId, scheduleVersion: queuedPost.scheduleVersion, trigger },
-  });
+  try {
+    await inngest.send({
+      name: "nasa-planner/post.publish-now",
+      id: `publish-${postId}-v${queuedPost.scheduleVersion}`,
+      data: { postId, organizationId: queuedPost.organizationId, scheduleVersion: queuedPost.scheduleVersion, trigger },
+    });
+  } catch (error) {
+    // O post já está programado para agora: a varredura o publica. Quem pediu precisa saber disso, não ver um erro genérico.
+    console.error("[planner/scheduling] publicação imediata não enfileirada:", postId, error);
+    throw new ORPCError("SERVICE_UNAVAILABLE", { message: PUBLISH_QUEUE_UNAVAILABLE_MESSAGE });
+  }
   return queuedPost;
 }

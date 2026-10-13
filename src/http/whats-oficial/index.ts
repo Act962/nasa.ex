@@ -25,6 +25,8 @@ export {
 } from "./client";
 
 export { sendOfficialText } from "./send-text";
+export { sendOfficialInteractive } from "./send-interactive";
+export type { InteractiveOption, SendInteractiveInput } from "./send-interactive";
 export { sendOfficialMedia } from "./send-media";
 export { sendOfficialLocation } from "./send-location";
 export { sendOfficialContact } from "./send-contact";

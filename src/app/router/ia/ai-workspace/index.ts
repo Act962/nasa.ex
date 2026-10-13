@@ -1,8 +1,9 @@
+import { resolveAiFor } from "@/features/ia/server/resolve-ai-for";
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
-import { openai } from "@ai-sdk/openai";
 import { streamToEventIterator } from "@orpc/client";
 import { createActionTool } from "./tools/create-action";
 import { listWorkspaces } from "./tools/list-workspaces";
@@ -122,8 +123,11 @@ export const createActionWithAi = base
               "- Astro IA Meta Ads NÃO está habilitado/autorizado nesta sessão. Se o usuário pedir ação Meta Ads, oriente: 'Peça ao Master ou Moderador da organização pra liberar o uso do Astro Meta Ads em Integrações → Meta → Astro + IA'.",
             ]),
       ];
+      const resolvedAi = await resolveAiFor({ resourceId: "workspace.assistant", organizationId: orgId, provider: "openai", modelId: "gpt-4.1-nano" });
       const result = streamText({
-        model: openai("gpt-4.1-nano"),
+        model: resolvedAi.model,
+        onFinish: ({ totalUsage }) =>
+          recordAiUsage({ resourceId: "workspace.assistant", organizationId: orgId, userId, provider: "openai", modelId: resolvedAi.modelId, keySource: resolvedAi.keySource, usage: totalUsage }),
         messages: [
           {
             role: "system",

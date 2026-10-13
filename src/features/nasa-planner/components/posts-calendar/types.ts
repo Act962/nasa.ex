@@ -1,3 +1,5 @@
+import type { ManualPostStatus } from "../../constants";
+
 export type MenuAction =
   | { type: "editImage" }
   | { type: "editVideo" }
@@ -7,4 +9,4 @@ export type MenuAction =
   | { type: "publish" }
   | { type: "download" }
   | { type: "delete" }
-  | { type: "moveTo"; status: string };
+  | { type: "moveTo"; status: ManualPostStatus };

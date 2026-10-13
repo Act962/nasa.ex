@@ -1,3 +1,4 @@
+import { NUMBERED_MENU_NOTICE, isButtonsOfficialOnly } from "@/features/tracking-chat/lib/numbered-menu";
 import { Uploader } from "@/components/file-uploader/uploader";
 import {
   Alert,
@@ -52,6 +53,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronDownIcon, InfoIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { isMetaInteractiveOn } from "@/features/workflows/lib/button-reply-flow";
+import { useWorkflowAgentMode } from "@/features/workflows/lib/agent-mode-context";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -59,6 +62,12 @@ import { VariablePicker } from "./variable-picker";
 import { useVariableAutocomplete } from "./use-variable-autocomplete";
 import { useAiButtonPresets } from "@/features/tracking-settings/hooks/use-ai-button-presets";
 import { useTags } from "@/features/tags/hooks/use-tags";
+import {
+  templateSelectionSchema,
+  templateSelectionShape,
+  WorkflowTemplateFields,
+  type WorkflowTemplateSelection,
+} from "./template-fields";
 
 /* ---------- TARGET ---------- */
 
@@ -101,7 +110,7 @@ const documentPayloadSchema = z.object({
 /**
  * BUTTONS: WhatsApp interactive menu com até 3 botões. Dois modos:
  *  - "preset"  → usa `presetId` de AiButtonPreset já configurado em
- *                Chatbot IA → Presets de botões (tracking-scoped)
+ *                Fluxo de atendimento → Botões (tracking-scoped)
  *  - "inline"  → user define bodyText/footerText/buttons aqui mesmo
  *
  * No runtime, o executor resolve: se `presetId` setado, lê preset do DB;
@@ -124,6 +133,9 @@ const buttonsPayloadSchema = z
     menuFormat: z.enum(["BUTTON", "LIST"]).default("BUTTON"),
     listButton: z.string().optional(),
     buttons: z.array(buttonItemSchema).optional(),
+    // Espera o clique e segue um caminho por resposta (spec 0090, seção F). Só no modo inline.
+    waitForReply: z.boolean().optional(),
+    replyTimeoutMinutes: z.number().int().positive().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.mode === "preset") {
@@ -159,11 +171,18 @@ const buttonsPayloadSchema = z
     }
   });
 
+/** TEMPLATE: modelo aprovado da API Oficial (os mesmos do app de Campanhas). */
+const templatePayloadSchema = z.object({
+  type: z.literal("TEMPLATE"),
+  ...templateSelectionShape,
+});
+
 const payloadSchema = z.discriminatedUnion("type", [
   textPayloadSchema,
   imagePayloadSchema,
   documentPayloadSchema,
   buttonsPayloadSchema,
+  templatePayloadSchema,
 ]);
 
 /* ---------- FORM ---------- */
@@ -171,6 +190,9 @@ const payloadSchema = z.discriminatedUnion("type", [
 export const formSchema = z.object({
   target: targetSchema,
   payload: payloadSchema,
+  // Enviado no lugar de texto/imagem/documento quando a janela de 24h da
+  // API Oficial está fechada, em vez de o passo falhar.
+  fallbackTemplate: templateSelectionSchema.nullable().optional(),
 });
 export type SendMessageFormValues = z.infer<typeof formSchema>;
 
@@ -272,6 +294,7 @@ function ButtonsPayloadFields({
 }) {
   const { presets, isLoadingPresets } = useAiButtonPresets(trackingId);
   const { tags } = useTags({ trackingId });
+  const agentModeContext = useWorkflowAgentMode();
 
   // useFieldArray = padrão correto pra arrays dinâmicos no react-hook-form.
   // Lida com add/update/remove + re-renders sem precisar do watch manual
@@ -325,7 +348,7 @@ function ButtonsPayloadFields({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="preset">
-                  Preset existente (Chatbot IA → Presets de botões)
+                  Preset existente (Fluxo de atendimento → Botões)
                 </SelectItem>
                 <SelectItem value="inline">
                   Inline (digitar aqui agora)
@@ -375,7 +398,7 @@ function ButtonsPayloadFields({
                     href={`/tracking/${trackingId}/settings?tab=chatbot-ia&iaTab=buttons`}
                     className="underline"
                   >
-                    Chatbot IA → Presets de botões
+                    Fluxo de atendimento → Botões
                   </Link>
                   .
                 </FieldDescription>
@@ -531,6 +554,43 @@ function ButtonsPayloadFields({
                   </Button>
                 </div>
               ))}
+              {isMetaInteractiveOn() && agentModeContext?.agentMode && (
+                <div className="rounded-lg border p-3">
+                  <Controller
+                    control={form.control}
+                    name="payload.waitForReply"
+                    render={({ field }) => (
+                      <label className="flex items-start justify-between gap-3">
+                        <span>
+                          <span className="block text-sm font-medium">Esperar o clique</span>
+                          <span className="block text-xs text-muted-foreground">
+                            O quadro ganha uma saída para cada botão e uma para “Sem clique”. O fluxo segue pelo botão que o cliente tocar.
+                          </span>
+                        </span>
+                        <Switch checked={field.value === true} onCheckedChange={field.onChange} />
+                      </label>
+                    )}
+                  />
+                  {form.watch("payload.waitForReply") === true && (
+                    <Controller
+                      control={form.control}
+                      name="payload.replyTimeoutMinutes"
+                      render={({ field }) => (
+                        <Field className="mt-3">
+                          <FieldLabel>Esperar por quantas horas</FieldLabel>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={720}
+                            value={field.value ? Math.round(Number(field.value) / 60) : 24}
+                            onChange={(event) => field.onChange(Math.max(1, Number(event.target.value) || 1) * 60)}
+                          />
+                        </Field>
+                      )}
+                    />
+                  )}
+                </div>
+              )}
               {fields.length < MAX_BUTTONS && (
                 <Button
                   type="button"
@@ -553,6 +613,8 @@ function ButtonsPayloadFields({
     </div>
   );
 }
+
+const TEMPLATE_PARAMETER_PLACEHOLDER = 'Texto fixo ou "/" para variáveis';
 
 export const SendMessageDialog = ({
   open,
@@ -587,15 +649,57 @@ export const SendMessageDialog = ({
   const countrySelected =
     countries.find((c) => c.code === selectedCode) || countries[0];
   const messageType = form.watch("payload.type");
+  const isOfficialApi = instance?.provider === "META_CLOUD";
+  // Com o interruptor da fase ligado, a automação envia botões também pela API oficial.
+  const isMenuBlocked = isOfficialApi && !isMetaInteractiveOn();
+  // Número fora da API oficial (spec 0095): botão não pode ser escolhido de novo. Passo que já era de
+  // botões continua abrindo, e sai como texto numerado.
+  const isUnofficialNumber = Boolean(instance) && !isOfficialApi && isButtonsOfficialOnly();
+  const isButtonsChoiceBlocked = isMenuBlocked || (isUnofficialNumber && messageType !== "BUTTONS");
+  const payloadValues = form.watch("payload");
+  const fallbackTemplate = form.watch("fallbackTemplate");
+  const canHaveFallbackTemplate =
+    isOfficialApi &&
+    (messageType === "TEXT" ||
+      messageType === "IMAGE" ||
+      messageType === "DOCUMENT");
+  const hasSubmitted = form.formState.isSubmitted;
+
+  const setTemplatePayload = (selection: WorkflowTemplateSelection) => {
+    form.setValue(
+      "payload",
+      { type: "TEMPLATE", ...selection },
+      { shouldValidate: hasSubmitted, shouldDirty: true },
+    );
+  };
+
+  const renderTemplateParameterInput = (inputProps: {
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+    isInvalid: boolean;
+  }) => (
+    <VariableInput
+      value={inputProps.value}
+      onChange={inputProps.onChange}
+      placeholder={inputProps.placeholder}
+      aria-invalid={inputProps.isInvalid}
+    />
+  );
 
   const handleSubmit = (values: SendMessageFormValues) => {
-    onSubmit(values);
+    onSubmit({
+      ...values,
+      fallbackTemplate: canHaveFallbackTemplate
+        ? (values.fallbackTemplate ?? null)
+        : null,
+    });
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-node-config>
         <DialogHeader>
           <DialogTitle>Enviar Mensagem</DialogTitle>
           <DialogDescription>Configure a mensagem</DialogDescription>
@@ -632,9 +736,28 @@ export const SendMessageDialog = ({
                       <SelectItem value="TEXT">Texto</SelectItem>
                       <SelectItem value="IMAGE">Imagem</SelectItem>
                       <SelectItem value="DOCUMENT">Documento</SelectItem>
-                      <SelectItem value="BUTTONS">Menu de Botões</SelectItem>
+                      <SelectItem value="BUTTONS" disabled={isButtonsChoiceBlocked}>
+                        Menu de Botões
+                        {isMenuBlocked && " (indisponível na API Oficial)"}
+                        {isUnofficialNumber && " (só em número com API oficial)"}
+                      </SelectItem>
+                      {isOfficialApi && (
+                        <SelectItem value="TEMPLATE">
+                          Template (API Oficial)
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
+                  {isUnofficialNumber && messageType === "BUTTONS" && (
+                    <p className="text-xs text-warning">{NUMBERED_MENU_NOTICE} Botões e listas só existem em número com API oficial.</p>
+                  )}
+                  {canHaveFallbackTemplate && (
+                    <FieldDescription>
+                      Na API Oficial, este tipo só é entregue se o lead escreveu
+                      nas últimas 24h. Fora disso o passo falha, a menos que
+                      haja um template reserva.
+                    </FieldDescription>
+                  )}
                 </Field>
               )}
             />
@@ -845,6 +968,65 @@ export const SendMessageDialog = ({
                   trackingId={trackingId}
                   form={form}
                 />
+              )}
+
+              {messageType === "TEMPLATE" && (
+                <Field>
+                  <FieldLabel>Template aprovado</FieldLabel>
+                  <WorkflowTemplateFields
+                    trackingId={trackingId}
+                    value={
+                      payloadValues?.type === "TEMPLATE" ? payloadValues : null
+                    }
+                    onChange={setTemplatePayload}
+                    showValidation={hasSubmitted}
+                    parameterPlaceholder={TEMPLATE_PARAMETER_PLACEHOLDER}
+                    renderParameterInput={renderTemplateParameterInput}
+                  />
+                  <FieldDescription>
+                    Os mesmos modelos do app de Campanhas. Template é o único
+                    tipo que a API Oficial entrega fora da janela de 24h.
+                  </FieldDescription>
+                </Field>
+              )}
+
+              {canHaveFallbackTemplate && (
+                <Field>
+                  <div className="flex items-center justify-between gap-2">
+                    <FieldLabel>Template reserva</FieldLabel>
+                    <Switch
+                      checked={Boolean(fallbackTemplate)}
+                      onCheckedChange={(isEnabled) =>
+                        form.setValue(
+                          "fallbackTemplate",
+                          isEnabled
+                            ? { templateName: "", languageCode: "" }
+                            : null,
+                          { shouldDirty: true },
+                        )
+                      }
+                    />
+                  </div>
+                  <FieldDescription>
+                    Enviado no lugar desta mensagem quando a janela de 24h do
+                    lead estiver fechada.
+                  </FieldDescription>
+                  {fallbackTemplate && (
+                    <WorkflowTemplateFields
+                      trackingId={trackingId}
+                      value={fallbackTemplate}
+                      onChange={(selection) =>
+                        form.setValue("fallbackTemplate", selection, {
+                          shouldValidate: hasSubmitted,
+                          shouldDirty: true,
+                        })
+                      }
+                      showValidation={hasSubmitted}
+                      parameterPlaceholder={TEMPLATE_PARAMETER_PLACEHOLDER}
+                      renderParameterInput={renderTemplateParameterInput}
+                    />
+                  )}
+                </Field>
               )}
             </FieldGroup>
 

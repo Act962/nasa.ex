@@ -1,4 +1,11 @@
 "use client";
+import { RichNodePreview } from "@/features/editor/components/rich/rich-node-preview";
+import { IconNodeCaption, IconNodeGlyph, hasIconCaption, hasIconGlyph } from "@/features/editor/components/rich/icon-node-hint";
+import { FlowNoticeBadge } from "@/features/editor/components/rich/flow-notice-badge";
+import { AnimatedOutline, type OutlineTone } from "@/features/editor/components/rich/animated-outline";
+import { hasRichPreview } from "@/features/editor/components/rich/rich-node-types";
+import { connectionHoverAtom, editorReadOnlyAtom, editorViewModeAtom } from "@/features/editor/store/atoms";
+import { useIsNodeBlockedByFlowProblem, useNodeFlowDiagnostics } from "@/features/editor/hooks/use-flow-diagnostics";
 
 import {
   ConnectionState,
@@ -6,11 +13,12 @@ import {
   Position,
   useConnection,
   useReactFlow,
+  useUpdateNodeInternals,
   useStore,
 } from "@xyflow/react";
-import { LucideIcon, Plus } from "lucide-react";
+import { PlusIcon, type LucideIcon } from "lucide-react";
 import { createId } from "@paralleldrive/cuid2";
-import { memo, useMemo, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useState, type ReactNode } from "react";
 import { WorkflowNode } from "@/components/workflow-node";
 import { BaseNode, BaseNodeContent } from "@/components/react-flow/base-node";
 import { validateNode } from "@/features/workflows/lib/validate-node";
@@ -24,8 +32,9 @@ import {
   type NodeStatus,
   NodeStatusIndicator,
 } from "@/components/react-flow/node-status-indicator";
+import { nextSide, readNodeSides, toPosition } from "@/features/editor/lib/node-sides";
 import { ButtonHandle } from "@/components/react-flow/button-handle";
-import { Button } from "@/components/ui/button";
+import { AddNextNodeButton } from "@/features/editor/components/add-next-node-button";
 import { NodeSelector } from "@/components/node-selector";
 
 interface BaseTriggerNodeProps extends NodeProps {
@@ -72,7 +81,8 @@ export const BaseTriggerNode = memo(
       ),
     );
 
-    const shouldShowButton = !connectionInProgress && !isConnected;
+    const isReadOnly = useAtomValue(editorReadOnlyAtom);
+    const shouldShowButton = !connectionInProgress && !isConnected && !isReadOnly;
 
     const handleDelete = () => {
       setNodes((currentNodes) => {
@@ -114,6 +124,35 @@ export const BaseTriggerNode = memo(
     // sem aresta de saída ficava verde.
     const graphIssues = useNodeIssues(id);
     const hasGraphError = graphIssues.some((i) => i.severity === "error");
+    // Erros previstos sobre o desenho da tela (regras do canal). O erro vem antes do aviso.
+    const flowDiagnostics = useNodeFlowDiagnostics(id);
+    const flowNotice =
+      flowDiagnostics.find((diagnostic) => diagnostic.severity === "error") ?? flowDiagnostics[0];
+    const hasFlowError = flowNotice?.severity === "error";
+    // Visão "Visual": card do lead nos gatilhos e celular nas mensagens. Na visão de ícones nada muda.
+    const viewMode = useAtomValue(editorViewModeAtom);
+    const isRichView = viewMode === "rich";
+    // O contorno tracejado faz o papel da borda nas duas visões; do andamento só fica o que está acontecendo agora.
+    const runStatus = status === "loading" || status === "success" ? status : "initial";
+    const connectionHover = useAtomValue(connectionHoverAtom);
+    const showsRichPreview = isRichView && hasRichPreview(nodeType);
+    const isBlockedByFlowProblem = useIsNodeBlockedByFlowProblem(id);
+    const { inputSide, outputSide } = readNodeSides(nodeData);
+    const updateNodeInternals = useUpdateNodeInternals();
+    const changeSide = (end: "inputSide" | "outputSide") => {
+      const sides = readNodeSides(nodeData);
+      const changedSide = end === "inputSide" ? nextSide(sides.inputSide, sides.outputSide) : nextSide(sides.outputSide, sides.inputSide);
+      setNodes((currentNodes) =>
+        currentNodes.map((node) =>
+          node.id === id ? { ...node, data: { ...node.data, ui: { ...sides, [end]: changedSide } } } : node,
+        ),
+      );
+    };
+    // O React Flow só recalcula onde a ligação encosta quando avisado de que a alça mudou de lugar.
+    useEffect(() => {
+      updateNodeInternals(id);
+    }, [id, inputSide, outputSide, updateNodeInternals]);
+    const outlineTone: OutlineTone = flowNotice || isBlockedByFlowProblem ? "problem" : "ok";
     const nodeInvalid = !!(validation && !validation.valid && !validation.skip);
     // `needsReview` no node.data sinaliza pendência da IA generativa —
     // user precisa abrir o nó pra completar (ex: escolher produto/agenda).
@@ -122,7 +161,7 @@ export const BaseTriggerNode = memo(
     // Sobrescreve status quando validação falha — borda vermelha pulsante
     // sinaliza que o trigger não está pronto pra ativar.
     const effectiveStatus: typeof status =
-      nodeInvalid || hasGraphError || needsReview ? "error" : status;
+      nodeInvalid || hasGraphError || hasFlowError || needsReview ? "error" : status;
 
     // ── Step-by-Step overlay ───────────────────────────────────
     const stepState = useAtomValue(stepByStepStateAtom);
@@ -139,24 +178,32 @@ export const BaseTriggerNode = memo(
       <WorkflowNode
         name={name}
         description={description}
+        showToolbar={!isReadOnly}
         onDelete={handleDelete}
-        onSettings={onSettings}
+        onSettings={isReadOnly ? undefined : onSettings}
+        notice={isRichView ? undefined : flowNotice}
         onDuplicate={handleDuplicate}
+        caption={!isRichView && nodeType && hasIconCaption(nodeType) ? <IconNodeCaption nodeType={nodeType} data={nodeData} /> : undefined}
+        onCycleOutputSide={() => changeSide("outputSide")}
         onAddNext={handleAddNext}
       >
         <StepRocketOverlay status={stepNodeStatus} onClick={handleRocketClick} />
         <NodeStatusIndicator
-          status={effectiveStatus}
+          status={runStatus}
           variant="border"
           className="rounded-l-2xl"
         >
           <BaseNode
             status={status}
-            validation={validation}
-            graphErrorMessages={[
+            // Na visão "Visual" o alerta do canto já explica o problema: o balão escuro ficaria repetido.
+            validation={isRichView ? undefined : validation}
+            graphErrorMessages={isRichView ? [] : [
               ...graphIssues
                 .filter((i) => i.severity === "error")
                 .map((i) => i.message),
+              ...flowDiagnostics
+                .filter((diagnostic) => diagnostic.severity === "error")
+                .map((diagnostic) => diagnostic.message),
               ...(needsReview
                 ? [
                     `🤖 IA marcou pra revisão: ${
@@ -166,11 +213,24 @@ export const BaseTriggerNode = memo(
                   ]
                 : []),
             ]}
-            onDoubleClick={onDoubleClick}
-            className="rounded-l-2xl relative group"
+            onDoubleClick={isReadOnly ? undefined : onDoubleClick}
+            className="relative group rounded-2xl border-transparent outline-none hover:bg-card hover:ring-0 focus:ring-0"
           >
-            <BaseNodeContent>
-              {typeof Icon === "string" ? (
+            <BaseNodeContent className={showsRichPreview ? "relative p-1" : "relative"}>
+              <AnimatedOutline tone={outlineTone} radius={showsRichPreview ? 16 : 20} />
+              {connectionHover?.nodeId === id && connectionHover.isAllowed && (
+                <span className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-2xl bg-info/15">
+                  <span className="grid size-7 place-items-center rounded-full border-2 border-white bg-info text-white shadow-[0_0_10px_var(--info)]">
+                    <PlusIcon className="size-4" strokeWidth={3} />
+                  </span>
+                </span>
+              )}
+              {isRichView && flowNotice && <FlowNoticeBadge notice={flowNotice} onFix={isReadOnly ? undefined : onSettings} />}
+              {showsRichPreview && nodeType ? (
+                <RichNodePreview nodeType={nodeType} data={nodeData} name={name} icon={Icon} isUndelivered={hasFlowError} />
+              ) : !isRichView && nodeType && hasIconGlyph(nodeType) ? (
+                <IconNodeGlyph nodeType={nodeType} data={nodeData} />
+              ) : typeof Icon === "string" ? (
                 <Image src={Icon} alt={name} width={16} height={16} />
               ) : (
                 <Icon className="size-4 text-muted-foreground" />
@@ -189,15 +249,10 @@ export const BaseTriggerNode = memo(
                 <ButtonHandle
                   id="source-1"
                   type="source"
-                  position={Position.Right}
+                  position={toPosition(outputSide)}
                   showButton={shouldShowButton}
                 >
-                  <Button
-                    className="rounded-[4px] size-4 p-0 has-[>svg]:px-0"
-                    variant="secondary"
-                  >
-                    <Plus className="size-3" />
-                  </Button>
+                  <AddNextNodeButton />
                 </ButtonHandle>
               </NodeSelector>
             </BaseNodeContent>

@@ -12,6 +12,7 @@ import { dryRunWorkflow } from "./dry-run";
 import { listWorkflowRuns, getWorkflowRunDetail } from "./list-runs";
 import { validateWorkflowProc } from "./validate";
 import { stepNodeProc } from "./step-node";
+import { linkFlows, unlinkFlows } from "./link-flows";
 import { quickCheckDuplicates, quickCreateWorkflow, quickDraftWorkflow } from "./quick-builder";
 
 export const workflowRoutes = {
@@ -37,6 +38,9 @@ export const workflowRoutes = {
   stepNode: stepNodeProc,
   listRuns: listWorkflowRuns,
   getRun: getWorkflowRunDetail,
+  // Mapa da operação (spec 0092): terminou um fluxo, roda o outro.
+  linkFlows,
+  unlinkFlows,
   // Construtor rápido (spec 0039)
   quick: {
     draft: quickDraftWorkflow,

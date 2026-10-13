@@ -3,6 +3,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AstroAction, AstroActionResult } from "../types";
 import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
+import { buildPublicFormUrl } from "@/features/form/lib/public-form-url";
+import { ensureLeadPublicToken } from "@/features/leads/lib/public-token";
 import { resolveSingleLead } from "../leads/resolve-lead";
 import { LEAD_FIELD_STEP, extractNameAfter } from "../leads/lead-steps";
 
@@ -40,11 +42,6 @@ const inputSchema = z.object({
     .optional()
     .describe("Texto que acompanha o link, quando o usuário ditar um."),
 });
-
-function buildFormUrl(shareUrl: string, leadId: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ?? "";
-  return `${base}/formulario/${shareUrl}?lead=${leadId}`;
-}
 
 export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
   key: "form.send_to_lead",
@@ -140,6 +137,7 @@ export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
       where: { id: lead.id },
       select: {
         phone: true,
+        publicToken: true,
         tracking: { select: { whatsappInstance: { select: { status: true } } } },
       },
     });
@@ -167,7 +165,8 @@ export const sendFormToLeadAction: AstroAction<typeof inputSchema> = {
       };
     }
 
-    const url = buildFormUrl(form.shareUrl, lead.id);
+    const leadPublicToken = details.publicToken ?? (dryRun ? null : await ensureLeadPublicToken({ leadId: lead.id, organizationId: ctx.organizationId }));
+    const url = buildPublicFormUrl({ formId: form.id, leadPublicToken });
     const text = input.message
       ? `${input.message}\n\n${url}`
       : `Olá ${lead.name}! Segue o formulário "${form.name}": ${url}`;

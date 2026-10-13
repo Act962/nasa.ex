@@ -9,6 +9,7 @@ import {
   UserPlus,
   QrCode,
   Megaphone,
+  PhoneCall,
   Globe,
   Trophy,
   XCircle,
@@ -30,6 +31,7 @@ import type { LeadJourneyEventKind } from "@/lib/lead-journey/track";
 // não exigir mudança no enum compartilhado.
 const ICON_MAP: Record<string, { icon: typeof MessageCircle; color: string; bg: string }> = {
   message_in: { icon: MessageCircle, color: "text-info", bg: "bg-info/10" },
+  voice_call: { icon: PhoneCall, color: "text-info", bg: "bg-info/10" },
   message_out: { icon: MessageCircleReply, color: "text-success", bg: "bg-success/10" },
   first_response: { icon: MessageCircleReply, color: "text-success", bg: "bg-success/15" },
   appointment_created: { icon: CalendarPlus, color: "text-info", bg: "bg-info/10" },
@@ -57,6 +59,7 @@ const FALLBACK = { icon: Activity, color: "text-muted-foreground", bg: "bg-muted
 
 const LABELS: Record<string, string> = {
   message_in: "Mensagem recebida",
+  voice_call: "Ligação de voz atendida pelo Astro",
   message_out: "Mensagem enviada",
   first_response: "Primeira resposta da equipe",
   appointment_created: "Agendamento criado",
@@ -75,6 +78,8 @@ const LABELS: Record<string, string> = {
   note: "Nota adicionada",
   sla_breached: "Prazo (SLA) excedido",
   public_link_viewed: "Cliente abriu o acompanhamento",
+  consent_accepted: "Aceitou os termos",
+  consent_refused: "Recusou os termos",
   won: "Lead ganho",
   lost: "Lead perdido",
   deleted: "Lead arquivado",

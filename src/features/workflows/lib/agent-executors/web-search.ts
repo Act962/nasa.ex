@@ -19,6 +19,7 @@
  *
  * Custo: 2 ★ por busca (configurável em /admin/stars > Regras).
  */
+import { recordAiUsage, type AiTokenUsage } from "@/features/ia/server/record-ai-usage";
 import "server-only";
 import { generateText, type ToolSet } from "ai";
 import { google } from "@ai-sdk/google";
@@ -38,6 +39,8 @@ interface SearchResult {
   summary: string;
   sources: SearchSource[];
   provider: "gemini" | "openai";
+  modelId: string;
+  usage?: AiTokenUsage;
 }
 
 // Modelos com Search Grounding na ordem de preferência. Tentamos em sequência
@@ -101,6 +104,8 @@ async function searchWithGemini(query: string): Promise<SearchResult | null> {
         summary: result.text,
         sources,
         provider: "gemini",
+        modelId,
+        usage: result.usage,
       };
     } catch (err) {
       // Quota / rate limit / model unavailable → tenta próximo modelo da lista
@@ -161,6 +166,8 @@ async function searchWithOpenAI(query: string): Promise<SearchResult | null> {
       summary: result.text,
       sources,
       provider: "openai",
+      modelId: "gpt-4o-mini",
+      usage: result.usage,
     };
   } catch (err) {
     console.warn("[web-search:openai]", err);
@@ -219,10 +226,22 @@ export const webSearchExecutor: NodeExecutor = async ({ data, context, dryRun })
   }
 
   if (orgId) {
-    await chargeStarsByAction(orgId, AGENT_STARS_ACTIONS.WEB_SEARCH, {
+    const charge = await chargeStarsByAction(orgId, AGENT_STARS_ACTIONS.WEB_SEARCH, {
       description: `Web search via ${result.provider}: "${query.slice(0, 60)}"`,
       appSlug: "agent",
-    }).catch((err) => console.warn("[web-search charge]", err));
+    }).catch((err) => {
+      console.warn("[web-search charge]", err);
+      return null;
+    });
+    await recordAiUsage({
+      resourceId: "workflows.web-search",
+      organizationId: orgId,
+      provider: result.provider === "gemini" ? "google" : "openai",
+      modelId: result.modelId,
+      keySource: "platform",
+      usage: result.usage,
+      starsCharged: charge?.cost ?? 0,
+    });
   }
 
   return {

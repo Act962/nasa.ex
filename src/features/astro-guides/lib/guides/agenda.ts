@@ -3,6 +3,27 @@ import { GUIDE_RESULT_KINDS } from "../result-kinds";
 
 export const AGENDA_GUIDES: GuideDef[] = [
   {
+    key: "agenda.levels",
+    app: "agenda",
+    title: "Agendar por especialidade e unidade",
+    summary: "Preencha especialidade e unidade em cada agenda: no WhatsApp, o cliente escolhe a especialidade, a unidade e depois com quem marcar.",
+    topicPattern: /\b(especialidade|unidade|profissional|medico|ficha do profissional)\b.*\b(agenda|agendamento|marcar)\b|\b(agenda|agendamento)\b.*\b(especialidade|unidade|niveis|profissional)\b/,
+    steps: [
+      {
+        anchor: "agendaLevelsFields",
+        title: "Preencha os três campos",
+        message: "Especialidade e unidade agrupam as agendas. A ficha do profissional é enviada ao cliente antes dos dias.",
+        position: "top",
+        advanceOn: "next",
+        missingMessage: "Abra uma agenda e vá até a aba Geral para ver estes campos.",
+      },
+    ],
+    finish: {
+      title: "Agenda organizada ✨",
+      message: "Nível com uma opção só é pulado. Agenda sem os campos continua na lista única de sempre.",
+    },
+  },
+  {
     key: "agenda.share-link",
     app: "agenda",
     title: "Copiar o link de agendamento",

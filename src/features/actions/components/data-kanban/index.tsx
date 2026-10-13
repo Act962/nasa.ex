@@ -95,7 +95,7 @@ const KanbanBoard = ({ workspaceId }: Props) => {
       cols
         .map(
           (column) =>
-            `${column.id}:${column.name}:${column.color}:${column.actionsCount}:${column.order}`,
+            `${column.id}:${column.name}:${column.color}:${column.actionsCount}:${column.doneCount}:${column.overdueCount}:${column.order}`,
         )
         .join(",");
 

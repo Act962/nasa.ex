@@ -1,8 +1,15 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { sendText } from "@/http/uazapi/send-text";
-import { requireUazapiToken } from "@/features/tracking-chat/lib/providers/uazapi-credentials";
+import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
+import {
+  isFreeFormWindowOpen,
+  toLegacyUazapiMessageId,
+  toPhoneDigits,
+} from "@/features/tracking-chat/lib/providers/automated-outbound";
 import { computeNextRemindAt } from "@/lib/reminder-recurrence";
+import { sendTemplateToLead } from "@/features/tracking-executions/lib/send-template-to-lead";
+import { parseAiCapabilities } from "@/features/tracking-chat-ai/lib/capabilities";
+import { extractReminderDetail } from "@/features/tracking-chat-ai/lib/appointment-reminder";
 import { createNotification } from "@/features/admin/lib/notification-service";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { pusherServer } from "@/lib/pusher";
@@ -32,10 +39,9 @@ export const processReminder = inngest.createFunction(
           lead: { select: { id: true, name: true } },
           tracking: {
             select: {
+              id: true,
               organizationId: true,
-              whatsappInstance: {
-                select: { apiKey: true, baseUrl: true, status: true },
-              },
+              whatsappInstance: { select: { status: true } },
             },
           },
         },
@@ -77,10 +83,9 @@ export const processReminder = inngest.createFunction(
           createdBy: { select: { id: true, name: true } },
           tracking: {
             select: {
+              id: true,
               organizationId: true,
-              whatsappInstance: {
-                select: { apiKey: true, baseUrl: true, status: true },
-              },
+              whatsappInstance: { select: { status: true } },
             },
           },
           action: {
@@ -129,7 +134,68 @@ export const processReminder = inngest.createFunction(
       resolvedMessage = resolvedMessage.replaceAll(key, val);
     }
 
-    if (phone && instance?.status === "CONNECTED") {
+    const trackingId = fresh.tracking?.id;
+
+    // O telefone do lembrete pode ser o do lead ou o de alguém da equipe. Na
+    // API Oficial só dá pra mandar texto livre ao lead, com a janela de 24h
+    // aberta; fora disso o WhatsApp é pulado (sino e push seguem).
+    const leadPhoneDigits = toPhoneDigits(fresh.lead?.phone ?? "");
+    const isLeadPhone =
+      Boolean(phone) &&
+      leadPhoneDigits.length >= 8 &&
+      toPhoneDigits(phone ?? "").endsWith(leadPhoneDigits.slice(-8));
+    const leadConversationId = isLeadPhone
+      ? (fresh.conversation?.id ?? fresh.lead?.conversation?.id ?? null)
+      : null;
+    const canSendWhatsapp =
+      Boolean(phone) && Boolean(trackingId) && instance?.status === "CONNECTED"
+        ? await step.run("check-whatsapp-window", async () =>
+            isFreeFormWindowOpen(
+              await resolveOutboundProvider(trackingId as string),
+              leadConversationId,
+            ),
+          )
+        : false;
+
+    // Lembrete de agendamento ao cliente com a janela de 24 h fechada (spec 0084, RF-18):
+    // sai pelo template que a empresa escolheu no Chatbot IA. Sem template, segue como antes (não envia).
+    if (phone && trackingId && !canSendWhatsapp && isLeadPhone && fresh.lead && instance?.status === "CONNECTED") {
+      const reminderLeadId = fresh.lead.id;
+      const reminderDetail = extractReminderDetail(fresh.message);
+      const leadFirstName = fresh.lead.name.trim().split(/\s+/)[0] ?? "";
+      const templateOutcome = await step.run("send-reminder-template", async () => {
+        const aiSettings = await prisma.aiSettings.findUnique({
+          where: { trackingId },
+          select: { capabilities: true },
+        });
+        const templateName = parseAiCapabilities(aiSettings?.capabilities).reminder.templateName;
+        if (!templateName || !reminderDetail) return { sent: false, reason: "no_reminder_template" };
+        try {
+          await sendTemplateToLead({
+            leadId: reminderLeadId,
+            trackingId,
+            template: {
+              templateName,
+              languageCode: "pt_BR",
+              headerText: null,
+              bodyText: resolvedMessage,
+              headerParameters: [],
+              bodyParameters: [leadFirstName, reminderDetail],
+            },
+          });
+          return { sent: true, reason: null };
+        } catch (templateError) {
+          return {
+            sent: false,
+            reason: templateError instanceof Error ? templateError.message.slice(0, 200) : "template_failed",
+          };
+        }
+      });
+      if (templateOutcome.sent) sent = true;
+      else console.warn(`[reminder] lembrete ${reminderId} fora da janela não enviado: ${templateOutcome.reason}`);
+    }
+
+    if (phone && trackingId && canSendWhatsapp) {
       const message = resolvedMessage;
 
       const orgId = fresh.tracking?.organizationId;
@@ -145,13 +211,21 @@ export const processReminder = inngest.createFunction(
         }
       }
 
-      const sendResponse = await step.run("send-whatsapp", () =>
-        sendText(
-          requireUazapiToken(instance.apiKey),
-          { number: phone, text: message },
-          instance.baseUrl ?? undefined,
-        ),
-      );
+      const sendResponse = await step.run("send-whatsapp", async () => {
+        const resolved = await resolveOutboundProvider(trackingId);
+        const sent = await resolved.provider.sendText({
+          kind: "text",
+          to: phone,
+          body: message,
+        });
+        const sentTimestamp = (sent.raw as { messageTimestamp?: unknown } | null)
+          ?.messageTimestamp;
+        return {
+          messageid: toLegacyUazapiMessageId(sent),
+          messageTimestamp:
+            typeof sentTimestamp === "number" ? sentTimestamp : null,
+        };
+      });
 
       sent = true;
 

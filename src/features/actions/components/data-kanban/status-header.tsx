@@ -40,6 +40,42 @@ interface StatusHeaderProps {
   color: string | null;
   workspaceId: string;
   actionsCount: number;
+  doneCount: number;
+  overdueCount: number;
+}
+
+/** "7", "3/7" (atrasadas em vermelho), "5/7" (concluídas em verde) ou "3·5/7". */
+function ColumnCount({ total, overdue, done }: { total: number; overdue: number; done: number }) {
+  const isAllOverdue = total > 0 && overdue === total;
+  const isAllDone = total > 0 && done === total;
+  const summary = [
+    overdue > 0 ? `${overdue} ${overdue === 1 ? "atrasada" : "atrasadas"}` : null,
+    done > 0 ? `${done} ${done === 1 ? "concluída" : "concluídas"}` : null,
+    `${total} no total`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="text-xs text-muted-foreground ml-2 shrink-0 tabular-nums">
+          {isAllOverdue || isAllDone ? (
+            <span className={isAllOverdue ? "font-medium text-destructive" : "font-medium text-success"}>{total}</span>
+          ) : (
+            <>
+              {overdue > 0 && <span className="font-medium text-destructive">{overdue}</span>}
+              {overdue > 0 && done > 0 && "·"}
+              {done > 0 && <span className="font-medium text-success">{done}</span>}
+              {(overdue > 0 || done > 0) && "/"}
+              {total}
+            </>
+          )}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{summary}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 export const updateStatusNameSchema = z.object({
@@ -135,9 +171,7 @@ export const StatusHeader = ({
             </TooltipTrigger>
             <TooltipContent>{data.name}</TooltipContent>
           </Tooltip>
-          <span className="text-xs text-muted-foreground ml-2">
-            {data.actionsCount}
-          </span>
+          <ColumnCount total={data.actionsCount} overdue={data.overdueCount} done={data.doneCount} />
         </div>
       )}
       <div className="flex items-center">

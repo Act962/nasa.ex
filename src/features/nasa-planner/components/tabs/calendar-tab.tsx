@@ -14,8 +14,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
 import {
   useNasaPlannerPosts, useNasaPlannerCards, useCreateCalendarShare, useSchedulePlannerPost,
 } from "../../hooks/use-nasa-planner";
@@ -34,23 +32,22 @@ export function CalendarTab({ plannerId }: { plannerId: string }) {
   const { posts } = useNasaPlannerPosts(plannerId);
   const createShare = useCreateCalendarShare();
   const schedulePost = useSchedulePlannerPost();
-  const qc = useQueryClient();
 
   const [filter, setFilter] = useState<FilterType>("all");
   const [cursor, setCursor] = useState(dayjs().startOf("month"));
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<MenuAction | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [campaignWizardOpen, setCampaignWizardOpen] = useState(false);
 
   const filteredPosts = posts
-    .filter((p: any) => {
+    .filter((p) => {
       if (filter === "campaign") return false;
       return p.scheduledAt || p.publishedAt;
     })
-    .map((p: any) => ({
+    .map((p) => ({
       ...p,
       scheduledAt: p.scheduledAt ? new Date(p.scheduledAt).toISOString() : null,
       publishedAt: p.publishedAt ? new Date(p.publishedAt).toISOString() : null,
@@ -70,8 +67,8 @@ export function CalendarTab({ plannerId }: { plannerId: string }) {
   };
 
   const handleShare = async () => {
-    const result = await createShare.mutateAsync({ plannerId });
-    if ((result as any)?.shareUrl) setShareUrl((result as any).shareUrl);
+    // A procedure devolve só o token e ainda não há página pública que o receba: sem link para montar.
+    await createShare.mutateAsync({ plannerId });
     setShareOpen(true);
   };
 
@@ -140,7 +137,7 @@ export function CalendarTab({ plannerId }: { plannerId: string }) {
       </div>
 
       <PostDetailDialog
-        post={posts.find((p: any) => p.id === selectedPostId) ?? null}
+        post={posts.find((p) => p.id === selectedPostId) ?? null}
         plannerId={plannerId}
         open={!!selectedPostId}
         onOpenChange={(o) => { if (!o) setSelectedPostId(null); }}

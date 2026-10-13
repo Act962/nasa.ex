@@ -1,10 +1,16 @@
 import "server-only";
-import prisma from "@/lib/prisma";
 import { NasaPlannerPostSource, type NasaPlannerPostType } from "@/generated/prisma/enums";
 import { registerProposalExecutor, type ProposalExecutionResult } from "@/features/astro/server/tools/_shared/proposals/types";
 import { assertPostAccess, ensureDefaultPlanner } from "@/features/nasa-planner/server/cross-org";
 import { schedulePlannerPost } from "@/features/nasa-planner/server/scheduling";
-import { approvePost, submitPostForApproval } from "@/features/nasa-planner/server/approval";
+import {
+  approveWithGroup,
+  createPostsForInstagramAccounts,
+  resolveInstagramAccountIdsByHandle,
+  schedulePublishGroup,
+  submitForApprovalWithGroup,
+} from "@/features/nasa-planner/server/publish-group";
+import { findDefaultInstagramAccountId } from "@/features/nasa-planner/server/publishing/instagram-channels";
 import { PLANNER_APPROVE_ACTION_TYPE } from "@/features/nasa-planner/server/approval-whatsapp";
 import { resolvePlannerOrganization } from "./planner-access";
 
@@ -23,6 +29,8 @@ export interface CreateDraftsProposalPayload {
   caption?: string;
   hashtags?: string[];
   intendedAtIso?: string;
+  /** @ das contas do Instagram; com várias, o mesmo conteúdo sai em todas (spec 0074, RF-17). */
+  instagramHandles?: string[];
 }
 
 export interface SchedulePostProposalPayload {
@@ -40,9 +48,20 @@ registerProposalExecutor<CreateDraftsProposalPayload>(PLANNER_ACTION_TYPES.creat
   if ("error" in access) return { ok: false, summary: access.error };
   const plannerId = await ensureDefaultPlanner(access.organizationId);
   const createdIds: string[] = [];
+  let instagramAccountIds: string[];
+  try {
+    const defaultAccountId = await findDefaultInstagramAccountId(access.organizationId);
+    instagramAccountIds = payload.instagramHandles?.length
+      ? await resolveInstagramAccountIdsByHandle(access.organizationId, payload.instagramHandles)
+      : defaultAccountId
+        ? [defaultAccountId]
+        : [];
+  } catch (error) {
+    return { ok: false, summary: error instanceof Error ? error.message : "Não deu para achar as contas do Instagram." };
+  }
   for (const format of payload.formats) {
-    const post = await prisma.nasaPlannerPost.create({
-      data: {
+    const [post] = await createPostsForInstagramAccounts(
+      {
         organizationId: access.organizationId,
         plannerId,
         createdById: ctx.userId,
@@ -57,15 +76,15 @@ registerProposalExecutor<CreateDraftsProposalPayload>(PLANNER_ACTION_TYPES.creat
         source: NasaPlannerPostSource.ASTRO,
         sourceActorLabel: "Astro",
       },
-      select: { id: true },
-    });
+      instagramAccountIds,
+    );
     createdIds.push(post.id);
   }
   // Pelo WhatsApp o rascunho já segue para aprovação (spec 0064, RF-2): quem aprova recebe a prévia lá.
   const isFromWhatsapp = ctx.channel === "WHATSAPP";
   if (isFromWhatsapp) {
     for (const postId of createdIds) {
-      await submitPostForApproval({ postId, actorId: ctx.userId }).catch((error: unknown) => console.warn("[astro/planner] envio para aprovação falhou", error));
+      await submitForApprovalWithGroup({ postId, actorId: ctx.userId }).catch((error: unknown) => console.warn("[astro/planner] envio para aprovação falhou", error));
     }
   }
   const createdLabel = createdIds.length > 1 ? `${createdIds.length} rascunhos criados no Planner` : "Rascunho criado no Planner";
@@ -92,11 +111,11 @@ registerProposalExecutor<{ postId: string }>(PLANNER_APPROVE_ACTION_TYPE, async 
   try {
     const { post } = await assertPostAccess(ctx.userId, payload.postId, "approve");
     const scheduleAt = post.scheduledAt && post.scheduledAt.getTime() > Date.now() + 60_000 ? post.scheduledAt : undefined;
-    await approvePost({ postId: payload.postId, actorId: ctx.userId });
+    await approveWithGroup({ postId: payload.postId, actorId: ctx.userId });
     // Programar é um segundo passo: post sem mídia é aprovado, mas não pode ser programado ainda.
     let scheduleProblem: string | null = null;
     if (scheduleAt) {
-      await schedulePlannerPost(payload.postId, scheduleAt).catch((error: unknown) => {
+      await schedulePublishGroup({ postId: payload.postId, scheduledAt: scheduleAt }).catch((error: unknown) => {
         scheduleProblem = error instanceof Error ? error.message : "não deu para programar";
       });
     }

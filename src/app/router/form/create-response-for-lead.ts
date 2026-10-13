@@ -2,6 +2,9 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { prepareRecordResponse } from "@/features/form-records/server/prepare-record-response";
+import { applyAutoNumbers, hasAutoNumberBlock } from "@/features/form-records/lib/auto-number";
+import { syncFormRecord } from "@/features/form-records/server/sync-form-record";
 import { recordLeadEvent } from "@/features/leads/lib/history";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
@@ -49,11 +52,13 @@ export const createResponseForLead = base
        * Ausente = resposta avulsa do lead (spec 0002, D-4).
        */
       actionId: z.string().optional().nullable(),
+      /** Vinculado do lead a quem a resposta se refere (spec 0076). Ausente = o próprio lead. */
+      leadMemberId: z.string().optional().nullable(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
     try {
-      const { formId, leadId, response, isFinal, actionId } = input;
+      const { formId, leadId, isFinal, actionId } = input;
       const userId = context.user.id;
 
       // Carrega form (incluindo settings.trackingId/statusId pro
@@ -108,6 +113,48 @@ export const createResponseForLead = base
           message: NOT_TRACKING_PARTICIPANT_MESSAGE,
         });
       }
+
+      // O vinculado é conferido pelo lead: de outro lead, arquivado ou já
+      // promovido responde como inexistente, e nada é gravado (spec 0076, CA-3).
+      let resolvedLeadMemberId: string | null = null;
+      if (input.leadMemberId) {
+        const leadMember = await prisma.leadMember.findFirst({
+          where: {
+            id: input.leadMemberId,
+            leadId,
+            organizationId: form.organizationId,
+            archivedAt: null,
+            promotedLeadId: null,
+          },
+          select: { id: true },
+        });
+        if (!leadMember) throw errors.NOT_FOUND({ message: "Vinculado não encontrado" });
+        resolvedLeadMemberId = leadMember.id;
+      }
+
+      // Preço das listas de itens e campos de cálculo saem do servidor (spec 0075).
+      const pricedResponse = await prepareRecordResponse({
+        organizationId: form.organizationId,
+        jsonBlock: form.jsonBlock,
+        response: input.response,
+      });
+
+      // Número automático (spec 0075, RF-13): o contador próprio sobe de forma
+      // atômica ANTES de gravar, e o valor devolvido é o número da ficha.
+      const autoNumberSequence = hasAutoNumberBlock(form.jsonBlock)
+        ? (
+            await prisma.form.update({
+              where: { id: formId },
+              data: { autoNumberCounter: { increment: 1 } },
+              select: { autoNumberCounter: true },
+            })
+          ).autoNumberCounter
+        : undefined;
+      const response = applyAutoNumbers({
+        jsonBlock: form.jsonBlock,
+        response: pricedResponse,
+        sequence: autoNumberSequence,
+      });
 
       // Auto-deriva o título customizado (label) a partir do bloco marcado
       // com `useAsResponseLabel`. `labelManuallyEdited=false` na criação —
@@ -167,6 +214,7 @@ export const createResponseForLead = base
           jsonResponse: response,
           formId,
           leadId,
+          leadMemberId: resolvedLeadMemberId,
           label: autoLabel,
           labelManuallyEdited: false,
           actionId: resolvedActionId,
@@ -181,6 +229,8 @@ export const createResponseForLead = base
           label: true,
         },
       });
+
+      await syncFormRecord({ responseId: created.id, isFinal });
 
       // Incrementa contador (mantém paridade com submitResponse público).
       await prisma.form.update({

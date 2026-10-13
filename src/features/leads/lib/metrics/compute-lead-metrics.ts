@@ -94,7 +94,17 @@ export async function computeLeadMetrics(leadId: string, now = new Date()): Prom
   const windowStart = new Date(now.getTime() - WINDOW_DAYS * DAY_MS);
   const monthStart = new Date(now.getTime() - MONTH_DAYS * DAY_MS);
 
-  const [messages, paidProposals, openProposals, wonCount, lostCount] = await Promise.all([
+  const [
+    messages,
+    paidProposals,
+    openProposals,
+    wonCount,
+    lostCount,
+    paidRecords,
+    paidCatalogOrders,
+    upcomingAppointments,
+    interestTags,
+  ] = await Promise.all([
     lead.conversation
       ? prisma.message.findMany({
           where: { conversationId: lead.conversation.id, createdAt: { gte: windowStart } },
@@ -107,6 +117,14 @@ export async function computeLeadMetrics(leadId: string, now = new Date()): Prom
     prisma.forgeProposal.count({ where: { clientId: leadId, status: { in: ["ENVIADA", "VISUALIZADA"] } } }),
     prisma.leadHistory.count({ where: { leadId, action: "WON" } }),
     prisma.leadHistory.count({ where: { leadId, action: "LOST" } }),
+    // Spec 0085: ficha paga e pedido pago do catálogo também são compra.
+    prisma.formRecord.count({ where: { leadId, paidAt: { not: null } } }),
+    prisma.catalogOrder.count({ where: { leadId, status: { in: ["PAID", "IN_LOGISTICS", "DELIVERED"] } } }),
+    prisma.appointment.count({ where: { leadId, startsAt: { gte: now }, status: { notIn: ["CANCELLED"] } } }),
+    // Tag de interesse = tag que a empresa descreveu para a IA aplicar; as de sistema (canal, atendimento) ficam fora.
+    prisma.leadTag.count({
+      where: { leadId, tag: { type: "CUSTOM", archivedAt: null, description: { not: null }, NOT: { description: "" } } },
+    }),
   ]);
 
   const bursts = toBursts(messages);
@@ -127,7 +145,8 @@ export async function computeLeadMetrics(leadId: string, now = new Date()): Prom
   const monthMessages = messages.filter((message) => message.createdAt >= monthStart);
   const inboundLast30Days = monthMessages.filter((message) => !message.fromMe).length;
   const interactionLossRate = percent(lost.length, expired.length) ?? 0;
-  const purchasesCount = Math.max(paidProposals, wonCount);
+  // O "ganho" no histórico costuma repetir uma dessas compras: vale o maior, sem somar duas vezes.
+  const purchasesCount = Math.max(paidProposals + paidRecords + paidCatalogOrders, wonCount);
 
   const resolvedCycles = wonCount + (lead.statusFlow === "FINISHED" ? 1 : 0);
   const purchasePotential = computePurchasePotential({
@@ -137,6 +156,8 @@ export async function computeLeadMetrics(leadId: string, now = new Date()): Prom
     openProposals,
     purchasesCount,
     interactionLossRate,
+    upcomingAppointments,
+    interestTags,
   });
 
   return {
@@ -158,6 +179,7 @@ export async function computeLeadMetrics(leadId: string, now = new Date()): Prom
       inboundLast30Days,
       openProposals,
       purchasesCount,
+      upcomingAppointments,
     }),
     totalMessages: messages.length,
   };

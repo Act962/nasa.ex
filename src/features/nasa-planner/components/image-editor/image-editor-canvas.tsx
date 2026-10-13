@@ -3,14 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { type OverlayConfig, type LogoPosition, FORMAT_DIMENSIONS, type ImageFormat } from "./use-image-editor";
-
-const S3_BASE = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL
-  ? `https://${process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL}`
-  : "";
-
-function resolveUrl(key: string) {
-  return key.startsWith("http") ? key : `${S3_BASE}/${key}`;
-}
+import { getPlannerMediaUrl } from "../../lib/post-media";
 
 interface Props {
   imageKey: string | null;
@@ -117,7 +110,7 @@ export function ImageEditorCanvas({
     img.crossOrigin = "anonymous";
     img.onload = () => { imageRef.current = img; draw(); };
     img.onerror = () => { imageRef.current = null; draw(); };
-    img.src = resolveUrl(imageKey);
+    img.src = getPlannerMediaUrl(imageKey);
   }, [imageKey, draw]);
 
   // Load logo
@@ -127,7 +120,7 @@ export function ImageEditorCanvas({
     img.crossOrigin = "anonymous";
     img.onload = () => { logoImageRef.current = img; draw(); };
     img.onerror = () => { logoImageRef.current = null; draw(); };
-    img.src = resolveUrl(logoKey);
+    img.src = getPlannerMediaUrl(logoKey);
   }, [logoKey, draw]);
 
   // Redraw on changes
@@ -188,7 +181,7 @@ export function ImageEditorCanvas({
         {imageKey ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={resolveUrl(imageKey)}
+            src={getPlannerMediaUrl(imageKey)}
             alt="Post"
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -245,7 +238,7 @@ export function ImageEditorCanvas({
             onMouseDown={handleLogoMouseDown}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={resolveUrl(logoKey)} alt="Logo" className="w-full h-full object-contain" />
+            <img src={getPlannerMediaUrl(logoKey)} alt="Logo" className="w-full h-full object-contain" />
           </div>
         )}
 

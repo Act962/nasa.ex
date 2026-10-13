@@ -67,3 +67,23 @@ export const useCreateOfficialTracking = () => {
 export const useNotifyNumberPurchaseInterest = () => {
   return useMutation(orpc.campanhas.notifyNumberPurchaseInterest.mutationOptions());
 };
+
+/** Custos do número no mês e o crédito da empresa (spec 0087, Parte F). */
+export const useNumberCostSummary = (trackingId: string | null, month?: string) => {
+  return useQuery({
+    ...orpc.campanhas.numberCostSummary.queryOptions({ input: { trackingId: trackingId ?? "", month } }),
+    enabled: Boolean(trackingId),
+    placeholderData: (previousData) => previousData,
+  });
+};
+
+export const useNumberCostEntries = (
+  trackingId: string | null,
+  filters: { month?: string; kind?: "call" | "meta" | "chat" | "number" },
+) => {
+  return useQuery({
+    ...orpc.campanhas.numberCostEntries.queryOptions({ input: { trackingId: trackingId ?? "", ...filters } }),
+    enabled: Boolean(trackingId),
+    placeholderData: (previousData) => previousData,
+  });
+};

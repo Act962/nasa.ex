@@ -8,6 +8,8 @@ import { makeAddTagsToLeadTool } from "./add-tags-to-lead";
 import { makeSendButtonsTool } from "./send-buttons";
 import { makeCatalogOrderTools } from "@/features/nerp-catalog/server/tools/catalog-order-tools";
 import { makeStarFriendsTools } from "@/features/star-friends/server/tools";
+import { makeLeadAgendaTools, type LeadAgendaScope } from "./agenda";
+import { makeLeadServiceTools } from "./client-services";
 
 export function buildAgentTools(ctx: AgentContext): ToolSet {
   const tools: ToolSet = {
@@ -42,6 +44,23 @@ export function buildAgentTools(ctx: AgentContext): ToolSet {
     );
   }
 
+  // Agenda para o cliente (spec 0084): só com a opção ligada e ao menos uma agenda liberada.
+  const agendaScope = buildLeadAgendaScope(ctx);
+  if (agendaScope) Object.assign(tools, makeLeadAgendaTools(agendaScope));
+
+  // Formulário, fichas, PIX e pedido à equipe (spec 0084, Partes C e D): cada um só com a opção ligada.
+  Object.assign(
+    tools,
+    makeLeadServiceTools({
+      organizationId: ctx.organizationId,
+      trackingId: ctx.trackingId,
+      leadId: ctx.lead.id,
+      leadName: ctx.lead.name,
+      assistantName: ctx.settings?.assistantName ?? "Astro",
+      capabilities: ctx.capabilities,
+    }),
+  );
+
   if (ctx.starFriendsProgramName) {
     Object.assign(
       tools,
@@ -54,4 +73,30 @@ export function buildAgentTools(ctx: AgentContext): ToolSet {
   }
 
   return tools;
+}
+
+/** Escopo da agenda preso ao cliente da conversa. `null` com a opção desligada ou sem agenda liberada. */
+export function buildLeadAgendaScope(
+  ctx: Pick<AgentContext, "organizationId" | "trackingId" | "capabilities"> & {
+    lead: Pick<AgentContext["lead"], "id" | "name" | "phone">;
+  },
+): LeadAgendaScope | null {
+  if (!ctx.capabilities.agenda.isEnabled || ctx.capabilities.agenda.agendaIds.length === 0) return null;
+  return {
+    organizationId: ctx.organizationId,
+    trackingId: ctx.trackingId,
+    leadId: ctx.lead.id,
+    leadName: ctx.lead.name,
+    agendaIds: ctx.capabilities.agenda.agendaIds,
+    reminderScope: ctx.capabilities.reminder.isEnabled
+      ? {
+          organizationId: ctx.organizationId,
+          trackingId: ctx.trackingId,
+          leadId: ctx.lead.id,
+          leadPhone: ctx.lead.phone,
+          reminder: ctx.capabilities.reminder,
+          configuredByUserId: ctx.capabilities.configuredByUserId,
+        }
+      : undefined,
+  };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { AiStatusBadge } from "@/features/ia/components/ai-status-badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { StarsWidget } from "@/features/stars";
 import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
@@ -10,6 +11,7 @@ export function HomeHeader() {
     <header className="relative z-20 flex shrink-0 items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-2">
       <SidebarTrigger className="size-10" />
       <div className="flex items-center gap-2">
+        <AiStatusBadge resourceId="astro.chat" />
         <div data-tour="stars">
           <StarsWidget variant="icon" />
         </div>

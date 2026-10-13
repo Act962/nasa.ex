@@ -14,7 +14,8 @@ import { useMobileBuilderStore } from "./use-mobile-builder-store";
 /** Gaveta "+ Bloco" do celular: categorias, busca e nomes completos; tocar adiciona ao fim do formulário. */
 
 const BLOCK_CATEGORIES: Array<{ id: string; label: string; blockTypes: FormBlockType[] }> = [
-  { id: "fields", label: "Campos", blockTypes: ["TextField", "TextArea", "MaskedField", "DatePicker", "Url", "StarRating", "Slider"] },
+  { id: "fields", label: "Campos", blockTypes: ["TextField", "TextArea", "MaskedField", "DatePicker", "Url", "StarRating", "Slider", "NumberMeasure"] },
+  { id: "records", label: "Itens e cálculo", blockTypes: ["ItemList", "Calculation", "AutoNumber", "ImageMarker", "VehicleDiagram", "OrbitLookup"] },
   { id: "choices", label: "Escolha", blockTypes: ["RadioSelect", "Checkbox", "Dropdown", "RadioMatrix", "UserSelect", "MultiUserSelect"] },
   { id: "structure", label: "Estrutura", blockTypes: ["Heading", "Paragraph", "ParagraphWithTitle", "ImageDisplay", "PageBreak", "RowLayout"] },
   { id: "files", label: "Arquivos e assinatura", blockTypes: ["FileUpload", "ImageUpload", "QrCodeMulti", "SignatureUser", "SignatureClient"] },

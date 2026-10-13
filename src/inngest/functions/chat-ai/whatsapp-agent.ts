@@ -17,3 +17,19 @@ export const chatAiWhatsappAgent = inngest.createFunction(
     });
   },
 );
+
+// Toque em botão já é a mensagem inteira: roda sem a espera que junta mensagens digitadas em sequência.
+export const chatAiWhatsappButtonClick = inngest.createFunction(
+  {
+    id: "chat-ai-whatsapp-button-click",
+    retries: 2,
+    concurrency: { limit: 1, key: "event.data.leadId" },
+  },
+  { event: "chat/ai.whatsapp-button-clicked" },
+  async ({ event, step }) => {
+    return runWhatsappAgent({
+      step,
+      data: event.data as AgentEventData,
+    });
+  },
+);

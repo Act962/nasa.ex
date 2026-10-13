@@ -42,7 +42,7 @@ export function CampaignMasterCalendar() {
 
   const campaignColorMap = useMemo(() => {
     const map: Record<string, string> = {};
-    campaigns.forEach((c: any, i: number) => {
+    campaigns.forEach((c, i) => {
       map[c.id] = c.color ?? PALETTE[i % PALETTE.length];
     });
     return map;
@@ -61,12 +61,12 @@ export function CampaignMasterCalendar() {
 
   const filteredEvents = useMemo(() => {
     if (!calendar) return [];
-    return (calendar.events ?? []).filter((e: any) => selectedCampaigns.size === 0 || selectedCampaigns.has(e.campaignPlannerId));
+    return (calendar.events ?? []).filter((e) => selectedCampaigns.size === 0 || selectedCampaigns.has(e.campaignPlannerId));
   }, [calendar, selectedCampaigns]);
 
   const filteredTasks = useMemo(() => {
     if (!calendar) return [];
-    return (calendar.tasks ?? []).filter((t: any) => selectedCampaigns.size === 0 || selectedCampaigns.has(t.campaignPlannerId));
+    return (calendar.tasks ?? []).filter((t) => selectedCampaigns.size === 0 || selectedCampaigns.has(t.campaignPlannerId));
   }, [calendar, selectedCampaigns]);
 
   // Build day grid
@@ -76,14 +76,14 @@ export function CampaignMasterCalendar() {
   while (cells.length % 7 !== 0) cells.push(null);
 
   const getEventsForDay = (day: number) => {
-    return filteredEvents.filter((e: any) => {
+    return filteredEvents.filter((e) => {
       const d = new Date(e.scheduledAt);
       return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
     });
   };
 
   const getTasksForDay = (day: number) => {
-    return filteredTasks.filter((t: any) => {
+    return filteredTasks.filter((t) => {
       if (!t.dueDate) return false;
       const d = new Date(t.dueDate);
       return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
@@ -120,7 +120,7 @@ export function CampaignMasterCalendar() {
                 <p className="text-xs text-muted-foreground">Nenhuma campanha</p>
               ) : (
                 <div className="space-y-2">
-                  {campaigns.map((c: any, i: number) => (
+                  {campaigns.map((c, i) => (
                     <div key={c.id} className="flex items-center gap-2">
                       <Checkbox
                         id={`filter-${c.id}`}
@@ -153,7 +153,7 @@ export function CampaignMasterCalendar() {
       {/* Legend */}
       {campaigns.length > 0 && (
         <div className="flex items-center gap-3 px-6 py-2 flex-wrap">
-          {campaigns.map((c: any, i: number) => (
+          {campaigns.map((c, i) => (
             <div key={c.id} className="flex items-center gap-1.5 text-xs">
               <div className="size-2.5 rounded-full" style={{ backgroundColor: c.color ?? PALETTE[i % PALETTE.length] }} />
               <span className="text-muted-foreground">{c.title}</span>
@@ -195,7 +195,7 @@ export function CampaignMasterCalendar() {
                           {day}
                         </div>
                         <div className="space-y-0.5">
-                          {dayEvents.slice(0, 3).map((ev: any) => (
+                          {dayEvents.slice(0, 3).map((ev) => (
                             <div
                               key={ev.id}
                               className="text-xs px-1 py-0.5 rounded truncate text-white font-medium"
@@ -205,7 +205,7 @@ export function CampaignMasterCalendar() {
                               {ev.title}
                             </div>
                           ))}
-                          {dayTasks.slice(0, 2).map((task: any) => (
+                          {dayTasks.slice(0, 2).map((task) => (
                             <div
                               key={task.id}
                               className="text-xs px-1 py-0.5 rounded truncate border font-medium"

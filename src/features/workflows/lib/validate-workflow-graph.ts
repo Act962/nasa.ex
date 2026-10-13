@@ -23,6 +23,7 @@ export type GraphIssue = {
   severity: GraphIssueSeverity;
   /** Código estável pra agrupar/filtrar na UI */
   code:
+    | "CHANNEL_RULE"
     | "NO_TRIGGER"
     | "TRIGGER_DISCONNECTED"
     | "ORPHAN_NODE"

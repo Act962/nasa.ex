@@ -14,9 +14,8 @@
  * Filtros por tracking/source ficam pra próxima iteração — esse
  * diálogo é overview org-wide.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useTokenUsageOverview } from "@/features/ia/hooks/use-ai-resources";
 import { TrendingDown, TrendingUp } from "lucide-react";
-import { orpc } from "@/lib/orpc";
 import {
   Dialog,
   DialogContent,
@@ -52,11 +51,7 @@ export function TokenUsageDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { data: overview, isLoading } = useQuery({
-    ...orpc.ia.usage.overview.queryOptions(),
-    enabled: open,
-    staleTime: 30_000,
-  });
+  const { data: overview, isLoading, isError } = useTokenUsageOverview({ enabled: open });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,7 +64,11 @@ export function TokenUsageDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading || !overview ? (
+        {isError ? (
+          <div className="py-12 text-center text-sm text-muted-foreground">
+            Só o dono ou um administrador da empresa vê o consumo de IA.
+          </div>
+        ) : isLoading || !overview ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
             Carregando...
           </div>

@@ -39,6 +39,7 @@
  * é injetado. Isso é o que permite Fase 5 (webhook oficial Meta) e Fase 6
  * (router/message via factory) sem refator deste módulo.
  */
+import { applyTagFromButtonReply } from "@/features/tracking-chat-ai/lib/button-reply-tag";
 import "server-only";
 
 import { LeadSource } from "@/generated/prisma/enums";
@@ -71,6 +72,11 @@ import type {
 } from "../providers/types";
 
 const FETCH_TIMEOUT_MS = 10_000;
+
+/** Id da opção tocada, quando a mensagem é o toque num botão ou item de lista. */
+function interactiveReplyIdOf(canonical: CanonicalInboundMessage): string | undefined {
+  return canonical.type === "interactive_reply" ? canonical.replyId : undefined;
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Strategy types — injetados pelo caller (provider-specific)
@@ -304,6 +310,16 @@ export async function persistCanonicalInbound(
       break;
     case "interactive_reply":
       messageData = await persistInteractive(persistParams, canonical);
+      // Clique em menu com tag por opção (spec 0085, RF-9). Só na API oficial:
+      // a Uazapi já trata o clique no próprio webhook, e aplicar aqui duplicaria.
+      if (ctx.providerId === "meta-cloud" && !canonical.sender.fromMe) {
+        await applyTagFromButtonReply({
+          leadId: lead.id,
+          conversationId: persistParams.lead.conversationId,
+          clickedButtonId: canonical.replyId,
+          repliedMessageId: canonical.replyToExternalMessageId ?? null,
+        }).catch((error: unknown) => console.error("[persist-canonical-inbound] tag do botão falhou", error));
+      }
       break;
   }
 
@@ -335,6 +351,7 @@ export async function persistCanonicalInbound(
     externalMessageId: canonical.externalMessageId,
     fromMe: canonical.sender.fromMe,
     channel,
+    isButtonClick: Boolean(interactiveReplyIdOf(canonical)),
     // Só inbound: `leadMessage` é, por contrato, texto escrito pelo lead.
     ...(canonical.sender.fromMe
       ? {}
@@ -619,6 +636,8 @@ async function persistInteractive(
     create: {
       ...baseCreate(params),
       body,
+      // O título do botão é encurtado pela Meta; o id é o que diz qual opção foi clicada (spec 0089).
+      ...(canonical.replyId ? { metadata: { interactiveReplyId: canonical.replyId } } : {}),
     },
     include: messageInclude,
   });
@@ -797,6 +816,7 @@ async function dispatchAgentMessageIncoming(args: DispatchArgs): Promise<void> {
       ...(mediaType ? { mediaType } : {}),
       ...(mimetype ? { mimetype } : {}),
       ...(fileName ? { fileName } : {}),
+      ...(interactiveReplyIdOf(args.canonical) ? { interactiveReplyId: interactiveReplyIdOf(args.canonical) } : {}),
     });
   } catch (err) {
     console.error("[persist-canonical-inbound] agent_dispatch_failed", err);

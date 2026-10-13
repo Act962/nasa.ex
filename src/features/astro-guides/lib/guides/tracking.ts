@@ -3,6 +3,31 @@ import { GUIDE_RESULT_KINDS } from "../result-kinds";
 
 const BOARD_PATH = "^/tracking/[^/]+$";
 
+/** Passos de fluxo cujo pedido fala em "enviar mensagem": ficam antes do Chat no registro, senão o Chat responde. */
+export const TRACKING_FLOW_MESSAGE_GUIDES: GuideDef[] = [
+  {
+    key: "tracking.group-message-step",
+    app: "tracking",
+    title: "Enviar mensagem para um grupo de WhatsApp",
+    summary: "Um passo do fluxo manda um texto para um grupo, com os números do dia da empresa se você quiser. Com o gatilho Agendado, vira um resumo diário.",
+    topicPattern: /\b(envi\w*|mand\w*|dispar\w*|resumo|aviso|mensagem)\b.*\bgrupos? (de|do|no) (whatsapp|zap)\b|\bgrupos? (de|do|no) (whatsapp|zap)\b.*\b(fluxo|gatilho|automa\w*|todo dia|diari\w*|resumo)\b|\bresumo (do dia|diario)\b.*\bgrupo\b/,
+    steps: [
+      {
+        anchor: "workflowGroupMessageStep",
+        title: "Escolha o grupo e escreva o texto",
+        message: "Digite parte do nome do grupo e toque nele. No texto, toque nos botões para inserir os números do dia: leads, agendamentos, conversas esperando e demandas.",
+        position: "left",
+        advanceOn: "next",
+        missingMessage: "No editor de um fluxo em modo agente, adicione o passo \"Enviar para grupo\" e abra a configuração dele. O número do funil precisa estar conectado por QR code e participar do grupo.",
+      },
+    ],
+    finish: {
+      title: "Envio para grupo configurado ✨",
+      message: "Para mandar todo dia, comece o fluxo com o gatilho Agendado e escolha o horário e os dias. Todos no grupo veem a mensagem.",
+    },
+  },
+];
+
 export const TRACKING_GUIDES: GuideDef[] = [
   {
     key: "tracking.create-lead",
@@ -159,6 +184,149 @@ export const TRACKING_GUIDES: GuideDef[] = [
     finish: {
       title: "Board do seu jeito ✨",
       message: "Dá para voltar aqui e mudar quando quiser.",
+    },
+  },
+  {
+    key: "tracking.form-chat-step",
+    app: "tracking",
+    title: "Cadastrar o cliente pela conversa",
+    summary: "Um passo do fluxo pergunta os campos de um formulário do Órbita Forms no WhatsApp, valida as respostas e grava a ficha no lead.",
+    topicPattern: /\b(cadastr\w*|formulario|ficha|cpf|dados)\b.*\b(conversa|whatsapp|chat|fluxo)\b|\b(pergunt\w*|ped\w*|colet\w*)\b.*\b(cpf|dados|nome|nascimento|convenio)\b/,
+    steps: [
+      {
+        anchor: "workflowFormChatStep",
+        title: "Escolha o formulário e os campos",
+        message: "As perguntas saem na ordem do formulário, uma por vez. CPF, telefone, e-mail e data são conferidos antes de seguir.",
+        position: "left",
+        advanceOn: "next",
+        missingMessage: "No editor de um fluxo em modo agente, adicione o passo \"Preencher formulário pela conversa\" e abra a configuração dele.",
+      },
+    ],
+    finish: {
+      title: "Cadastro configurado ✨",
+      message: "Ligue as três saídas do passo: Concluído, Desistiu e Pediu atendente. Antes dele, use o passo Pedir aceite.",
+    },
+  },
+  {
+    key: "tracking.consent-step",
+    app: "tracking",
+    title: "Pedir o aceite dos termos",
+    summary: "Um passo do fluxo mostra os termos, espera o cliente tocar em aceitar e registra o aceite no lead, com data.",
+    topicPattern: /\b(lgpd|aceite|consentimento|termos|privacidade)\b/,
+    steps: [
+      {
+        anchor: "workflowConsentStep",
+        title: "Escreva os termos",
+        message: "Informe o texto, o link da política de privacidade e os dois botões. Quem já aceitou o mesmo texto não é perguntado de novo.",
+        position: "left",
+        advanceOn: "next",
+        missingMessage: "No editor de um fluxo em modo agente, adicione o passo \"Pedir aceite\" e abra a configuração dele.",
+      },
+    ],
+    finish: {
+      title: "Aceite configurado ✨",
+      message: "O passo tem duas saídas: Aceitou e Recusou. O registro aparece na jornada do lead.",
+    },
+  },
+  {
+    key: "tracking.menu-option-outputs",
+    app: "tracking",
+    title: "Ligar um passo a uma opção do menu",
+    summary: "No fluxo que envia um menu de perguntas, cada pergunta tem um ponto de saída. O que você ligar ali roda quando o cliente tocar naquela pergunta.",
+    topicPattern: /\b(lig\w*|conect\w*|inser\w*|adicion\w*|coloc\w*)\b.*\b(passo|no|acao|tag)\b.*\b(opcao|opcoes|resposta|respostas|pergunta|perguntas)\b.*\bmenu\b|\bsaida\b.*\b(opcao|pergunta|resposta)\b/,
+    steps: [
+      {
+        anchor: "workflowMenuOptionOutputs",
+        title: "Puxe uma linha da pergunta",
+        message: "Cada pergunta tem um ponto à direita. Arraste dele até um passo, como Tag ou Mover lead. A resposta do menu continua saindo; o passo roda em seguida.",
+        position: "right",
+        advanceOn: "next",
+        missingMessage: "Abra, na visão Visual, um fluxo que envia um menu de perguntas. Os pontos só aparecem com a opção de botões em fluxo ligada.",
+      },
+    ],
+    finish: {
+      title: "Passo ligado ✨",
+      message: "Só as perguntas que você ligar fazem algo a mais. As outras respondem como sempre.",
+    },
+  },
+  // Mais específico que criar um fluxo: "modelo de atendimento" vem antes.
+  {
+    key: "tracking.attendance-template",
+    app: "tracking",
+    title: "Criar o modelo de atendimento",
+    summary: "Um exemplo pronto de atendimento por menu, desligado, para você trocar os textos pelos da sua empresa.",
+    topicPattern: /\b(modelo|exemplo)\b.*\b(atendimento|menu)\b|\b(atendimento|menu)\b.*\b(modelo|exemplo|pronto)\b/,
+    steps: [
+      {
+        anchor: "trackingFlowsAttendanceTemplate",
+        title: "Clique em Criar modelo de atendimento",
+        message: "Cria um menu inicial, três fluxos e três menus de perguntas. Tudo vem desligado.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: "Abra Gatilhos Automáticos dentro de um funil para ver este botão. Ele só aparece para quem pode criar Automações.",
+      },
+    ],
+    finish: {
+      title: "Modelo criado ✨",
+      message: "Abra cada fluxo e cada menu e troque os textos entre colchetes. Enquanto houver texto de exemplo, nada liga.",
+    },
+  },
+  // Mais específico que criar: vem antes, para "como altero um fluxo" não cair no guia de criar.
+  {
+    key: "tracking.astro-flow-edit",
+    app: "tracking",
+    title: "Alterar um fluxo com o Astro",
+    summary: "Com o fluxo aberto, diga o que inserir, tirar ou trocar. O Astro pergunta o que faltar e mostra a mudança antes de gravar.",
+    topicPattern: /\b(como|onde|ensin\w*|mostr\w*)\b.*\b(alter\w*|edit\w*|mud\w*|inser\w*|adicion\w*|tir\w*|troc\w*)\b.*\b(fluxos?(?! de caixa)|gatilhos?|automac\w*)\b/,
+    steps: [
+      {
+        anchor: "astroFlowEditButton",
+        title: "Clique em Pedir ao ASTRO",
+        message: "Fica na barra do editor do fluxo e abre um campo na base da tela.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: "Abra um fluxo em Gatilhos Automáticos para ver este botão. Ele só aparece para quem pode editar Automações.",
+      },
+      {
+        anchor: "astroFlowEditField",
+        title: "Diga o que mudar",
+        message: "Por exemplo: insira o envio da agenda depois das boas-vindas. Se faltar uma escolha, o Astro pergunta com opções para tocar.",
+        position: "top",
+        advanceOn: "next",
+      },
+    ],
+    finish: {
+      title: "Mudança pedida ✨",
+      message: "O Astro mostra o que vai mudar e só grava depois do seu sim. Ele nunca liga um fluxo sozinho.",
+    },
+  },
+  {
+    key: "tracking.astro-flow",
+    app: "tracking",
+    title: "Criar um fluxo com o Astro",
+    summary: "Descreva a automação e o Astro monta o fluxo, desligado, para você revisar.",
+    topicPattern: /\b(como|onde|ensin\w*|mostr\w*)\b.*\b(cri\w*|mont\w*|faz\w*|faco)\b.*\b(fluxos?(?! de caixa)|gatilhos?|automac\w*)\b/,
+    steps: [
+      {
+        anchor: "astroFlowButton",
+        route: "/gatilhos",
+        title: "Clique em Criar fluxo com ASTRO",
+        message: "Abre um campo na base da página para você descrever a automação.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: "Criar fluxos pede a permissão de Automações do Tracking. Peça a quem administra a empresa.",
+      },
+      {
+        anchor: "astroFlowField",
+        title: "Descreva o fluxo",
+        message: "Diga quando começa, o que envia ou muda, e os prazos. O Astro mostra o roteiro e só cria depois do seu sim.",
+        position: "top",
+        advanceOn: "next",
+      },
+    ],
+    finish: {
+      title: "Pronto para pedir ✨",
+      message: "O fluxo nasce desligado. Revise no editor e ligue quando estiver certo.",
     },
   },
 ];

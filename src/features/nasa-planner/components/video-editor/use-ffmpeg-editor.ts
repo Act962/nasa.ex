@@ -11,12 +11,15 @@ export interface VideoClip {
 }
 
 interface FFmpegInstance {
-  load: (opts: any) => Promise<void>;
+  load: (options: { coreURL: string; wasmURL: string }) => Promise<void>;
   writeFile: (name: string, data: Uint8Array) => Promise<void>;
   readFile: (name: string) => Promise<Uint8Array>;
   deleteFile: (name: string) => Promise<void>;
   exec: (args: string[]) => Promise<void>;
-  on: (event: string, cb: (e: any) => void) => void;
+  on: {
+    (event: "log", onLog: (logEvent: { message: string }) => void): void;
+    (event: "progress", onProgress: (progressEvent: { progress: number }) => void): void;
+  };
   terminate: () => void;
 }
 

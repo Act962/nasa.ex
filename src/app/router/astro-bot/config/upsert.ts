@@ -1,3 +1,4 @@
+import { VOICE_REPLY_MODES, resolveBotVoice } from "@/features/astro-bot/lib/voice/voices";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -25,6 +26,10 @@ export const upsertBotConfig = base
       isActive: z.boolean().default(false),
       /** Ausente = mantém o valor salvo (clientes antigos não desligam sem querer). */
       financeEnabled: z.boolean().optional(),
+      /** Resposta em áudio (spec 0083). Ausentes = mantêm o valor salvo. */
+      voiceReplyMode: z.enum(VOICE_REPLY_MODES).optional(),
+      voiceName: z.string().max(40).nullable().optional(),
+      voiceAlsoText: z.boolean().optional(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -57,6 +62,11 @@ export const upsertBotConfig = base
     const wasFinanceEnabled = existing?.financeEnabled ?? false;
     const financeUpdate =
       input.financeEnabled !== undefined ? { financeEnabled: input.financeEnabled } : {};
+    const voiceUpdate = {
+      ...(input.voiceReplyMode !== undefined ? { voiceReplyMode: input.voiceReplyMode } : {}),
+      ...(input.voiceName !== undefined ? { voiceName: input.voiceName ? resolveBotVoice(input.voiceName) : null } : {}),
+      ...(input.voiceAlsoText !== undefined ? { voiceAlsoText: input.voiceAlsoText } : {}),
+    };
 
     const config = await prisma.$transaction(async (tx) => {
       const saved = await tx.organizationBotConfig.upsert({
@@ -68,6 +78,7 @@ export const upsertBotConfig = base
           quietHoursEnd: input.quietHoursEnd ?? null,
           isActive: input.isActive,
           ...financeUpdate,
+          ...voiceUpdate,
         },
         update: {
           maxCmdsPerHour: input.maxCmdsPerHour,
@@ -75,6 +86,7 @@ export const upsertBotConfig = base
           quietHoursEnd: input.quietHoursEnd ?? null,
           isActive: input.isActive,
           ...financeUpdate,
+          ...voiceUpdate,
         },
       });
 

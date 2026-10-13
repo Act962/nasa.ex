@@ -3,11 +3,11 @@ import { assertPaymentToolAccess } from "@/features/astro/server/tools/finance/a
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import {
   isOrgActionAllowed,
-  listPermissionGrantersNames,
   resolveOrgPermissions,
   type ResolvedOrgPermissions,
 } from "@/features/permissions/server/resolve-org-permissions";
-import { appLabel, type AppKey, type OrgAction } from "@/features/permissions/lib/catalog";
+import type { AppKey, OrgAction } from "@/features/permissions/lib/catalog";
+import { astroDenialFor } from "@/features/astro/lib/permission-denial";
 
 /**
  * Gate de permissão do Astro, no mesmo desenho do gate financeiro
@@ -30,29 +30,11 @@ function loadPermissions(ctx: AgentContext) {
   return cached;
 }
 
-const ACTION_VERB: Record<OrgAction, string> = {
-  view: "ver",
-  create: "criar em",
-  edit: "editar em",
-  delete: "excluir em",
-};
-
-/** Recusa útil: diz o que faltou e a quem pedir (decisão do dono do produto). */
-async function buildDenial(
-  ctx: AgentContext,
-  appKey: AppKey,
-  action: OrgAction,
-): Promise<string> {
-  const granters = await listPermissionGrantersNames(ctx.organizationId);
-  const who =
-    granters.length === 0
-      ? "o Master da organização"
-      : granters.length === 1
-        ? granters[0]
-        : `${granters.slice(0, -1).join(", ")} ou ${granters[granters.length - 1]}`;
-  return (
-    `Você não tem permissão para ${ACTION_VERB[action]} ${appLabel(appKey)}. ` +
-    `Quem libera é ${who}, em Configurações › Permissões.`
+/** Rastro da recusa, sem o conteúdo pedido (spec 0082, RF-11). */
+function logDenial(ctx: AgentContext, appKey: AppKey, action: OrgAction) {
+  console.warn(
+    `[ASTRO/permission] negado user=${ctx.userId} org=${ctx.organizationId} ` +
+      `canal=${ctx.channel ?? "CHAT"} app=${appKey} acao=${action}`,
   );
 }
 
@@ -65,9 +47,9 @@ export async function checkAstroPermission(params: {
 }): Promise<PermissionCheck> {
   const resolved = await loadPermissions(params.ctx);
 
-  // Não é membro da organização: nem chega a falar de app nenhum.
   if (!resolved) {
-    return { ok: false, error: "Você não faz parte desta organização." };
+    logDenial(params.ctx, params.appKey, params.action);
+    return { ok: false, error: astroDenialFor(params.action) };
   }
 
   if (isOrgActionAllowed(resolved, params.appKey, params.action)) {
@@ -79,16 +61,22 @@ export async function checkAstroPermission(params: {
     return { ok: true };
   }
 
-  return {
-    ok: false,
-    error: await buildDenial(params.ctx, params.appKey, params.action),
-  };
+  logDenial(params.ctx, params.appKey, params.action);
+  return { ok: false, error: astroDenialFor(params.action) };
 }
 
-/** Versão booleana, para filtrar consultas de leitura sem montar a recusa. */
+/** Versão booleana, para filtrar consultas e ferramentas sem montar a recusa. */
+export async function canAstroDo(
+  ctx: AgentContext,
+  appKey: AppKey,
+  action: OrgAction,
+): Promise<boolean> {
+  return isOrgActionAllowed(await loadPermissions(ctx), appKey, action);
+}
+
 export async function canAstroRead(
   ctx: AgentContext,
   appKey: AppKey,
 ): Promise<boolean> {
-  return isOrgActionAllowed(await loadPermissions(ctx), appKey, "view");
+  return canAstroDo(ctx, appKey, "view");
 }

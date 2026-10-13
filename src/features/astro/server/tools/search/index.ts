@@ -4,6 +4,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { userBelongsToOrg } from "@/features/astro/server/tools/_shared/permissions";
+import { canAstroRead } from "@/features/astro/actions/permission-gate";
+import { ASTRO_READ_DENIAL } from "@/features/astro/lib/permission-denial";
 
 /**
  * Tools de busca de entidades — usadas por TODOS os sub-agentes pra resolver
@@ -48,6 +50,10 @@ export function buildSearchTools(ctx: AgentContext) {
           return { status: "none" as const, matches: [], error: "Sem acesso à organização" };
         }
 
+        if (!(await canAstroRead(ctx, ENTITY_APP[entityType]))) {
+          return { status: "none" as const, matches: [], error: ASTRO_READ_DENIAL };
+        }
+
         const q = query.trim();
         if (!q) {
           return { status: "none" as const, matches: [] };
@@ -84,6 +90,20 @@ type EntityType =
   | "appointment"
   | "proposal"
   | "form";
+
+/** App dono de cada tipo: a busca não devolve o que a pessoa não pode ver (spec 0082, RF-3). */
+const ENTITY_APP: Record<EntityType, string> = {
+  lead: "tracking",
+  tag: "tracking",
+  status: "tracking",
+  tracking: "tracking",
+  member: "astro",
+  agenda: "spacetime",
+  appointment: "spacetime",
+  workspace: "workspace",
+  proposal: "forge",
+  form: "formularios",
+};
 
 interface SearchResult {
   id: string;

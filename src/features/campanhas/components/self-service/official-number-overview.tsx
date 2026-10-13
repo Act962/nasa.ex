@@ -9,6 +9,7 @@ import { useCreateOfficialTracking } from "../../hooks/use-official-number";
 import { ConnectNumberIntro } from "./connect-number-intro";
 import { ConnectNumberWizard } from "./connect-number-wizard";
 import { MetaNumberPanel } from "./meta-number-panel";
+import { NumberCostsPanel } from "./number-costs-panel";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 const OFFICIAL_TRACKING_NAME = "WhatsApp Oficial";
@@ -83,6 +84,7 @@ export function OfficialNumberOverview({
           {activePanelTrackingId && (
             <MetaNumberPanel trackingId={activePanelTrackingId} isCompact onContinueSetup={() => setWizardTrackingId(activePanelTrackingId)} />
           )}
+          {activePanelTrackingId && <NumberCostsPanel trackingId={activePanelTrackingId} />}
         </>
       ) : null}
 

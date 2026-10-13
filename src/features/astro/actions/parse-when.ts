@@ -37,14 +37,49 @@ function stripAccents(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function extractTime(text: string): { hour: number; minute: number } | null {
-  const withMinutes = text.match(/\b(\d{1,2})\s*[:h]\s*(\d{2})\b/i);
-  if (withMinutes) {
-    return { hour: Number(withMinutes[1]), minute: Number(withMinutes[2]) };
+interface TimeMatch {
+  hour: number;
+  minute: number;
+  raw: string;
+  index: number;
+}
+
+/**
+ * Hora dita por extenso: "meio dia", "meio-dia e meia", "meia noite", "3 da tarde".
+ * Sem isto, "meio dia" respondendo a "que horas?" não era hora nenhuma e o Astro voltava a perguntar o dia.
+ */
+function findSpokenTime(text: string): TimeMatch | null {
+  const noon = /\bmeio[- ]dia(\s+e\s+meia)?\b/.exec(text);
+  if (noon) return { hour: 12, minute: noon[1] ? 30 : 0, raw: noon[0], index: noon.index };
+  const midnight = /\bmeia[- ]noite(\s+e\s+meia)?\b/.exec(text);
+  if (midnight) return { hour: 0, minute: midnight[1] ? 30 : 0, raw: midnight[0], index: midnight.index };
+  const afternoon = /\b(\d{1,2})(?:\s*(?:h|horas?))?(?:\s*e\s+(meia)|\s*[:h]\s*(\d{2}))?\s+da\s+(tarde|noite)\b/.exec(text);
+  if (afternoon) {
+    const spokenHour = Number(afternoon[1]);
+    return {
+      hour: spokenHour < 12 ? spokenHour + 12 : spokenHour,
+      minute: afternoon[2] ? 30 : Number(afternoon[3] ?? 0),
+      raw: afternoon[0],
+      index: afternoon.index,
+    };
   }
-  const hourOnly = text.match(/\b(\d{1,2})\s*(?:h|horas?)\b/i);
-  if (hourOnly) return { hour: Number(hourOnly[1]), minute: 0 };
   return null;
+}
+
+/** Primeira hora da frase, em número ("14h30", "9 horas") ou por extenso. Vale a que aparece antes. */
+function findTimeMatch(text: string): TimeMatch | null {
+  const spoken = findSpokenTime(text);
+  const numeric = /\b(\d{1,2})\s*(?:[:h]\s*(\d{2})\b|h\b|horas?\b)/.exec(text);
+  const written: TimeMatch | null = numeric
+    ? { hour: Number(numeric[1]), minute: Number(numeric[2] ?? 0), raw: numeric[0], index: numeric.index }
+    : null;
+  if (spoken && written) return spoken.index <= written.index ? spoken : written;
+  return spoken ?? written;
+}
+
+function extractTime(text: string): { hour: number; minute: number } | null {
+  const match = findTimeMatch(text);
+  return match ? { hour: match.hour, minute: match.minute } : null;
 }
 
 /**
@@ -149,9 +184,7 @@ function findDayExpressions(normalized: string, now: Date): DayExpression[] {
 
 /** Hora escrita, mesmo fora de 0–23 ("25h"), para poder recusar em vez de rolar o dia. */
 function findRawTime(normalized: string): { hour: number; minute: number; raw: string } | null {
-  const match = /\b(\d{1,2})\s*(?:[:h]\s*(\d{2})\b|h\b|horas?\b)/.exec(normalized);
-  if (!match) return null;
-  return { hour: Number(match[1]), minute: Number(match[2] ?? 0), raw: match[0] };
+  return findTimeMatch(normalized);
 }
 
 /**

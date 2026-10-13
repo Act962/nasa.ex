@@ -18,10 +18,9 @@
  *
  * Reusa `orpc.ia.usage.overview` (org-wide, ciclo de 30d).
  */
-import { useQuery } from "@tanstack/react-query";
+import { useTokenUsageOverview } from "@/features/ia/hooks/use-ai-resources";
 import { useState } from "react";
 import { Brain, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react";
-import { orpc } from "@/lib/orpc";
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -48,11 +47,7 @@ export function TokenMeter() {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { data: overview } = useQuery({
-    ...orpc.ia.usage.overview.queryOptions(),
-    refetchInterval: 60_000,
-    staleTime: 30_000,
-  });
+  const { data: overview } = useTokenUsageOverview({ shouldRefresh: true });
 
   if (!overview) return null;
 

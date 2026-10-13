@@ -1,3 +1,4 @@
+import { recordTrafegoAiUsage } from "@/features/trafego/server/lib/record-trafego-ai-usage";
 import "server-only";
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
@@ -37,7 +38,7 @@ export async function suggestTrafegoCopies(params: {
   if (!process.env.OPENAI_API_KEY) return [];
 
   try {
-    const { object } = await generateObject({
+    const { object, usage } = await generateObject({
       model: openai("gpt-4o-mini"),
       schema: suggestionsSchema,
       system: [
@@ -72,6 +73,7 @@ export async function suggestTrafegoCopies(params: {
         .join("\n"),
       maxRetries: 1,
     });
+    await recordTrafegoAiUsage({ feature: "trafego.copies", provider: "openai", modelId: "gpt-4o-mini", usage });
     return object.copies;
   } catch (error) {
     console.warn("[trafego/copies] sugestão falhou:", error);

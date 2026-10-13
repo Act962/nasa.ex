@@ -72,6 +72,7 @@ import {
   setPlannerAccountBrandKit,
 } from "./v2/brand-kit";
 import { discardCreation, importCreation, listCreations } from "./v2/creations";
+import { getPublishGroup, setGroupAccounts, setGroupDetached } from "./v2/publish-group";
 import { getPlannerDashboard, listBoardPosts } from "./v2/board";
 import { parseWeeklyScriptText } from "./v2/weekly-script";
 import { deletePostComment, editOwnPostComment, listPostComments, replyToPostComment, setPostCommentHidden } from "./v2/post-comments";
@@ -129,10 +130,8 @@ export const nasaPlannerRouter = {
     delete: deletePost,
     generate: generatePost,
     approve,
-    // Planner v2 (spec 0057): programar/publicar passam pelo fluxo único; `publish` virou "publicar agora" assíncrono.
     schedule,
     unschedule,
-    publish: publishNow,
     publishNow,
     retryPublish,
     metrics: postMetrics,
@@ -144,6 +143,11 @@ export const nasaPlannerRouter = {
       editOwn: editOwnPostComment,
     },
     createForClient: createClientPost,
+    group: {
+      get: getPublishGroup,
+      setAccounts: setGroupAccounts,
+      setDetached: setGroupDetached,
+    },
     generateImage: generateImageFromPrompt,
     uploadImage: uploadPostImage,
     updateSlide: updatePostSlide,
@@ -152,7 +156,6 @@ export const nasaPlannerRouter = {
     addVideoClip: addVideoClip,
     saveEditedVideo: saveEditedVideo,
     generateVideoClip: generateVideoClip,
-    scheduleReal: schedule,
     generateImageFromReference: generateImageFromReference,
     transcribeVideo: transcribeVideo,
     removeMedia: removePostMedia,

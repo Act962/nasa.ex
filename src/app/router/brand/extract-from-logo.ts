@@ -1,3 +1,4 @@
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import "server-only";
 
 import { base } from "@/app/middlewares/base";
@@ -5,7 +6,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { S3 } from "@/lib/s3-client";
-import { resolveAnthropicApiKey } from "@/lib/anthropic-key";
+import { anthropicKeySourceOf, resolveAnthropicApiKey } from "@/lib/anthropic-key";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -193,7 +194,7 @@ export const extractFromLogo = base
     const anthropic = createAnthropic({ apiKey });
     let result: ExtractedBrand;
     try {
-      const { object } = await generateObject({
+      const { object, usage } = await generateObject({
         model: anthropic("claude-haiku-4-5-20251001"),
         schema: brandExtractionSchema,
         messages: [
@@ -225,6 +226,16 @@ export const extractFromLogo = base
           },
         ],
         maxOutputTokens: 600,
+      });
+      await recordAiUsage({
+        resourceId: "brand.extract",
+        organizationId: context.org.id,
+        userId: context.user.id,
+        provider: "anthropic",
+        modelId: "claude-haiku-4-5",
+        keySource: anthropicKeySourceOf(apiKey),
+        usage,
+        starsCharged: charge.cost,
       });
       result = object;
     } catch (err) {

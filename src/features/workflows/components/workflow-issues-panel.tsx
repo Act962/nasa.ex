@@ -10,6 +10,8 @@
  * mostra coisas que já carregamos via `workflow.validate` — não dispara
  * checks novos quando user abre.
  */
+import { useAtomValue } from "jotai";
+import { flowDiagnosticsAtom } from "@/features/editor/store/atoms";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useReactFlow } from "@xyflow/react";
@@ -47,6 +49,7 @@ const CODE_LABEL: Record<string, string> = {
   CYCLE_UNSAFE: "Loop infinito",
   ARCHIVED_TAG: "Tag arquivada",
   DELETED_TAG: "Tag deletada",
+  CHANNEL_RULE: "Regra do WhatsApp",
 };
 
 export function WorkflowIssuesPanel({ workflowId }: { workflowId: string }) {
@@ -76,7 +79,15 @@ export function WorkflowIssuesPanel({ workflowId }: { workflowId: string }) {
     );
   }, [runsData?.runs]);
 
-  const all = data?.graphIssues ?? [];
+  // Erros previstos sobre o desenho da tela entram na mesma lista dos problemas do fluxo salvo.
+  const flowDiagnostics = useAtomValue(flowDiagnosticsAtom).all;
+  const channelIssues: GraphIssue[] = flowDiagnostics.map((diagnostic) => ({
+    nodeId: diagnostic.nodeId,
+    severity: diagnostic.severity,
+    code: "CHANNEL_RULE",
+    message: `${diagnostic.title}. ${diagnostic.message}`,
+  }));
+  const all = [...channelIssues, ...(data?.graphIssues ?? [])];
   const errors = all.filter((i) => i.severity === "error");
   const warnings = all.filter((i) => i.severity === "warning");
   const totalCount = errors.length + warnings.length + failedRuns.length;

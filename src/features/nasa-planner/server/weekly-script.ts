@@ -1,3 +1,4 @@
+import { recordAiUsage } from "@/features/ia/server/record-ai-usage";
 import "server-only";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -30,9 +31,11 @@ export async function parseWeeklyScript(input: { organizationId: string; userId:
     if (error instanceof NoAiProviderError) throw new ORPCError("BAD_REQUEST", { message: "Configure uma IA nos Satélites (OpenAI, Gemini ou Anthropic) para o Astro separar o roteiro." });
     throw error;
   }
+  let starsCharged = 0;
   if (resolved.keySource !== "organization") {
     const charge = await chargeStarsByAction(input.organizationId, "astro_prompt", { userId: input.userId, description: "Astro IA — roteiro da semana do Planner", appSlug: "nasa-planner" });
     if (!charge.skipped && !charge.success) throw new ORPCError("BAD_REQUEST", { message: "Saldo de Stars insuficiente para o Astro separar o roteiro." });
+    starsCharged = charge.cost;
   }
 
   const result = await generateObject({
@@ -49,6 +52,16 @@ export async function parseWeeklyScript(input: { organizationId: string; userId:
     ].join("\n"),
     prompt: input.text,
     temperature: 0,
+  });
+  await recordAiUsage({
+    resourceId: "planner.scripts",
+    organizationId: input.organizationId,
+    userId: input.userId,
+    provider: resolved.provider,
+    modelId: resolved.modelId,
+    keySource: resolved.keySource,
+    usage: result.usage,
+    starsCharged,
   });
   return { items: result.object.items };
 }

@@ -103,6 +103,14 @@ export function AstroMessage({
       );
     });
 
+  // O cartão de ação concluída já mostra o resumo; o mesmo texto em balão logo abaixo era repetição.
+  const doneCardDescriptions = isUser
+    ? []
+    : message.parts.flatMap((part) => {
+        const output = isToolUIPart(part) ? (part as { output?: unknown }).output : null;
+        return isAstroActionDonePayload(output) ? [output.description.trim()] : [];
+      });
+
   // Texto que o ASTRO respondeu, para o joinha guardar o trecho avaliado.
   const answerText = message.parts
     .filter(isTextUIPart)
@@ -123,6 +131,7 @@ export function AstroMessage({
           // Suprime texto duplicado quando há tabela/vídeos na mesma
           // mensagem. User pediu APENAS a tabela — sem prosa redundante.
           if (hasStructuredOutput) return null;
+          if (doneCardDescriptions.includes(part.text.trim())) return null;
           return (
             <div
               key={idx}

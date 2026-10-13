@@ -97,7 +97,7 @@ export async function POST(req: Request) {
     const imageBytes = new Uint8Array(arrayBuffer);
 
     // ── 1. Extrai metadados via Claude Vision ────────────────────
-    const parsed = await extractEventFromImage(imageBytes, file.type, apiKey);
+    const parsed = await extractEventFromImage(imageBytes, file.type, apiKey, { organizationId: orgId, userId: session.user.id });
     if (!parsed || !parsed.title) {
       return NextResponse.json(
         {

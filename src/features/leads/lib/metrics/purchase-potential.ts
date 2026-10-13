@@ -11,6 +11,10 @@ export interface PotentialSignals {
   openProposals: number;
   purchasesCount: number;
   interactionLossRate: number;
+  /** Agendamento futuro não cancelado (spec 0085). */
+  upcomingAppointments?: number;
+  /** Tags de interesse no lead: as que a empresa descreveu para a IA aplicar (spec 0085). */
+  interestTags?: number;
 }
 
 const TEMPERATURE_POINTS: Record<LeadTemperature, number> = { COLD: 5, WARM: 15, HOT: 25, VERY_HOT: 30 };
@@ -20,6 +24,9 @@ const OPEN_PROPOSAL_POINTS = 20;
 const POINTS_PER_PURCHASE = 5;
 const MAX_PURCHASE_POINTS = 15;
 const MAX_LOSS_PENALTY = 10;
+const UPCOMING_APPOINTMENT_POINTS = 15;
+const POINTS_PER_INTEREST_TAG = 5;
+const MAX_INTEREST_TAG_POINTS = 10;
 
 export function computePurchasePotential(signals: PotentialSignals): number {
   const engagement = Math.min(
@@ -31,8 +38,16 @@ export function computePurchasePotential(signals: PotentialSignals): number {
   const proposalPoints = signals.openProposals > 0 ? OPEN_PROPOSAL_POINTS : 0;
   const purchasePoints = Math.min(MAX_PURCHASE_POINTS, signals.purchasesCount * POINTS_PER_PURCHASE);
   const lossPenalty = Math.round((signals.interactionLossRate / 100) * MAX_LOSS_PENALTY);
+  const appointmentPoints = (signals.upcomingAppointments ?? 0) > 0 ? UPCOMING_APPOINTMENT_POINTS : 0;
+  const interestTagPoints = Math.min(MAX_INTEREST_TAG_POINTS, (signals.interestTags ?? 0) * POINTS_PER_INTEREST_TAG);
   const score =
-    TEMPERATURE_POINTS[signals.temperature] + engagementPoints + proposalPoints + purchasePoints - lossPenalty;
+    TEMPERATURE_POINTS[signals.temperature] +
+    engagementPoints +
+    proposalPoints +
+    purchasePoints +
+    appointmentPoints +
+    interestTagPoints -
+    lossPenalty;
   return Math.max(0, Math.min(100, score));
 }
 
@@ -48,10 +63,13 @@ export function computeConfidence(params: {
   inboundLast30Days: number;
   openProposals: number;
   purchasesCount: number;
+  upcomingAppointments?: number;
 }): number {
   let confidence = 100;
   if (params.totalMessages < 5) confidence -= 40;
-  if (params.openProposals === 0 && params.purchasesCount === 0) confidence -= 20;
+  const hasCommercialSignal =
+    params.openProposals > 0 || params.purchasesCount > 0 || (params.upcomingAppointments ?? 0) > 0;
+  if (!hasCommercialSignal) confidence -= 20;
   if (params.inboundLast30Days === 0) confidence -= 20;
   return Math.max(0, confidence);
 }

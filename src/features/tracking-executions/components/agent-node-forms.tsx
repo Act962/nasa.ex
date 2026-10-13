@@ -17,6 +17,10 @@
  * Cada form recebe `data` (atual) + `onChange(nextData)`. O AgentNode
  * gerencia o estado e persiste via setNodes do React Flow.
  */
+import { useParams } from "next/navigation";
+import { useWorkflowsList } from "@/features/workflows/hooks/use-workflows";
+import { HANDOFF_MODE } from "@/features/workflows/lib/flow-links";
+import { useWorkflowAgentMode } from "@/features/workflows/lib/agent-mode-context";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -626,17 +630,57 @@ export function DataForm({ nodeType, data, onChange }: FormProps & { nodeType: s
   }
 
   // CALL_WORKFLOW
+  return <CallWorkflowForm data={data} onChange={onChange} />;
+}
+
+/** Escolhe o fluxo de destino numa lista, em vez de colar o id (spec 0092). */
+function CallWorkflowForm({ data, onChange }: FormProps) {
+  const { trackingId, workflowId: routeWorkflowId } = useParams<{ trackingId: string; workflowId?: string }>();
+  // No mapa da operação o editor abre sem o id na rota: aí vale o do contexto do editor.
+  const currentWorkflowId = useWorkflowAgentMode()?.workflowId ?? routeWorkflowId;
+  const { data: flowsData, isLoading } = useWorkflowsList(trackingId);
+  const flows = (flowsData?.workflows ?? []).filter((flow) => flow.id !== currentWorkflowId);
+  const selectedId = s(data.workflowId);
+  const isHandoff = data.mode === HANDOFF_MODE;
   return (
     <div className="space-y-3">
-      <FormHeader hint="Executa outro workflow como sub-rotina. Cap de 5 níveis pra evitar recursão." />
+      <FormHeader
+        hint={
+          isHandoff
+            ? "Quando o fluxo chega aqui, o fluxo escolhido começa para o mesmo lead, como uma execução própria. O fluxo de destino precisa estar ligado."
+            : "Executa outro fluxo como sub-rotina. Limite de 5 níveis para evitar repetição sem fim."
+        }
+      />
       <div className="space-y-2">
-        <Label>ID do sub-workflow</Label>
-        <Input
-          placeholder="workflow id..."
-          value={s(data.workflowId)}
-          onChange={(e) => onChange({ ...data, workflowId: e.target.value })}
-        />
+        <Label>Fluxo de destino</Label>
+        <Select value={selectedId} onValueChange={(nextWorkflowId) => onChange({ ...data, workflowId: nextWorkflowId })}>
+          <SelectTrigger>
+            <SelectValue placeholder={isLoading ? "Carregando fluxos…" : "Escolha o fluxo"} />
+          </SelectTrigger>
+          <SelectContent>
+            {selectedId && !flows.some((flow) => flow.id === selectedId) && <SelectItem value={selectedId}>Fluxo não encontrado neste funil</SelectItem>}
+            {flows.map((flow) => (
+              <SelectItem key={flow.id} value={flow.id}>
+                {flow.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={isHandoff}
+          onChange={(event) => onChange({ ...data, mode: event.target.checked ? HANDOFF_MODE : undefined })}
+        />
+        <span>
+          Passar adiante
+          <span className="block text-xs text-muted-foreground">
+            O fluxo de destino roda por conta própria, e as esperas dele funcionam. Desmarcado, ele roda embutido aqui e para na primeira espera.
+          </span>
+        </span>
+      </label>
     </div>
   );
 }

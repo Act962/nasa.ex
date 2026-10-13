@@ -60,7 +60,7 @@ export function AgentNodeConfigDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent data-node-config className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{meta?.label ?? nodeType}</DialogTitle>
           <DialogDescription>{meta?.description}</DialogDescription>
