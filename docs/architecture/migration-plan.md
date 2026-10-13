@@ -13,8 +13,9 @@
 | 1. Runner + testes de regras puras | 🚧 Código pronto: Vitest 5, 166 testes em 12 arquivos, verdes localmente; job `unit` no `ci.yml`. Falta: PR, ver o job verde no GitHub, exigir o job na proteção da `main`. Quatro comportamentos suspeitos registrados em [`testing-strategy.md`](testing-strategy.md) §6 |
 | 2. Catraca de fronteiras | 🚧 Código pronto: `.dependency-cruiser.js` (R1–R7, 1 violação conhecida na baseline), `scripts/arch/` (R8, R9, R11 com baseline), job `arch` no `ci.yml`, regra de ESLint para Prisma em `modules/`, template de PR. Falta: ver o job verde no GitHub, exigir na proteção da `main`, revisar a classificação das camadas (R11) e decidir sobre `CODEOWNERS` |
 | Correção fora do plano | ✅ Lembrete mensal em mês curto (spec 0090). Reparo dos dados de produção pendente |
-| 3. Contenção de segurança | 🚧 S1, S2 e S4 em código, com teste unitário das regras ([spec 0091](../../specs/integrations/0091-rotas-anonimas-exigem-credencial.md)). Falta: implantar seguindo o roteiro da spec (começa em `log-only`), conferir com `curl` em homologação, teste de integração por rota (etapa 4). S7 e S6 aguardam decisão sobre como autenticar integradores |
-| 4 a 10 | ⬜ |
+| 3. Contenção de segurança | 🚧 S1, S2 e S4 em código, com teste unitário das regras ([spec 0091](../../specs/integrations/0091-rotas-anonimas-exigem-credencial.md)). Falta: implantar seguindo o roteiro da spec (começa em `log-only`), conferir com `curl` em homologação, S7 e S6 aguardam decisão sobre como autenticar integradores |
+| 4. Integração com Postgres real | 🚧 Código pronto: `docker-compose.test.yml`, projeto `integration` no Vitest, suporte em `tests/integration/support/` (truncate, builders, sessão), job `integration` no `ci.yml`. 44 testes: as quatro rotas da etapa 3, o molde de isolamento entre empresas e os 8 scripts de QA das specs executados contra o banco de teste. As 254 migrations aplicam limpas em banco vazio. Falta: ver o job verde no GitHub e exigi-lo na `main`; converter os scripts de QA em testes nativos (hoje rodam como processo, um teste por script); teste de arquitetura exigindo `TenantScope` nos repositórios |
+| 5 a 10 | ⬜ |
 
 ## 1. O que muda em relação ao roadmap de agosto
 

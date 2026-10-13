@@ -62,7 +62,7 @@ Nenhuma dessas rotas muda estado sem uma credencial que só o remetente legítim
 - [x] **CA-6** — No modo `log-only`, assinatura inválida não é recusada.
 - [x] **CA-7** — Modo ausente ou desconhecido cai no padrão da rota.
 - [ ] **CA-8** — `curl` sem credencial contra cada rota em homologação devolve 401. _(manual, na implantação)_
-- [ ] **CA-9** — Teste de integração por rota, com banco. _(depende da etapa 4 do plano de migração)_
+- [x] **CA-9** — Teste de integração por rota, com banco (`tests/integration/security/`).
 
 ## 5. Casos de borda
 
@@ -103,3 +103,4 @@ Roteiro de implantação:
 | --- | --- | --- |
 | 2026-10-13 | João Gabriel | Criada junto com a implementação |
 | 2026-10-13 | João Gabriel | Renumerada de 0075 para 0091: o número já estava em uso na `main` |
+| 2026-10-13 | João Gabriel | CA-9 cumprido: testes de integração das quatro rotas contra Postgres real |

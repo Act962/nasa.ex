@@ -39,7 +39,7 @@ outro problema — ver A4). O `.env` **nunca esteve** versionado no git.
 
 | | |
 | --- | --- |
-| **Status** | 🚧 Código em 2026-10-13 ([spec 0091](../specs/integrations/0091-rotas-anonimas-exigem-credencial.md), PR Act962/nasa.ex#459): token `asaas-access-token` conferido contra o `webhookSecret` dos gateways Asaas ativos, valor pago conferido, crédito atômico. Regra coberta por teste unitário; teste de integração da rota e conferência em homologação pendentes. |
+| **Status** | 🚧 Código em 2026-10-13 ([spec 0091](../specs/integrations/0091-rotas-anonimas-exigem-credencial.md), PR Act962/nasa.ex#459): token `asaas-access-token` conferido contra o `webhookSecret` dos gateways Asaas ativos, valor pago conferido, crédito atômico. ✅ Com teste de integração contra Postgres real (`tests/integration/security/asaas-stars-webhook.test.ts`). Pendente só a implantação pelo roteiro da spec e a conferência em homologação. |
 | **Arquivo** | `src/app/api/payments/asaas/webhook/route.ts` |
 | **Impacto** | **Perda financeira direta.** Stars são moeda interna com custo real (LLM, OCR, Whisper, WhatsApp) |
 | **Template de correção** | `src/app/api/stars/webhook/route.ts:131-150` |
@@ -72,7 +72,7 @@ POST anônimo → { event: "PAYMENT_CONFIRMED", payment: { externalReference: "<
 
 | | |
 | --- | --- |
-| **Status** | 🚧 Código em 2026-10-13 ([spec 0091](../specs/integrations/0091-rotas-anonimas-exigem-credencial.md)): exige sessão ou token de exclusão emitido no upload. Não confere se o usuário logado é dono do arquivo (as chaves não têm empresa). Regra coberta por teste unitário; teste de integração da rota e conferência em homologação pendentes. |
+| **Status** | 🚧 Código em 2026-10-13 ([spec 0091](../specs/integrations/0091-rotas-anonimas-exigem-credencial.md)): exige sessão ou token de exclusão emitido no upload. Não confere se o usuário logado é dono do arquivo (as chaves não têm empresa). ✅ Com teste de integração (`tests/integration/security/s3-delete.test.ts`). Conferência em homologação pendente. |
 | **Arquivo** | `src/app/api/s3/delete/route.ts` (47 linhas) |
 | **Impacto** | **Perda de dados irreversível.** Qualquer pessoa na internet apaga qualquer objeto do bucket de imagens |
 
@@ -438,6 +438,7 @@ Registrados para não serem re-auditados sem motivo:
 | 2026-08-18 | Registro inicial. 8 críticos, 6 altos, 5 médios, a partir da auditoria de `f67796d2`. Todos os itens 🔴 confirmados por leitura direta do código. Nenhuma correção aplicada. |
 | 2026-09-29 | S8 corrigido: bloco de debug removido depois de gravar em log a API key do Asaas de uma loja durante teste de PIX real. Pendentes: logging com redação e rotação das chaves expostas. |
 | 2026-09-26 | M6 adicionado e corrigido (vazamento do Financeiro pelo ASTRO para membro sem acesso), achado pela bateria de testes do ASTRO. |
+| 2026-10-13 | S1, S2 e S4 ganharam teste de integração por rota. S1 e S2 passam a ✅ (falta implantar e conferir em homologação). S4 segue 🚧: Facebook e Instagram continuam em só-registro por padrão. |
 | 2026-10-13 | S1, S2 e S4 com correção em código ([spec 0091](../specs/integrations/0091-rotas-anonimas-exigem-credencial.md)), ainda sem teste de integração nem conferência em homologação, por isso 🚧 e não ✅. S4 fica só-registro por padrão em Facebook e Instagram. S7: removido o log de dados pessoais; autenticação segue pendente. |
 | 2026-10-13 | Reverificação por leitura sobre `7ead1bb6`, sem correção aplicada: S1, S2, S3, S5, S6, S7, A2, A3, A4 e M5 seguem abertos; A1 subiu de 228 para 272 ocorrências. S4: Facebook e `domain-providers` abertos; no Instagram a assinatura só é repassada ao ramo de comentários, o de mensagens diretas processa sem conferir. `s3/delete` e `upload-local` estão em uso (4 e 9 arquivos), então a correção é proteger, não remover. Detalhe em [`architecture/current-state.md`](architecture/current-state.md) §5. |
 | 2026-10-01 | A7 adicionado e corrigido (Insights lia dados de qualquer empresa pelo ID), achado ao auditar os filtros do Insights. |

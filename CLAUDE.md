@@ -30,6 +30,10 @@ npm run db:generate   # Gerar cliente Prisma
 npm run db:migrate    # Rodar migrações (USE ESTE — equivalente a pnpm prisma migrate dev)
 npm run db:studio     # Abrir Prisma Studio
 npm run build         # Build de produção
+pnpm test:unit        # Testes de regras puras (sem banco)
+pnpm test:db:up       # Sobe o Postgres de teste (porta 5433, descartável)
+pnpm test:integration # Testes contra o Postgres de teste
+pnpm arch             # Regras de fronteira (dependency-cruiser + baseline entre features)
 ```
 
 > ⚠️ **PROIBIDO**: `pnpm prisma push` / `pnpm prisma db push`. Sempre `pnpm db:migrate`.
@@ -254,7 +258,7 @@ src/features/<dominio>/
 
     **Antes de propor arquitetura, teste ou CI neste projeto, leia o overview.** Ele registra decisões já travadas — arquitetura alvo (Hexagonal seletivo, não Clean Architecture ampla), escopo (piloto `form`, não migração ampla) e o que foi deliberadamente descartado, com o porquê. Repropor algo já descartado sem novo argumento custa tempo do time.
 
-20. **Deriva conhecida entre este arquivo e o código** — auditoria de 2026-08-18 encontrou divergências ainda não corrigidas. Enquanto não forem, **confie no código, não neste documento**, nestes pontos: procedures oRPC estão em `src/app/router/` (não em `src/server/`, que não existe); a Regra 9 tem 518 violações; a Regra 5 convive com Jotai além de Zustand; a Regra 17 é **inexequível** (não há runner de teste instalado); `.claude/settings.json` não existe (o hook `PreToolUse` descrito no Git Workflow não está ativo); `.env.example` e `prisma/migrations/MANUAL_*.sql` referenciados em `docs/DEPLOYMENT.md` não existem — `scripts/apply-prod-migrations.sh` quebra por causa disso. Lista completa em [`docs/arquitetura-evolucao-overview.md`](docs/arquitetura-evolucao-overview.md) §3.5. Corrigir a deriva é item da Fase 0.
+20. **Deriva conhecida entre este arquivo e o código** — auditoria de 2026-08-18 encontrou divergências ainda não corrigidas. Enquanto não forem, **confie no código, não neste documento**, nestes pontos: procedures oRPC estão em `src/app/router/` (não em `src/server/`, que não existe); a Regra 9 tem 518 violações; a Regra 5 convive com Jotai além de Zustand; a Regra 17 já é exequível desde 2026-10-13 (Vitest: `pnpm test:unit`, `pnpm test:integration`), mas a maior parte das specs antigas segue sem teste; `.claude/settings.json` não existe (o hook `PreToolUse` descrito no Git Workflow não está ativo); `.env.example` e `prisma/migrations/MANUAL_*.sql` referenciados em `docs/DEPLOYMENT.md` não existem — `scripts/apply-prod-migrations.sh` quebra por causa disso. Lista completa em [`docs/arquitetura-evolucao-overview.md`](docs/arquitetura-evolucao-overview.md) §3.5. Corrigir a deriva é item da Fase 0.
 
 21. **Guias do Astro na tela (OBRIGATÓRIO)** — o Astro ensina a usar a plataforma destacando botões e campos reais (spec [0046](specs/astro/0046-astro-guia-na-tela.md)), em vez de prints que envelhecem. Para isso continuar funcionando sozinho:
 

@@ -5,9 +5,9 @@
 > **Regra de manutenção:** ao adicionar um tipo de teste, mudar a configuração do runner, alterar o
 > pipeline ou promover/remover um quality gate, **atualize este arquivo na mesma sessão**.
 
-**Estado atual (2026-10-13):** Vitest 5 instalado, projeto `unit` com 166 testes em 12 arquivos
-(`pnpm test`, `pnpm test:unit`), job `unit` no `ci.yml`. Ainda sem testes de integração, sem E2E e sem
-regras de fronteira. Detalhes e achados em [`architecture/testing-strategy.md`](architecture/testing-strategy.md) §6.
+**Estado atual (2026-10-13):** Vitest 5 com dois projetos. `unit`: 258 testes em 18 arquivos, sem
+banco (`pnpm test:unit`). `integration`: 44 testes contra Postgres real (`pnpm test:db:up` e
+`pnpm test:integration`). Jobs `unit`, `integration` e `arch` no `ci.yml`. Ainda sem E2E. Detalhes e achados em [`architecture/testing-strategy.md`](architecture/testing-strategy.md) §6.
 
 **Estado na auditoria original:** 0 testes, 0 frameworks de teste. **CI existe desde 2026-09-30** (§8.0) — só build e
 checagem de tipos. Confirmado por quatro
@@ -213,6 +213,7 @@ tudo. Vira gate na Fase 3, e só em `src/modules/**`.
 | `ci.yml` → `next-build` | todo PR | `pnpm install` (cache do store) + `prisma generate` + `next build` direto no runner: checagem de tipos, coleta de páginas, bundling. `.next/cache` por PR via `actions/cache`. |
 | `ci.yml` → `docker-image` | PR que mexe em `Dockerfile`, `docker/`, dependências, `next.config.ts`, Prisma, workflows | Builda a imagem (sem push, sem checagem de tipos) lendo o cache `buildcache` do GHCR. |
 | `ci.yml` → `unit` | todo PR (desde 2026-10-13) | `pnpm install` + `prisma generate` + `pnpm test:unit`: regras puras, sem banco nem rede. Paralelo ao `next-build`. |
+| `ci.yml` → `integration` | todo PR (desde 2026-10-13) | Service container `pgvector/pgvector:pg17`, `prisma migrate deploy` no início da suíte, `pnpm test:integration`: rotas de segurança, isolamento entre empresas e os scripts de QA das specs. |
 | `ci.yml` → `arch` | todo PR (desde 2026-10-13) | `pnpm arch`: dependency-cruiser (R1–R7 em `src/modules`, ~1 min) + baseline entre features (R8, R9, R11). Sem banco, sem `prisma generate`. |
 | `deploy-image.yml` | push na `main` | Builda a imagem (sem checagem de tipos — o PR é o portão), publica no GHCR, grava o cache `buildcache`, avisa o Coolify. |
 | `typecheck-diagnostics.yml` | manual | Mede memória/tempo/instanciações do `tsc` e lista os arquivos mais caros. |
@@ -353,6 +354,7 @@ testes não há o que mutar).
 
 | Data | O quê |
 | --- | --- |
+| 2026-10-13 | **Testes de integração com Postgres real** (etapa 4). `docker-compose.test.yml` (porta 5433, dados em memória), projeto `integration`, suporte em `tests/integration/support/`: trava que só deixa rodar em banco terminado em `_test`, truncate entre casos, builders, sessão definida por teste. Dublês: sessão (`@/lib/auth`), fila (Inngest), realtime (Pusher) e `fetch` bloqueado; storage só onde o efeito é a asserção. Os 8 scripts `scripts/*-qa-check.ts` passam a rodar no CI por `tests/integration/qa-scripts.test.ts`, cada um como processo. `campanhas-qa-check-pure-libs.ts` virou teste unitário e foi removido. `it.fails` documenta a falha aberta de `form/delete` (S5). |
 | 2026-10-13 | **Job `arch`** no CI: regras de fronteira com baseline decrescente (etapa 2 do plano). A lógica da baseline entre features tem testes próprios em `scripts/arch/feature-boundaries.test.ts`, incluídos no projeto `unit`. Suíte em 191 testes. |
 | 2026-10-13 | **Primeiro runner e primeira suíte.** Vitest 5 (`vitest.config.mts`, projeto `unit`, alias `@`), scripts `test`/`test:unit`/`test:watch`, job `unit` no `ci.yml`. 166 testes de caracterização sobre 7 arquivos de regra pura e o domínio de `modules/social`, com os ids da spec 0024 no nome onde o código os cita. Nenhum arquivo de produção alterado. Quatro comportamentos suspeitos registrados sem correção (lembrete mensal pula meses curtos, entre eles). O job ainda não é exigido para merge. |
 | 2026-10-13 | Reaferição (antes da suíte acima): seguia sem runner e sem testes; 5 scripts `scripts/*-qa-check.ts` fazem o papel de testes de integração manuais. Ordem de implantação revista, primeira suíte unitária com arquivos verificados como puros e configuração exigida pelo projeto em [`architecture/testing-strategy.md`](architecture/testing-strategy.md) — **pendente de aprovação**. `can-edit-response.ts` (§2) importa o Prisma e não serve como teste unitário sem separar a política do carregamento. |

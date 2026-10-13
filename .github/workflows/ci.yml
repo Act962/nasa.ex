@@ -60,6 +60,42 @@ jobs:
 
       - run: pnpm test:unit
 
+  # Rotas e casos de uso contra Postgres real (mesma imagem do dev), com as
+  # migrations aplicadas por `migrate deploy`. Inclui os scripts de QA das specs.
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: docker
+          POSTGRES_PASSWORD: docker
+          POSTGRES_DB: nasa_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U docker -d nasa_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec prisma generate
+        env:
+          DATABASE_URL: postgresql://docker:docker@localhost:5433/nasa_test
+
+      - run: pnpm test:integration
+
   # Fronteiras: regras de src/modules (dependency-cruiser) e baseline entre features.
   arch:
     runs-on: ubuntu-latest
