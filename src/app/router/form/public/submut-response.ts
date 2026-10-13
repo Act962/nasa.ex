@@ -32,6 +32,8 @@ import {
   placeLeadInFormTarget,
   type PlaceLeadResult,
 } from "@/features/form/server/lib/resolve-and-place-lead-for-form";
+import { FORM_NOT_PUBLISHED, isFormSubmitModuleOn, submitPublicFormResponse } from "@/modules/form";
+import { isDomainError } from "@/modules/shared/domain/domain-error";
 
 type MovedLeadForBoard = {
   leadId: string;
@@ -66,6 +68,25 @@ export const submitResponse = base
   )
   .handler(async ({ input, errors }) => {
     try {
+      // Passo 7d do plano de migração: com a flag ligada, o envio roda pelo
+      // módulo `form`. O caminho abaixo fica intacto até a flag ser removida.
+      if (isFormSubmitModuleOn()) {
+        try {
+          return await submitPublicFormResponse({
+            formId: input.id,
+            response: input.response,
+            tracking: input.tracking,
+            nextActionTagId: input.nextActionTagId,
+            finalizingResponseId: input.responseId,
+          });
+        } catch (moduleError) {
+          if (isDomainError(moduleError) && moduleError.code === FORM_NOT_PUBLISHED) {
+            throw errors.NOT_FOUND();
+          }
+          throw moduleError;
+        }
+      }
+
       const {
         id,
         response,

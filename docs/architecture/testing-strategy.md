@@ -138,6 +138,7 @@ mantidos, e três seguem como estão por serem decisão de produto.
 | 6 | O salvamento parcial cria o lead no primeiro "Próximo". Quem abandona o formulário deixa um lead no funil, sem aviso à equipe além do board | Decisão de produto: é assim que o consultor acompanha o preenchimento ao vivo | Mantido. Decisão de produto em aberto |
 | 7 | A pontuação da 10ª e da 100ª resposta só acontece se a regra existir no banco. A função que criava as regras padrão (`ensureGlobalSpacePointRules`) está com o corpo comentado | Em banco sem as regras cadastradas, ninguém pontua, sem erro e sem aviso | Mantido, intencional: as regras vêm de `prisma/seed-a.ts`. **A conferir em produção** se o seed rodou (`SELECT count(*) FROM space_point_rules`) |
 | 8 | A pontuação roda dentro da transação do envio, com o cliente global (regra 18). Não trava: o envio conclui normalmente | Violação da regra sem o efeito de espera circular | ✅ Corrigido (CA-8): roda depois do commit |
+| 9 | As tags vindas da resposta (`meta.tagId`) e a tag do botão "Próximo" são aplicadas ao lead sem conferir se pertencem à empresa do formulário | Quem conhece o id de uma tag de outra empresa consegue anexá-la a um lead pelo formulário público. Achado ao escrever os ports do módulo | Aberto. Preservado na migração (etapa 7); a corrigir na etapa 8 |
 
 Sobre a regra 18: `leads/create-lead-with-tags.ts` chama `logActivity` (cliente global) dentro da
 transação. O overview (§8, R3) afirma que isso causa espera circular e 500 por timeout. O teste de
