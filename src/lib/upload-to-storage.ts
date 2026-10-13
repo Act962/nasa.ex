@@ -2,6 +2,24 @@
 // direto via URL presignada; se falhar (CORS, rede), cai no upload pelo
 // servidor (`/api/s3/upload-direct`), com a mesma `key` de saída.
 
+// Tokens de exclusão dos arquivos enviados por esta aba. É o que permite a um
+// visitante sem sessão remover o arquivo que acabou de enviar.
+const deleteTokensByKey = new Map<string, string>();
+
+function rememberDeleteToken(key: string, deleteToken?: string | null) {
+  if (deleteToken) deleteTokensByKey.set(key, deleteToken);
+}
+
+export async function deleteFileFromStorage(key: string): Promise<Response> {
+  const response = await fetch("/api/s3/delete", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, deleteToken: deleteTokensByKey.get(key) }),
+  });
+  if (response.ok) deleteTokensByKey.delete(key);
+  return response;
+}
+
 export async function uploadFileToStorage(
   file: File,
   options: { isImage: boolean; onProgress?: (percent: number) => void },
@@ -26,7 +44,11 @@ export async function uploadFileToStorage(
     );
   }
 
-  const { presignedUrl, key } = (await presignedResponse.json()) as { presignedUrl: string; key: string };
+  const { presignedUrl, key, deleteToken } = (await presignedResponse.json()) as {
+    presignedUrl: string;
+    key: string;
+    deleteToken?: string | null;
+  };
 
   const isPresignedUploadOk = await new Promise<boolean>((resolve) => {
     const request = new XMLHttpRequest();
@@ -43,7 +65,10 @@ export async function uploadFileToStorage(
     request.setRequestHeader("Content-Type", file.type);
     request.send(file);
   });
-  if (isPresignedUploadOk) return key;
+  if (isPresignedUploadOk) {
+    rememberDeleteToken(key, deleteToken);
+    return key;
+  }
 
   options.onProgress?.(0);
   const formData = new FormData();
@@ -53,6 +78,7 @@ export async function uploadFileToStorage(
     const errorBody = await directResponse.json().catch(() => ({}));
     throw new Error(errorBody?.error ?? "Falha no upload server-side");
   }
-  const direct = (await directResponse.json()) as { key: string };
+  const direct = (await directResponse.json()) as { key: string; deleteToken?: string | null };
+  rememberDeleteToken(direct.key, direct.deleteToken);
   return direct.key;
 }

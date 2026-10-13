@@ -14,6 +14,7 @@ import z from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { S3 } from "@/lib/s3-client";
+import { createUploadDeleteToken, getUploadTokenSecret } from "@/lib/security/upload-delete-token";
 
 export const fileUploadSchema = z.object({
   filename: z.string().min(1, { message: "Filename is required" }),
@@ -83,6 +84,7 @@ export async function POST(req: Request) {
     const response = {
       presignedUrl,
       key: uniqueKey,
+      deleteToken: createUploadDeleteToken(uniqueKey, getUploadTokenSecret()),
     };
 
     return NextResponse.json(response);

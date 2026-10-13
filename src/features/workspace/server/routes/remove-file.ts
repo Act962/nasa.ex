@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { deleteStoredObject } from "@/lib/s3-client";
 import { logOrgActivity } from "@/features/admin/lib/org-activity-log";
 import { z } from "zod";
 
@@ -40,15 +41,7 @@ export const removeFileAction = base
         (att: any) => att.url !== attachmentId,
       );
 
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/s3/delete`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          key: attachmentId,
-        }),
-      });
+      await deleteStoredObject(attachmentId);
 
       const action = await prisma.action.update({
         where: { id: actionId },
