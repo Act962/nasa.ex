@@ -340,7 +340,7 @@ export const AI_RESOURCES: AiResource[] = [
     model: {
       kind: "cascade",
       options: [
-        { provider: "openai", modelId: "gpt-4o-mini" },
+        { provider: "openai", modelId: "gpt-4o" },
         { provider: "google", modelId: "gemini-2.5-flash-lite" },
         { provider: "anthropic", modelId: "claude-haiku-4-5" },
       ],

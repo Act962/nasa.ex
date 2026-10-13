@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash, randomInt } from "node:crypto";
+import { createHash } from "node:crypto";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { readAttachmentBytes } from "@/features/payment/server/documents/read-attachment-bytes";
@@ -7,58 +7,86 @@ import { SYSTEM_ACTOR } from "../actor";
 import { auditLoyaltyAction } from "../audit";
 import { getActiveProgram } from "../program";
 import {
+  RECEIPT_FLAGS,
   buildReceiptFingerprint,
-  computeLuckyNumbers,
-  formatLuckyCode,
+  correctMisreadYear,
   isIssuerAccepted,
   onlyDigits,
+  parseIssuedAt,
   receiptFlagsOf,
+  startOfBrasiliaDay,
   toAccessKey,
+  toValidCnpj,
 } from "../../utils/campaign";
 import type { ActiveCampaign } from "./campaign";
 import { extractReceipt } from "./extract-receipt";
+import { grantLuckyNumbers } from "./grant-lucky-numbers";
 
 // Registro de um cupom da campanha (spec 0102, RF-5 a RF-9). A ordem importa: o que dá para
 // recusar sem IA (repetição do arquivo, limite do dia) é conferido antes de gastar leitura.
 
-export type RegisterReceiptResult =
+type RejectReason = "unreadable" | "not_a_receipt" | "wrong_issuer" | "out_of_period";
+
+export type StoredReceiptResult =
   | { outcome: "accepted"; codes: string[]; totalCents: number; carryOverCents: number; isFlagged: boolean }
   | { outcome: "duplicate" }
-  | { outcome: "rejected"; reason: "unreadable" | "wrong_issuer" | "out_of_period" }
+  | { outcome: "rejected"; reason: RejectReason }
+  // A leitura automática não resolveu: o cupom espera a conferência da equipe (RF-15).
+  | { outcome: "pending_review" };
+
+export type RegisterReceiptResult =
+  | StoredReceiptResult
   | { outcome: "daily_limit" }
   | { outcome: "file_missing" }
   | { outcome: "try_later" }
-  | { outcome: "already_processed" };
+  // `stored` é o que foi decidido na primeira vez, para a resposta poder ser refeita se o envio falhou.
+  | { outcome: "already_processed"; stored: StoredReceiptResult };
 
 type ReceiptMessage = { id: string; fileKey: string | null; mimetype: string | null };
 
 const MAX_COMMIT_ATTEMPTS = 3;
-const LUCKY_CODE_SPACE = 1_000_000;
+type ReviewReadData = Pick<Prisma.LoyaltyReceiptUncheckedCreateInput, "issuerDocument" | "receiptNumber" | "issuedAt" | "rawExtraction">;
+// O limite do dia conta cupons aceitos. Este teto conta toda tentativa, e existe só para um
+// cliente não gastar leituras por IA sem parar com fotos que nunca passam.
+const ATTEMPTS_PER_ALLOWED_RECEIPT = 4;
+const REJECT_LABELS: Record<RejectReason, string> = {
+  unreadable: "Não foi possível ler o valor do cupom",
+  not_a_receipt: "A imagem não é um cupom de compra",
+  wrong_issuer: "Cupom de outro estabelecimento",
+  out_of_period: "Compra fora do período da campanha",
+};
 
-function startOfToday(): Date {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-function toIssuedDate(issuedAt: string | null): Date | null {
-  if (!issuedAt) return null;
-  // O horário impresso no cupom é o de Brasília.
-  const parsed = new Date(`${issuedAt.length === 10 ? `${issuedAt}T00:00` : issuedAt}:00-03:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-async function pickFreeLuckyCodes(tx: Prisma.TransactionClient, campaignId: string, quantity: number): Promise<string[]> {
-  const codes = new Set<string>();
-  while (codes.size < quantity) {
-    const candidates = Array.from({ length: quantity - codes.size }, () => formatLuckyCode(randomInt(LUCKY_CODE_SPACE)));
-    const takenCodes = await tx.loyaltyLuckyNumber.findMany({
-      where: { campaignId, code: { in: candidates } },
-      select: { code: true },
-    });
-    const taken = new Set(takenCodes.map((luckyNumber) => luckyNumber.code));
-    for (const candidate of candidates) if (!taken.has(candidate)) codes.add(candidate);
+async function findProcessedReceipt(messageId: string): Promise<StoredReceiptResult | null> {
+  const receipt = await prisma.loyaltyReceipt.findUnique({
+    where: { messageId },
+    select: {
+      status: true,
+      rejectReason: true,
+      totalCents: true,
+      isFlagged: true,
+      campaignId: true,
+      memberId: true,
+      luckyNumbers: { orderBy: { createdAt: "asc" }, select: { code: true } },
+    },
+  });
+  if (!receipt) return null;
+  if (receipt.status === "DUPLICATE") return { outcome: "duplicate" };
+  if (receipt.status === "PENDING_REVIEW") return { outcome: "pending_review" };
+  if (receipt.status === "REJECTED") {
+    const reason = (Object.keys(REJECT_LABELS) as RejectReason[]).find((candidate) => REJECT_LABELS[candidate] === receipt.rejectReason);
+    return { outcome: "rejected", reason: reason ?? "unreadable" };
   }
-  return [...codes];
+  const entry = await prisma.loyaltyCampaignEntry.findUnique({
+    where: { campaignId_memberId: { campaignId: receipt.campaignId, memberId: receipt.memberId } },
+    select: { carryOverCents: true },
+  });
+  return {
+    outcome: "accepted",
+    codes: receipt.luckyNumbers.map((luckyNumber) => luckyNumber.code),
+    totalCents: receipt.totalCents ?? 0,
+    carryOverCents: entry?.carryOverCents ?? 0,
+    isFlagged: receipt.isFlagged,
+  };
 }
 
 async function findAcceptedDuplicate(campaignId: string, keys: { fileSha256: string; accessKey: string | null; fingerprint: string | null }) {
@@ -78,13 +106,17 @@ export async function registerReceipt(params: {
   message: ReceiptMessage;
 }): Promise<RegisterReceiptResult> {
   const { campaign, message } = params;
-  const alreadyProcessed = await prisma.loyaltyReceipt.findUnique({ where: { messageId: message.id }, select: { id: true } });
-  if (alreadyProcessed) return { outcome: "already_processed" };
+  const alreadyProcessed = await findProcessedReceipt(message.id);
+  if (alreadyProcessed) return { outcome: "already_processed", stored: alreadyProcessed };
 
-  const receiptsToday = await prisma.loyaltyReceipt.count({
-    where: { campaignId: campaign.id, memberId: params.memberId, createdAt: { gte: startOfToday() } },
-  });
-  if (receiptsToday >= campaign.maxReceiptsPerDay) return { outcome: "daily_limit" };
+  const sentToday = { campaignId: campaign.id, memberId: params.memberId, createdAt: { gte: startOfBrasiliaDay(new Date()) } };
+  const [acceptedToday, attemptsToday] = await Promise.all([
+    prisma.loyaltyReceipt.count({ where: { ...sentToday, status: { in: ["ACCEPTED", "VOIDED", "PENDING_REVIEW"] } } }),
+    prisma.loyaltyReceipt.count({ where: sentToday }),
+  ]);
+  if (acceptedToday >= campaign.maxReceiptsPerDay || attemptsToday >= campaign.maxReceiptsPerDay * ATTEMPTS_PER_ALLOWED_RECEIPT) {
+    return { outcome: "daily_limit" };
+  }
 
   if (!message.fileKey) return { outcome: "file_missing" };
   const fileBytes = await readAttachmentBytes(message.fileKey).catch(() => null);
@@ -118,93 +150,99 @@ export async function registerReceipt(params: {
     fileBytes,
     mimetype: message.mimetype ?? "image/jpeg",
   });
-  if (!extracted.ok) return { outcome: extracted.reason === "unsupported" ? "file_missing" : "try_later" };
+  // Em conferência o arquivo já fica travado: reenviar a mesma foto não abre outra conferência.
+  const holdForReview = async (reviewReason: string, readData: ReviewReadData | null) => {
+    try {
+      await prisma.loyaltyReceipt.create({
+        data: { ...baseData, ...readData, fileSha256, status: "PENDING_REVIEW", isFlagged: true, flagReasons: [reviewReason] },
+      });
+    } catch (error) {
+      const isUniqueConflict = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+      if (!isUniqueConflict) throw error;
+      const savedMeanwhile = await findProcessedReceipt(message.id);
+      return savedMeanwhile ? { outcome: "already_processed" as const, stored: savedMeanwhile } : { outcome: "duplicate" as const };
+    }
+    return { outcome: "pending_review" as const };
+  };
+  if (!extracted.ok) {
+    if (extracted.reason === "unsupported") return { outcome: "file_missing" };
+    return holdForReview(RECEIPT_FLAGS.readerUnavailable, null);
+  }
 
-  const { reading, rawExtraction } = extracted;
-  const reject = async (reason: "unreadable" | "wrong_issuer" | "out_of_period", rejectReason: string) => {
-    await prisma.loyaltyReceipt.create({ data: { ...baseData, status: "REJECTED", rejectReason, rawExtraction: { fileSha256, ...rawExtraction } } });
+  const { rawExtraction } = extracted;
+  const readIssuedAt = parseIssuedAt(extracted.reading.issuedAt);
+  const correctedIssuedAt = readIssuedAt ? correctMisreadYear(readIssuedAt, campaign) : null;
+  const issuedAt = correctedIssuedAt ? parseIssuedAt(correctedIssuedAt) : readIssuedAt;
+  // Data que não deu para interpretar conta como não lida: o cupom entra com alerta, em vez de passar sem a conferência do período.
+  const reading = {
+    ...extracted.reading,
+    issuedAt: issuedAt ? (correctedIssuedAt ?? extracted.reading.issuedAt) : null,
+    issuerDocument: toValidCnpj(extracted.reading.issuerDocument),
+  };
+  const reject = async (reason: RejectReason) => {
+    await prisma.loyaltyReceipt.create({
+      data: { ...baseData, status: "REJECTED", rejectReason: REJECT_LABELS[reason], rawExtraction: { fileSha256, ...rawExtraction } },
+    });
     return { outcome: "rejected" as const, reason };
   };
-  if (!extracted.isReceipt || reading.totalCents === null || reading.totalCents <= 0) {
-    return reject("unreadable", "Não foi possível ler o valor do cupom");
-  }
+  if (!extracted.isReceipt) return reject("not_a_receipt");
   if (!isIssuerAccepted(reading.issuerDocument, campaign.issuerDocuments)) {
-    return reject("wrong_issuer", "Cupom de outro estabelecimento");
+    return reject("wrong_issuer");
   }
-  const issuedAt = toIssuedDate(reading.issuedAt);
   if (issuedAt && (issuedAt < campaign.startsAt || issuedAt > campaign.endsAt)) {
-    return reject("out_of_period", "Compra fora do período da campanha");
+    return reject("out_of_period");
+  }
+  // Sem o valor não há como calcular os números: quem confere a foto informa o total.
+  if (reading.totalCents === null || reading.totalCents <= 0) {
+    return holdForReview(RECEIPT_FLAGS.noTotal, {
+      issuerDocument: reading.issuerDocument,
+      receiptNumber: onlyDigits(reading.receiptNumber) || null,
+      issuedAt,
+      rawExtraction,
+    });
   }
 
   const totalCents = reading.totalCents;
   const accessKey = toAccessKey(reading.accessKey);
   const fingerprint = buildReceiptFingerprint(reading);
-  const flagReasons = receiptFlagsOf(reading);
+  const flagReasons = [...receiptFlagsOf(reading), ...(correctedIssuedAt ? [RECEIPT_FLAGS.yearCorrected] : [])];
   const program = await getActiveProgram(params.organizationId);
 
   for (let attempt = 1; attempt <= MAX_COMMIT_ATTEMPTS; attempt++) {
     // Reentrega do webhook que chegou durante a leitura: a outra execução já gravou esta mensagem.
-    const wasSavedMeanwhile = await prisma.loyaltyReceipt.findUnique({ where: { messageId: message.id }, select: { id: true } });
-    if (wasSavedMeanwhile) return { outcome: "already_processed" };
+    const wasSavedMeanwhile = await findProcessedReceipt(message.id);
+    if (wasSavedMeanwhile) return { outcome: "already_processed", stored: wasSavedMeanwhile };
     const duplicate = await findAcceptedDuplicate(campaign.id, { fileSha256, accessKey, fingerprint });
     if (duplicate) return recordDuplicate(duplicate.id, rawExtraction);
     try {
       const committed = await prisma.$transaction(async (tx) => {
-        // O incremento trava a linha do cadastro: dois cupons do mesmo cliente não calculam a sobra juntos.
-        const entry = await tx.loyaltyCampaignEntry.update({
-          where: { campaignId_memberId: { campaignId: campaign.id, memberId: params.memberId } },
-          data: { totalSpentCents: { increment: totalCents } },
-          select: { id: true, totalSpentCents: true },
-        });
-        const { numbers: quantity, carryOverCents } = computeLuckyNumbers({
-          carryOverCents: (entry.totalSpentCents - totalCents) % campaign.amountPerNumberCents,
+        return grantLuckyNumbers(tx, {
+          organizationId: params.organizationId,
+          campaign,
+          memberId: params.memberId,
+          leadId: params.leadId,
           totalCents,
-          amountPerNumberCents: campaign.amountPerNumberCents,
+          program,
+          saveReceipt: (numbersAwarded) =>
+            tx.loyaltyReceipt.create({
+              data: {
+                ...baseData,
+                fileSha256,
+                accessKey,
+                fingerprint,
+                issuerDocument: reading.issuerDocument,
+                receiptNumber: onlyDigits(reading.receiptNumber) || null,
+                issuedAt,
+                totalCents,
+                status: "ACCEPTED",
+                isFlagged: flagReasons.length > 0,
+                flagReasons,
+                numbersAwarded,
+                rawExtraction,
+              },
+              select: { id: true },
+            }),
         });
-        await tx.loyaltyCampaignEntry.update({ where: { id: entry.id }, data: { carryOverCents } });
-
-        const receipt = await tx.loyaltyReceipt.create({
-          data: {
-            ...baseData,
-            fileSha256,
-            accessKey,
-            fingerprint,
-            issuerDocument: onlyDigits(reading.issuerDocument) || null,
-            receiptNumber: onlyDigits(reading.receiptNumber) || null,
-            issuedAt,
-            totalCents,
-            status: "ACCEPTED",
-            isFlagged: flagReasons.length > 0,
-            flagReasons,
-            numbersAwarded: quantity,
-            rawExtraction,
-          },
-          select: { id: true },
-        });
-        const codes = quantity > 0 ? await pickFreeLuckyCodes(tx, campaign.id, quantity) : [];
-        if (codes.length > 0) {
-          await tx.loyaltyLuckyNumber.createMany({
-            data: codes.map((code) => ({ campaignId: campaign.id, memberId: params.memberId, receiptId: receipt.id, code })),
-          });
-        }
-        if (program && quantity > 0) {
-          await tx.loyaltyLedgerEntry.create({
-            data: {
-              organizationId: params.organizationId,
-              memberId: params.memberId,
-              leadId: params.leadId,
-              type: "EARN",
-              stars: quantity,
-              source: "CAMPAIGN_RECEIPT",
-              sourceId: receipt.id,
-              itemsSnapshot: { purchase: campaign.name, amount: totalCents / 100, items: [] },
-              actorType: SYSTEM_ACTOR.type,
-              actorName: SYSTEM_ACTOR.name,
-              expiresAt: program.starsExpireDays ? new Date(Date.now() + program.starsExpireDays * 24 * 60 * 60 * 1000) : null,
-            },
-          });
-        }
-        return { receiptId: receipt.id, codes, carryOverCents };
       });
 
       await auditLoyaltyAction({

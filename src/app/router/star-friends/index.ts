@@ -15,6 +15,7 @@ import {
   exportStarFriendsCampaignNumbers,
   getStarFriendsCampaign,
   listStarFriendsCampaignReceipts,
+  reviewStarFriendsCampaignReceipt,
   sweepStarFriendsCampaign,
   upsertStarFriendsCampaign,
 } from "./campaign";
@@ -38,6 +39,7 @@ export const starFriendsRouter = {
     get: getStarFriendsCampaign,
     upsert: upsertStarFriendsCampaign,
     receipts: listStarFriendsCampaignReceipts,
+    reviewReceipt: reviewStarFriendsCampaignReceipt,
     exportNumbers: exportStarFriendsCampaignNumbers,
     sweep: sweepStarFriendsCampaign,
     draw: drawStarFriendsCampaign,

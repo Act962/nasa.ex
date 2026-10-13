@@ -1,7 +1,7 @@
 import { orpc } from "@/lib/orpc";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export type CampaignReceiptFilter = "ALL" | "ACCEPTED" | "FLAGGED" | "DUPLICATE" | "REJECTED" | "VOIDED";
+export type CampaignReceiptFilter = "ALL" | "PENDING_REVIEW" | "ACCEPTED" | "FLAGGED" | "DUPLICATE" | "REJECTED" | "VOIDED";
 
 function useInvalidateStarFriends() {
   const queryClient = useQueryClient();
@@ -32,6 +32,11 @@ export function useExportStarFriendsCampaignNumbers() {
   return useMutation({
     mutationFn: (campaignId: string) => orpc.starFriends.campaign.exportNumbers.call({ campaignId }),
   });
+}
+
+export function useReviewStarFriendsCampaignReceipt() {
+  const invalidate = useInvalidateStarFriends();
+  return useMutation(orpc.starFriends.campaign.reviewReceipt.mutationOptions({ onSuccess: invalidate }));
 }
 
 export function useSweepStarFriendsCampaign() {

@@ -731,6 +731,10 @@ export const GUIDE_ANCHORS = {
     id: "star-friends.campaign-save",
     description: "Botão \"Salvar campanha\"",
   },
+  starFriendsCampaignReviewApprove: {
+    id: "star-friends.campaign-review-approve",
+    description: "Botão \"Aprovar\" do cupom em conferência",
+  },
   starFriendsNewReward: {
     id: "star-friends.new-reward",
     description: "Botão \"Novo prêmio\"",
