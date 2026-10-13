@@ -12,6 +12,7 @@
 import { nanoid } from "nanoid";
 import type { ElementBase, PageIntent } from "../types";
 import { MENTORIA_LIFTBUMBUM_TOKENS, mentoriaLiftbumbumElements } from "./templates/mentoria-liftbumbum";
+import { CAMPANHA_SORTEIO_TOKENS, campanhaSorteioElements } from "./templates/campanha-sorteio";
 
 export interface PageTemplate {
   /** Slug estável — usado no link e analytics. */
@@ -1458,6 +1459,16 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
     category: "Sales",
     tokens: MENTORIA_LIFTBUMBUM_TOKENS,
     elements: mentoriaLiftbumbumElements(),
+  },
+  {
+    id: "campanha-sorteio",
+    name: "Campanha de sorteio — Comprou, Participou",
+    description:
+      "Página de promoção com sorteio por cupom atendida pelo WhatsApp: chamada, como participar em 3 passos, tabela de números por valor, regulamento em perguntas e botão para enviar o cupom. Combina com a campanha do STAR FRIENDS.",
+    intent: "LANDING",
+    category: "Sales",
+    tokens: CAMPANHA_SORTEIO_TOKENS,
+    elements: campanhaSorteioElements(),
   },
   {
     id: "aulao-liftbumbum-pos-pmma",

@@ -331,6 +331,25 @@ export const AI_RESOURCES: AiResource[] = [
     settingsPlace: "satellites",
   },
   {
+    id: "star-friends.receipt",
+    app: "STAR FRIENDS",
+    label: "Ler cupom da campanha de sorteio",
+    description: "Tirar valor, data e número do cupom que o cliente envia pelo WhatsApp.",
+    kind: "text",
+    keyRule: "company-then-platform",
+    model: {
+      kind: "cascade",
+      options: [
+        { provider: "openai", modelId: "gpt-4o-mini" },
+        { provider: "google", modelId: "gemini-2.5-flash-lite" },
+        { provider: "anthropic", modelId: "claude-haiku-4-5" },
+      ],
+    },
+    usageFeatures: ["star-friends.receipt"],
+    usageActions: ["ai_vision_analyzed"],
+    settingsPlace: "satellites",
+  },
+  {
     id: "finance.budget",
     app: "Financeiro",
     label: "Extrair orçamento de um documento",

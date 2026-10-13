@@ -324,6 +324,7 @@ model Organization {
   loyaltyProgram         LoyaltyProgram?
   loyaltyRewards         LoyaltyReward[]
   loyaltyMembers         LoyaltyMember[]
+  loyaltyCampaigns       LoyaltyCampaign[]
   forgeProducts          ForgeProduct[]
   forgeProposals         ForgeProposal[]
   forgeContracts         ForgeContract[]
@@ -3505,6 +3506,7 @@ enum LoyaltyLedgerSource {
   FORGE_PROPOSAL
   MANUAL
   REDEMPTION
+  CAMPAIGN_RECEIPT
 }
 
 enum LoyaltyActorType {
@@ -3586,8 +3588,11 @@ model LoyaltyMember {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  entries      LoyaltyLedgerEntry[]
-  redemptions  LoyaltyRedemption[]
+  entries         LoyaltyLedgerEntry[]
+  redemptions     LoyaltyRedemption[]
+  campaignEntries LoyaltyCampaignEntry[]
+  receipts        LoyaltyReceipt[]
+  luckyNumbers    LoyaltyLuckyNumber[]
 
   @@unique([organizationId, phone])
   @@map("loyalty_members")
@@ -3649,6 +3654,130 @@ model LoyaltyRedemption {
   @@index([organizationId, status])
   @@index([memberId])
   @@map("loyalty_redemptions")
+}
+
+// Campanha de sorteio por cupom (spec 0102). O cliente manda a foto do cupom
+// pelo WhatsApp e ganha números da sorte. Doc: docs/star-friends.md
+enum LoyaltyReceiptStatus {
+  ACCEPTED
+  DUPLICATE
+  REJECTED
+  VOIDED
+}
+
+enum LoyaltyLuckyNumberStatus {
+  VALID
+  VOIDED
+}
+
+model LoyaltyCampaign {
+  id                    String    @id @default(cuid())
+  organizationId        String    @map("organization_id")
+  trackingId            String?   @map("tracking_id")
+  name                  String
+  isActive              Boolean   @default(false) @map("is_active")
+  startsAt              DateTime  @map("starts_at")
+  endsAt                DateTime  @map("ends_at")
+  amountPerNumberCents  Int       @default(10000) @map("amount_per_number_cents")
+  issuerDocuments       String[]  @default([]) @map("issuer_documents")
+  rulesSummary          String    @map("rules_summary")
+  rulesUrl              String?   @map("rules_url")
+  rulesVersion          String    @map("rules_version")
+  maxReceiptsPerDay     Int       @default(5) @map("max_receipts_per_day")
+  lastSweepAt           DateTime? @map("last_sweep_at")
+  drawnAt               DateTime? @map("drawn_at")
+  drawSeed              String?   @map("draw_seed")
+  winnerNumberId        String?   @map("winner_number_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entries      LoyaltyCampaignEntry[]
+  receipts     LoyaltyReceipt[]
+  luckyNumbers LoyaltyLuckyNumber[]
+
+  @@index([organizationId, isActive])
+  @@map("loyalty_campaigns")
+}
+
+model LoyaltyCampaignEntry {
+  id                   String   @id @default(cuid())
+  campaignId           String   @map("campaign_id")
+  memberId             String   @map("member_id")
+  registeredPhone      String   @map("registered_phone")
+  acceptedRulesVersion String   @map("accepted_rules_version")
+  acceptedAt           DateTime @default(now()) @map("accepted_at")
+  carryOverCents       Int      @default(0) @map("carry_over_cents")
+  totalSpentCents      Int      @default(0) @map("total_spent_cents")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  campaign LoyaltyCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  member   LoyaltyMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, memberId])
+  @@map("loyalty_campaign_entries")
+}
+
+// `fileSha256`, `accessKey` e `fingerprint` só ficam preenchidos em cupom aceito:
+// os índices únicos são a trava contra dois envios simultâneos do mesmo cupom.
+model LoyaltyReceipt {
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  campaignId     String               @map("campaign_id")
+  memberId       String               @map("member_id")
+  leadId         String?              @map("lead_id")
+  messageId      String               @unique @map("message_id")
+  fileKey        String?              @map("file_key")
+  mimetype       String?
+  fileSize       Int?                 @map("file_size")
+  fileSha256     String?              @map("file_sha256")
+  accessKey      String?              @map("access_key")
+  fingerprint    String?
+  issuerDocument String?              @map("issuer_document")
+  receiptNumber  String?              @map("receipt_number")
+  issuedAt       DateTime?            @map("issued_at")
+  totalCents     Int?                 @map("total_cents")
+  status         LoyaltyReceiptStatus
+  isFlagged      Boolean              @default(false) @map("is_flagged")
+  flagReasons    String[]             @default([]) @map("flag_reasons")
+  rejectReason   String?              @map("reject_reason")
+  duplicateOfId  String?              @map("duplicate_of_id")
+  numbersAwarded Int                  @default(0) @map("numbers_awarded")
+  rawExtraction  Json?                @map("raw_extraction")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  campaign     LoyaltyCampaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  member       LoyaltyMember        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  luckyNumbers LoyaltyLuckyNumber[]
+
+  @@unique([campaignId, fileSha256])
+  @@unique([campaignId, accessKey])
+  @@unique([campaignId, fingerprint])
+  @@index([campaignId, status, createdAt])
+  @@index([memberId, createdAt])
+  @@map("loyalty_receipts")
+}
+
+model LoyaltyLuckyNumber {
+  id         String                   @id @default(cuid())
+  campaignId String                   @map("campaign_id")
+  memberId   String                   @map("member_id")
+  receiptId  String                   @map("receipt_id")
+  code       String
+  status     LoyaltyLuckyNumberStatus @default(VALID)
+  voidReason String?                  @map("void_reason")
+  createdAt  DateTime                 @default(now()) @map("created_at")
+
+  campaign LoyaltyCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  member   LoyaltyMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  receipt  LoyaltyReceipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, code])
+  @@index([campaignId, status])
+  @@index([memberId])
+  @@map("loyalty_lucky_numbers")
 }
 
 // ─────────────────────────────────────────────

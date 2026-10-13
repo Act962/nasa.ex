@@ -10,6 +10,14 @@ import {
   requestStarFriendsRedemption,
 } from "./redemptions";
 import { adjustStarFriendsStars, getStarFriendsByLead } from "./by-lead";
+import {
+  drawStarFriendsCampaign,
+  exportStarFriendsCampaignNumbers,
+  getStarFriendsCampaign,
+  listStarFriendsCampaignReceipts,
+  sweepStarFriendsCampaign,
+  upsertStarFriendsCampaign,
+} from "./campaign";
 
 export const starFriendsRouter = {
   overview: getStarFriendsOverview,
@@ -26,4 +34,12 @@ export const starFriendsRouter = {
   },
   byLead: getStarFriendsByLead,
   adjust: adjustStarFriendsStars,
+  campaign: {
+    get: getStarFriendsCampaign,
+    upsert: upsertStarFriendsCampaign,
+    receipts: listStarFriendsCampaignReceipts,
+    exportNumbers: exportStarFriendsCampaignNumbers,
+    sweep: sweepStarFriendsCampaign,
+    draw: drawStarFriendsCampaign,
+  },
 };

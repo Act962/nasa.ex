@@ -723,6 +723,14 @@ export const GUIDE_ANCHORS = {
     id: "star-friends.rewards-tab",
     description: "Aba \"Cartões e prêmios\" do STAR FRIENDS",
   },
+  starFriendsCampaignTab: {
+    id: "star-friends.campaign-tab",
+    description: "Aba \"Campanha\" do STAR FRIENDS (sorteio por cupom)",
+  },
+  starFriendsCampaignSave: {
+    id: "star-friends.campaign-save",
+    description: "Botão \"Salvar campanha\"",
+  },
   starFriendsNewReward: {
     id: "star-friends.new-reward",
     description: "Botão \"Novo prêmio\"",

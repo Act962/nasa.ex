@@ -14,6 +14,7 @@ import { InstallStarFriends } from "./install-star-friends";
 import { useStarFriendsPermissions } from "../hooks/use-star-friends-permissions";
 import { ProgramSettingsForm } from "./program-settings-form";
 import { RewardsManager } from "./rewards-manager";
+import { CampaignManager } from "./campaign-manager";
 import { MembersList } from "./members-list";
 import { RedemptionsQueue } from "./redemptions-queue";
 import { HistoryAudit } from "./history-audit";
@@ -119,6 +120,9 @@ export function StarFriendsPage() {
             <TabsTrigger value="rewards" data-guide={GUIDE_ANCHORS.starFriendsRewardsTab.id}>
               Cartões e prêmios
             </TabsTrigger>
+            <TabsTrigger value="campaign" data-guide={GUIDE_ANCHORS.starFriendsCampaignTab.id}>
+              Campanha
+            </TabsTrigger>
             <TabsTrigger value="members">Participantes</TabsTrigger>
             <TabsTrigger value="history">Histórico</TabsTrigger>
             <TabsTrigger value="tiers">Níveis e regras</TabsTrigger>
@@ -136,6 +140,9 @@ export function StarFriendsPage() {
         </TabsContent>
         <TabsContent value="rewards" className="pt-4">
           <RewardsManager canEdit={permissions.canConfigure} />
+        </TabsContent>
+        <TabsContent value="campaign" className="pt-4">
+          <CampaignManager canEdit={permissions.canConfigure} canApprove={permissions.canApproveRedemptions} />
         </TabsContent>
         <TabsContent value="members" className="pt-4">
           <MembersList
