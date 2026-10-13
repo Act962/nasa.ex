@@ -5,6 +5,38 @@ import { GUIDE_RESULT_KINDS } from "../result-kinds";
 
 export const ENGAGEMENT_GUIDES: GuideDef[] = [
   {
+    key: "star-friends.create-campaign",
+    app: "star-friends",
+    title: "Criar uma campanha de sorteio no STAR FRIENDS",
+    summary: "O cliente manda o cupom pelo WhatsApp e ganha números da sorte.",
+    topicPattern: /\b(cri\w*|mont\w*|configur\w*|fac\w*|faz\w*|nov[ao]s?)\b.*\b(sorteios?|campanha de (sorteio|cupom|aniversario)|numeros? da sorte|cupom fiscal)\b/,
+    steps: [
+      {
+        anchor: "starFriendsCampaignTab",
+        route: "/star-friends",
+        title: "Abra a aba Campanha",
+        message: "Aqui ficam a configuração, os cupons recebidos e o sorteio.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage:
+          "O STAR FRIENDS ainda não está instalado nesta empresa. Instale na própria tela do app e me peça de novo.",
+      },
+      {
+        anchor: "starFriendsCampaignSave",
+        title: "Preencha e salve",
+        message: "Informe nome, período, valor por número, CNPJ da loja e o resumo das regras. Depois clique em Salvar campanha.",
+        position: "top",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.loyaltyCampaignSaved,
+        missingMessage: "Seu papel não pode configurar a campanha. Peça a quem administra o STAR FRIENDS.",
+      },
+    ],
+    finish: {
+      title: "Campanha salva! 🎟️",
+      message: "Com ela ativa, inclua a opção da promoção no menu do atendimento. Antes de sortear, faça a varredura de duplicados.",
+    },
+  },
+  {
     key: "star-friends.create-reward",
     app: "star-friends",
     title: "Criar um prêmio no STAR FRIENDS",

@@ -30,6 +30,7 @@
  *  - Sem `generate_mp3` (Meta entrega áudio em `.ogg` opus; UI já toca).
  */
 import "server-only";
+import { createHash } from "node:crypto";
 
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
@@ -134,6 +135,11 @@ export function buildMetaDownloadInboundMedia(
         key,
         mimetype,
         fileName: canonical.fileName ?? null,
+        fileIdentity: {
+          sha256: createHash("sha256").update(downloaded.buffer).digest("hex"),
+          fileSize: downloaded.buffer.length,
+          mediaId,
+        },
       };
     } catch (error) {
       console.error("[meta-strategies] download_media_failed", error);

@@ -93,6 +93,8 @@ export interface InboundMediaUpload {
   readonly key: string;
   readonly mimetype: string;
   readonly fileName?: string | null;
+  /** O que identifica o arquivo (spec 0102, RF-13): usado para barrar o mesmo arquivo reenviado. */
+  readonly fileIdentity?: { sha256: string; fileSize: number; mediaId: string | null };
 }
 
 export type FetchProfilePicture = (
@@ -704,6 +706,7 @@ async function persistMedia(
       mediaUrl: upload?.key ?? null,
       mimetype: upload?.mimetype ?? canonical.mimetype ?? null,
       fileName: upload?.fileName ?? canonical.fileName ?? null,
+      ...(upload?.fileIdentity ? { metadata: { mediaFile: upload.fileIdentity } } : {}),
     },
     include: messageInclude,
   });

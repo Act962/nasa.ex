@@ -34,6 +34,7 @@ export const GUIDE_RESULT_KINDS = {
   lessonCreated: "route.lesson-created",
   stationSaved: "station.saved",
   rewardSaved: "star-friends.reward-saved",
+  loyaltyCampaignSaved: "loyalty-campaign-saved",
   reportSaved: "insights.report-saved",
   instagramConnected: "comments.instagram-connected",
   commentAutomationCreated: "comments.automation-created",
