@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatCents } from "../utils/campaign";
 import { useStarFriendsCampaignReceipts, type CampaignReceiptFilter } from "../hooks/use-star-friends-campaign";
+import { CampaignReceiptReview } from "./campaign-receipt-review";
 
 const FILTERS: { value: CampaignReceiptFilter; label: string }[] = [
   { value: "ALL", label: "Todos" },
+  { value: "PENDING_REVIEW", label: "Em conferência" },
   { value: "ACCEPTED", label: "Aceitos" },
   { value: "FLAGGED", label: "Com alerta" },
   { value: "DUPLICATE", label: "Repetidos" },
@@ -18,16 +20,18 @@ const FILTERS: { value: CampaignReceiptFilter; label: string }[] = [
   { value: "VOIDED", label: "Anulados" },
 ];
 
-const STATUS_LABELS = { ACCEPTED: "Aceito", DUPLICATE: "Repetido", REJECTED: "Recusado", VOIDED: "Anulado" } as const;
+const STATUS_LABELS = { ACCEPTED: "Aceito", DUPLICATE: "Repetido", REJECTED: "Recusado", VOIDED: "Anulado", PENDING_REVIEW: "Em conferência" } as const;
 const STATUS_STYLES = {
   ACCEPTED: "bg-success/15 text-success",
   DUPLICATE: "bg-warning/15 text-warning",
   REJECTED: "bg-destructive/15 text-destructive",
   VOIDED: "bg-muted text-muted-foreground",
+  PENDING_REVIEW: "bg-warning/15 text-warning",
 } as const;
 
-export function CampaignReceipts({ campaignId }: { campaignId: string }) {
-  const [filter, setFilter] = useState<CampaignReceiptFilter>("ALL");
+export function CampaignReceipts({ campaignId, canReview, pendingReceipts }: { campaignId: string; canReview: boolean; pendingReceipts: number }) {
+  // Com cupom esperando conferência, a lista já abre neles: é o que pede ação.
+  const [filter, setFilter] = useState<CampaignReceiptFilter>(pendingReceipts > 0 ? "PENDING_REVIEW" : "ALL");
   const receiptsQuery = useStarFriendsCampaignReceipts(campaignId, filter);
   const receipts = receiptsQuery.data?.pages.flatMap((page) => page.receipts) ?? [];
 
@@ -43,6 +47,7 @@ export function CampaignReceipts({ campaignId }: { campaignId: string }) {
             onClick={() => setFilter(option.value)}
           >
             {option.label}
+            {option.value === "PENDING_REVIEW" && pendingReceipts > 0 ? ` (${pendingReceipts})` : ""}
           </Button>
         ))}
       </div>
@@ -98,6 +103,12 @@ export function CampaignReceipts({ campaignId }: { campaignId: string }) {
                   <AlertTriangle className="mt-0.5 size-3 shrink-0" /> {receipt.flagReasons.join(" · ")}
                 </span>
               )}
+              {receipt.status === "PENDING_REVIEW" &&
+                (canReview ? (
+                  <CampaignReceiptReview receipt={receipt} />
+                ) : (
+                  <span className="text-xs text-muted-foreground">Aguardando a conferência de quem pode aprovar.</span>
+                ))}
             </div>
           </li>
         ))}

@@ -6,12 +6,17 @@
 import {
   buildReceiptFingerprint,
   computeLuckyNumbers,
+  correctMisreadYear,
   findReceiptsToVoid,
   isIssuerAccepted,
   isSamePhone,
+  parseIssuedAt,
   receiptFlagsOf,
+  startOfBrasiliaDay,
+  toBrasiliaDay,
   rulesVersionOf,
   toAccessKey,
+  toValidCnpj,
   type ReceiptReading,
 } from "../src/features/star-friends/utils/campaign";
 
@@ -47,7 +52,14 @@ check(
 );
 check("CA-3 impressão digital muda quando o total muda", buildReceiptFingerprint(reading()) !== buildReceiptFingerprint(reading({ totalCents: 15_001 })));
 check("RF-6 sem número do cupom não há impressão digital (fica para a varredura)", buildReceiptFingerprint(reading({ receiptNumber: null })) === null);
-check("RF-6 chave de acesso só vale com 44 dígitos", toAccessKey("1234") === null && toAccessKey("3".repeat(44)) === "3".repeat(44));
+const printedAccessKey = "2226 1023 1985 2200 0145 6500 3000 0335 1298 0950 0664";
+check("RF-6 chave de acesso só vale com 44 dígitos e verificador certo", toAccessKey("1234") === null && toAccessKey(printedAccessKey)?.length === 44);
+check("RF-6 chave de acesso com um dígito trocado não vale", toAccessKey(printedAccessKey.replace("1985", "1986")) === null);
+check("RF-9 CNPJ com verificador certo é aceito como lido", toValidCnpj("23.198.522/0001-45") === "23198522000145");
+check(
+  "RF-9 CNPJ com dígito trocado ou engolido conta como não lido",
+  toValidCnpj("23198522000148") === null && toValidCnpj("2319852200145") === null && toValidCnpj("231988522000145") === null,
+);
 
 // CA-4: dois cupons sem número, mesmo emissor, minuto e total → o mais novo é anulado.
 const issuedAt = new Date("2026-10-20T17:32:00Z");
@@ -76,6 +88,25 @@ const sweepDistinct = findReceiptsToVoid([
   { id: "numbered-b", issuerDocument: "12345678000190", receiptNumber: "11", issuedAt, totalCents: 8_000 },
 ]);
 check("RF-10 mesmo total em horas diferentes, ou com números de cupom diferentes, não é anulado", sweepDistinct.size === 0);
+
+const sweepLeadingZeros = findReceiptsToVoid([
+  { id: "padded", issuerDocument: "12345678000190", receiptNumber: "000123", issuedAt, totalCents: 15_000 },
+  { id: "plain", issuerDocument: "12345678000190", receiptNumber: "123", issuedAt: null, totalCents: 15_100 },
+]);
+check("RF-10 zeros à esquerda não fazem o mesmo número de cupom parecer outro", sweepLeadingZeros.get("plain") === "padded");
+
+// CA-7 e CA-10: datas no horário de Brasília, com o servidor em UTC.
+check("CA-7 data do cupom com segundos é interpretada", parseIssuedAt("2026-10-20T14:32:05")?.toISOString() === "2026-10-20T17:32:00.000Z");
+check("CA-7 data do cupom sem hora vale como início do dia em Brasília", parseIssuedAt("2026-10-20")?.toISOString() === "2026-10-20T03:00:00.000Z");
+check("CA-7 data ilegível não vira data", parseIssuedAt("20/10/2026") === null && parseIssuedAt(null) === null);
+check("CA-10 o dia do limite vira à meia-noite de Brasília, não às 21h", startOfBrasiliaDay(new Date("2026-10-21T01:30:00Z")).toISOString() === "2026-10-20T03:00:00.000Z");
+check("RF-1 fim da campanha (23:59 de Brasília) aparece no mesmo dia na tela", toBrasiliaDay(new Date("2026-10-31T23:59:59-03:00")) === "2026-10-31");
+
+// CB-17: a leitura erra o ano e acerta o dia.
+const campaignPeriod = { startsAt: new Date("2026-10-12T03:00:00Z"), endsAt: new Date("2026-11-07T02:59:59Z") };
+check("CB-17 ano lido errado (2023) com dia dentro do período é corrigido", correctMisreadYear(new Date("2023-10-13T03:00:00Z"), campaignPeriod) === "2026-10-13T00:00");
+check("CB-17 data dentro do período não é mexida", correctMisreadYear(new Date("2026-10-13T19:35:00Z"), campaignPeriod) === null);
+check("CA-7 dia fora do período continua fora, em qualquer ano", correctMisreadYear(new Date("2026-09-30T15:00:00Z"), campaignPeriod) === null);
 
 // CA-5 e CB-8: o número digitado só é comparado com o de quem escreve.
 check("CA-5 número diferente é recusado", !isSamePhone("86 99999-0000", "558698221810"));

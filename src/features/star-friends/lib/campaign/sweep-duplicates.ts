@@ -20,16 +20,18 @@ export async function sweepCampaignDuplicates(params: { organizationId: string; 
   if (campaign.drawnAt) return { ok: false as const, reason: "already_drawn" as const };
 
   const sweptAt = new Date();
-  const receipts = await prisma.loyaltyReceipt.findMany({
-    where: { campaignId: campaign.id, status: "ACCEPTED", createdAt: { lte: sweptAt } },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, memberId: true, issuerDocument: true, receiptNumber: true, issuedAt: true, totalCents: true, numbersAwarded: true },
-  });
-  const duplicateOfByReceipt = findReceiptsToVoid(receipts);
-  const voidedReceipts = receipts.filter((receipt) => duplicateOfByReceipt.has(receipt.id));
-  const affectedMemberIds = [...new Set(voidedReceipts.map((receipt) => receipt.memberId))];
-
-  const voidedNumbers = await prisma.$transaction(async (tx) => {
+  const swept = await prisma.$transaction(async (tx) => {
+    // Primeira escrita, para travar a linha da campanha: a aprovação de cupom em conferência trava a
+    // mesma linha, então a lista abaixo já inclui o cupom aprovado, ou a aprovação zera esta marca depois.
+    await tx.loyaltyCampaign.update({ where: { id: campaign.id }, data: { lastSweepAt: sweptAt } });
+    const receipts = await tx.loyaltyReceipt.findMany({
+      where: { campaignId: campaign.id, status: "ACCEPTED", createdAt: { lte: sweptAt } },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, memberId: true, issuerDocument: true, receiptNumber: true, issuedAt: true, totalCents: true, numbersAwarded: true },
+    });
+    const duplicateOfByReceipt = findReceiptsToVoid(receipts);
+    const voidedReceipts = receipts.filter((receipt) => duplicateOfByReceipt.has(receipt.id));
+    const affectedMemberIds = [...new Set(voidedReceipts.map((receipt) => receipt.memberId))];
     let voidedCount = 0;
     for (const receipt of voidedReceipts) {
       await tx.loyaltyReceipt.update({
@@ -70,17 +72,16 @@ export async function sweepCampaignDuplicates(params: { organizationId: string; 
         data: { totalSpentCents: validTotalCents, carryOverCents: validTotalCents % campaign.amountPerNumberCents },
       });
     }
-    await tx.loyaltyCampaign.update({ where: { id: campaign.id }, data: { lastSweepAt: sweptAt } });
-    return voidedCount;
+    return { receiptsChecked: receipts.length, receiptsVoided: voidedReceipts.length, numbersVoided: voidedCount };
   });
 
   await auditLoyaltyAction({
     organizationId: params.organizationId,
     actor: params.actor,
     action: "campaign.sweep",
-    actionLabel: `${campaign.name}: varredura anulou ${voidedReceipts.length} cupom(ns) e ${voidedNumbers} número(s)`,
+    actionLabel: `${campaign.name}: varredura anulou ${swept.receiptsVoided} cupom(ns) e ${swept.numbersVoided} número(s)`,
     resourceId: campaign.id,
-    metadata: { receiptsChecked: receipts.length, receiptsVoided: voidedReceipts.length, numbersVoided: voidedNumbers },
+    metadata: swept,
   });
-  return { ok: true as const, receiptsChecked: receipts.length, receiptsVoided: voidedReceipts.length, numbersVoided: voidedNumbers };
+  return { ok: true as const, ...swept };
 }

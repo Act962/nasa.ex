@@ -16,6 +16,7 @@ import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 import { emitTourResult } from "@/features/tour/store";
 import { useUpsertStarFriendsCampaign } from "../hooks/use-star-friends-campaign";
+import { toBrasiliaDay } from "../utils/campaign";
 
 const ANY_FUNNEL = "any";
 
@@ -51,8 +52,9 @@ export type CampaignFormSource = {
 const DEFAULT_RULES =
   "A cada R$ 100,00 em compras você ganha 1 número da sorte. Envie a foto do cupom por aqui. Cada cupom vale uma vez só e os cupons são conferidos antes do sorteio: cupom repetido ou irregular tem os números cancelados.";
 
+// O fim é gravado como 23:59 de Brasília, que em UTC já é o dia seguinte.
 function toDateInput(value: Date | string): string {
-  return new Date(value).toISOString().slice(0, 10);
+  return toBrasiliaDay(new Date(value));
 }
 
 function toValues(campaign: CampaignFormSource | null): CampaignValues {

@@ -28,6 +28,12 @@ export async function drawCampaignWinner(params: { organizationId: string; campa
   });
   if (receiptAfterSweep) return { ok: false as const, reason: "sweep_required" as const };
 
+  const receiptInReview = await prisma.loyaltyReceipt.findFirst({
+    where: { campaignId: campaign.id, status: "PENDING_REVIEW" },
+    select: { id: true },
+  });
+  if (receiptInReview) return { ok: false as const, reason: "pending_review" as const };
+
   const validNumbers = await prisma.loyaltyLuckyNumber.findMany({
     where: { campaignId: campaign.id, status: "VALID" },
     orderBy: { code: "asc" },

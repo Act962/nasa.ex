@@ -12,6 +12,7 @@ import {
   type ActiveCampaign,
 } from "@/features/star-friends/lib/campaign/campaign";
 import { registerReceipt, type RegisterReceiptResult } from "@/features/star-friends/lib/campaign/register-receipt";
+import { findMemberForLead } from "@/features/star-friends/lib/members";
 import { formatCents, isSamePhone } from "@/features/star-friends/utils/campaign";
 import { sendCodedReply, type CodedReplyOption } from "./coded-reply";
 import type { AgentContext } from "./context";
@@ -29,6 +30,7 @@ const SAYS_YES = /^(sim|aceito|aceitar|concordo|ok|pode|1)[\s!.]*$/;
 const SAYS_NO = /^(nao|nao aceito|recuso|2)[\s!.]*$/;
 const VALID_NAME = /^[\p{L}][\p{L}\s.'-]{1,59}$/u;
 const MAX_CODES_IN_MESSAGE = 60;
+const MAX_RECEIPTS_PER_REPLY = 10;
 
 type AwaitingStep = "name" | "consent" | "receipt" | "phone_points" | "phone_codes";
 type CampaignAwaiting = { step: AwaitingStep; campaignId: string; expiresAt: string; customerName?: string };
@@ -52,6 +54,31 @@ function awaitingMetadata(step: AwaitingStep, campaign: ActiveCampaign, customer
   return { [AWAITING_KEY]: { step, campaignId: campaign.id, expiresAt, ...(customerName ? { customerName } : {}) } };
 }
 
+/** Foto ou PDF que pode ser um cupom. Figurinha (webp) fica de fora. */
+function isReceiptFile(message: { mediaUrl: string | null; mimetype: string | null }): boolean {
+  const mimetype = message.mimetype ?? "";
+  if (!message.mediaUrl || mimetype.includes("webp")) return false;
+  return mimetype.startsWith("image/") || mimetype.includes("pdf");
+}
+
+async function isRegisteredInCampaign(organizationId: string, campaignId: string, leadId: string): Promise<boolean> {
+  const member = await findMemberForLead(organizationId, leadId);
+  if (!member) return false;
+  const entry = await prisma.loyaltyCampaignEntry.findUnique({
+    where: { campaignId_memberId: { campaignId, memberId: member.id } },
+    select: { id: true },
+  });
+  return Boolean(entry);
+}
+
+function isNotAReceipt(result: RegisterReceiptResult): boolean {
+  return result.outcome === "rejected" && result.reason === "not_a_receipt";
+}
+
+function needsNewPhoto(result: RegisterReceiptResult): boolean {
+  return result.outcome === "file_missing" || isNotAReceipt(result) || (result.outcome === "rejected" && result.reason === "unreadable");
+}
+
 function receiptReplyOf(result: RegisterReceiptResult, campaign: ActiveCampaign): string {
   const perNumber = formatCents(campaign.amountPerNumberCents);
   switch (result.outcome) {
@@ -60,15 +87,21 @@ function receiptReplyOf(result: RegisterReceiptResult, campaign: ActiveCampaign)
       if (result.codes.length === 0) {
         return `Cupom de ${formatCents(result.totalCents)} cadastrado. ✅\n\nEle ainda não completou ${perNumber}, então o valor ficou guardado.\n${carryLine}`;
       }
-      const codesLabel = result.codes.length === 1 ? "Seu número da sorte" : "Seus números da sorte";
-      return `Cupom de ${formatCents(result.totalCents)} cadastrado. ✅\n\n${codesLabel}:\n${result.codes.map((code) => `🎟️ ${code}`).join("\n")}\n\n${carryLine}\n\nOs cupons passam por uma conferência antes do sorteio. Boa sorte!`;
+      const codesLabel = result.codes.length === 1 ? "Seu número da sorte" : `Seus ${result.codes.length} números da sorte`;
+      // A Meta corta em 1024 caracteres a mensagem que leva botões.
+      const shownCodes = result.codes.slice(0, MAX_CODES_IN_MESSAGE);
+      const hiddenLine = result.codes.length > shownCodes.length ? `\n… e mais ${result.codes.length - shownCodes.length}, em "Ver meus códigos".` : "";
+      return `Cupom de ${formatCents(result.totalCents)} cadastrado. ✅\n\n${codesLabel}:\n${shownCodes.map((code) => `🎟️ ${code}`).join("\n")}${hiddenLine}\n\n${carryLine}\n\nOs cupons passam por uma conferência antes do sorteio. Boa sorte!`;
     }
     case "duplicate":
       return "Este cupom já foi cadastrado na promoção. Cada cupom vale uma vez só.";
     case "rejected":
       if (result.reason === "wrong_issuer") return "Este cupom não é de uma compra feita na nossa loja, então não vale para a promoção.";
       if (result.reason === "out_of_period") return "A data desta compra está fora do período da promoção.";
+      if (result.reason === "not_a_receipt") return "Essa imagem não parece ser um cupom de compra. Envie a foto do cupom inteiro, com o valor total e a data.";
       return "Não consegui ler o valor do cupom nesta foto. Tire outra foto com o cupom inteiro, bem iluminado e sem dobras, e envie de novo.";
+    case "pending_review":
+      return "Recebemos o seu cupom. 📋\n\nNão deu para ler todos os dados pela foto, então ele vai passar por uma conferência da nossa equipe. Assim que for conferido, os números da sorte aparecem em \"Ver meus códigos\".";
     case "daily_limit":
       return "Você atingiu o limite de cupons de hoje. Amanhã você pode cadastrar mais.";
     case "file_missing":
@@ -76,7 +109,7 @@ function receiptReplyOf(result: RegisterReceiptResult, campaign: ActiveCampaign)
     case "try_later":
       return "Não consegui conferir o cupom agora. Tente de novo em alguns minutos.";
     case "already_processed":
-      return "Este cupom já foi recebido.";
+      return receiptReplyOf(result.stored, campaign);
   }
 }
 
@@ -102,10 +135,12 @@ export async function handleCampaign(ctx: AgentContext, inboundMessageId: string
   const previousOutbound = await prisma.message.findFirst({
     where: { conversationId: ctx.conversation.id, fromMe: true, createdAt: { lt: inbound.createdAt } },
     orderBy: { createdAt: "desc" },
-    select: { metadata: true },
+    select: { metadata: true, createdAt: true },
   });
   const awaiting = isOtherClick ? null : readAwaiting(previousOutbound?.metadata, inbound.createdAt);
-  if (!campaignClick && !awaiting) return { handled: false };
+  // Quem já está cadastrado manda a foto direto, sem passar pelo botão "Cadastrar novo cupom".
+  const isUnpromptedPhoto = !campaignClick && !awaiting && !isOtherClick && isReceiptFile(inbound);
+  if (!campaignClick && !awaiting && !isUnpromptedPhoto) return { handled: false };
 
   const text = (inbound.body ?? "").trim();
   const hasMedia = Boolean(inbound.mediaUrl || inbound.mediaType || inbound.mimetype);
@@ -118,6 +153,11 @@ export async function handleCampaign(ctx: AgentContext, inboundMessageId: string
     if (!campaignClick) return { handled: false };
     await sendCodedReply(ctx, { body: "A promoção não está ativa no momento.", options: [BACK_TO_MENU] });
     return { handled: true };
+  }
+
+  if (isUnpromptedPhoto) {
+    const canReceiveReceipt = availability === "open" && (await isRegisteredInCampaign(ctx.organizationId, campaign.id, ctx.lead.id));
+    if (!canReceiveReceipt) return { handled: false };
   }
 
   const { member, entry } = await findCampaignEntryForLead({ organizationId: ctx.organizationId, campaignId: campaign.id, leadId: ctx.lead.id });
@@ -215,28 +255,61 @@ export async function handleCampaign(ctx: AgentContext, inboundMessageId: string
     return { handled: true };
   }
 
-  if (awaiting?.step === "receipt" && !campaignClick) {
+  if ((awaiting?.step === "receipt" || isUnpromptedPhoto) && !campaignClick) {
     if (!hasMedia) {
       await sendCodedReply(ctx, { body: "Preciso da *foto do cupom*. Toque no clipe 📎 e envie a imagem.", metadata: awaitingMetadata("receipt", campaign) });
       return { handled: true };
     }
-    const result = await registerReceipt({
-      organizationId: ctx.organizationId,
-      campaign,
-      memberId: member.id,
-      memberName: member.name,
-      leadId: ctx.lead.id,
-      trackingId: ctx.trackingId,
-      message: { id: inbound.id, fileKey: inbound.mediaUrl, mimetype: inbound.mimetype },
+    // O atendimento espera 3 s e só roda para a última mensagem: as fotos enviadas logo antes dela
+    // não disparam nada sozinhas, então são cadastradas aqui, na ordem em que chegaram.
+    const earlierPhotos = previousOutbound
+      ? await prisma.message.findMany({
+          where: {
+            conversationId: ctx.conversation.id,
+            fromMe: false,
+            id: { not: inbound.id },
+            mediaUrl: { not: null },
+            createdAt: { gt: previousOutbound.createdAt },
+            OR: [{ mimetype: { startsWith: "image/" } }, { mimetype: { contains: "pdf" } }],
+            NOT: { mimetype: { contains: "webp" } },
+          },
+          orderBy: { createdAt: "asc" },
+          take: MAX_RECEIPTS_PER_REPLY - 1,
+          select: { id: true, mediaUrl: true, mimetype: true },
+        })
+      : [];
+    // Nova tentativa depois de uma falha no envio: o cupom já foi gravado, mas o cliente ficou sem
+    // resposta. Se algo já saiu depois da mensagem dele, é reentrega e ninguém responde de novo.
+    const replyAlreadySent = await prisma.message.findFirst({
+      where: { conversationId: ctx.conversation.id, fromMe: true, createdAt: { gt: inbound.createdAt } },
+      select: { id: true },
     });
-    // Reentrega da mesma mensagem: a primeira execução já respondeu.
-    if (result.outcome === "already_processed") return { handled: true };
-    const shouldAskAgain = result.outcome === "file_missing" || (result.outcome === "rejected" && result.reason === "unreadable");
-    await sendCodedReply(ctx, {
-      body: receiptReplyOf(result, campaign),
-      options: shouldAskAgain ? undefined : MEMBER_OPTIONS,
-      metadata: shouldAskAgain ? awaitingMetadata("receipt", campaign) : undefined,
-    });
+    const results: RegisterReceiptResult[] = [];
+    for (const receiptMessage of [...earlierPhotos, inbound]) {
+      const result = await registerReceipt({
+        organizationId: ctx.organizationId,
+        campaign,
+        memberId: member.id,
+        memberName: member.name,
+        leadId: ctx.lead.id,
+        trackingId: ctx.trackingId,
+        message: { id: receiptMessage.id, fileKey: receiptMessage.mediaUrl, mimetype: receiptMessage.mimetype },
+      });
+      if (result.outcome !== "already_processed") results.push(result);
+      else if (!replyAlreadySent) results.push(result.stored);
+    }
+    if (results.length === 0) return { handled: true };
+    // Foto mandada sem ninguém ter pedido e que não é cupom: a conversa segue com o atendimento de sempre.
+    if (isUnpromptedPhoto && results.every(isNotAReceipt)) return { handled: false };
+    const shouldAskAgain = results.some(needsNewPhoto);
+    for (const [resultIndex, result] of results.entries()) {
+      const isLastReply = resultIndex === results.length - 1;
+      await sendCodedReply(ctx, {
+        body: receiptReplyOf(result, campaign),
+        options: isLastReply && !shouldAskAgain ? MEMBER_OPTIONS : undefined,
+        metadata: isLastReply && shouldAskAgain ? awaitingMetadata("receipt", campaign) : undefined,
+      });
+    }
     return { handled: true };
   }
 

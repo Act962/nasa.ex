@@ -97,7 +97,11 @@ export function CampaignManager({ canEdit, canApprove }: { canEdit: boolean; can
             <StatTile label="Participantes" value={String(stats.participants)} />
             <StatTile label="Cupons aceitos" value={String(stats.acceptedReceipts)} hint={formatCents(stats.acceptedTotalCents)} />
             <StatTile label="Números válidos" value={String(stats.validNumbers)} hint={stats.voidedNumbers > 0 ? `${stats.voidedNumbers} anulados` : undefined} />
-            <StatTile label="Com alerta" value={String(stats.flaggedReceipts)} hint={`${stats.duplicateReceipts} repetidos barrados`} />
+            <StatTile
+              label={stats.pendingReceipts > 0 ? "Em conferência" : "Com alerta"}
+              value={String(stats.pendingReceipts > 0 ? stats.pendingReceipts : stats.flaggedReceipts)}
+              hint={stats.pendingReceipts > 0 ? `${stats.flaggedReceipts} com alerta` : `${stats.duplicateReceipts} repetidos barrados`}
+            />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {canApprove && !campaign.drawnAt && (
@@ -122,7 +126,7 @@ export function CampaignManager({ canEdit, canApprove }: { canEdit: boolean; can
             {canApprove && !campaign.drawnAt && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button className="rounded-full" disabled={draw.isPending || !campaign.lastSweepAt || stats.receiptsAfterSweep > 0}>
+                  <Button className="rounded-full" disabled={draw.isPending || !campaign.lastSweepAt || stats.receiptsAfterSweep > 0 || stats.pendingReceipts > 0}>
                     <Trophy className="size-4" /> Sortear
                   </Button>
                 </AlertDialogTrigger>
@@ -161,7 +165,7 @@ export function CampaignManager({ canEdit, canApprove }: { canEdit: boolean; can
                 : "Faça a varredura antes de sortear."}
             </span>
           </div>
-          <CampaignReceipts campaignId={campaign.id} />
+          <CampaignReceipts key={campaign.id} campaignId={campaign.id} canReview={canApprove && !campaign.drawnAt} pendingReceipts={stats.pendingReceipts} />
         </>
       )}
       {canEdit && !campaign?.drawnAt && (
