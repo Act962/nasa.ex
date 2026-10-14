@@ -54,7 +54,9 @@ aprovação interna (WhatsApp e tela) e o prazo de entrega combinado antes do pa
 
 | ID | Requisito |
 | --- | --- |
-| RF-1 | **Perguntas só quando precisa.** Na chegada do pedido o Astro confirma os itens e cita os pontos; o fluxo "chegada do pedido" faz **uma** pergunta (consultor). CPF/CNPJ é pedido pelo fluxo "aprovação do valor" só depois que a equipe aprova, antes do valor ir ao cliente. |
+| RF-0 | **O pedido chega pelo WhatsApp (D-6).** No catálogo sem preço, o orçamento termina com o botão principal "Enviar pedido pelo WhatsApp", que abre a conversa com a loja já com o texto pronto ("Olá! Quero finalizar meu pedido #N (código XXXXXX)"). O Órbita grava o pedido com a tag "Aguardando cliente no WhatsApp" e **não manda nada** ao cliente. Quando a mensagem dele chega (pelo código, ou pelo número com ou sem 9º dígito), o pedido é ligado à conversa, a tag sai e o fluxo "chegada do pedido" começa — com a janela de 24h aberta, só texto, sem template. O Astro não responde a essa primeira mensagem. |
+| RF-0b | **Um lembrete só, pelos Gatilhos (sem cron).** O fluxo pronto "lembrete do pedido" dispara na tag "Aguardando cliente no WhatsApp", espera 30 min só por aquele pedido (a mensagem do cliente encerra a espera antes) e, se ele ainda não enviou, manda **um** `pedido_aguardando_envio` com o botão "Enviar pedido" — fora das 8h–20h espera até as 8h. O toque conta como a mensagem do cliente (RF-0). Depois disso nada mais é enviado: o pedido fica no painel com a tag para o consultor agir. |
+| RF-1 | **Perguntas só quando precisa.** Na chegada do pedido o fluxo "chegada do pedido" manda **uma** mensagem: recebimento, pontos e a pergunta do consultor. CPF/CNPJ é pedido pelo fluxo "aprovação do valor" só depois que a equipe aprova, antes do valor ir ao cliente. |
 | RF-2 | **Tom popular.** Na venda guiada (org com aprovadores) o prompt do pedido do catálogo ganha as regras de tom: frases curtas, uma pergunta por vez, expressões populares não agressivas, sem jargão. Fora da venda guiada, tom atual. |
 | RF-3 | **Consultor.** Ação `ROUTE_TO_CONSULTANT`: pergunta (Astro fica quieto, como no "Pedir aceite"), procura o nome (sem acento, primeiro nome ou nome completo) entre os `TrackingConsultant` ativos do funil. Um só → responsável, tag "Já atendido", IA pausada e aviso ao consultor (saída `found`). Nenhum ou vários → `not_found`. |
 | RF-4 | **Crédito sem perguntar.** Ação `CHECK_CREDIT`: contas a receber vencidas do lead; aplica "Apto a comprar" ou "Inadimplente" (saídas `eligible`/`overdue`). Não bloqueia: o fluxo avisa o responsável e o financeiro vê na aprovação. |
@@ -101,6 +103,9 @@ aprovação interna (WhatsApp e tela) e o prazo de entrega combinado antes do pa
 - [ ] **CA-12** — Dado um comprovante enviado no número oficial, então o financeiro recebe o aviso com valor lido × valor cobrado, e o pedido **não** muda de status.
 - [ ] **CA-13** — Dado um programa com 10 pontos por compra acima de R$ 50, quando o valor é R$ 200, então a mensagem cita 10 pontos; R$ 30 não cita pontos.
 - [ ] **CA-14** — Dado uma org sem aprovadores, então o fluxo é idêntico ao da 0103.
+- [ ] **CA-15** — Dado um pedido de orçamento na venda guiada, quando ele chega ao Órbita, então o cliente não recebe nada e o lead fica com a tag "Aguardando cliente no WhatsApp".
+- [ ] **CA-16** — Dado o cliente que envia "Olá! Quero finalizar meu pedido #N (código XXXXXX)", então o pedido é ligado à conversa dele, a tag sai, o fluxo "chegada do pedido" manda uma mensagem só e o Astro não responde junto.
+- [ ] **CA-17** — Dado um pedido sem mensagem do cliente há 30 min, então sai um único `pedido_aguardando_envio`; uma segunda checagem não envia outro.
 
 ## 5. Casos de borda
 
@@ -116,6 +121,9 @@ aprovação interna (WhatsApp e tela) e o prazo de entrega combinado antes do pa
 | CB-6 | Fora da janela de 24h (oficial) | Mensagem ao cliente segue a regra atual: fica no portal e o consultor é avisado. |
 | CB-7 | NERP fora do ar no resumo da 1ª rodada | Resumo sai sem a linha de estoque, com "estoque não consultado". |
 | CB-8 | Nome de consultor ambíguo ("João") com dois Joões | O Astro pergunta o sobrenome ou a cidade. |
+| CB-9 | Cliente escreve de outro número | O código na mensagem liga o pedido à conversa de onde ele escreveu. |
+| CB-10 | Cliente nunca envia | Um lembrete (RF-0b); depois só o painel, com a tag. |
+| CB-11 | Cliente apaga o texto pronto e escreve outra coisa | Sem código, vale o número: lead com pedido aguardando é ligado na primeira mensagem dele. |
 
 ## 6. Decisões de design
 
@@ -124,6 +132,14 @@ Número não oficial (Uazapi) mandando mensagens repetidas para a equipe corre r
 oficial da loja (o mesmo do atendimento), com template de categoria **utilidade** e botões de resposta rápida, como os avisos
 fiscais da aba Contábil (`send-compliance-whatsapp.ts`, que reaproveitamos: `findConnectedOrganizationInstance` +
 `resolveOutboundProvider` + `sendTemplate`). A resposta volta pelo webhook oficial e é desviada antes de virar lead (RF-9b).
+
+### D-6 — O pedido nasce na mensagem do cliente no WhatsApp
+Teste real (14/10): com o pedido indo direto do catálogo para o Órbita, o cliente que não abre o WhatsApp deixa a loja sem
+conversa — e na API oficial só sobra template (custo, aprovação da Meta e risco de denúncia por mensagem a quem nunca falou
+com a loja). Por isso o envio do pedido termina no WhatsApp: a mensagem do cliente abre a janela de 24h e toda a venda guiada
+corre em texto. O pedido continua gravado antes (para ter número e código), mas o atendimento só começa quando ele escreve.
+Para quem não envia: um lembrete por template (o aceite é o WhatsApp informado no checkout para a loja falar com ele) e,
+depois, só o painel.
 
 ### D-5 — O fluxo mora nos Gatilhos Automáticos, não em código fixo
 Pedido do usuário: reaproveitar os Gatilhos e criar só as ações que faltam. O roteiro (perguntas, mensagens, ordem das
@@ -201,6 +217,9 @@ para o aprovador confirmar na mensagem de volta pelo número oficial ("Entendi: 
 - Custo: cada aviso fora da janela é uma conversa de utilidade cobrada pela Meta. Por pedido, até 4 avisos na 1ª rodada e 2
   na 2ª, mais lembretes (CB-3). Lembrete dentro da janela aberta sai como texto.
 - Mensagem ao cliente fora da janela de 24h segue a regra atual (CB-6).
+- A venda guiada começa na mensagem do cliente (D-6): toda a conversa corre na janela de 24h aberta por ele, sem template.
+  O único envio iniciado pela loja ao cliente antes disso é **um** `pedido_aguardando_envio` (utilidade, sem oferta), ao
+  número que ele mesmo informou no checkout para a loja falar com ele.
 - Um menu de botões por etapa para o cliente, no máximo 3 botões, só em conversa iniciada por ele. Sem disparo em massa.
 
 ## 11. Riscos e rollback
@@ -234,7 +253,8 @@ Arroz 5kg"); {{6}} em `aprovacao_pedido` = crédito e estoque ("Apto a comprar �
 | `pagamento_em_conferencia` | Pagou (RF-14) | Recebemos seu pagamento do pedido #{{1}}, {{2}}. Estamos conferindo e já te confirmamos a entrega. | — |
 | `prazo_entrega_alterado` | Tratativa (RF-15) | {{1}}, a entrega do pedido #{{2}} precisou mudar para {{3}}. Pode ser? | Pode ser · Falar com consultor |
 | `pedido_liberado` | Liberado (RF-16) | Tudo certo com o pedido #{{1}}! Entrega prevista: {{2}}. Acompanhe aqui: {{3}} | — |
-| `pedido_recebido` | Chegada do pedido, número oficial (hoje reportado como `official_needs_template` em `order-channel.ts`) | Oi, {{1}}! Recebemos seu pedido #{{2}}. Acompanhe por aqui: {{3}} | — |
+| `pedido_aguardando_envio` | Cliente não enviou o pedido em 30 min (RF-0b) | Oi, {{1}}! Seu pedido #{{2}} ficou guardado aqui. Pra loja te mandar o valor, é só tocar em Enviar pedido. | Enviar pedido |
+| `pedido_recebido` | Chegada do pedido fora da venda guiada, número oficial (hoje reportado como `official_needs_template` em `order-channel.ts`) | Oi, {{1}}! Recebemos seu pedido #{{2}}. Acompanhe por aqui: {{3}} | — |
 | `pedido_separado` | Etapa "Separado" (entrega) | Oi, {{1}}! Seu pedido #{{2}} já foi separado e logo sai para entrega. Acompanhe pelo botão abaixo. | Link: Acompanhar pedido |
 | `pedido_pronto_retirada` | Etapa "Separado" (retirada) | Oi, {{1}}! Seu pedido #{{2}} está separado e pronto para retirada na loja. Acompanhe pelo botão abaixo. | Link: Acompanhar pedido |
 | `pedido_em_rota` | Etapa "Em rota" | Oi, {{1}}! Seu pedido #{{2}} saiu para entrega e chega em breve. Acompanhe pelo botão abaixo. | Link: Acompanhar pedido |

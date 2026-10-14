@@ -13,7 +13,8 @@ import {
   toTemplateParameter,
 } from "../src/features/nerp-catalog/lib/approvals/approval-rules";
 import { buildCustomerQuoteMessage, buildPointsSentence, formatDeliveryDate } from "../src/features/nerp-catalog/lib/approvals/approval-messages";
-import { extractDocument, matchConsultants } from "../src/features/workflows/lib/catalog-sales-matching";
+import { extractOrderCode } from "../src/features/nerp-catalog/utils/format-order";
+import { extractDocument, isAffirmativeWithoutName, matchConsultants } from "../src/features/workflows/lib/catalog-sales-matching";
 
 let failureCount = 0;
 function check(caseId: string, isPassing: boolean, detail = "") {
@@ -128,6 +129,10 @@ check("0104 RF-7 recusa número inválido", extractDocument("123.456.789-00") ==
 const consultants = [{ name: "Marcos Silva" }, { name: "João Pereira" }, { name: "João Lima" }];
 check("0104 CA-2 acha consultor pelo primeiro nome", matchConsultants("é o marcos", consultants).length === 1);
 check("0104 CB-8 nome ambíguo não decide", matchConsultants("o joão", consultants).length === 2);
+check("0104 CA-16 código do texto pronto do WhatsApp", extractOrderCode("Olá! Quero finalizar meu pedido #2 (código FK2VOE).") === "FK2VOE");
+check("0104 CB-11 sem código não inventa pedido", extractOrderCode("oi, quero ver meu pedido") === null);
+check("0104 CA-2 botão Tenho sim pede o nome", isAffirmativeWithoutName("Tenho sim") && isAffirmativeWithoutName("sim, tenho"));
+check("0104 CA-2 Não tenho e nome não pedem o nome de novo", !isAffirmativeWithoutName("Não tenho") && !isAffirmativeWithoutName("tenho, é o Marcos"));
 check("0104 CB-8 nome completo desempata", matchConsultants("joão lima", consultants).length === 1);
 
 console.log(failureCount === 0 ? "\nTudo certo." : `\n${failureCount} falha(s).`);

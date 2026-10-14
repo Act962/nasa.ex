@@ -5,6 +5,7 @@ export const CATALOG_INTENT_TAGS = {
   wantsQuote: { slug: "quer-orcamento", name: "Quer orçamento", color: "#f59e0b", description: "Cliente pediu o valor ou quer negociar o pedido do catálogo." },
   wantsToPay: { slug: "quer-pagar", name: "Quer pagar", color: "#10b981", description: "Cliente aprovou o valor e quer pagar o pedido do catálogo." },
   orderReceived: { slug: "pedido-do-catalogo", name: "Pedido do catálogo", color: "#0ea5e9", description: "Pedido do Catálogo online recebido; dispara a venda guiada (spec 0104)." },
+  awaitingCustomer: { slug: "aguardando-cliente-whatsapp", name: "Aguardando cliente no WhatsApp", color: "#eab308", description: "Pedido do catálogo gravado; o atendimento começa quando o cliente envia o pedido pelo WhatsApp (spec 0104, RF-0)." },
   quoteInReview: { slug: "valor-em-aprovacao", name: "Valor em aprovação", color: "#6366f1", description: "Consultor enviou o valor; a equipe aprova antes de ir ao cliente (spec 0104)." },
 } as const;
 

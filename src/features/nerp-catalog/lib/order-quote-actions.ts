@@ -18,7 +18,7 @@ export class CatalogQuoteError extends Error {
   }
 }
 
-async function ensureIntentTagId(organizationId: string, key: CatalogIntentTagKey): Promise<string> {
+export async function ensureIntentTagId(organizationId: string, key: CatalogIntentTagKey): Promise<string> {
   const definition = CATALOG_INTENT_TAGS[key];
   const existing = await prisma.tag.findFirst({
     where: { organizationId, trackingId: null, slug: definition.slug },

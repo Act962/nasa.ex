@@ -183,8 +183,8 @@ export function SalesApproversCard({ canEdit }: { canEdit: boolean }) {
             <div className="flex flex-col gap-2 rounded-md bg-muted/40 p-3 text-sm">
               <p className="font-medium">Fluxos prontos da venda guiada</p>
               <p className="text-muted-foreground">
-                Cria nos Gatilhos Automáticos do funil do catálogo: chegada do pedido, aprovação do valor e
-                pagamento/liberação. Nascem pausados para você revisar textos e setores.
+                Cria nos Gatilhos Automáticos do funil do catálogo: lembrete de quem não enviou o pedido no
+                WhatsApp, chegada do pedido, aprovação do valor e pagamento/liberação. Nascem pausados para você revisar textos e setores.
               </p>
               {canEdit && (
                 <div className="flex flex-col gap-1">

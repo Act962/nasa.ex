@@ -38,3 +38,11 @@ export function matchConsultants<T extends { name: string }>(text: string, consu
     return !!firstName && firstName.length >= 3 && words.has(firstName);
   });
 }
+
+const AFFIRMATIVE_WORDS = new Set(["sim", "tenho", "ja", "eu", "uhum", "claro", "tem", "possuo"]);
+
+/** "Tenho sim" (botão do template) ou "sim, tenho": disse que tem consultor, mas sem o nome. */
+export function isAffirmativeWithoutName(text: string): boolean {
+  const words = normalizeName(text).split(/[^a-z0-9]+/).filter(Boolean);
+  return words.length > 0 && words.every((word) => AFFIRMATIVE_WORDS.has(word)) && words.some((word) => word === "sim" || word === "tenho");
+}

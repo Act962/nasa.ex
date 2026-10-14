@@ -191,6 +191,7 @@ function CatalogOrderActionForm({ data, onChange }: FormProps) {
             <SelectItem value="approve_delivery_change">Cliente aceitou o novo prazo</SelectItem>
             <SelectItem value="release">Liberar o pedido para entrega</SelectItem>
             <SelectItem value="await_reply">Esperar a resposta do cliente (Astro calado)</SelectItem>
+            <SelectItem value="remind_customer">Lembrar o cliente de enviar o pedido (uma vez)</SelectItem>
           </SelectContent>
         </Select>
       </div>
