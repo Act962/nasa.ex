@@ -1,11 +1,15 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/inngest/client";
 import { executeWorkflow } from "@/inngest/functions";
+import {
+  pollingTicker5m,
+  pollingTicker15m,
+  pollingTickerHourly,
+} from "@/inngest/functions/crons/polling-tickers";
 import { executeWorkspaceWorkflow } from "@/inngest/functions/workspace-workflow-executor";
 import { bookingNotification } from "@/inngest/functions/booking-notification";
 import { processUserAction } from "@/inngest/functions/process-user-action";
 import { detectAbsence } from "@/inngest/functions/crons/detect-absence";
-import { detectOverdue } from "@/inngest/functions/crons/detect-overdue";
 import { detectChatTimeout } from "@/inngest/functions/crons/detect-chat-timeout";
 import { checkStreaks } from "@/inngest/functions/crons/check-streaks";
 import { checkMilestones } from "@/inngest/functions/crons/check-milestones";
@@ -22,19 +26,15 @@ import { partnerPayoutCloseCycle } from "@/inngest/functions/crons/partner-payou
 import { partnerGracePeriodMonitor } from "@/inngest/functions/crons/partner-grace-period-monitor";
 import { starsGracePeriodMonitor } from "@/inngest/functions/crons/stars-grace-period-monitor";
 import { starsMonthlyCycle } from "@/inngest/functions/crons/stars-monthly-cycle";
-import { starsPendingSweep } from "@/inngest/functions/crons/stars-pending-sweep";
 import { coursePublicPurchasePaid } from "@/inngest/functions/course-public-purchase-paid";
 import { trafegoPurchasePaid } from "@/inngest/functions/trafego/purchase-paid";
 import { trafegoOrderRequested } from "@/inngest/functions/trafego/order-requested";
 import { trafegoOrderStatusChanged } from "@/inngest/functions/trafego/order-status-changed";
 import { trafegoReleaseGenerate } from "@/inngest/functions/trafego/release-generate";
 import { trafegoOrderCreated } from "@/inngest/functions/trafego/order-created";
-import { trafegoKanbanDriftSweep } from "@/inngest/functions/crons/trafego-kanban-drift-sweep";
-import { trafegoPixPendingSweep } from "@/inngest/functions/crons/trafego-pix-pending-sweep";
 import { trafegoAsaasPaymentEvent } from "@/inngest/functions/trafego/asaas-payment-event";
 import { trafegoAsaasChargeWatch } from "@/inngest/functions/trafego/asaas-charge-watch";
 import { publishPlannerPost, publishPlannerPostLegacy } from "@/inngest/functions/nasa-planner/publish-post";
-import { plannerPublishSweep } from "@/inngest/functions/nasa-planner/publish-sweep-cron";
 import { plannerApprovalWhatsappNotify } from "@/inngest/functions/nasa-planner/approval-whatsapp-notify";
 import {
   plannerBackfillPublishAccounts,
@@ -42,26 +42,19 @@ import {
 } from "@/inngest/functions/nasa-planner/publish-accounts-health";
 import { refreshMetaTokens } from "@/inngest/functions/nasa-planner/refresh-meta-tokens";
 import { socialChannelsDailyMaintenance } from "@/inngest/functions/social/channels-daily-maintenance";
-import { syncPostMetricsCron } from "@/inngest/functions/nasa-planner/sync-post-metrics-cron";
 import { syncPriceSuggestionsCron } from "@/inngest/functions/forge/sync-price-suggestions-cron";
 import { syncMetaAdsKpis } from "@/inngest/functions/crons/sync-meta-ads-kpis";
-import { astroCommanderTick } from "@/inngest/functions/astro-commander/commander-tick";
 import { astroLearnFromFeedback } from "@/inngest/functions/astro/learn-from-feedback";
 import { astroChatPublicAgent } from "@/inngest/functions/astro-chat/public-agent";
 import { astroChatMonthlyBilling } from "@/inngest/functions/astro-chat/monthly-billing";
 import { salvyNumberMonthlyBilling } from "@/inngest/functions/campanhas/salvy-monthly-billing";
 import { astroCommandRun } from "@/inngest/functions/astro-commander/run-command";
-import { detectLeadWaiting } from "@/inngest/functions/crons/detect-lead-waiting";
-import { detectAiTokenUsage } from "@/inngest/functions/crons/detect-ai-token-usage";
-import { fireLeadTriggers } from "@/inngest/functions/leads/fire-lead-triggers";
-import { runScheduledWorkflowsCron } from "@/inngest/functions/crons/run-scheduled-workflows";
 import { detectExpensesDueToday } from "@/inngest/functions/crons/detect-expenses-due-today";
 import { detectComplianceDue } from "@/inngest/functions/crons/detect-compliance-due";
 import { detectContractsExpiring } from "@/inngest/functions/crons/detect-contracts-expiring";
 import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-structure";
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
 import { nasaRouteVideoUploadsCleanup } from "@/inngest/functions/crons/nasa-route-video-uploads-cleanup";
-import { nasaRouteArchivePastEvents } from "@/inngest/functions/crons/nasa-route-archive-past-events";
 import { nasaRouteCartRecoveryCron } from "@/inngest/functions/crons/nasa-route-cart-recovery";
 import { onVideoUploadProgress } from "@/inngest/functions/nasa-route/on-video-upload-progress";
 import { onVideoUploadCompleted } from "@/inngest/functions/nasa-route/on-video-upload-completed";
@@ -70,18 +63,11 @@ import { astroIngestKnowledge } from "@/inngest/functions/astro/ingest-knowledge
 import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
 import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-messages";
 import { autoResolveExpiredClaims } from "@/inngest/functions/calendar/auto-resolve-expired-claims";
-import { detectStaleLeads } from "@/inngest/functions/crons/detect-stale-leads";
-import { detectBrokenIntegrations } from "@/inngest/functions/crons/detect-broken-integrations";
 import {
   confirmDisconnectAndActivate,
   checkInChatRecovery,
 } from "@/inngest/functions/chat/whatsapp-in-chat";
-import { detectAgendaStarting } from "@/inngest/functions/crons/detect-agenda-starting";
-import { detectFormAbandoned } from "@/inngest/functions/crons/detect-form-abandoned";
 import { detectLowMetrics } from "@/inngest/functions/crons/detect-low-metrics";
-import { worldEventOccupancyTick } from "@/inngest/functions/crons/world-event-occupancy-tick";
-import { detectActionsDueSoon } from "@/inngest/functions/crons/detect-actions-due-soon";
-import { sendRecordNotices } from "@/inngest/functions/crons/send-record-notices";
 import { snapshotMetaDailySpendCron } from "@/inngest/functions/campanhas/snapshot-meta-daily-spend";
 import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 import { chatAiWhatsappAgent, chatAiWhatsappButtonClick } from "@/inngest/functions/chat-ai/whatsapp-agent";
@@ -89,7 +75,6 @@ import { syncCatalogOrderToNerp } from "@/inngest/functions/nerp-catalog/sync-or
 import { awaitReplyTagCheck } from "@/inngest/functions/org-defaults/await-reply-tag";
 import { astroBotInactivityNotice } from "@/inngest/functions/astro-bot/inactivity-notice";
 import { seedSampleContent } from "@/inngest/functions/org-defaults/seed-sample-content";
-import { emailLeadCaptureCron } from "@/inngest/functions/crons/email-lead-capture";
 import { watchCatalogOrderPayment } from "@/inngest/functions/nerp-catalog/watch-order-payment";
 import { starFriendsExpireStars } from "@/inngest/functions/star-friends/expire-stars";
 import {
@@ -127,7 +112,6 @@ import {
 } from "@/inngest/functions/accounting/journal-sync";
 // ── Campanhas (disparo em massa WhatsApp Oficial — Fase 3/4) ──
 import { dispatchBroadcast } from "@/inngest/functions/campanhas/dispatch-broadcast";
-import { dispatchDueBroadcasts } from "@/inngest/functions/campanhas/dispatch-due-broadcasts";
 import { watchScheduledBroadcast } from "@/inngest/functions/campanhas/watch-scheduled-broadcast";
 import { syncSeiProcess } from "@/inngest/functions/sei/sync-process";
 import { testSeiConnection } from "@/inngest/functions/sei/test-connection";
@@ -139,6 +123,10 @@ import {
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
+    // ── Varreduras periódicas agrupadas (1 execução por tick) ──
+    pollingTicker5m,
+    pollingTicker15m,
+    pollingTickerHourly,
     recomputeLeadMetrics,
     recomputeActiveLeadMetricsNightly,
     executeWorkflow,
@@ -154,8 +142,6 @@ export const { GET, POST, PUT } = serve({
     // ── STARS grace monitor (diário 09h UTC) ──
     starsGracePeriodMonitor,
     starsMonthlyCycle,
-    // ── STARS: varredura de pendências Stripe órfãs (de hora em hora) ──
-    starsPendingSweep,
     // ── NASA Router (checkout público de curso) ──
     coursePublicPurchasePaid,
     trafegoPurchasePaid,
@@ -163,46 +149,34 @@ export const { GET, POST, PUT } = serve({
     trafegoOrderStatusChanged,
     trafegoReleaseGenerate,
     trafegoOrderCreated,
-    // ── trafeGO: card do tracking realinhado ao pedido (de hora em hora) ──
-    trafegoKanbanDriftSweep,
-    // ── trafeGO: PIX vencido vira EXPIRED (de hora em hora) ──
-    trafegoPixPendingSweep,
     // ── trafeGO: evento de cobrança do Asaas (spec 0022) ──
     trafegoAsaasPaymentEvent,
     // ── trafeGO: acompanha cada cobrança PIX até resolver (spec 0022) ──
     trafegoAsaasChargeWatch,
-    // ── ASTRO COMMANDER (spec 0028): agenda a cada minuto + execução ──
-    astroCommanderTick,
+    // ── ASTRO COMMANDER (spec 0028): execução (o agendamento roda no ticker de 5 min) ──
     astroLearnFromFeedback,
     astroChatPublicAgent,
     astroChatMonthlyBilling,
     salvyNumberMonthlyBilling,
     astroCommandRun,
     // ── ASTRO: alertas proativos (spec 0029) ──
-    detectLeadWaiting,
-    detectAiTokenUsage,
-    fireLeadTriggers,
-    runScheduledWorkflowsCron,
     detectExpensesDueToday,
     detectContractsExpiring,
     detectComplianceDue,
     // ── NASA Planner ──
     publishPlannerPost,
     publishPlannerPostLegacy,
-    plannerPublishSweep,
     plannerApprovalWhatsappNotify,
     plannerPublishAccountsHealth,
     socialChannelsDailyMaintenance,
     plannerBackfillPublishAccounts,
     refreshMetaTokens,
-    syncPostMetricsCron,
     // ── Meta Ads ──
     syncMetaAdsKpis,
     syncMetaAdsStructure,
     // ── NASA Route ──
     nasaRouteSubscriptionRenew,
     nasaRouteVideoUploadsCleanup,
-    nasaRouteArchivePastEvents,
     nasaRouteCartRecoveryCron,
     onVideoUploadProgress,
     onVideoUploadCompleted,
@@ -221,7 +195,6 @@ export const { GET, POST, PUT } = serve({
     awaitReplyTagCheck,
     astroBotInactivityNotice,
     seedSampleContent,
-    emailLeadCaptureCron,
     // ── STAR FRIENDS: validade das stars ──
     starFriendsExpireStars,
     // ── In-Chat (fallback anti-ban): confirma queda → ativa; recuperação preguiçosa ──
@@ -232,16 +205,8 @@ export const { GET, POST, PUT } = serve({
     // ── Forms: notificação WhatsApp ao submeter ──
     formSendWhatsappNotification,
     // ── Alerts: detecção time-based ──
-    detectStaleLeads,
-    detectBrokenIntegrations,
-    detectAgendaStarting,
-    detectFormAbandoned,
     detectLowMetrics,
-    detectOverdue,
-    // ── NASA World — convention occupancy ──
-    worldEventOccupancyTick,
-    detectActionsDueSoon,
-    sendRecordNotices,
+    // ── Campanhas: gasto diário Meta ──
     snapshotMetaDailySpendCron,
     // ── Idle automation por tracking (substitui detect-leads-waiting-attention + LAST_INBOUND_TIMEOUT) ──
     scheduleIdleChecks,
@@ -275,8 +240,7 @@ export const { GET, POST, PUT } = serve({
     accountingNightly,
     // ── Campanhas — disparo em massa (Fase 3) + agendamento (Fase 4, cron) ──
     dispatchBroadcast,
-    dispatchDueBroadcasts,
-    // Disparo agendado por campanha — caminho principal; o cron acima é a rede.
+    // Disparo agendado por campanha — caminho principal; a rede fica no ticker de 15 min.
     watchScheduledBroadcast,
     // ── SEI — consultas SOAP fora do ciclo das rotas HTTP ──
     syncSeiProcess,

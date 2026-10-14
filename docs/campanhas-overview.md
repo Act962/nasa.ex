@@ -175,7 +175,7 @@ Fase 1 é **fundação + audiência** e é deliberadamente **inócua do ponto de
 
 - **Fase 2 — Criação de templates na Meta. ✅ Implementada (2026-07-08).** Builder de modelos de **marketing + utilidade** estilo Meta/ManyChat (form à esquerda + prévia WhatsApp ao vivo à direita). Ver §12.
 - **Fase 3 — Disparo ao vivo. ✅ Implementada (2026-07-08).** `campanhas.setTemplate`/`campanhas.send` → Inngest `campanhas/broadcast.send` (throttle por org, lotes duráveis, wamid/erro por destinatário, contadores recomputados), split de endpoint por categoria (marketing → `/marketing_messages`, utilidade → `/messages`) e extensão do webhook de status pra `BroadcastRecipient`. **Sem cobrança de Stars nesta fase** (adiado). Ver §13.
-- **Fase 4 — Agendamento. ✅ Implementada (2026-07-09).** `campanhas.schedule`/`unschedule` gravam `scheduledAt` + status `SCHEDULED`; o cron `dispatch-due-broadcasts` (a cada minuto) reivindicação atômica → `SENDING` + evento Inngest. Ver §16.
+- **Fase 4 — Agendamento. ✅ Implementada (2026-07-09).** `campanhas.schedule`/`unschedule` gravam `scheduledAt` + status `SCHEDULED`; a varredura `dispatch-due-broadcasts` (rede de segurança, a cada 15 min no `polling-ticker-15m`) reivindicação atômica → `SENDING` + evento Inngest. Ver §16.
 - **Fase 5 — Fundos/saldo.** Ler saldo (billing/credit-line API), alerta de saldo baixo (Inngest cron + notificação), atalho de recarga. **Depende dos docs de billing** (a enviar).
 
 ## 9. Verificação (Fase 1)
@@ -383,7 +383,7 @@ Rascunho (DRAFT) + template + destinatários (Fases 1–3)
   → "Agendar" (detalhe): escolhe data/hora → campanhas.schedule
         valida igual ao disparo (template APROVADO + destinatários PENDING) + hora futura
         → status SCHEDULED + scheduledAt (NÃO enfileira nada ainda)
-  → Cron dispatchDueBroadcasts (a cada minuto):
+  → Varredura runDispatchDueBroadcasts (polling-ticker-15m, a cada 15 min):
         SELECT status=SCHEDULED AND scheduledAt <= now  (take 100)
         para cada → beginBroadcastDispatch(fromStatuses:["SCHEDULED"])
           updateMany guardado (SCHEDULED→SENDING) reivindica atomicamente (anti-duplo)
@@ -402,7 +402,7 @@ Rascunho (DRAFT) + template + destinatários (Fases 1–3)
 | `server/lib/begin-broadcast-dispatch.ts` | `beginBroadcastDispatch` — transição atômica `→ SENDING` (updateMany guardado) + `inngest.send`, retorna se reivindicou |
 | `router/campanhas/schedule.ts` / `unschedule.ts` | procedures oRPC (agendar/reagendar / cancelar) |
 | `router/campanhas/send.ts` | refatorado: usa `assertBroadcastSendable` + `beginBroadcastDispatch`, aceita `DRAFT` **ou** `SCHEDULED` |
-| `inngest/functions/campanhas/dispatch-due-broadcasts.ts` | cron `* * * * *` — varre agendadas vencidas e dispara |
+| `inngest/functions/campanhas/dispatch-due-broadcasts.ts` | `runDispatchDueBroadcasts`, chamada pelo `polling-ticker-15m` (`crons/polling-tickers.ts`) — rede que varre agendadas vencidas e dispara |
 | `hooks/use-broadcasts.ts` | `useScheduleBroadcast`, `useUnscheduleBroadcast` |
 | `components/broadcast-detail.tsx` | botão **Agendar** (rascunho); banner + **Disparar agora**/**Reagendar**/**Cancelar agendamento** (agendada); diálogo `datetime-local` |
 | `components/broadcasts-list.tsx` | card mostra a data agendada quando `SCHEDULED` |
