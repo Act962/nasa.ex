@@ -336,7 +336,7 @@ export const agentModeNodes: NodeTypeOption[] = [
     description: "Envia o pedido aos setores pelo WhatsApp oficial e espera: aprovado, recusado ou sem resposta",
     icon: ShieldCheckIcon,
     agentModeOnly: true,
-    defaultData: { round: "PRE_PAYMENT", sectors: ["COMMERCIAL", "FINANCE", "LOGISTICS"], timeoutMinutes: 1440, timeoutMode: "customer_window" },
+    defaultData: { round: "PRE_PAYMENT", sectors: ["COMMERCIAL", "FINANCE", "LOGISTICS"], timeoutMinutes: 1440 },
   },
   {
     type: NodeType.CHECK_CREDIT,

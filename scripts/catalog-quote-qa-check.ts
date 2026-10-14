@@ -7,6 +7,8 @@ import {
   canDecideApproval,
   isApprovalReminderDue,
   parseApprovalPayload,
+  buildOpenApprovalPayload,
+  parseOpenApprovalPayload,
   summarizeRound,
   toTemplateParameter,
 } from "../src/features/nerp-catalog/lib/approvals/approval-rules";
@@ -77,6 +79,9 @@ const payload = buildApprovalPayload("ckabc1234567890xyz", "adjust");
 const parsedPayload = parseApprovalPayload(payload);
 check("0104 payload do botão ida e volta", parsedPayload?.approvalId === "ckabc1234567890xyz" && parsedPayload.decision === "adjust", payload);
 check("0104 payload estranho é ignorado", parseApprovalPayload("Fechar pedido") === null);
+const openPayload = buildOpenApprovalPayload("cmv8j7fgz00xm01p63wb5t1yt");
+check("0104 CB-3 botão Abrir pedido do lembrete nunca decide", parseApprovalPayload(openPayload) === null);
+check("0104 CB-3 botão Abrir pedido aponta a aprovação", parseOpenApprovalPayload(openPayload) === "cmv8j7fgz00xm01p63wb5t1yt");
 
 const friday = new Date("2026-10-16T14:00:00Z");
 const thursday = new Date("2026-10-15T14:00:00Z");

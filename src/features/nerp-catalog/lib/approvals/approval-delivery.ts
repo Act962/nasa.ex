@@ -109,6 +109,8 @@ export async function sendCustomerMessage(params: {
   metadata?: Prisma.InputJsonValue | null;
   /** Avisos de etapa vão ao WhatsApp mesmo quando o cliente só falou pelo acompanhamento. */
   isWhatsappForced?: boolean;
+  /** Padrão true: o que não saiu fica no chat/portal. */
+  shouldPersistWhenUnsent?: boolean;
 }): Promise<DeliveryResult> {
   const conversation = await prisma.conversation.findUniqueOrThrow({
     where: { id: params.conversationId },
@@ -134,6 +136,8 @@ export async function sendCustomerMessage(params: {
       result = { isSent: false, reason: "no_whatsapp_instance" };
     }
   }
+
+  if (!result.isSent && params.shouldPersistWhenUnsent === false) return result;
 
   await persistOutboundMessage({
     conversationId: params.conversationId,

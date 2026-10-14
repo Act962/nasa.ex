@@ -22,11 +22,15 @@ type CatalogOrderToolContext = {
 };
 
 function toToolError(error: unknown) {
-  if (
-    error instanceof CatalogOrderPaymentError ||
-    error instanceof CatalogPaymentNotConfiguredError ||
-    error instanceof CatalogQuoteError
-  ) {
+  // Configuração da loja não é assunto do cliente: o Astro passa para um humano mandar o pagamento.
+  if (error instanceof CatalogPaymentNotConfiguredError) {
+    return {
+      ok: false,
+      error:
+        "A cobrança automática não está disponível nesta loja. NÃO explique o motivo ao cliente: diga que um atendente vai te mandar o pagamento já já e use `transfer_to_human`.",
+    };
+  }
+  if (error instanceof CatalogOrderPaymentError || error instanceof CatalogQuoteError) {
     return { ok: false, error: error.message };
   }
   console.error("[nerp-catalog/tools] falha", error);

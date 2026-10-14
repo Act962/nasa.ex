@@ -8,6 +8,8 @@ import type { CatalogOrderCustomer, CatalogOrderItem } from "../../schemas/order
 import { formatBrl } from "../../utils/format-order";
 import {
   buildApprovalPayload,
+  buildOpenApprovalPayload,
+  parseOpenApprovalPayload,
   canDecideApproval,
   isApprovalReminderDue,
   parseApprovalPayload,
@@ -29,6 +31,7 @@ import { extractDeliveryDate } from "./extract-delivery-date";
 export const CATALOG_APPROVAL_DECIDED_EVENT = "agent-workflow/catalog-approval-decided";
 
 const AWAITING_INTENT = { deliveryDate: "delivery_date", adjust: "adjust", reject: "reject" } as const;
+const AWAITING_NOTE_TTL_MS = 30 * 60 * 1000;
 type AwaitingIntent = (typeof AWAITING_INTENT)[keyof typeof AWAITING_INTENT];
 
 const PAYMENT_METHOD_LABEL: Record<string, string> = { PIX: "PIX", ASAAS_LINK: "cartão ou boleto" };
@@ -140,10 +143,19 @@ function decisionButtons(approvalId: string, round: SalesRound): QuickButton[] {
 }
 
 /** Envia o resumo a cada aprovador das aprovações pendentes ainda não avisadas (ou com lembrete vencido). */
-export async function notifyPendingApprovals(orderId: string, round: SalesRound, options: { isReminder?: boolean } = {}) {
+export async function notifyPendingApprovals(
+  orderId: string,
+  round: SalesRound,
+  options: { isReminder?: boolean; resendApprovalIds?: string[] } = {},
+) {
   const { order, integration, templates } = await loadOrderForMessages(orderId);
   const approvals = await prisma.catalogOrderApproval.findMany({
-    where: { orderId, round, status: "PENDING", ...(options.isReminder ? {} : { notifiedAt: null }) },
+    where: {
+      orderId,
+      round,
+      status: "PENDING",
+      ...(options.resendApprovalIds ? { id: { in: options.resendApprovalIds } } : options.isReminder ? {} : { notifiedAt: null }),
+    },
     select: { id: true, sector: true, notifiedAt: true },
   });
   if (approvals.length === 0) return { sent: 0 };
@@ -154,6 +166,7 @@ export async function notifyPendingApprovals(orderId: string, round: SalesRound,
   let sent = 0;
 
   for (const approval of approvals) {
+    let sentForApproval = 0;
     const approvers = await prisma.salesApprover.findMany({
       where: { organizationId: order.organizationId, sector: approval.sector, isActive: true, optInAt: { not: null }, rounds: { has: round } },
       select: { phoneE164: true, lastInboundAt: true },
@@ -173,7 +186,7 @@ export async function notifyPendingApprovals(orderId: string, round: SalesRound,
     const templateName = options.isReminder ? templates.reminder : round === "PRE_PAYMENT" ? templates.approval : templates.postPaymentCheck;
     const reminderSince = approval.notifiedAt ? formatDeliveryDate(approval.notifiedAt) : "agora";
     const template = options.isReminder
-      ? { name: templateName, bodyParameters: [String(order.nerpSaleNumber), SALES_SECTOR_LABEL[approval.sector], reminderSince], quickReplyPayloads: [buildApprovalPayload(approval.id, "approve")] }
+      ? { name: templateName, bodyParameters: [String(order.nerpSaleNumber), SALES_SECTOR_LABEL[approval.sector], reminderSince], quickReplyPayloads: [buildOpenApprovalPayload(approval.id)] }
       : { name: templateName, bodyParameters: summary.templateParameters, quickReplyPayloads: buttons.map((button) => button.id) };
 
     for (const approver of approvers) {
@@ -185,9 +198,12 @@ export async function notifyPendingApprovals(orderId: string, round: SalesRound,
         buttons,
         template,
       });
-      if (result.isSent) sent += 1;
+      if (result.isSent) sentForApproval += 1;
       else console.warn(`[nerp-catalog/approvals] aviso ao setor ${approval.sector} falhou`, result.reason);
     }
+    sent += sentForApproval;
+    // Sem nenhuma entrega fica sem `notifiedAt`: a próxima mensagem do aprovador reenvia (janela aberta).
+    if (sentForApproval === 0 && !options.isReminder) continue;
     await prisma.catalogOrderApproval.update({
       where: { id: approval.id },
       data: options.isReminder ? { lastReminderAt: new Date() } : { notifiedAt: new Date() },
@@ -303,22 +319,47 @@ export async function tryHandleApproverInbound(inbound: ApproverInbound): Promis
     select: { id: true, userId: true, organizationId: true, sector: true, rounds: true, isActive: true, phoneE164: true },
   });
   if (approvers.length === 0) return false;
+  // Qualquer mensagem do aprovador abre a janela de 24h dele, mesmo sem pedido pendente ("oi" antes da rodada).
+  await prisma.salesApprover.updateMany({ where: { id: { in: approvers.map((approver) => approver.id) } }, data: { lastInboundAt: new Date() } });
 
   const sectors = approvers.map((approver) => approver.sector);
   const openApprovals = await prisma.catalogOrderApproval.findMany({
     where: { organizationId: inbound.organizationId, sector: { in: sectors }, status: "PENDING" },
-    select: { id: true, organizationId: true, sector: true, round: true, status: true, awaitingNoteSince: true, awaitingIntent: true, order: { select: { nerpSaleNumber: true } } },
+    select: {
+      id: true,
+      orderId: true,
+      organizationId: true,
+      sector: true,
+      round: true,
+      status: true,
+      notifiedAt: true,
+      awaitingNoteSince: true,
+      awaitingIntent: true,
+      order: { select: { nerpSaleNumber: true } },
+    },
     orderBy: { createdAt: "asc" },
   });
-  const awaitingNote = await prisma.catalogOrderApproval.findFirst({
-    where: { organizationId: inbound.organizationId, sector: { in: sectors }, awaitingNoteSince: { not: null } },
+  // Pedido de texto vence em 30 min; prazo/ajuste (ainda pendentes) vêm antes do motivo de uma recusa já feita.
+  const awaitingNotes = await prisma.catalogOrderApproval.findMany({
+    where: { organizationId: inbound.organizationId, sector: { in: sectors }, awaitingNoteSince: { gte: new Date(Date.now() - AWAITING_NOTE_TTL_MS) } },
     select: { id: true, organizationId: true, sector: true, round: true, status: true, awaitingIntent: true },
     orderBy: { awaitingNoteSince: "desc" },
   });
+  const awaitingNote = awaitingNotes.find((approval) => approval.status === "PENDING") ?? awaitingNotes[0];
   if (openApprovals.length === 0 && !awaitingNote) return false;
 
-  await prisma.salesApprover.updateMany({ where: { id: { in: approvers.map((approver) => approver.id) } }, data: { lastInboundAt: new Date() } });
   const contactApprover = approvers[0];
+
+  const openedId = parseOpenApprovalPayload(inbound.replyId);
+  if (openedId) {
+    const approval = openApprovals.find((candidate) => candidate.id === openedId);
+    if (!approval) {
+      await replyToApprover(inbound.trackingId, contactApprover, "Esse pedido já foi decidido. Nada pendente.");
+      return true;
+    }
+    await notifyPendingApprovals(approval.orderId, approval.round, { resendApprovalIds: [approval.id] });
+    return true;
+  }
 
   const parsed = parseApprovalPayload(inbound.replyId);
   if (parsed) {
@@ -328,13 +369,20 @@ export async function tryHandleApproverInbound(inbound: ApproverInbound): Promis
       await replyToApprover(inbound.trackingId, contactApprover, "Esse pedido já foi decidido ou não é do seu setor. Nada foi alterado.");
       return true;
     }
-    await handleButtonDecision({ approval, approver, decision: parsed.decision, trackingId: inbound.trackingId });
+    await handleButtonDecision({ approval, approver, decision: parsed.decision, trackingId: inbound.trackingId, saleNumber: approval.order.nerpSaleNumber });
     return true;
   }
 
   const text = inbound.text?.trim();
   if (awaitingNote && text) {
     await completeAwaitingNote({ approvalId: awaitingNote.id, intent: awaitingNote.awaitingIntent as AwaitingIntent | null, text, approvers, trackingId: inbound.trackingId, organizationId: inbound.organizationId });
+    return true;
+  }
+
+  // Aviso que não chegou (janela fechada, template em análise): a mensagem do aprovador abriu a janela, reenvia agora.
+  const undelivered = [...new Map(openApprovals.filter((approval) => !approval.notifiedAt).map((approval) => [`${approval.orderId}:${approval.round}`, approval])).values()];
+  if (undelivered.length > 0) {
+    for (const approval of undelivered) await notifyPendingApprovals(approval.orderId, approval.round);
     return true;
   }
 
@@ -349,8 +397,11 @@ async function handleButtonDecision(params: {
   approver: { userId: string; phoneE164: string };
   decision: ApprovalDecision;
   trackingId: string;
+  saleNumber: number;
 }) {
   const { approval, approver, decision } = params;
+  // Com a mesma pessoa em vários setores, toda resposta diz de qual pedido e setor é.
+  const reference = `#${params.saleNumber} · ${SALES_SECTOR_LABEL[approval.sector]}`;
   const needsDeliveryDate = decision === "approve" && approval.sector === "LOGISTICS" && approval.round === "PRE_PAYMENT";
   if (needsDeliveryDate || decision === "adjust") {
     await prisma.catalogOrderApproval.update({
@@ -361,8 +412,8 @@ async function handleButtonDecision(params: {
       params.trackingId,
       approver,
       needsDeliveryDate
-        ? "Qual a previsão de entrega? (ex.: amanhã 11h)"
-        : "Escreva o ajuste. Se for de prazo, diga a nova data (ex.: sexta às 11h).",
+        ? `${reference}: qual a previsão de entrega? (ex.: amanhã 11h)`
+        : `${reference}: escreva o ajuste. Se for de prazo, diga a nova data (ex.: sexta às 11h).`,
     );
     return;
   }
@@ -379,7 +430,7 @@ async function handleButtonDecision(params: {
   await replyToApprover(
     params.trackingId,
     approver,
-    decision === "approve" ? "Aprovado ✅ Obrigado!" : "Recusado. Se quiser, escreva o motivo para o consultor.",
+    decision === "approve" ? `${reference}: aprovado ✅ Obrigado!` : `${reference}: recusado. Se quiser, escreva o motivo para o consultor.`,
   );
   await emitDecision(approval.id);
 }
@@ -394,21 +445,22 @@ async function completeAwaitingNote(params: {
 }) {
   const approval = await prisma.catalogOrderApproval.findUniqueOrThrow({
     where: { id: params.approvalId },
-    select: { id: true, sector: true, status: true },
+    select: { id: true, sector: true, status: true, order: { select: { nerpSaleNumber: true } } },
   });
   const approver = params.approvers.find((candidate) => candidate.sector === approval.sector) ?? params.approvers[0];
+  const reference = `#${approval.order.nerpSaleNumber} · ${SALES_SECTOR_LABEL[approval.sector]}`;
   const note = params.text.slice(0, 500);
 
   if (params.intent === AWAITING_INTENT.reject) {
     await prisma.catalogOrderApproval.update({ where: { id: approval.id }, data: { note, awaitingNoteSince: null, awaitingIntent: null } });
-    await replyToApprover(params.trackingId, approver, "Motivo registrado. O consultor vai ver.");
+    await replyToApprover(params.trackingId, approver, `${reference}: motivo registrado. O consultor vai ver.`);
     await emitDecision(approval.id);
     return;
   }
 
   const deliveryAt = await extractDeliveryDate({ organizationId: params.organizationId, text: note });
   if (params.intent === AWAITING_INTENT.deliveryDate && !deliveryAt) {
-    await replyToApprover(params.trackingId, approver, "Não entendi a data. Pode mandar de novo? (ex.: quinta às 11h)");
+    await replyToApprover(params.trackingId, approver, `${reference}: não entendi a data. Pode mandar de novo? (ex.: quinta às 11h)`);
     return;
   }
   const decided = await prisma.catalogOrderApproval.updateMany({
@@ -427,7 +479,7 @@ async function completeAwaitingNote(params: {
   await replyToApprover(
     params.trackingId,
     approver,
-    deliveryAt ? `Entendi: ${formatDeliveryDate(deliveryAt)} ✅` : "Ajuste registrado. O pedido volta para o consultor.",
+    deliveryAt ? `${reference}: entrega ${formatDeliveryDate(deliveryAt)} ✅` : `${reference}: ajuste registrado. O pedido volta para o consultor.`,
   );
   await emitDecision(approval.id);
 }

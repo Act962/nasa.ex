@@ -27,11 +27,12 @@ import {
   POINTS_TEMPLATE_FALLBACK,
   summarizeItems,
 } from "@/features/nerp-catalog/lib/approvals/approval-messages";
-import { sendLinkToLead } from "@/features/tracking-executions/lib/send-link-to-lead";
+import { sendCustomerMessage } from "@/features/nerp-catalog/lib/approvals/approval-delivery";
 import { getCustomerWindow } from "@/features/tracking-chat/lib/customer-window";
 import { findOrCreateTags } from "../agent-presets/find-or-create-tags";
 import { extractDocument, matchConsultants } from "../catalog-sales-matching";
 import { markAwaitingReply } from "./conversation-steps";
+import { AWAITING_REPLY_KEY } from "../conversation-steps";
 import type { NodeExecutionResult, NodeExecutor } from "../run-workflow";
 import { interpolate, type WorkflowContext } from "../workflow-context";
 
@@ -153,15 +154,29 @@ async function buildOrderVars(orderId: string) {
   };
 }
 
-function waitingStateOf(nodeId: string, context: WorkflowContext): { orderId: string; round: SalesRound } | null {
-  const previous = context.nodeOutputs?.[nodeId] as { isWaitingApproval?: boolean; orderId?: string; round?: SalesRound } | undefined;
-  return previous?.isWaitingApproval && previous.orderId && previous.round ? { orderId: previous.orderId, round: previous.round } : null;
+type ApprovalWaitState = { orderId: string; round: SalesRound; approvalIds: string[]; deadlineAt: string };
+
+function waitingStateOf(nodeId: string, context: WorkflowContext): ApprovalWaitState | null {
+  const previous = context.nodeOutputs?.[nodeId] as Partial<ApprovalWaitState> & { isWaitingApproval?: boolean } | undefined;
+  if (!previous?.isWaitingApproval || !previous.orderId || !previous.round || !previous.deadlineAt) return null;
+  return { orderId: previous.orderId, round: previous.round, approvalIds: previous.approvalIds ?? [], deadlineAt: previous.deadlineAt };
 }
 
-function waitForApproval(state: { orderId: string; round: SalesRound }, timeoutMinutes: number): NodeExecutionResult {
+// O evento de decisão só é ouvido depois que a espera começa: reconferir a rodada a cada intervalo
+// garante que decisões rápidas (dois setores no mesmo segundo) não se percam.
+const APPROVAL_RECHECK_MINUTES = 15;
+
+function waitForApproval(state: ApprovalWaitState): NodeExecutionResult {
+  const remainingMinutes = Math.ceil((new Date(state.deadlineAt).getTime() - Date.now()) / 60_000);
   return {
     status: "WAITING",
-    output: { isWaitingApproval: true, resumeSameNode: true, ...state, eventNames: [CATALOG_APPROVAL_DECIDED_EVENT], timeoutMinutes },
+    output: {
+      isWaitingApproval: true,
+      resumeSameNode: true,
+      ...state,
+      eventNames: [CATALOG_APPROVAL_DECIDED_EVENT],
+      timeoutMinutes: Math.max(1, Math.min(APPROVAL_RECHECK_MINUTES, remainingMinutes)),
+    },
   };
 }
 
@@ -169,21 +184,54 @@ function readSectors(value: unknown): SalesSector[] {
   return Array.isArray(value) ? value.filter((sector): sector is SalesSector => SALES_SECTORS.includes(sector as SalesSector)) : [];
 }
 
-// "Pedir aprovação da equipe": abre a rodada e retoma a cada decisão até a rodada fechar.
+/** Prazo da equipe: o configurado no quadro, contado da abertura (não depende da janela do cliente). */
+function approvalDeadlineFrom(data: Record<string, unknown>): string {
+  const minutes = typeof data.timeoutMinutes === "number" && data.timeoutMinutes > 0 ? data.timeoutMinutes : DEFAULT_APPROVAL_TIMEOUT_MINUTES;
+  return new Date(Date.now() + minutes * 60_000).toISOString();
+}
+
+/** Pedido do fluxo: o do gatilho (pagamento) ou o já carregado em `vars.pedido`; senão o mais recente em aberto. */
+function loadCatalogOrderForFlow(leadId: string, context: WorkflowContext) {
+  const triggerOrderId = readString(context.trigger as Record<string, unknown> | undefined, "catalogOrderId");
+  const pedido = (context.vars as Record<string, unknown>).pedido as Record<string, unknown> | undefined;
+  const orderId = triggerOrderId ?? readString(pedido, "id") ?? undefined;
+  return loadActiveCatalogOrder(leadId, { orderId });
+}
+
+// "Pedir aprovação da equipe": abre a rodada e reconfere a cada decisão (ou intervalo) até fechar ou vencer o prazo.
 export const salesApprovalExecutor: NodeExecutor = async ({ nodeId, data, context, dryRun }) => {
   const round: SalesRound = data.round === "POST_PAYMENT" ? "POST_PAYMENT" : "PRE_PAYMENT";
   if (dryRun) return { output: { round, simulated: true }, chosenOutput: "approved" };
-  const timeoutMinutes = await resolveTimeoutMinutes(data, await resolveLeadScope(context), DEFAULT_APPROVAL_TIMEOUT_MINUTES);
 
   const waiting = waitingStateOf(nodeId, context);
   if (waiting) {
-    const vars = context.vars as Record<string, unknown>;
-    if (vars.lastWaitTimedOut === true) return { output: { isWaitingApproval: false, finishedBy: "timeout" }, chosenOutput: "timeout" };
-    const event = vars.lastEvent as { orderId?: string } | undefined;
-    if (event?.orderId && event.orderId !== waiting.orderId) return waitForApproval(waiting, timeoutMinutes);
+    const current = await prisma.catalogOrderApproval.findMany({
+      where: { id: { in: waiting.approvalIds } },
+      select: { status: true },
+    });
+    // Valor reenviado abre rodada nova (outro fluxo cuida dela): esta execução termina sem avisar ninguém.
+    if (current.length > 0 && current.every((approval) => approval.status === "CANCELED")) {
+      return { output: { isWaitingApproval: false, finishedBy: "superseded" }, chosenOutput: "superseded" };
+    }
 
     const outcome = await loadRoundOutcome(waiting.orderId, waiting.round);
-    if (outcome.kind === "open") return waitForApproval(waiting, timeoutMinutes);
+    if (outcome.kind === "open") {
+      if (Date.now() < new Date(waiting.deadlineAt).getTime()) return waitForApproval(waiting);
+      // Prazo vencido: cancela o que ficou pendente para o pedido não ficar travado; o consultor reenvia o valor.
+      await prisma.catalogOrderApproval.updateMany({
+        where: { id: { in: waiting.approvalIds }, status: "PENDING" },
+        data: { status: "CANCELED", awaitingNoteSince: null, awaitingIntent: null },
+      });
+      if (waiting.round === "PRE_PAYMENT") {
+        await prisma.catalogOrder.update({ where: { id: waiting.orderId }, data: { internalApprovalStartedAt: null } });
+      }
+      const pendentes = outcome.pendingSectors.map((sector) => SALES_SECTOR_LABEL[sector]).join(", ");
+      const pedido = await buildOrderVars(waiting.orderId);
+      return {
+        output: { isWaitingApproval: false, finishedBy: "timeout", vars: { pedido: { ...pedido, motivos: `sem resposta de ${pendentes}` } } },
+        chosenOutput: "timeout",
+      };
+    }
     await applyRoundOutcome(waiting.orderId, waiting.round, outcome);
     const pedido = await buildOrderVars(waiting.orderId);
     if (outcome.kind === "approved") {
@@ -195,7 +243,7 @@ export const salesApprovalExecutor: NodeExecutor = async ({ nodeId, data, contex
 
   const scope = await resolveLeadScope(context);
   if (!scope) return failed("Fluxo sem lead para pedir aprovação.");
-  const order = await loadActiveCatalogOrder(scope.leadId);
+  const order = await loadCatalogOrderForFlow(scope.leadId, context);
   if (!order) return failed("Lead sem pedido do catálogo em aberto.");
 
   const { sectors } = await openApprovalRound({ orderId: order.id, round, sectors: readSectors(data.sectors) });
@@ -203,7 +251,11 @@ export const salesApprovalExecutor: NodeExecutor = async ({ nodeId, data, contex
     await applyRoundOutcome(order.id, round, { kind: "approved", deliveryPromiseAt: null, deliveryNotes: [] });
     return { output: { finishedBy: "no_approvers", vars: { pedido: await buildOrderVars(order.id) } }, chosenOutput: "approved" };
   }
-  return waitForApproval({ orderId: order.id, round }, timeoutMinutes);
+  const opened = await prisma.catalogOrderApproval.findMany({
+    where: { orderId: order.id, round, status: "PENDING" },
+    select: { id: true },
+  });
+  return waitForApproval({ orderId: order.id, round, approvalIds: opened.map((approval) => approval.id), deadlineAt: approvalDeadlineFrom(data) });
 };
 
 // "Checar crédito do lead".
@@ -219,7 +271,14 @@ export const checkCreditExecutor: NodeExecutor = async ({ context, dryRun }) => 
   };
 };
 
-type CustomerReply = { kind: "ask"; attempt: number } | { kind: "answer"; text: string; attempt: number } | { kind: "timeout" };
+type CustomerReply =
+  | { kind: "ask"; attempt: number; isRetryOfPending?: boolean }
+  | { kind: "answer"; text: string; attempt: number }
+  | { kind: "timeout" }
+  | { kind: "not_for_me" };
+
+/** Mesmo texto que `leads/create-file.ts` manda no evento quando o atendente anexa um arquivo. */
+const AGENT_FILE_EVENT_PREFIX = "[Arquivo adicionado pelo atendente]";
 
 /**
  * Pergunta ao cliente e espera a resposta (mesmo mecanismo do "Pedir aceite", spec 0099):
@@ -227,27 +286,76 @@ type CustomerReply = { kind: "ask"; attempt: number } | { kind: "answer"; text: 
  */
 function readCustomerReply(nodeId: string, data: Record<string, unknown>, context: WorkflowContext): CustomerReply {
   const question = readString(data, "question");
-  const previous = context.nodeOutputs?.[nodeId] as { isWaitingCustomer?: boolean; attempt?: number } | undefined;
+  const previous = context.nodeOutputs?.[nodeId] as { isWaitingCustomer?: boolean; isQuestionPending?: boolean; attempt?: number } | undefined;
   const vars = context.vars as Record<string, unknown>;
   if (previous?.isWaitingCustomer) {
     if (vars.lastWaitTimedOut === true) return { kind: "timeout" };
-    return { kind: "answer", text: typeof vars.lastIncomingMessage === "string" ? vars.lastIncomingMessage : "", attempt: previous.attempt ?? 1 };
+    // A pergunta não pôde sair (janela fechada): a primeira mensagem do cliente abre a janela e aí perguntamos.
+    if (previous.isQuestionPending) return { kind: "ask", attempt: previous.attempt ?? 1, isRetryOfPending: true };
+    const text = typeof vars.lastIncomingMessage === "string" ? vars.lastIncomingMessage : "";
+    if (text.startsWith(AGENT_FILE_EVENT_PREFIX)) return { kind: "not_for_me" };
+    return { kind: "answer", text, attempt: previous.attempt ?? 1 };
   }
   if (question) return { kind: "ask", attempt: 1 };
   return { kind: "answer", text: interpolate(context, readString(data, "text") ?? DEFAULT_SOURCE_TEXT), attempt: MAX_ASK_ATTEMPTS };
 }
 
-async function askCustomer(params: { nodeId: string; scope: LeadScope; text: string; attempt: number; data: Record<string, unknown>; context: WorkflowContext }): Promise<NodeExecutionResult> {
-  const timeoutMinutes = await resolveTimeoutMinutes(params.data, params.scope, DEFAULT_REPLY_TIMEOUT_MINUTES);
-  try {
-    await sendLinkToLead({ leadId: params.scope.leadId, trackingId: params.scope.trackingId, body: interpolate(params.context, params.text) });
-  } catch (error) {
-    return failed(error instanceof Error ? error.message : "Não foi possível perguntar ao cliente.");
+/** Continua esperando sem perguntar de novo (evento que não é resposta do cliente). */
+function keepWaiting(nodeId: string, context: WorkflowContext): NodeExecutionResult {
+  return { status: "WAITING", output: { ...(context.nodeOutputs?.[nodeId] as Record<string, unknown>) } };
+}
+
+/**
+ * Outro passo perguntou depois deste (ex.: o CPF da aprovação do valor enquanto a pergunta do consultor
+ * ainda esperava): a resposta é dele. Vale a última pergunta marcada na conversa.
+ */
+async function isQuestionSuperseded(scope: LeadScope, nodeId: string): Promise<boolean> {
+  const recentSent = await prisma.message.findMany({
+    where: { conversation: { leadId: scope.leadId, trackingId: scope.trackingId }, fromMe: true },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+    select: { metadata: true },
+  });
+  for (const message of recentSent) {
+    const marker = (message.metadata as Record<string, unknown> | null)?.[AWAITING_REPLY_KEY] as { nodeId?: unknown } | undefined;
+    if (marker && typeof marker.nodeId === "string") return marker.nodeId !== nodeId;
   }
+  return false;
+}
+
+async function askCustomer(params: {
+  nodeId: string;
+  scope: LeadScope;
+  text: string;
+  attempt: number;
+  data: Record<string, unknown>;
+  context: WorkflowContext;
+  isRetryOfPending?: boolean;
+}): Promise<NodeExecutionResult> {
+  const conversation = await prisma.conversation.findFirst({
+    where: { leadId: params.scope.leadId, trackingId: params.scope.trackingId },
+    select: { id: true },
+  });
+  if (!conversation) return failed("Lead sem conversa para perguntar.");
+  const delivery = await sendCustomerMessage({
+    conversationId: conversation.id,
+    senderName: "Astro",
+    text: interpolate(params.context, params.text),
+    // O pedido chega pelo catálogo: sem forçar, a pergunta ficaria só no acompanhamento.
+    isWhatsappForced: true,
+    // Re-pergunta com a janela ainda fechada não repete a cópia no chat.
+    shouldPersistWhenUnsent: !params.isRetryOfPending,
+  }).catch((error: unknown) => ({ isSent: false as const, reason: error instanceof Error ? error.message : "whatsapp_send_failed" }));
+  const isQuestionPending = !delivery.isSent && delivery.reason === "outside_window_without_template";
+  if (!delivery.isSent && !isQuestionPending && delivery.reason !== "portal_only") {
+    return failed(`Não foi possível perguntar ao cliente (${delivery.reason}).`);
+  }
+  // Janela fechada: espera a primeira mensagem do cliente (no prazo configurado) para perguntar de novo.
+  const timeoutMinutes = await resolveTimeoutMinutes(params.data, params.scope, DEFAULT_REPLY_TIMEOUT_MINUTES);
   await markAwaitingReply({ leadId: params.scope.leadId, trackingId: params.scope.trackingId, nodeId: params.nodeId, timeoutMinutes });
   return {
     status: "WAITING",
-    output: { isWaitingCustomer: true, attempt: params.attempt, resumeSameNode: true, eventNames: ["message-incoming"], timeoutMinutes },
+    output: { isWaitingCustomer: true, isQuestionPending, attempt: params.attempt, resumeSameNode: true, eventNames: ["message-incoming"], timeoutMinutes },
   };
 }
 
@@ -260,7 +368,10 @@ export const findCustomerByDocumentExecutor: NodeExecutor = async ({ nodeId, dat
   const lead = context.lead as Record<string, unknown> | undefined;
   const reply: CustomerReply =
     data.source === "lead" ? { kind: "answer", text: readString(lead, "document") ?? "", attempt: MAX_ASK_ATTEMPTS } : readCustomerReply(nodeId, data, context);
-  if (reply.kind === "ask") return askCustomer({ nodeId, scope, text: readString(data, "question") ?? "", attempt: 1, data, context });
+  if (reply.kind === "not_for_me") return keepWaiting(nodeId, context);
+  if (reply.kind === "ask") {
+    return askCustomer({ nodeId, scope, text: readString(data, "question") ?? "", attempt: reply.attempt, isRetryOfPending: reply.isRetryOfPending, data, context });
+  }
   const document = reply.kind === "answer" ? extractDocument(reply.text) : null;
   if (!document) {
     if (reply.kind === "answer" && reply.attempt < MAX_ASK_ATTEMPTS && readString(data, "question")) {
@@ -278,7 +389,7 @@ export const findCustomerByDocumentExecutor: NodeExecutor = async ({ nodeId, dat
     select: { id: true },
   });
   await prisma.lead.update({ where: { id: scope.leadId }, data: { document } });
-  const order = await loadActiveCatalogOrder(scope.leadId);
+  const order = await loadCatalogOrderForFlow(scope.leadId, context);
   if (order) {
     await prisma.catalogOrder.update({ where: { id: order.id }, data: { customer: { ...order.customer, document } } });
   }
@@ -297,9 +408,12 @@ export const routeToConsultantExecutor: NodeExecutor = async ({ nodeId, data, co
   const reply = readCustomerReply(nodeId, data, context);
   if (reply.kind === "ask") {
     if (dryRun) return { output: { simulated: true }, chosenOutput: "not_found" };
-    return askCustomer({ nodeId, scope, text: readString(data, "question") ?? "", attempt: 1, data, context });
+    return askCustomer({ nodeId, scope, text: readString(data, "question") ?? "", attempt: reply.attempt, isRetryOfPending: reply.isRetryOfPending, data, context });
   }
-  if (reply.kind === "timeout") return { output: { isWaitingCustomer: false, vars: { consultor: { nome: "" } } }, chosenOutput: "not_found" };
+  if (reply.kind === "not_for_me") return keepWaiting(nodeId, context);
+  if (reply.kind === "timeout" || (await isQuestionSuperseded(scope, nodeId))) {
+    return { output: { isWaitingCustomer: false, vars: { consultor: { nome: "" } } }, chosenOutput: "not_found" };
+  }
 
   const consultants = await prisma.trackingConsultant.findMany({
     where: { trackingId: scope.trackingId, isActive: true },
@@ -324,15 +438,33 @@ export const routeToConsultantExecutor: NodeExecutor = async ({ nodeId, data, co
   return { output: { isWaitingCustomer: false, vars: { consultor: { nome: consultant.name } } }, chosenOutput: "found" };
 };
 
-type CatalogOrderAction = "load" | "approve_quote" | "approve_delivery_change" | "release";
-const CATALOG_ORDER_ACTIONS: CatalogOrderAction[] = ["load", "approve_quote", "approve_delivery_change", "release"];
+type CatalogOrderAction = "load" | "approve_quote" | "approve_delivery_change" | "release" | "await_reply";
+const CATALOG_ORDER_ACTIONS: CatalogOrderAction[] = ["load", "approve_quote", "approve_delivery_change", "release", "await_reply"];
 
 // "Atualizar pedido do catálogo": carrega o pedido em variáveis e registra os aceites do cliente.
-export const catalogOrderActionExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
+export const catalogOrderActionExecutor: NodeExecutor = async ({ nodeId, data, context, dryRun }) => {
   const action = CATALOG_ORDER_ACTIONS.includes(data.action as CatalogOrderAction) ? (data.action as CatalogOrderAction) : "load";
   const scope = await resolveLeadScope(context);
   if (!scope) return failed("Fluxo sem lead.");
-  const order = await loadActiveCatalogOrder(scope.leadId);
+
+  // "Esperar a resposta do cliente": marca a última mensagem enviada para o Astro não responder por cima.
+  if (action === "await_reply") {
+    if (dryRun) return { output: { action } };
+    const previous = context.nodeOutputs?.[nodeId] as { isWaitingCustomer?: boolean } | undefined;
+    if (previous?.isWaitingCustomer) {
+      const text = (context.vars as Record<string, unknown>).lastIncomingMessage;
+      if (typeof text === "string" && text.startsWith(AGENT_FILE_EVENT_PREFIX)) return keepWaiting(nodeId, context);
+      return { output: { action, isWaitingCustomer: false } };
+    }
+    const timeoutMinutes = await resolveTimeoutMinutes(data, scope, DEFAULT_REPLY_TIMEOUT_MINUTES);
+    await markAwaitingReply({ leadId: scope.leadId, trackingId: scope.trackingId, nodeId, timeoutMinutes });
+    return {
+      status: "WAITING",
+      output: { action, isWaitingCustomer: true, resumeSameNode: true, eventNames: ["message-incoming"], timeoutMinutes },
+    };
+  }
+
+  const order = await loadCatalogOrderForFlow(scope.leadId, context);
   if (!order) return { output: { action }, chosenOutput: "no_order" };
   if (dryRun) return { output: { action, vars: { pedido: await buildOrderVars(order.id) } } };
 

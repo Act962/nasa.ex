@@ -10,11 +10,14 @@ import { buildOrderPortalUrl, formatBrl } from "../utils/format-order";
 import { resolveQuoteState, type QuoteState } from "./order-quote";
 import { hasActiveSalesApprovers } from "./approvals/order-approvals";
 
-export async function loadActiveCatalogOrder(leadId: string) {
-  const order = await prisma.catalogOrder.findFirst({
-    where: { leadId, status: { notIn: ["DELIVERED", "CANCELED"] } },
-    orderBy: { createdAt: "desc" },
-  });
+/** `orderId` fixa o pedido de quem já sabe qual é (fluxo disparado pelo pagamento dele). */
+export async function loadActiveCatalogOrder(leadId: string, options: { orderId?: string } = {}) {
+  const order = options.orderId
+    ? await prisma.catalogOrder.findFirst({ where: { id: options.orderId, leadId, status: { not: "CANCELED" } } })
+    : await prisma.catalogOrder.findFirst({
+        where: { leadId, status: { notIn: ["DELIVERED", "CANCELED"] } },
+        orderBy: { createdAt: "desc" },
+      });
   if (!order) return null;
   const isGuidedSale = await hasActiveSalesApprovers(order.organizationId);
   return {
@@ -49,11 +52,15 @@ const QUOTE_STATE_PROMPT: Record<QuoteState, string> = {
   priced: "Pedido com o valor do catálogo. Se o cliente quiser negociar, peça à equipe com `request_catalog_order_quote`.",
 };
 
+const PAID_STATUSES = new Set(["PAID", "IN_LOGISTICS"]);
+const PAID_ORDER_PROMPT =
+  "Pagamento JÁ CONFIRMADO. Não peça pagamento nem gere cobrança. A equipe está conferindo e a confirmação da entrega chega por mensagem própria; se o cliente perguntar, diga que já já confirma.";
+
 // Spec 0104: tom de conversa e divisão de tarefas com os fluxos da venda guiada (Gatilhos Automáticos).
 const GUIDED_SALE_PROMPT = `## Venda guiada (fluxos dos Gatilhos cuidam das etapas) — estas regras valem acima dos critérios de fechamento
 - Fale como gente: frases curtas, uma pergunta por vez, sem jargão. Pode usar "Oi", "Com certeza", "Valeu", "Sei como é", "Show", "Tranquilo" — nada agressivo nem forçado.
 - Não encha o cliente de perguntas. NÃO pergunte se ele tem consultor nem peça CPF/CNPJ: os fluxos perguntam na hora certa.
-- Quando o pedido chegar, confirme os itens com carinho e lembre que toda compra vale pontos pra trocar por brindes.
+- A chegada do pedido já foi respondida pelo fluxo (recebimento, pontos e pergunta do consultor) numa mensagem só. Não repita, não confirme os itens de novo e não faça outra pergunta junto: responda só ao que o cliente disse.
 - Valor, prazo de entrega e pontos chegam por mensagem própria depois que a equipe aprova. Até lá diga que o valor está quase pronto.
 - Se o cliente aprovar o valor ("sim", "fechado", "Fechar pedido"), use \`approve_catalog_order_quote\` e pergunte se prefere PIX ou cartão/boleto.
 - Depois do pagamento, quem avisa a conferência e a entrega é o fluxo: não prometa prazo por conta própria.`;
@@ -77,7 +84,7 @@ CPF/CNPJ do cliente: ${hasDocument ? "já informado" : "ainda NÃO informado"}
 Link de acompanhamento do cliente: ${order.portalUrl}
 
 ## Situação do valor
-${QUOTE_STATE_PROMPT[order.quoteState]}
+${PAID_STATUSES.has(order.status) ? PAID_ORDER_PROMPT : QUOTE_STATE_PROMPT[order.quoteState]}
 
 ## Critérios de fechamento (siga nesta ordem)
 1. Confirme com o cliente os itens e quantidades do pedido.
