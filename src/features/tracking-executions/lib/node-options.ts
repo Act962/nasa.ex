@@ -106,6 +106,17 @@ export function getNodeOutputs(
         .filter(Boolean);
       return outs.length > 0 ? [...outs, "default"] : ["main"];
     }
+    // Venda guiada pelo catálogo (spec 0104)
+    case "SALES_APPROVAL":
+      return ["approved", "rejected", "timeout"];
+    case "CHECK_CREDIT":
+      return ["eligible", "overdue"];
+    case "FIND_CUSTOMER_BY_DOCUMENT":
+      return ["returning", "new", "no_document"];
+    case "ROUTE_TO_CONSULTANT":
+      return ["found", "not_found"];
+    case "CATALOG_ORDER_ACTION":
+      return ["main", "no_order"];
     case "SEND_MESSAGE": {
       // Menu de botões que espera o clique: uma saída por botão e "sem clique" (spec 0090, seção F).
       const replyOutputs = buttonReplyOutputs(data) ?? conversationStepOutputs(data);
@@ -314,6 +325,58 @@ export const agentModeNodes: NodeTypeOption[] = [
     description: "IA extrai texto de PDF e interpreta o conteúdo solicitado",
     icon: FileTextIcon,
     agentModeOnly: true,
+  },
+
+  // ▽ Venda guiada pelo catálogo (spec 0104)
+  {
+    type: NodeType.SALES_APPROVAL,
+    category: "agent-mode",
+    group: "nasa-apps",
+    label: "Pedir Aprovação da Equipe",
+    description: "Envia o pedido aos setores pelo WhatsApp oficial e espera: aprovado, recusado ou sem resposta",
+    icon: ShieldCheckIcon,
+    agentModeOnly: true,
+    defaultData: { round: "PRE_PAYMENT", sectors: ["COMMERCIAL", "FINANCE", "LOGISTICS"], timeoutMinutes: 1440, timeoutMode: "customer_window" },
+  },
+  {
+    type: NodeType.CHECK_CREDIT,
+    category: "agent-mode",
+    group: "nasa-apps",
+    label: "Checar Crédito do Lead",
+    description: "Contas vencidas no Financeiro: apto a comprar ou inadimplente (aplica a tag)",
+    icon: ScaleIcon,
+    agentModeOnly: true,
+    defaultData: {},
+  },
+  {
+    type: NodeType.FIND_CUSTOMER_BY_DOCUMENT,
+    category: "agent-mode",
+    group: "nasa-apps",
+    label: "Buscar Cliente por CPF/CNPJ",
+    description: "Lê o documento da resposta do cliente e diz se ele já comprou antes",
+    icon: ClipboardListIcon,
+    agentModeOnly: true,
+    defaultData: { source: "text", question: "Pra eu fechar seu pedido, me passa seu CPF ou CNPJ?" },
+  },
+  {
+    type: NodeType.ROUTE_TO_CONSULTANT,
+    category: "agent-mode",
+    group: "nasa-apps",
+    label: "Encaminhar ao Consultor Dele",
+    description: "Procura o consultor que o cliente citou e passa o atendimento para ele",
+    icon: ArrowLeftRightIcon,
+    agentModeOnly: true,
+    defaultData: { question: "Você já tem algum consultor que te atende por aí? Se tiver, me fala o nome dele 😊" },
+  },
+  {
+    type: NodeType.CATALOG_ORDER_ACTION,
+    category: "agent-mode",
+    group: "nasa-apps",
+    label: "Atualizar Pedido do Catálogo",
+    description: "Carrega o pedido em variáveis ({{vars.pedido.total}}) e registra o aceite do cliente",
+    icon: CreditCardIcon,
+    agentModeOnly: true,
+    defaultData: { action: "load" },
   },
 
   // ▽ Apps NASA — pagamento, mídia e voz

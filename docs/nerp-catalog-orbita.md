@@ -24,6 +24,22 @@
    - emite `nerp/catalog-order.paid`.
 8. A função `nerp-catalog-sync-order-paid` chama `catalogOrder.updateStatus` no NERP. A `Sale` passa a `CONFIRMED`, com `SalePayment` e baixa de estoque.
 
+## Valor negociado pelo atendente (spec 0103)
+
+Para loja que vende **sem preço na vitrine** (ou que negocia valor), o valor é sempre definido por uma pessoa:
+
+1. Pedido chega (pode vir com R$ 0). O Astro confirma itens, entrega e CPF/CNPJ.
+2. Cliente mostra interesse ("quanto fica?", "quero pagar", "tem desconto?") ou o pedido está sem valor → o Astro chama `request_catalog_order_quote`: grava `quoteRequestedAt`, aplica a tag **Quer orçamento** (org, `quer-orcamento`), aplica "Aguard. atendimento" e alerta a equipe (sino/push, motivo `quote_requested`). A IA **não** é pausada.
+3. Atendente abre o lead → Detalhes → **Produtos/Serviços** → **Enviar valor** (`nerp.catalogOrders.sendQuote`, permissão `lead-produtos` → Editar). Os preços já vêm da tabela do NERP (`referenceUnitPrice` e `referenceBoxPrice`/`packQty` do payload); o atendente ajusta o que negociou, informa frete, desconto e um recado. O mesmo formulário aparece na aba **Pedido** do painel Propostas e Orçamentos do chat. O servidor recalcula tudo em centavos (`computeQuotedTotals`), grava `quotedAt`/`quotedById`, zera `quoteApprovedAt`, atualiza `Lead.amount`, **reativa a IA do lead** e envia ao cliente a mensagem "Valor do seu pedido… Responda SIM para aprovar".
+4. Cliente aprova → o Astro chama `approve_catalog_order_quote` (grava `quoteApprovedAt`, tag **Quer pagar**), pergunta a forma de pagamento e gera PIX ou link.
+5. Pagamento, separação e entrega seguem a spec 0044, com aviso ao cliente em cada etapa (incluindo o novo aviso de **Entregue**).
+
+**Bloqueio de cobrança** (`getChargeBlockReason`, chamado em `chargeOrder`, serve Astro e portal): sem cobrança com total ≤ 0, com orçamento pedido e sem valor, ou com valor enviado e não aprovado. Pedidos antigos (campos nulos, total > 0) não mudam. O portal esconde o "Gerar PIX", mostra "A combinar" e explica a situação.
+
+Situação do valor (`resolveQuoteState`): `no_price` · `awaiting_quote` · `awaiting_approval` · `approved` · `priced`.
+
+Valor só muda em `RECEIVED`/`NEGOTIATING`. Com cobrança gerada (`AWAITING_PAYMENT`) é recusado: a cobrança antiga ainda poderia ser paga.
+
 ## Etapas padrão do pedido (spec 0044)
 
 Com o padrão aplicado, o pedido vive num tracking só ("Separação e Entrega"). As colunas têm chave de sistema (`Status.systemKey`), então a loja pode renomeá-las:
@@ -34,7 +50,7 @@ Com o padrão aplicado, o pedido vive num tracking só ("Separação e Entrega")
 | Confirmado (`catalog.confirmed`) | Cliente gera PIX/link | — |
 | Pagamento confirmado (`catalog.paid`) | Asaas confirma | "Pagamento confirmado", "Você ganhou N star(s)!" (se ganhou), "Pedido enviado para separação" |
 | Separado (`catalog.separated`) | Equipe arrasta | "Pedido em rota de entrega" ou, se `delivery.method` casa com /retir/i, "Pedido separado e pronto para você recolher" |
-| Entregue (`catalog.delivered`) | Equipe arrasta | — (pedido vira DELIVERED) |
+| Entregue (`catalog.delivered`) | Equipe arrasta | "Pedido entregue" ou "Pedido retirado" (spec 0103); pedido vira DELIVERED |
 
 - Cada coluna tem uma tag SYSTEM de mesmo nome (`etapa-*`, por tracking). Ao entrar numa coluna, entra a tag dela e saem as outras tags de etapa; a jornada registra as trocas.
 - Gatilho único: `handleCatalogStageEntry` (`lib/stage-flow.ts`), assinado no `eventBus` `lead.status_changed`. `moveLeadToStage`, as ferramentas do Astro/IA e o executor de automação passaram a publicar esse evento (`publishLeadStatusChanged`).
@@ -112,6 +128,7 @@ Na volta (Órbita → NERP), a chamada é `catalogOrder.updateStatus` pelo `call
 | Pagamento | `src/features/nerp-catalog/lib/{order-payments,confirm-payment,integration-config}.ts`, `src/lib/asaas.ts` |
 | Webhook Asaas | `src/app/api/integrations/nerp/asaas-webhook/[orgId]/route.ts` |
 | Astro | `src/features/nerp-catalog/server/tools/catalog-order-tools.ts`, `lib/order-context.ts`; ligado em `tracking-chat-ai/{lib/agent,lib/context,server/tools/index}.ts` |
+| Valor negociado (0103) | `src/features/nerp-catalog/lib/{order-quote,order-quote-actions}.ts`, `components/send-quote-dialog.tsx`, `hooks/use-catalog-order-quote.ts`, `src/app/router/nerp/catalog-orders/send-quote.ts`; verificação `scripts/catalog-quote-qa-check.ts` |
 | Mover lead | `src/features/leads/lib/move-lead.ts` |
 | Inngest | `src/inngest/functions/nerp-catalog/{watch-order-payment,sync-order-to-nerp}.ts` |
 | Configuração | `src/app/router/nerp/catalog-integration/{get,upsert}.ts`, `src/features/nerp-catalog/components/nerp-hub/*` |
@@ -148,8 +165,13 @@ Na matriz de Configurações → Permissões há duas linhas para este módulo:
 | Ação | Libera |
 | --- | --- |
 | Ver | Aba Produtos/Serviços nos Detalhes do lead |
+| Editar | Enviar o valor negociado de pedidos do catálogo (spec 0103) |
 
 ## Changelog
+
+- **2026-10-14** — Spec 0104: venda guiada com aprovação dos setores. O roteiro mora nos **Gatilhos Automáticos** (3 fluxos prontos, criados pausados pelo botão "Criar fluxos prontos" em Integrações → NERP): chegada do pedido (consultor + crédito), aprovação do valor (setores → CPF/CNPJ → valor, prazo e pontos) e pagamento/liberação (conferência dos setores → prazo novo → link). Ações novas nos Gatilhos: `SALES_APPROVAL`, `CHECK_CREDIT`, `FIND_CUSTOMER_BY_DOCUMENT`, `ROUTE_TO_CONSULTANT`, `CATALOG_ORDER_ACTION`. Modelos `SalesApprover` e `CatalogOrderApproval`; colunas de aprovação e prazo em `catalog_orders` (migration `20261014150000_catalog_sales_approvals`). Aprovadores recebem template de utilidade pelo número oficial e respondem pelos botões; a resposta não vira lead. Com aprovadores cadastrados, o "Enviar valor" vai para a aprovação (tag "Valor em aprovação") em vez de direto ao cliente; a cobrança fica bloqueada até a equipe aprovar; o pagamento dispara o gatilho "Pagamento recebido" e quita a conta a receber criada na cobrança. Crons novos: `payment-mark-overdue-receivables` e `nerp-catalog-remind-sales-approvals` (exigem Resync do Inngest). Revisão do desenho: sem contábil na 1ª rodada; esperas dentro da janela de 24h do cliente; crédito também para quem já tem consultor; cadastro do cliente novo pelo passo "Preencher formulário pela conversa" com nome, telefone, CPF e endereço do pedido já preenchidos. Etapa nova **"Em rota"** (`catalog.on_route`) entre "Separado" e "Entregue"; avisos de etapa (separado, pronto para retirar, em rota, entregue) e o link de chegada do pedido saem no WhatsApp — texto dentro da janela, template fora dela (`pedido_separado`, `pedido_pronto_retirada`, `pedido_em_rota`, `pedido_entregue`, `pedido_recebido`). Funis existentes ganham "Em rota" ao clicar em "Aplicar padrão do sistema".
+
+- **2026-10-14** — Spec 0103: valor negociado pelo atendente e aprovado pelo cliente. Colunas `quote_requested_at`, `quoted_at`, `quoted_by_id`, `quote_approved_at` em `catalog_orders` (migration `20261014120000_catalog_order_quote`); ferramentas `request_catalog_order_quote` e `approve_catalog_order_quote`; botão "Enviar valor" na aba Produtos/Serviços; cobrança bloqueada sem valor aprovado; tags "Quer orçamento" e "Quer pagar"; aviso de pedido entregue. Script `scripts/setup-armazem-carvalho.ts` confere e monta a estrutura de uma loja.
 
 - **2026-09-29** — Spec 0044: tracking único com etapas padrão (Novo Pedido → Confirmado → Pagamento confirmado → Separado → Entregue), tags de etapa, avisos animados no portal + WhatsApp, linha do tempo de 5 etapas e botão "Aplicar padrão do sistema". Lead reaproveitado na logística passa a levar o valor do pedido atual; hora do pagamento não vira mais meia-noite UTC.
 - **2026-09-29** — Cliente gera o próprio PIX pela página do pedido (`payWithPix`), sem depender do Astro ligado no tracking. Webhook do Asaas pode apontar para um túnel via `ASAAS_WEBHOOK_PUBLIC_ORIGIN` (teste de PIX real em localhost). Removido o log `[rpc-debug]` que gravava o corpo das mutations `/api/rpc/nerp/*` (vazava a API key do Asaas).

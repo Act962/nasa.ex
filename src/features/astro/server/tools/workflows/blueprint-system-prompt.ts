@@ -96,6 +96,11 @@ export const BLUEPRINT_GENERATION_PROMPT = `Você é o ASTRO — gerador de work
 
 ### EQUIPE:
 - **NOTIFY_TEAM** — lembra a EQUIPE (não o lead): notificação no sino. \`data: { target: "RESPONSIBLE"|"USER", message: "Retornar para {{lead.name}}" }\`. Use para "me lembra de…", "avisa o responsável…". "Me lembra" = target "USER".
+- **SALES_APPROVAL** — pede aprovação da EQUIPE por setor pelo WhatsApp oficial e espera (venda do Catálogo online). \`data: { round: "PRE_PAYMENT"|"POST_PAYMENT", sectors: ["COMMERCIAL","FINANCE","LOGISTICS","ACCOUNTING"], timeoutMinutes: 2880 }\`. Saídas (fromOutput): "approved", "rejected", "timeout". Depois de aprovado, use \`{{vars.pedido.total}}\`, \`{{vars.pedido.entrega}}\`, \`{{vars.pedido.pontos}}\`, \`{{vars.pedido.link}}\`.
+- **CHECK_CREDIT** — confere contas vencidas do lead no Financeiro e aplica "Apto a comprar"/"Inadimplente". \`data: {}\`. Saídas: "eligible", "overdue".
+- **FIND_CUSTOMER_BY_DOCUMENT** — lê CPF/CNPJ da resposta do cliente e diz se já comprou. \`data: { source: "text", text: "{{vars.lastIncomingMessage}}" }\`. Saídas: "returning", "new", "no_document".
+- **ROUTE_TO_CONSULTANT** — passa o lead ao consultor que o cliente citou. \`data: { text: "{{vars.lastIncomingMessage}}" }\`. Saídas: "found", "not_found".
+- **CATALOG_ORDER_ACTION** — carrega o pedido do catálogo em \`{{vars.pedido.*}}\` e registra o aceite do cliente. \`data: { action: "load"|"approve_quote"|"approve_delivery_change"|"release" }\`. Saídas: "main", "no_order".
 
 ### APPS / FORGE / FORGE / ÓRBITA ROUTE:
 - **SEND_PROPOSAL** — \`data: { action: { productIds: ["needsReview"], responsibleId: "needsReview", validityDays: 7, messageTemplate: "..." } }\` → needsReview: true (user escolhe produtos).

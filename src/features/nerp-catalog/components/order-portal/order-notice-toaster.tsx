@@ -15,8 +15,10 @@ const NOTICE_ICONS: Record<string, { emoji: string; className: string }> = {
   payment_confirmed: { emoji: "✓", className: "bg-success/15 text-success" },
   star_earned: { emoji: "⭐", className: "bg-gradient-to-br from-chart-4 to-chart-2 text-white" },
   sent_to_separation: { emoji: "📦", className: "bg-info/15 text-info" },
+  separated: { emoji: "📦", className: "bg-warning/15 text-warning" },
   out_for_delivery: { emoji: "🛵", className: "bg-warning/15 text-warning" },
   ready_for_pickup: { emoji: "🛍️", className: "bg-success/15 text-success" },
+  delivered: { emoji: "🎉", className: "bg-success/15 text-success" },
 };
 
 const STAR_BURST = [

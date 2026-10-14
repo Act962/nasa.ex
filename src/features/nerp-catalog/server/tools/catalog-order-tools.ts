@@ -12,6 +12,8 @@ import {
 import { CatalogPaymentNotConfiguredError } from "../../lib/integration-config";
 import { deliverTextToLead } from "../../lib/order-channel";
 import { formatBrl } from "../../utils/format-order";
+import { resolveQuoteState } from "../../lib/order-quote";
+import { applyCatalogIntentTag, approveOrderQuote, CatalogQuoteError, requestOrderQuote } from "../../lib/order-quote-actions";
 
 type CatalogOrderToolContext = {
   order: ActiveCatalogOrder;
@@ -20,7 +22,11 @@ type CatalogOrderToolContext = {
 };
 
 function toToolError(error: unknown) {
-  if (error instanceof CatalogOrderPaymentError || error instanceof CatalogPaymentNotConfiguredError) {
+  if (
+    error instanceof CatalogOrderPaymentError ||
+    error instanceof CatalogPaymentNotConfiguredError ||
+    error instanceof CatalogQuoteError
+  ) {
     return { ok: false, error: error.message };
   }
   console.error("[nerp-catalog/tools] falha", error);
@@ -33,16 +39,38 @@ const documentField = z
   .describe("CPF (11 dígitos) ou CNPJ (14 dígitos) do cliente, se ele acabou de informar");
 
 export function makeCatalogOrderTools(ctx: CatalogOrderToolContext): ToolSet {
+  const tagWantsToPay = () =>
+    applyCatalogIntentTag({ organizationId: ctx.order.organizationId, leadId: ctx.order.leadId, key: "wantsToPay" });
+
   return {
     get_catalog_order: tool({
-      description: "Consulta o pedido do catálogo online deste cliente: itens, totais, entrega e status.",
+      description: "Consulta o pedido do catálogo online deste cliente: itens, totais, entrega, status e a situação do valor (quoteState).",
       inputSchema: z.object({}),
       execute: async () => {
         const order = await prisma.catalogOrder.findUniqueOrThrow({
           where: { id: ctx.order.id },
-          select: { status: true, items: true, delivery: true, total: true, paymentMethod: true },
+          select: {
+            status: true,
+            items: true,
+            delivery: true,
+            total: true,
+            paymentMethod: true,
+            quoteRequestedAt: true,
+            quotedAt: true,
+            quoteApprovedAt: true,
+            internalApprovalStartedAt: true,
+            internalApprovedAt: true,
+          },
         });
-        return { ...order, total: Number(order.total) };
+        const total = Number(order.total);
+        return {
+          status: order.status,
+          items: order.items,
+          delivery: order.delivery,
+          total,
+          paymentMethod: order.paymentMethod,
+          quoteState: resolveQuoteState({ ...order, total }),
+        };
       },
     }),
 
@@ -77,6 +105,37 @@ export function makeCatalogOrderTools(ctx: CatalogOrderToolContext): ToolSet {
       },
     }),
 
+    request_catalog_order_quote: tool({
+      description:
+        "Pede à equipe o valor do pedido (pedido sem preço, cliente pediu orçamento, desconto ou quer negociar). Avisa a equipe e marca o lead; você continua no atendimento. Depois diga ao cliente que o valor chega em instantes.",
+      inputSchema: z.object({
+        reason: z.string().max(200).describe("O que o cliente pediu — registro interno, não vai ao cliente"),
+      }),
+      execute: async () => {
+        try {
+          const result = await requestOrderQuote({ orderId: ctx.order.id, conversationId: ctx.conversationId });
+          return { ok: true, teamNotified: true, ...result };
+        } catch (error) {
+          return toToolError(error);
+        }
+      },
+    }),
+
+    approve_catalog_order_quote: tool({
+      description:
+        "Registra que o cliente aprovou o valor enviado pela equipe. Só use quando ele confirmar explicitamente o valor. Depois pergunte a forma de pagamento.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        try {
+          const approval = await approveOrderQuote(ctx.order.id);
+          ctx.order.quoteState = "approved";
+          return { ok: true, approvedTotal: approval.total };
+        } catch (error) {
+          return toToolError(error);
+        }
+      },
+    }),
+
     create_pix_charge: tool({
       description:
         "Gera a cobrança PIX do pedido na conta Asaas da loja e envia o código copia-e-cola ao cliente. Use só depois dos critérios de fechamento confirmados.",
@@ -84,6 +143,7 @@ export function makeCatalogOrderTools(ctx: CatalogOrderToolContext): ToolSet {
       execute: async ({ document }) => {
         try {
           const pix = await createOrderPixCharge(ctx.order.id, document);
+          await tagWantsToPay();
           await deliverTextToLead({
             conversationId: ctx.conversationId,
             senderName: ctx.assistantName,
@@ -109,6 +169,7 @@ export function makeCatalogOrderTools(ctx: CatalogOrderToolContext): ToolSet {
       execute: async ({ document }) => {
         try {
           const link = await createOrderPaymentLink(ctx.order.id, document);
+          await tagWantsToPay();
           await deliverTextToLead({
             conversationId: ctx.conversationId,
             senderName: ctx.assistantName,

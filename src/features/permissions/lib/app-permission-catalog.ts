@@ -23,7 +23,10 @@ export const ALL_APPS: AppPermissionDefinition[] = [
     key: "lead-produtos",
     label: "Lead · Produtos/Serviços",
     icon: "🛍️",
-    actionHints: { canView: "Ver a aba Produtos/Serviços nos Detalhes do lead" },
+    actionHints: {
+      canView: "Ver a aba Produtos/Serviços nos Detalhes do lead",
+      canEdit: "Enviar o valor negociado de pedidos do Catálogo online",
+    },
   },
   { key: "formularios",           label: "Formulários",             icon: "📋" },
   // Comunicação

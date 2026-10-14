@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { CATALOG_SALES_NODE_TYPES, CatalogSalesForm } from "./catalog-sales-forms";
 
 /**
  * Select reutilizável pra organizationId — substitui o Input antigo onde
@@ -1080,6 +1081,8 @@ export function AgentNodeForm({
     return <AppForm nodeType={nodeType} data={data} onChange={onChange} />;
   if (TRIGGERS.has(nodeType))
     return <TriggerForm nodeType={nodeType} data={data} onChange={onChange} />;
+  if (CATALOG_SALES_NODE_TYPES.has(nodeType))
+    return <CatalogSalesForm nodeType={nodeType} data={data} onChange={onChange} />;
 
   // Fallback: JSON cru (NodeType desconhecido)
   return (

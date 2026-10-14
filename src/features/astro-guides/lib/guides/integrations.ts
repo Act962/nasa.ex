@@ -5,6 +5,28 @@ import type { GuideDef } from "../types";
 
 export const INTEGRATIONS_GUIDES: GuideDef[] = [
   {
+    key: "nerp.send-quote",
+    app: "nerp",
+    title: "Enviar o valor de um pedido do catálogo",
+    summary: "Mande ao cliente o valor negociado do pedido; ele aprova e o Astro cobra.",
+    topicPattern: /\b(envi\w*|mand\w*|pass\w*|inform\w*|coloc\w*)\b.*\b(valor|preco|orcamento)\b.*\b(pedido|catalogo)\b/,
+    steps: [
+      {
+        anchor: "catalogOrderSendQuote",
+        title: "Clique em Enviar valor",
+        message: "Digite o preço de cada item, o frete e o desconto. O cliente recebe o total no WhatsApp para aprovar.",
+        position: "left",
+        advanceOn: "click",
+        missingMessage:
+          "Abra o lead do pedido, vá em Detalhes → Produtos/Serviços. O botão aparece em pedido do catálogo que ainda não tem cobrança.",
+      },
+    ],
+    finish: {
+      title: "Valor a caminho! 💰",
+      message: "Quando o cliente aprovar, o Astro pergunta a forma de pagamento e envia o PIX ou o link.",
+    },
+  },
+  {
     key: "nerp.connect",
     app: "nerp",
     title: "Conectar o NERP",

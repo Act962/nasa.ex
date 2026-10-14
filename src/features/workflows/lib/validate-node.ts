@@ -533,7 +533,14 @@ export function getNodeCategory(type: string): NodeCategory {
       return "communication";
 
     case "CHECK_PAYMENT":
+    case "CHECK_CREDIT":
+    case "SALES_APPROVAL":
+    case "CATALOG_ORDER_ACTION":
       return "payment";
+
+    case "FIND_CUSTOMER_BY_DOCUMENT":
+    case "ROUTE_TO_CONSULTANT":
+      return "data";
 
     case "SEND_FORM":
     case "OPEN_FORM":

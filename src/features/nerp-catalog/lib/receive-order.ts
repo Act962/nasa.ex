@@ -18,9 +18,13 @@ import {
   buildOrderWhatsappUrl,
   toWhatsappPhone,
 } from "../utils/format-order";
-import { CATALOG_ORDER_MESSAGE_PREFIX, sendOrderLinkByWhatsapp } from "./order-channel";
+import { CATALOG_ORDER_MESSAGE_PREFIX } from "./order-channel";
+import { sendCustomerMessage } from "./approvals/approval-delivery";
+import { resolveApprovalTemplates } from "./approvals/approval-rules";
 import { toLeadAmountCents } from "../utils/format-order";
 import { handleCatalogStageEntry } from "./stage-flow";
+import { applyCatalogIntentTag } from "./order-quote-actions";
+import { hasActiveSalesApprovers } from "./approvals/order-approvals";
 
 export class CatalogIntegrationInactiveError extends Error {
   constructor() {
@@ -246,16 +250,28 @@ export async function receiveCatalogOrder(
 
   // Link de acompanhamento pelo WhatsApp do tracking; best-effort, o pedido já está gravado.
   const firstName = payload.customer.name.trim().split(/\s+/)[0];
-  await sendOrderLinkByWhatsapp({
+  // Spec 0104: no número oficial sai pelo template `pedido_recebido` (antes ficava só no acompanhamento).
+  const receivedTemplates = resolveApprovalTemplates(
+    (await prisma.nerpCatalogIntegration.findUnique({ where: { organizationId }, select: { approvalTemplates: true } }))?.approvalTemplates,
+  );
+  await sendCustomerMessage({
     conversationId: lead.conversation.id,
-    catalogOrderId: order.id,
+    senderName: "Astro",
     text: `Olá, ${firstName}! Recebemos seu pedido #${payload.saleNumber} 🛒\nAcompanhe, fale com a loja e faça o pagamento por aqui: ${buildOrderPortalUrl(nerpPublicOrigin(), publicToken)}`,
+    template: { name: receivedTemplates.orderReceived, bodyParameters: [firstName, String(payload.saleNumber)], urlButton: { index: 0, suffix: publicToken } },
+    isWhatsappForced: true,
+    metadata: { kind: "catalog_order_link", catalogOrderId: order.id },
   }).catch((error) => console.error("[nerp-catalog] order_link_whatsapp_failed", error));
 
   // Etapas padrão (spec 0044): tag "Novo Pedido" — lead novo e reaberto não passam pelo evento de mudança de coluna.
   await handleCatalogStageEntry({ leadId: lead.id, statusId }).catch((error) =>
     console.error("[nerp-catalog] stage_entry_failed", error),
   );
+
+  // Venda guiada (spec 0104, D-5): a tag dispara o fluxo "chegada do pedido" nos Gatilhos.
+  if (await hasActiveSalesApprovers(organizationId)) {
+    await applyCatalogIntentTag({ organizationId, leadId: lead.id, key: "orderReceived", shouldRetrigger: true });
+  }
 
   if (lead.isNew) {
     await publishLeadCreated({
