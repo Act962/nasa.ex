@@ -42,7 +42,7 @@ function buildArrivalFlow(): Blueprint {
       id: "consultant",
       type: NodeType.ROUTE_TO_CONSULTANT,
       position: { x: STEP_X, y: 0 },
-      data: { question: "Você já tem algum consultor que te atende por aí? Se tiver, me fala o nome dele 😊", timeoutMinutes: 120, timeoutMode: "customer_window" },
+      data: { question: "Oi! Recebi seu pedido aqui 🛒 E toda compra vale pontos pra trocar por brindes 🎁\n\nVocê já tem algum consultor que te atende? Se tiver, me fala o nome dele 😊", timeoutMinutes: 1440, timeoutMode: "customer_window" },
       name: "Já tem consultor?",
     },
     {
@@ -96,7 +96,7 @@ function buildQuoteApprovalFlow(templates: ApprovalTemplateNames): Blueprint {
       id: "approval",
       type: NodeType.SALES_APPROVAL,
       position: { x: STEP_X, y: 0 },
-      data: { round: "PRE_PAYMENT", sectors: ["COMMERCIAL", "FINANCE", "LOGISTICS"], timeoutMinutes: 1440, timeoutMode: "customer_window" },
+      data: { round: "PRE_PAYMENT", sectors: ["COMMERCIAL", "FINANCE", "LOGISTICS"], timeoutMinutes: 1440 },
       name: "Setores aprovam",
     },
     {
@@ -181,7 +181,7 @@ function buildPaymentFlow(params: { templates: ApprovalTemplateNames; organizati
       id: "check",
       type: NodeType.SALES_APPROVAL,
       position: { x: STEP_X * 4, y: 0 },
-      data: { round: "POST_PAYMENT", sectors: ["FINANCE", "LOGISTICS"], timeoutMinutes: 1440, timeoutMode: "customer_window" },
+      data: { round: "POST_PAYMENT", sectors: ["FINANCE", "LOGISTICS"], timeoutMinutes: 1440 },
       name: "Financeiro e logística conferem",
     },
     {
@@ -202,7 +202,13 @@ function buildPaymentFlow(params: { templates: ApprovalTemplateNames; organizati
       }),
       name: "Pergunta do novo prazo",
     },
-    { id: "wait-answer", type: NodeType.WAIT_FOR_EVENT, position: { x: STEP_X * 7, y: -160 }, data: { eventNames: ["message-incoming"], timeoutMinutes: 1440 }, name: "Espera a resposta" },
+    {
+      id: "wait-answer",
+      type: NodeType.CATALOG_ORDER_ACTION,
+      position: { x: STEP_X * 7, y: -160 },
+      data: { action: "await_reply", timeoutMinutes: 1440, timeoutMode: "customer_window" },
+      name: "Espera a resposta",
+    },
     {
       id: "decide-change",
       type: NodeType.AI_DECISION,
@@ -284,8 +290,9 @@ function buildPaymentFlow(params: { templates: ApprovalTemplateNames; organizati
     edges: [
       edge("trigger", "is-catalog"),
       edge("is-catalog", "load", "true"),
+      // Lado a lado: falha no aviso ao cliente não pode impedir a conferência da equipe.
       edge("load", "in-review"),
-      edge("in-review", "check"),
+      edge("load", "check"),
       edge("check", "changed", "approved"),
       edge("changed", "ask-change", "true"),
       edge("changed", "released", "false"),

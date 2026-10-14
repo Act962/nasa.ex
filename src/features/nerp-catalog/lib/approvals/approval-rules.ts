@@ -62,6 +62,18 @@ export function parseApprovalPayload(payload: string | null | undefined): { appr
   return decision ? { approvalId: match[2], decision } : null;
 }
 
+const OPEN_PAYLOAD_PREFIX = "aprovabrir";
+
+/** Botão "Abrir pedido" do lembrete: só reenvia o resumo com os botões de decisão, nunca decide. */
+export function buildOpenApprovalPayload(approvalId: string): string {
+  return `${OPEN_PAYLOAD_PREFIX}:${approvalId}`;
+}
+
+export function parseOpenApprovalPayload(payload: string | null | undefined): string | null {
+  const match = /^aprovabrir:([a-z0-9]{10,40})$/i.exec(payload?.trim() ?? "");
+  return match ? match[1] : null;
+}
+
 export type ApproverIdentity = {
   organizationId: string;
   sector: SalesSector;

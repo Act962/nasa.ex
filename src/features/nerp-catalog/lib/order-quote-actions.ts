@@ -49,6 +49,20 @@ export async function applyCatalogIntentTag(params: { organizationId: string; le
   }
 }
 
+/** Há fluxo ligado em "Lead com tag" para esta tag? Sem ele, desviar o valor para aprovação o deixaria parado. */
+async function hasActiveTagFlow(organizationId: string, key: CatalogIntentTagKey): Promise<boolean> {
+  const tagId = await ensureIntentTagId(organizationId, key).catch(() => null);
+  if (!tagId) return false;
+  const triggers = await prisma.node.findMany({
+    where: { type: "LEAD_TAGGED", workflow: { isActive: true, tracking: { organizationId } } },
+    select: { data: true },
+  });
+  return triggers.some((trigger) => {
+    const tagIds = ((trigger.data as { action?: { tagIds?: unknown } } | null)?.action?.tagIds ?? []) as unknown[];
+    return Array.isArray(tagIds) && tagIds.includes(tagId);
+  });
+}
+
 // Spec 0103, RF-2: avisa a equipe sem pausar a IA (D-2).
 export async function requestOrderQuote(params: { orderId: string; conversationId: string }) {
   const order = await prisma.catalogOrder.findUniqueOrThrow({
@@ -144,7 +158,9 @@ export async function sendOrderQuote(params: {
 
   // Spec 0104, D-5: com aprovadores, o valor vai para a aprovação da equipe pelo fluxo dos Gatilhos
   // (gatilho "Lead com tag" na tag abaixo); o cliente só recebe depois de aprovado.
-  if (await hasActiveSalesApprovers(params.organizationId, "PRE_PAYMENT")) {
+  const isApprovalFlowReady =
+    (await hasActiveSalesApprovers(params.organizationId, "PRE_PAYMENT")) && (await hasActiveTagFlow(params.organizationId, "quoteInReview"));
+  if (isApprovalFlowReady) {
     await prisma.catalogOrder.update({ where: { id: order.id }, data: { internalApprovalStartedAt: quotedAt, internalApprovedAt: null } });
     await applyCatalogIntentTag({ organizationId: params.organizationId, leadId: order.leadId, key: "quoteInReview", shouldRetrigger: true });
     return { total: totals.total, isDelivered: false, isAwaitingInternalApproval: true };
