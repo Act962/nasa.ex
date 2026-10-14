@@ -41,7 +41,9 @@ não altera comportamento.
 
 ## O que o piloto não resolveu
 
-- O salvamento parcial (`save-partial-response.ts`) ainda não foi migrado.
+- O salvamento parcial foi migrado depois do envio, com a mesma flag. A migração mostrou que os dois
+  liam a identidade da pessoa com regras diferentes; as duas foram preservadas, lado a lado no domínio,
+  para a diferença ficar visível (achado 10 em [`testing-strategy.md`](testing-strategy.md) §7).
 - As operações por id de lead e de tag dentro do envio não conferem a empresa, como no código de
   origem. Ver achado 9 em [`testing-strategy.md`](testing-strategy.md) §7.
 - O adapter de efeitos importa helpers de `features/` e de `app/router/`. É dependência de `infra/`

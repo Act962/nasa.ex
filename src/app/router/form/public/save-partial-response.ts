@@ -9,6 +9,8 @@ import { recordLeadEvent } from "@/features/leads/lib/history";
 import { publishLeadCreated } from "@/features/leads/realtime/publish";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
+import { DRAFT_NOT_OPEN, FORM_NOT_PUBLISHED, isFormSubmitModuleOn, savePublicFormDraft } from "@/modules/form";
+import { isDomainError } from "@/modules/shared/domain/domain-error";
 
 /**
  * Salvamento INCREMENTAL de uma resposta de formulário público — usado
@@ -59,6 +61,26 @@ export const savePartialResponse = base
   )
   .handler(async ({ input, errors }) => {
     try {
+      // Passo 7d do plano de migração: com a flag ligada, roda pelo módulo `form`.
+      if (isFormSubmitModuleOn()) {
+        try {
+          return await savePublicFormDraft({
+            formId: input.id,
+            response: input.response,
+            tracking: input.tracking,
+            responseId: input.responseId,
+          });
+        } catch (moduleError) {
+          if (isDomainError(moduleError) && moduleError.code === DRAFT_NOT_OPEN) {
+            throw errors.NOT_FOUND({ message: "Resposta não encontrada" });
+          }
+          if (isDomainError(moduleError) && moduleError.code === FORM_NOT_PUBLISHED) {
+            throw errors.NOT_FOUND({ message: "Form não encontrado" });
+          }
+          throw moduleError;
+        }
+      }
+
       const { id, response, tracking: trackingParams, responseId } = input;
 
       // ── Modo UPDATE ────────────────────────────────────────────────

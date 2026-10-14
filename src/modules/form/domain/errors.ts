@@ -9,3 +9,13 @@ export class FormNotPublishedError extends DomainError {
     this.name = "FormNotPublishedError";
   }
 }
+
+export const DRAFT_NOT_OPEN = "DRAFT_NOT_OPEN";
+
+/** Rascunho inexistente, de outro formulário ou já concluído: não aceita mais salvamento. */
+export class DraftNotOpenError extends DomainError {
+  constructor(responseId: string) {
+    super(DRAFT_NOT_OPEN, "Resposta não encontrada", { responseId });
+    this.name = "DraftNotOpenError";
+  }
+}

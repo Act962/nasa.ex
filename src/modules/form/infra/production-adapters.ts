@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
-import { createPlatformSubmissionEffects } from "./platform-submission-effects";
+import { createPlatformDraftEffects, createPlatformSubmissionEffects } from "./platform-submission-effects";
+import { PrismaFormDraftRepository } from "./prisma-form-draft-repository";
 import { PrismaFormSubmissionRepository } from "./prisma-form-submission-repository";
 
 // Adapters ligados ao cliente Prisma global. Ficam aqui porque, dentro de
@@ -7,3 +8,5 @@ import { PrismaFormSubmissionRepository } from "./prisma-form-submission-reposit
 
 export const formSubmissionRepository = new PrismaFormSubmissionRepository(prisma);
 export const submissionEffects = createPlatformSubmissionEffects(prisma);
+export const formDraftRepository = new PrismaFormDraftRepository(prisma);
+export const draftEffects = createPlatformDraftEffects(prisma);

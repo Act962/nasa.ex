@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   didLeadChangePosition,
+  readDraftLeadIdentity,
   readLeadIdentity,
   responseMilestoneAction,
   type LeadPlacement,
@@ -28,6 +29,20 @@ describe("readLeadIdentity", () => {
 
   it.each(["isto não é json", "null", "42", "[]"])("resposta %s vira identidade vazia", (response) => {
     expect(readLeadIdentity(response)).toEqual({ name: "Sem nome", email: null, phone: null });
+  });
+});
+
+describe("readDraftLeadIdentity", () => {
+  it("aceita só texto e mantém o texto vazio como veio", () => {
+    expect(readDraftLeadIdentity(JSON.stringify({ user_name: "", user_phone: 5511, user_email: "ana@exemplo.com" }))).toEqual({
+      name: "",
+      email: "ana@exemplo.com",
+      phone: null,
+    });
+  });
+
+  it.each(["isto não é json", "null"])("resposta %s vira identidade vazia", (response) => {
+    expect(readDraftLeadIdentity(response)).toEqual({ name: "Sem nome", email: null, phone: null });
   });
 });
 

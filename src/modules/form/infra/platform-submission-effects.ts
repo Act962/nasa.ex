@@ -10,6 +10,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { inngest } from "@/inngest/client";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import type { AppPrismaClient } from "@/lib/prisma";
+import type { DraftEffects } from "../ports/draft-effects";
 import type { SubmissionEffects } from "../ports/submission-effects";
 
 // Efeitos do envio executados pelos mesmos helpers que o handler de origem
@@ -195,6 +196,30 @@ export function createPlatformSubmissionEffects(prisma: AppPrismaClient): Submis
         });
       } catch (whatsappError) {
         console.error(`${LOG_PREFIX} Inngest whatsapp send error:`, whatsappError);
+      }
+    },
+  };
+}
+
+export function createPlatformDraftEffects(prisma: AppPrismaClient): DraftEffects {
+  return {
+    syncFormLabelsToLead(leadId) {
+      syncFormLabelsToLeadDescription(prisma, leadId).catch(() => {});
+    },
+
+    async publishLeadCreated(createdLead) {
+      await publishLeadCreated({ ...createdLead, source: "form" });
+    },
+
+    async recordFormStarted({ leadId, formId, responseId }) {
+      try {
+        await recordLeadEvent({
+          leadId,
+          eventType: "FORM_STARTED",
+          metadata: { formId, formResponseId: responseId, source: "public" },
+        });
+      } catch (recordError) {
+        console.warn("[form/savePartial] FORM_STARTED record failed", recordError);
       }
     },
   };

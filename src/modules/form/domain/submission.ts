@@ -26,6 +26,27 @@ export function readLeadIdentity(responseJson: string): LeadIdentity {
   };
 }
 
+/**
+ * Identidade lida pelo salvamento parcial. Difere de `readLeadIdentity`: aceita
+ * só texto e mantém o texto vazio como veio (nome "" não vira "Sem nome").
+ * A diferença vem do código de origem e foi preservada na migração.
+ */
+export function readDraftLeadIdentity(responseJson: string): LeadIdentity {
+  let answers: Record<string, unknown> = {};
+  try {
+    answers = JSON.parse(responseJson) ?? {};
+  } catch {}
+
+  const readText = (fieldName: string) =>
+    typeof answers[fieldName] === "string" ? (answers[fieldName] as string) : null;
+
+  return {
+    name: readText("user_name") ?? UNNAMED_LEAD_NAME,
+    email: readText("user_email"),
+    phone: readText("user_phone"),
+  };
+}
+
 export type ResponseMilestoneAction = "form_10_responses" | "form_100_responses";
 
 /** Marcos que pontuam o dono do formulário: a 10ª e a 100ª resposta. */
