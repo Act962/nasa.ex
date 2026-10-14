@@ -163,6 +163,22 @@ export const GUIDE_ANCHORS = {
     id: "tracking.board.customize-sheet",
     description: "Sheet \"Personalizar board\" com os toggles de campos",
   },
+  catalogOrderSendQuote: {
+    id: "catalog-order.send-quote",
+    description: "Botão \"Enviar valor\" do pedido do Catálogo online, na aba Produtos/Serviços dos Detalhes do lead",
+  },
+  salesApproversCard: {
+    id: "catalog.sales-approvers",
+    description: "Cartão \"Venda guiada · aprovação dos setores\" em Integrações → NERP: aprovadores por setor e fluxos prontos",
+  },
+  orderApprovalsPanel: {
+    id: "catalog-order.approvals-panel",
+    description: "Lista de aprovações dos setores na aba Pedido do Propostas e Orçamentos do chat",
+  },
+  catalogOrderChatQuoteTab: {
+    id: "catalog-order.chat-quote-tab",
+    description: "Aba \"Pedido\" do painel Propostas e Orçamentos do chat, com os preços do NERP para enviar o valor do pedido do Catálogo online",
+  },
   leadSheetName: {
     id: "lead-sheet.name",
     description: "Campo de nome no Sheet de novo lead",
@@ -730,6 +746,10 @@ export const GUIDE_ANCHORS = {
   starFriendsCampaignSave: {
     id: "star-friends.campaign-save",
     description: "Botão \"Salvar campanha\"",
+  },
+  starFriendsCampaignReviewApprove: {
+    id: "star-friends.campaign-review-approve",
+    description: "Botão \"Aprovar\" do cupom em conferência",
   },
   starFriendsNewReward: {
     id: "star-friends.new-reward",

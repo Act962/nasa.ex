@@ -231,7 +231,16 @@ export interface SendTemplateInput {
   bodyParameters?: string[];
   /** Valores das variáveis do header de texto, na ordem. */
   headerParameters?: string[];
+  /** Parâmetros de botão: payload da resposta rápida ou sufixo da URL dinâmica. */
+  buttonParameters?: TemplateButtonParameter[];
   replyToWamid?: Wamid;
+}
+
+export interface TemplateButtonParameter {
+  /** Posição do botão no template, a partir de 0. */
+  index: number;
+  subType: "quick_reply" | "url";
+  value: string;
 }
 
 // ─── Marketing Messages API (Campanhas — disparo em massa) ───────────────

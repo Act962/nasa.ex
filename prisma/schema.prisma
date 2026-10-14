@@ -167,6 +167,7 @@ model User {
   trafegoSupportMessages     TrafegoSupportMessage[]  @relation("TrafegoSupportAuthor")
   trafegoInfoTipsSeen        TrafegoInfoTipSeen[]
   trafegoCreativeTopUps      TrafegoCreativeTopUp[]   @relation("TrafegoCreativeTopUpBuyer")
+  salesApprovers             SalesApprover[]
 
   @@unique([email])
   @@map("user")
@@ -321,6 +322,7 @@ model Organization {
   platformIntegrations   PlatformIntegration[]
   nerpCatalogIntegration NerpCatalogIntegration?
   catalogOrders          CatalogOrder[]
+  salesApprovers         SalesApprover[]
   loyaltyProgram         LoyaltyProgram?
   loyaltyRewards         LoyaltyReward[]
   loyaltyMembers         LoyaltyMember[]
@@ -1239,6 +1241,7 @@ model Lead {
   @@index([currentAction])
   @@index([isActive])
   @@index([responsibleId])
+  @@index([document])
   @@index([utmCampaign])
   @@index([metaAdId])
   @@index([metaCampaignId])
@@ -2124,6 +2127,12 @@ enum NodeType {
   // Construtor rápido (spec 0039)
   SCHEDULE_TRIGGER
   NOTIFY_TEAM
+  // Venda guiada pelo catálogo (spec 0104)
+  SALES_APPROVAL
+  CHECK_CREDIT
+  FIND_CUSTOMER_BY_DOCUMENT
+  ROUTE_TO_CONSULTANT
+  CATALOG_ORDER_ACTION
   // Aba Contábil (spec 0051): obrigação, documento, guia ou nota do mês vencendo.
   COMPLIANCE_ITEM_DUE
 }
@@ -3428,6 +3437,8 @@ model NerpCatalogIntegration {
   asaasEnv            String   @default("production") @map("asaas_env")
   asaasWebhookId      String?  @map("asaas_webhook_id")
   asaasWebhookToken   String?  @map("asaas_webhook_token")
+  // Nomes dos templates da Meta da venda guiada (spec 0104); ausente = nomes padrão.
+  approvalTemplates   Json?    @map("approval_templates")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
@@ -3461,15 +3472,99 @@ model CatalogOrder {
   invoiceUrl     String?                    @map("invoice_url")
   paidAt         DateTime?                  @map("paid_at")
   nerpSyncedAt   DateTime?                  @map("nerp_synced_at")
+  // Valor negociado pelo atendente (spec 0103): sem aprovação do cliente não há cobrança.
+  quoteRequestedAt DateTime?                @map("quote_requested_at")
+  quotedAt         DateTime?                @map("quoted_at")
+  quotedById       String?                  @map("quoted_by_id")
+  quoteApprovedAt  DateTime?                @map("quote_approved_at")
+  // Venda guiada com aprovação dos setores (spec 0104).
+  deliveryPromiseAt     DateTime?           @map("delivery_promise_at")
+  deliveryNote          String?             @map("delivery_note")
+  internalApprovalStartedAt DateTime?       @map("internal_approval_started_at")
+  internalApprovedAt    DateTime?           @map("internal_approved_at")
+  postPaymentApprovedAt DateTime?           @map("post_payment_approved_at")
+  // Prazo novo da 2ª rodada aguardando o "pode ser" do cliente (RF-15).
+  pendingDeliveryChangeAt DateTime?         @map("pending_delivery_change_at")
   createdAt      DateTime                   @default(now()) @map("created_at")
   updatedAt      DateTime                   @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  approvals    CatalogOrderApproval[]
 
   @@index([organizationId, status])
   @@index([leadId])
   @@map("catalog_orders")
+}
+
+enum SalesApprovalSector {
+  COMMERCIAL
+  FINANCE
+  LOGISTICS
+  ACCOUNTING
+}
+
+enum SalesApprovalRound {
+  PRE_PAYMENT
+  POST_PAYMENT
+}
+
+enum SalesApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ADJUSTED
+  CANCELED
+}
+
+// Quem aprova o pedido do catálogo por setor (spec 0104). Recebe pelo número oficial da loja.
+model SalesApprover {
+  id             String               @id @default(cuid())
+  organizationId String               @map("organization_id")
+  userId         String               @map("user_id")
+  sector         SalesApprovalSector
+  rounds         SalesApprovalRound[]
+  phoneE164      String               @map("phone_e164")
+  optInAt        DateTime?            @map("opt_in_at")
+  // Última mensagem do aprovador no número oficial: abre a janela de 24h da Meta.
+  lastInboundAt  DateTime?            @map("last_inbound_at")
+  isActive       Boolean              @default(true) @map("is_active")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, sector])
+  @@index([organizationId, phoneE164])
+  @@map("sales_approvers")
+}
+
+model CatalogOrderApproval {
+  id                 String              @id @default(cuid())
+  organizationId     String              @map("organization_id")
+  orderId            String              @map("order_id")
+  round              SalesApprovalRound
+  sector             SalesApprovalSector
+  status             SalesApprovalStatus @default(PENDING)
+  decidedById        String?             @map("decided_by_id")
+  note               String?
+  proposedDeliveryAt DateTime?           @map("proposed_delivery_at")
+  // Aprovador que tocou "Ajustar" e ainda vai escrever o ajuste.
+  awaitingNoteSince  DateTime?           @map("awaiting_note_since")
+  // O que o texto seguinte do aprovador completa: "delivery_date" (prazo) ou "adjust" / "reject" (motivo).
+  awaitingIntent     String?             @map("awaiting_intent")
+  notifiedAt         DateTime?           @map("notified_at")
+  lastReminderAt     DateTime?           @map("last_reminder_at")
+  decidedAt          DateTime?           @map("decided_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  order CatalogOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, round])
+  @@index([organizationId, status])
+  @@map("catalog_order_approvals")
 }
 
 // ─────────────────────────────────────────────
@@ -3663,6 +3758,7 @@ enum LoyaltyReceiptStatus {
   DUPLICATE
   REJECTED
   VOIDED
+  PENDING_REVIEW
 }
 
 enum LoyaltyLuckyNumberStatus {
@@ -3719,8 +3815,9 @@ model LoyaltyCampaignEntry {
   @@map("loyalty_campaign_entries")
 }
 
-// `fileSha256`, `accessKey` e `fingerprint` só ficam preenchidos em cupom aceito:
-// os índices únicos são a trava contra dois envios simultâneos do mesmo cupom.
+// `fileSha256`, `accessKey` e `fingerprint` só ficam preenchidos em cupom aceito ou em conferência
+// (`PENDING_REVIEW`, só o `fileSha256`): os índices únicos são a trava contra dois envios
+// simultâneos do mesmo cupom.
 model LoyaltyReceipt {
   id             String               @id @default(cuid())
   organizationId String               @map("organization_id")

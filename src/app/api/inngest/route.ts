@@ -10,6 +10,8 @@ import { executeWorkspaceWorkflow } from "@/inngest/functions/workspace-workflow
 import { bookingNotification } from "@/inngest/functions/booking-notification";
 import { processUserAction } from "@/inngest/functions/process-user-action";
 import { detectAbsence } from "@/inngest/functions/crons/detect-absence";
+import { markOverdueReceivablesCron } from "@/inngest/functions/crons/mark-overdue-receivables";
+import { remindSalesApprovalsCron } from "@/inngest/functions/nerp-catalog/remind-sales-approvals";
 import { detectChatTimeout } from "@/inngest/functions/crons/detect-chat-timeout";
 import { checkStreaks } from "@/inngest/functions/crons/check-streaks";
 import { checkMilestones } from "@/inngest/functions/crons/check-milestones";
@@ -206,6 +208,8 @@ export const { GET, POST, PUT } = serve({
     formSendWhatsappNotification,
     // ── Alerts: detecção time-based ──
     detectLowMetrics,
+    markOverdueReceivablesCron,
+    remindSalesApprovalsCron,
     // ── Campanhas: gasto diário Meta ──
     snapshotMetaDailySpendCron,
     // ── Idle automation por tracking (substitui detect-leads-waiting-attention + LAST_INBOUND_TIMEOUT) ──

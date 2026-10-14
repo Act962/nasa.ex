@@ -10,6 +10,7 @@ import type {
 } from "@/features/nerp-catalog/schemas/order-payload";
 import prisma from "@/lib/prisma";
 import { isCatalogStageKey } from "@/features/nerp-catalog/lib/catalog-stages";
+import { getChargeBlockReason, resolveQuoteState } from "@/features/nerp-catalog/lib/order-quote";
 import {
   buildOrderWhatsappUrl,
   toOrderCode,
@@ -76,9 +77,13 @@ export const getPublicCatalogOrder = base
         pixExpiresAt: isAwaitingPayment ? order.pixExpiresAt : null,
         invoiceUrl: isAwaitingPayment ? order.invoiceUrl : null,
         paidAt: order.paidAt,
+        // Valor ainda em negociação (spec 0103): o portal não oferece PIX.
         canPayWithPix:
-          (order.status === "RECEIVED" || order.status === "NEGOTIATING") && Boolean(integration?.asaasApiKey),
+          (order.status === "RECEIVED" || order.status === "NEGOTIATING") &&
+          Boolean(integration?.asaasApiKey) &&
+          getChargeBlockReason({ ...order, total: Number(order.total) }) === null,
       },
+      quoteState: resolveQuoteState({ ...order, total: Number(order.total) }),
       createdAt: order.createdAt,
     };
   });

@@ -3,6 +3,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { requireAppPermission } from "@/app/middlewares/app-permission";
 import { base } from "@/app/middlewares/base";
 import { catalogOrderItemSchema } from "@/features/nerp-catalog/schemas/order-payload";
+import { resolveQuoteState } from "@/features/nerp-catalog/lib/order-quote";
 import type {
   CatalogOrderStatus,
   ForgeContractStatus,
@@ -85,7 +86,14 @@ export const listLeadProducts = base
           createdAt: true,
           paidAt: true,
           total: true,
+          shipping: true,
+          discount: true,
           items: true,
+          quoteRequestedAt: true,
+          quotedAt: true,
+          quoteApprovedAt: true,
+          internalApprovalStartedAt: true,
+          internalApprovedAt: true,
         },
       }),
       prisma.forgeProposal.findMany({
@@ -132,11 +140,18 @@ export const listLeadProducts = base
         createdAt: order.createdAt.toISOString(),
         paidAt: order.paidAt?.toISOString() ?? null,
         total: order.total.toNumber(),
+        shipping: order.shipping.toNumber(),
+        discount: order.discount.toNumber(),
+        quoteState: resolveQuoteState({ ...order, total: order.total.toNumber() }),
+        canSendQuote: order.status === "RECEIVED" || order.status === "NEGOTIATING",
         items: parsedItems.success
           ? parsedItems.data.map((item) => ({
               name: item.name,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
+              referenceUnitPrice: item.referenceUnitPrice ?? null,
+              referenceBoxPrice: item.referenceBoxPrice ?? null,
+              packQty: item.packQty ?? null,
               total: item.total,
               imageUrl: item.imageUrl,
             }))

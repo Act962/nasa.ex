@@ -18,9 +18,14 @@ import {
   buildOrderWhatsappUrl,
   toWhatsappPhone,
 } from "../utils/format-order";
-import { CATALOG_ORDER_MESSAGE_PREFIX, sendOrderLinkByWhatsapp } from "./order-channel";
+import { CATALOG_ORDER_MESSAGE_PREFIX } from "./order-channel";
+import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
+import { sendCustomerMessage } from "./approvals/approval-delivery";
+import { resolveApprovalTemplates } from "./approvals/approval-rules";
 import { toLeadAmountCents } from "../utils/format-order";
 import { handleCatalogStageEntry } from "./stage-flow";
+import { applyCatalogIntentTag } from "./order-quote-actions";
+import { hasActiveSalesApprovers } from "./approvals/order-approvals";
 
 export class CatalogIntegrationInactiveError extends Error {
   constructor() {
@@ -79,8 +84,11 @@ async function findOrCreateOrderLead(input: {
   payload: NerpCatalogOrderPayload;
 }): Promise<OrderLead> {
   const { payload } = input;
-  const existingLead = await prisma.lead.findUnique({
-    where: { phone_trackingId: { phone: input.phone, trackingId: input.trackingId } },
+  // O mesmo celular pode estar gravado sem o 9º dígito (wa_id de conta antiga): sem isso o pedido
+  // abria um segundo lead e a resposta do cliente no WhatsApp caía no outro.
+  const existingLead = await prisma.lead.findFirst({
+    where: { trackingId: input.trackingId, phone: { in: waIdLookupVariants(input.phone) } },
+    orderBy: { updatedAt: "desc" },
     select: { id: true, conversation: { select: { id: true } } },
   });
 
@@ -232,10 +240,13 @@ export async function receiveCatalogOrder(
     },
   });
 
+  // Venda guiada (spec 0104): a chegada fala uma vez só, pelo fluxo "chegada do pedido"; o Astro entra na resposta.
+  const isGuidedSale = await hasActiveSalesApprovers(organizationId);
+
   await firePostInboundAutomations({
     trackingId: tracking.id,
     organizationId,
-    globalAiActive: tracking.globalAiActive,
+    globalAiActive: tracking.globalAiActive && !isGuidedSale,
     lead,
     messageId: orderMessage.id,
     externalMessageId: orderMessage.messageId,
@@ -244,18 +255,33 @@ export async function receiveCatalogOrder(
     messagePayload: orderMessage,
   });
 
-  // Link de acompanhamento pelo WhatsApp do tracking; best-effort, o pedido já está gravado.
-  const firstName = payload.customer.name.trim().split(/\s+/)[0];
-  await sendOrderLinkByWhatsapp({
-    conversationId: lead.conversation.id,
-    catalogOrderId: order.id,
-    text: `Olá, ${firstName}! Recebemos seu pedido #${payload.saleNumber} 🛒\nAcompanhe, fale com a loja e faça o pagamento por aqui: ${buildOrderPortalUrl(nerpPublicOrigin(), publicToken)}`,
-  }).catch((error) => console.error("[nerp-catalog] order_link_whatsapp_failed", error));
+  // Na venda guiada o link segue no "pedido liberado"; aqui seria mais uma mensagem junto da pergunta do fluxo.
+  if (!isGuidedSale) {
+    // Link de acompanhamento pelo WhatsApp do tracking; best-effort, o pedido já está gravado.
+    const firstName = payload.customer.name.trim().split(/\s+/)[0];
+    // Spec 0104: no número oficial sai pelo template `pedido_recebido` (antes ficava só no acompanhamento).
+    const receivedTemplates = resolveApprovalTemplates(
+      (await prisma.nerpCatalogIntegration.findUnique({ where: { organizationId }, select: { approvalTemplates: true } }))?.approvalTemplates,
+    );
+    await sendCustomerMessage({
+      conversationId: lead.conversation.id,
+      senderName: "Astro",
+      text: `Olá, ${firstName}! Recebemos seu pedido #${payload.saleNumber} 🛒\nAcompanhe, fale com a loja e faça o pagamento por aqui: ${buildOrderPortalUrl(nerpPublicOrigin(), publicToken)}`,
+      template: { name: receivedTemplates.orderReceived, bodyParameters: [firstName, String(payload.saleNumber)], urlButton: { index: 0, suffix: publicToken } },
+      isWhatsappForced: true,
+      metadata: { kind: "catalog_order_link", catalogOrderId: order.id },
+    }).catch((error) => console.error("[nerp-catalog] order_link_whatsapp_failed", error));
+  }
 
   // Etapas padrão (spec 0044): tag "Novo Pedido" — lead novo e reaberto não passam pelo evento de mudança de coluna.
   await handleCatalogStageEntry({ leadId: lead.id, statusId }).catch((error) =>
     console.error("[nerp-catalog] stage_entry_failed", error),
   );
+
+  // Venda guiada (spec 0104, D-5): a tag dispara o fluxo "chegada do pedido" nos Gatilhos.
+  if (isGuidedSale) {
+    await applyCatalogIntentTag({ organizationId, leadId: lead.id, key: "orderReceived", shouldRetrigger: true });
+  }
 
   if (lead.isNew) {
     await publishLeadCreated({

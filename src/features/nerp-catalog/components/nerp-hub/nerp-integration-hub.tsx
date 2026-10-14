@@ -31,6 +31,7 @@ import { useDisconnectNerp } from "@/features/nerp/hooks/use-nerp-connection";
 import { useNerpCatalogIntegration } from "../../hooks/use-nerp-catalog-integration";
 import { useCheckPermission } from "@/hooks/use-check-permission";
 import { CatalogOnlineSettingsForm } from "./catalog-online-settings-form";
+import { SalesApproversCard } from "./sales-approvers-card";
 
 const CONNECT_URL = `/api/integrations/nerp/start?returnUrl=${encodeURIComponent("/integrations/nerp")}`;
 
@@ -264,6 +265,8 @@ export function NerpIntegrationHub() {
           </p>
         </CardContent>
       </Card>
+
+      {isConnected && <SalesApproversCard canEdit={canConfigureCatalog} />}
     </div>
   );
 }

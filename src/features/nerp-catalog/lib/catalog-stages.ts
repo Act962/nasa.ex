@@ -8,6 +8,7 @@ export const CATALOG_STAGE_KEYS = {
   confirmed: "catalog.confirmed",
   paid: "catalog.paid",
   separated: "catalog.separated",
+  onRoute: "catalog.on_route",
   delivered: "catalog.delivered",
 } as const;
 
@@ -20,6 +21,8 @@ export const CATALOG_STAGES: CatalogStage[] = [
   { key: CATALOG_STAGE_KEYS.confirmed, name: "Confirmado", color: "#06b6d4", tagSlug: "etapa-confirmado", tagColor: "#06b6d4" },
   { key: CATALOG_STAGE_KEYS.paid, name: "Pagamento confirmado", color: "#10b981", tagSlug: "etapa-pagamento-confirmado", tagColor: "#10b981" },
   { key: CATALOG_STAGE_KEYS.separated, name: "Separado", color: "#f59e0b", tagSlug: "etapa-separado", tagColor: "#f59e0b" },
+  // Spec 0104: "pedido em rota" é etapa própria, com aviso no acompanhamento e no WhatsApp.
+  { key: CATALOG_STAGE_KEYS.onRoute, name: "Em rota", color: "#8b5cf6", tagSlug: "etapa-em-rota", tagColor: "#8b5cf6" },
   { key: CATALOG_STAGE_KEYS.delivered, name: "Entregue", color: "#22c55e", tagSlug: "etapa-entregue", tagColor: "#22c55e" },
 ];
 

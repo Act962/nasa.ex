@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useLeadProducts } from "../hooks/use-lead-products";
+import { SendQuoteDialog } from "@/features/nerp-catalog/components/send-quote-dialog";
+import type { QuoteFormItem } from "@/features/nerp-catalog/components/send-quote-form";
+import { QUOTE_STATE_LABEL, type QuoteState } from "@/features/nerp-catalog/lib/order-quote";
 
 type PurchaseItem = {
   name: string;
@@ -26,6 +29,16 @@ type PurchaseItem = {
   discount: number;
   total: number;
   imageUrl: string | null;
+};
+
+type CatalogQuote = {
+  orderId: string;
+  saleNumber: number;
+  state: QuoteState;
+  canSend: boolean;
+  shipping: number;
+  discount: number;
+  items: QuoteFormItem[];
 };
 
 type Purchase = {
@@ -37,6 +50,7 @@ type Purchase = {
   statusLabel: string;
   statusClassName: string;
   items: PurchaseItem[];
+  catalogQuote?: CatalogQuote;
 };
 
 const CATALOG_STATUS_STYLE: Record<
@@ -142,6 +156,15 @@ export function LeadProducts({ leadId, starFriendsSlot }: LeadProductsProps) {
         total: item.total,
         imageUrl: item.imageUrl,
       })),
+      catalogQuote: {
+        orderId: order.id,
+        saleNumber: order.saleNumber,
+        state: order.quoteState,
+        canSend: order.canSendQuote,
+        shipping: order.shipping,
+        discount: order.discount,
+        items: order.items,
+      },
     })),
     ...(data?.forge ?? []).map((proposal) => {
       const statusStyle = toForgeStatusStyle(
@@ -268,11 +291,28 @@ function PurchaseCard({ purchase }: { purchase: Purchase }) {
           <p className="text-[11px] text-muted-foreground">
             {formatDate(purchase.date)}
           </p>
+          {purchase.catalogQuote?.canSend && (
+            <p className="text-[11px] font-medium text-warning">
+              {QUOTE_STATE_LABEL[purchase.catalogQuote.state]}
+            </p>
+          )}
         </div>
         <p className="shrink-0 text-sm font-semibold tabular-nums text-success">
           {formatCurrency(purchase.total)}
         </p>
       </div>
+
+      {purchase.catalogQuote?.canSend && (
+        <div className="mt-3 flex justify-end">
+          <SendQuoteDialog
+            orderId={purchase.catalogQuote.orderId}
+            saleNumber={purchase.catalogQuote.saleNumber}
+            items={purchase.catalogQuote.items}
+            shipping={purchase.catalogQuote.shipping}
+            discount={purchase.catalogQuote.discount}
+          />
+        </div>
+      )}
 
       {purchase.items.length > 0 && (
         <ul className="mt-3 flex flex-col gap-2">
