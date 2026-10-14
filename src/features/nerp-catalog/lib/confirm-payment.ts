@@ -11,6 +11,8 @@ import { awardPurchaseStars } from "@/features/star-friends/lib/earn";
 import { isCatalogStageKey } from "./catalog-stages";
 import { handleCatalogStageEntry } from "./stage-flow";
 import type { CatalogOrderItem } from "../schemas/order-payload";
+import { dispatchPaymentReceived } from "@/features/workflows/lib/agent-trigger-helpers";
+import { hasActiveSalesApprovers } from "./approvals/order-approvals";
 
 export const CATALOG_ORDER_PAID_EVENT = "nerp/catalog-order.paid";
 
@@ -28,6 +30,16 @@ export async function resendNerpSyncIfPending(orderId: string) {
   });
   const isPaid = order?.status === "PAID" || order?.status === "IN_LOGISTICS";
   if (!order || !isPaid || order.nerpSyncedAt) return;
+  await dispatchPaymentReceived({
+    provider: "ASAAS",
+    externalId: payment.asaasPaymentId,
+    organizationId: order.organizationId,
+    trackingId: order.trackingId,
+    leadId: order.lead.id,
+    amount: payment.amount,
+    extra: { source: "catalog_order", catalogOrderId: order.id, saleNumber: order.nerpSaleNumber },
+  });
+
   await inngest.send({
     name: CATALOG_ORDER_PAID_EVENT,
     data: { orderId, organizationId: order.organizationId },
@@ -75,7 +87,12 @@ export async function confirmCatalogOrderPayment(orderId: string, payment: Confi
   });
 
   try {
-    await prisma.paymentEntry.create({
+    // Spec 0104, RF-6: a cobrança já lançou a conta a receber; o pagamento só a quita.
+    const settled = await prisma.paymentEntry.updateMany({
+      where: { organizationId: order.organizationId, leadId: order.lead.id, type: "RECEIVABLE", documentNumber: payment.asaasPaymentId, status: { not: "PAID" } },
+      data: { status: "PAID", paidAmount: Math.round(payment.amount * 100), paidAt },
+    });
+    if (settled.count === 0) await prisma.paymentEntry.create({
       data: {
         organizationId: order.organizationId,
         type: "RECEIVABLE",
@@ -149,7 +166,9 @@ export async function confirmCatalogOrderPayment(orderId: string, payment: Confi
   }
 
   // Com as etapas padrão (spec 0044) os avisos saem pelo stage-flow; esta mensagem é do fluxo antigo.
-  if (order.lead.conversation && !isStageFlowActive) {
+  // Na venda guiada (spec 0104) quem avisa o cliente é o fluxo dos Gatilhos ("Pagamento recebido").
+  const isGuidedSale = await hasActiveSalesApprovers(order.organizationId);
+  if (order.lead.conversation && !isStageFlowActive && !isGuidedSale) {
     const portalUrl = buildOrderPortalUrl(nerpPublicOrigin(), order.publicToken);
     await deliverTextToLead({
       conversationId: order.lead.conversation.id,

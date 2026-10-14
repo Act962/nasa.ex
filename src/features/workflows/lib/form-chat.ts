@@ -32,7 +32,7 @@ export interface ChatField {
   /** Lista longa do próprio campo: o cliente digita e a resposta é procurada nela. */
   inlineOptions?: string[];
   /** Campo que espelha um dado do lead: pode ser pulado quando o lead já tem. */
-  leadSource?: "name" | "email" | "phone" | "document";
+  leadSource?: "name" | "email" | "phone" | "document" | "address";
   minimum?: number;
   maximum?: number;
 }
@@ -48,7 +48,9 @@ function clipTitle(label: string): string {
 
 function leadSourceOf(attributes: Attributes, format: MaskedFormat | undefined): ChatField["leadSource"] {
   const prefill = attributes.prefillFromLead;
-  if (prefill === "name" || prefill === "email" || prefill === "phone") return prefill;
+  if (prefill === "name" || prefill === "email" || prefill === "phone" || prefill === "address") return prefill;
+  // Spec 0104: campo de endereço aproveita o endereço de entrega do pedido do catálogo.
+  if (!format && /endere[cç]o/i.test(String(attributes.label ?? ""))) return "address";
   if (format === "cpf") return "document";
   if (format === "email") return "email";
   if (format === "phone-br") return "phone";

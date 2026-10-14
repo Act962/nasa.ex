@@ -167,6 +167,18 @@ export const GUIDE_ANCHORS = {
     id: "catalog-order.send-quote",
     description: "Botão \"Enviar valor\" do pedido do Catálogo online, na aba Produtos/Serviços dos Detalhes do lead",
   },
+  salesApproversCard: {
+    id: "catalog.sales-approvers",
+    description: "Cartão \"Venda guiada · aprovação dos setores\" em Integrações → NERP: aprovadores por setor e fluxos prontos",
+  },
+  orderApprovalsPanel: {
+    id: "catalog-order.approvals-panel",
+    description: "Lista de aprovações dos setores na aba Pedido do Propostas e Orçamentos do chat",
+  },
+  catalogOrderChatQuoteTab: {
+    id: "catalog-order.chat-quote-tab",
+    description: "Aba \"Pedido\" do painel Propostas e Orçamentos do chat, com os preços do NERP para enviar o valor do pedido do Catálogo online",
+  },
   leadSheetName: {
     id: "lead-sheet.name",
     description: "Campo de nome no Sheet de novo lead",

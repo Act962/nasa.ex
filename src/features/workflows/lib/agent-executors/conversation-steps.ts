@@ -78,7 +78,7 @@ function waitingStateOf<TState>(nodeId: string, context: WorkflowContext): TStat
  * Marca, na mensagem que acabou de sair, que o fluxo espera a resposta do cliente. É por aí que o
  * atendimento sabe que a próxima mensagem não é para a assistente (D-6).
  */
-async function markAwaitingReply(params: { leadId: string; trackingId: string; nodeId: string; timeoutMinutes: number }): Promise<void> {
+export async function markAwaitingReply(params: { leadId: string; trackingId: string; nodeId: string; timeoutMinutes: number }): Promise<void> {
   const conversation = await prisma.conversation.findFirst({ where: { leadId: params.leadId, trackingId: params.trackingId }, select: { id: true } });
   if (!conversation) return;
   const lastSent = await prisma.message.findFirst({
@@ -218,7 +218,10 @@ async function loadFormForLead(formId: string, leadId: string) {
   ]);
   // Formulário de outra empresa é tratado como formulário que não existe.
   if (!form || !lead || form.organizationId !== lead.tracking.organizationId) return null;
-  return { form, lead };
+  // Endereço que o cliente já deu no pedido do catálogo (spec 0104): não é perguntado de novo.
+  const latestOrder = await prisma.catalogOrder.findFirst({ where: { leadId }, orderBy: { createdAt: "desc" }, select: { delivery: true } });
+  const deliveryAddress = (latestOrder?.delivery as { address?: string | null } | null)?.address ?? null;
+  return { form, lead: { ...lead, deliveryAddress } };
 }
 
 async function readDraft(responseId: string | null): Promise<Record<string, FieldValue>> {
@@ -269,7 +272,8 @@ async function finalizeResponse(params: { responseId: string; form: { id: string
   );
 }
 
-function leadValueFor(field: ChatField, lead: { name: string; email: string | null; phone: string | null; document: string | null }): string | null {
+function leadValueFor(field: ChatField, lead: { name: string; email: string | null; phone: string | null; document: string | null; deliveryAddress?: string | null }): string | null {
+  if (field.leadSource === "address") return lead.deliveryAddress ?? null;
   if (field.leadSource === "name") return lead.name && lead.name !== "Sem nome" ? lead.name : null;
   if (field.leadSource === "email") return lead.email;
   if (field.leadSource === "phone") return lead.phone;

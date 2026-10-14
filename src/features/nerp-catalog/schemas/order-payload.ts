@@ -11,6 +11,11 @@ export const catalogOrderItemSchema = z.object({
   unitPrice: z.number().nonnegative(),
   total: z.number().nonnegative(),
   imageUrl: z.string().nullable(),
+  // Preço de venda do cadastro no NERP, enviado só em pedido de orçamento (spec 0103, RF-10).
+  referenceUnitPrice: z.number().nonnegative().nullable().optional(),
+  // Preço da caixa (packQty unidades) pela tabela de preços do cliente no NERP.
+  referenceBoxPrice: z.number().nonnegative().nullable().optional(),
+  packQty: z.number().int().positive().nullable().optional(),
 });
 
 export const catalogOrderCustomerSchema = z.object({

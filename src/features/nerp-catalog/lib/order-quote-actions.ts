@@ -6,7 +6,8 @@ import { signalLeadAwaitingHuman } from "@/features/tracking-chat-ai/lib/awaitin
 import type { CatalogOrderItem } from "../schemas/order-payload";
 import { buildQuoteMessageText, toLeadAmountCents } from "../utils/format-order";
 import { deliverTextToLead } from "./order-channel";
-import { CATALOG_INTENT_TAGS, computeQuotedTotals, type CatalogIntentTagKey, type QuoteInput } from "./order-quote";
+import { CATALOG_INTENT_TAGS, computeQuotedTotals, isAwaitingInternalApproval, type CatalogIntentTagKey, type QuoteInput } from "./order-quote";
+import { hasActiveSalesApprovers } from "./approvals/order-approvals";
 
 const QUOTABLE_STATUSES = ["RECEIVED", "NEGOTIATING"] as const;
 
@@ -37,9 +38,11 @@ async function ensureIntentTagId(organizationId: string, key: CatalogIntentTagKe
 }
 
 /** Best-effort: tag que não aplica não pode impedir o pedido de orçamento nem a aprovação. */
-export async function applyCatalogIntentTag(params: { organizationId: string; leadId: string; key: CatalogIntentTagKey }) {
+export async function applyCatalogIntentTag(params: { organizationId: string; leadId: string; key: CatalogIntentTagKey; shouldRetrigger?: boolean }) {
   try {
     const tagId = await ensureIntentTagId(params.organizationId, params.key);
+    // Reaplicar dispara de novo o gatilho "Lead com tag" (valor reenviado reabre a aprovação, CB-4).
+    if (params.shouldRetrigger) await prisma.leadTag.deleteMany({ where: { leadId: params.leadId, tagId } });
     await applyTagsByAi({ leadId: params.leadId, tagIds: [tagId] });
   } catch (tagError) {
     console.warn("[nerp-catalog/quote] tag de intenção falhou", tagError instanceof Error ? tagError.message : "erro");
@@ -73,9 +76,12 @@ export async function requestOrderQuote(params: { orderId: string; conversationI
 export async function approveOrderQuote(orderId: string) {
   const order = await prisma.catalogOrder.findUniqueOrThrow({
     where: { id: orderId },
-    select: { id: true, organizationId: true, leadId: true, quotedAt: true, total: true },
+    select: { id: true, organizationId: true, leadId: true, quotedAt: true, total: true, internalApprovalStartedAt: true, internalApprovedAt: true },
   });
   if (!order.quotedAt) throw new CatalogQuoteError("Ainda não há valor enviado pelo atendente para este pedido.");
+  if (isAwaitingInternalApproval(order)) {
+    throw new CatalogQuoteError("O valor ainda está em aprovação interna; o cliente só pode aprovar depois que a equipe liberar.");
+  }
   const approval = await prisma.catalogOrder.updateMany({
     where: { id: order.id, status: { in: [...QUOTABLE_STATUSES] }, quotedAt: order.quotedAt },
     data: { quoteApprovedAt: new Date() },
@@ -136,6 +142,14 @@ export async function sendOrderQuote(params: {
   await prisma.lead.update({ where: { id: order.leadId }, data: { amount: toLeadAmountCents(totals.total), isActive: true } });
   await pusherServer.trigger(order.trackingId, "lead:updated", { leadId: order.leadId }).catch(() => undefined);
 
+  // Spec 0104, D-5: com aprovadores, o valor vai para a aprovação da equipe pelo fluxo dos Gatilhos
+  // (gatilho "Lead com tag" na tag abaixo); o cliente só recebe depois de aprovado.
+  if (await hasActiveSalesApprovers(params.organizationId, "PRE_PAYMENT")) {
+    await prisma.catalogOrder.update({ where: { id: order.id }, data: { internalApprovalStartedAt: quotedAt, internalApprovedAt: null } });
+    await applyCatalogIntentTag({ organizationId: params.organizationId, leadId: order.leadId, key: "quoteInReview", shouldRetrigger: true });
+    return { total: totals.total, isDelivered: false, isAwaitingInternalApproval: true };
+  }
+
   const conversationId = order.lead.conversation?.id;
   let isDelivered = false;
   if (conversationId) {
@@ -151,5 +165,5 @@ export async function sendOrderQuote(params: {
       console.error("[nerp-catalog/quote] envio do valor falhou", deliveryError);
     }
   }
-  return { total: totals.total, isDelivered };
+  return { total: totals.total, isDelivered, isAwaitingInternalApproval: false };
 }

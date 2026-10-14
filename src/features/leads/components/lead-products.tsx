@@ -19,6 +19,7 @@ import {
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useLeadProducts } from "../hooks/use-lead-products";
 import { SendQuoteDialog } from "@/features/nerp-catalog/components/send-quote-dialog";
+import type { QuoteFormItem } from "@/features/nerp-catalog/components/send-quote-form";
 import { QUOTE_STATE_LABEL, type QuoteState } from "@/features/nerp-catalog/lib/order-quote";
 
 type PurchaseItem = {
@@ -37,7 +38,7 @@ type CatalogQuote = {
   canSend: boolean;
   shipping: number;
   discount: number;
-  items: { name: string; quantity: number; unitPrice: number; total: number }[];
+  items: QuoteFormItem[];
 };
 
 type Purchase = {

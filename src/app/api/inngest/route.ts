@@ -6,6 +6,8 @@ import { bookingNotification } from "@/inngest/functions/booking-notification";
 import { processUserAction } from "@/inngest/functions/process-user-action";
 import { detectAbsence } from "@/inngest/functions/crons/detect-absence";
 import { detectOverdue } from "@/inngest/functions/crons/detect-overdue";
+import { markOverdueReceivablesCron } from "@/inngest/functions/crons/mark-overdue-receivables";
+import { remindSalesApprovalsCron } from "@/inngest/functions/nerp-catalog/remind-sales-approvals";
 import { detectChatTimeout } from "@/inngest/functions/crons/detect-chat-timeout";
 import { checkStreaks } from "@/inngest/functions/crons/check-streaks";
 import { checkMilestones } from "@/inngest/functions/crons/check-milestones";
@@ -238,6 +240,8 @@ export const { GET, POST, PUT } = serve({
     detectFormAbandoned,
     detectLowMetrics,
     detectOverdue,
+    markOverdueReceivablesCron,
+    remindSalesApprovalsCron,
     // ── NASA World — convention occupancy ──
     worldEventOccupancyTick,
     detectActionsDueSoon,

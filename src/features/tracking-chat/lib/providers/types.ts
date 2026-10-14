@@ -284,6 +284,8 @@ export interface SendCanonicalTemplate extends SendBase {
   readonly languageCode: string;
   readonly bodyParameters?: string[];
   readonly headerParameters?: string[];
+  /** Payload de resposta rápida ou sufixo de URL dinâmica, por botão. */
+  readonly buttonParameters?: ReadonlyArray<{ index: number; subType: "quick_reply" | "url"; value: string }>;
 }
 
 export type SendCanonicalInput =

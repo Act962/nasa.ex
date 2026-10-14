@@ -15,6 +15,7 @@ import type { QuoteState } from "../../lib/order-quote";
 const PORTAL_QUOTE_NOTICE: Partial<Record<QuoteState, string>> = {
   no_price: "O valor do seu pedido é combinado com a loja pelo chat ou WhatsApp.",
   awaiting_quote: "A loja está preparando o valor do seu pedido. Você recebe por aqui e no WhatsApp.",
+  awaiting_internal_approval: "O valor do seu pedido está quase pronto: a loja está conferindo. Você recebe por aqui e no WhatsApp.",
   awaiting_approval: "A loja enviou o valor do seu pedido. Responda no chat ou no WhatsApp para aprovar.",
 };
 

@@ -1,3 +1,4 @@
+import { nerpSalesApprovalsRouter } from "./sales-approvals";
 import { getNerpConnectionStatus } from "./get-connection-status";
 import { disconnectNerp } from "./disconnect";
 import { nerpOrgRouter } from "./org";
@@ -29,4 +30,5 @@ export const nerpRouter = {
   ranking: nerpRankingRouter,
   catalogIntegration: nerpCatalogIntegrationRouter,
   catalogOrders: nerpCatalogOrdersRouter,
+  salesApprovals: nerpSalesApprovalsRouter,
 };

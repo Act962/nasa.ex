@@ -85,6 +85,33 @@ async function chargeOrder(
   return { order, customer, cpfCnpj, charge, credentials };
 }
 
+// Spec 0104, RF-6: a cobrança gerada já entra no financeiro como conta a receber do lead.
+async function recordOrderReceivable(order: { id: string; organizationId: string; leadId: string; trackingId: string; nerpSaleNumber: number; total: unknown }, asaasPaymentId: string) {
+  try {
+    const existing = await prisma.paymentEntry.findFirst({
+      where: { organizationId: order.organizationId, leadId: order.leadId, type: "RECEIVABLE", documentNumber: asaasPaymentId },
+      select: { id: true },
+    });
+    if (existing) return;
+    await prisma.paymentEntry.create({
+      data: {
+        organizationId: order.organizationId,
+        type: "RECEIVABLE",
+        status: "PENDING",
+        description: `Pedido #${order.nerpSaleNumber} — Catálogo online`,
+        amount: Math.round(Number(order.total) * 100),
+        dueDate: new Date(`${dueDatePlus(1)}T23:59:59-03:00`),
+        documentNumber: asaasPaymentId,
+        notes: "Cobrança Asaas gerada pelo pedido do catálogo",
+        trackingId: order.trackingId,
+        leadId: order.leadId,
+      },
+    });
+  } catch (error) {
+    console.error("[nerp-catalog] receivable_entry_failed", error);
+  }
+}
+
 async function startPaymentWatch(orderId: string, asaasPaymentId: string) {
   await inngest.send({
     name: CATALOG_ORDER_PAYMENT_CREATED_EVENT,
@@ -120,6 +147,7 @@ export async function createOrderPixCharge(orderId: string, documentOverride?: s
       customer: { ...customer, document: cpfCnpj },
     },
   });
+  await recordOrderReceivable(order, charge.id);
   await startPaymentWatch(order.id, charge.id);
 
   return {
@@ -150,6 +178,7 @@ export async function createOrderPaymentLink(orderId: string, documentOverride?:
       customer: { ...customer, document: cpfCnpj },
     },
   });
+  await recordOrderReceivable(order, charge.id);
   await startPaymentWatch(order.id, charge.id);
 
   return { invoiceUrl: charge.invoiceUrl, total: Number(order.total) };

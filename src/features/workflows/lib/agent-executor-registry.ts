@@ -46,6 +46,13 @@ import { webSearchExecutor } from "./agent-executors/web-search";
 import { sendEmailExecutor } from "./agent-executors/email";
 import { seiActionAgentExecutor } from "./agent-executors/sei";
 import { notifyTeamExecutor } from "./agent-executors/notify-team";
+import {
+  catalogOrderActionExecutor,
+  checkCreditExecutor,
+  findCustomerByDocumentExecutor,
+  routeToConsultantExecutor,
+  salesApprovalExecutor,
+} from "./agent-executors/catalog-sales";
 
 // COMPLIANCE_ITEM_DUE ainda não está na lista de gatilhos de `run-workflow.ts`;
 // como nó de entrada ele só repassa para a saída principal.
@@ -86,6 +93,12 @@ export function getAgentExecutorRegistry(): Map<string, NodeExecutor> {
     ["SEI_ACTION", seiActionAgentExecutor],
     // Construtor rápido (spec 0039)
     ["NOTIFY_TEAM", notifyTeamExecutor],
+    // Venda guiada pelo catálogo (spec 0104)
+    ["SALES_APPROVAL", salesApprovalExecutor],
+    ["CHECK_CREDIT", checkCreditExecutor],
+    ["FIND_CUSTOMER_BY_DOCUMENT", findCustomerByDocumentExecutor],
+    ["ROUTE_TO_CONSULTANT", routeToConsultantExecutor],
+    ["CATALOG_ORDER_ACTION", catalogOrderActionExecutor],
     // Gatilho da aba Contábil (spec 0051)
     ["COMPLIANCE_ITEM_DUE", complianceItemDueTriggerExecutor],
   ]);

@@ -41,6 +41,19 @@ export async function sendOfficialTemplate(
     });
   }
 
+  for (const button of input.buttonParameters ?? []) {
+    components.push({
+      type: "button",
+      sub_type: button.subType,
+      index: String(button.index),
+      parameters: [
+        button.subType === "quick_reply"
+          ? { type: "payload", payload: button.value }
+          : { type: "text", text: button.value },
+      ],
+    });
+  }
+
   const template: Record<string, unknown> = {
     name: input.templateName,
     language: { code: input.languageCode },

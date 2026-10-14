@@ -11,6 +11,7 @@
  * Não chama LLM, não dispara uazapi, não persiste nada — pura função.
  * Reusa `validateNode` (campos) + `preflightWorkflow` (runtime checks).
  */
+import { CATALOG_SALES_OUTPUT_LABELS } from "@/features/workflows/lib/catalog-sales-outputs";
 import { AUTOMATION_DENIAL, checkWorkflowAccess } from "@/features/workflows/server/workflow-access";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
@@ -121,7 +122,8 @@ export const stepNodeProc = base
     // ── 6. Resolução de nextNodeIds baseado em branchChoice ──────
     let chosenOutput = "main";
     if (
-      ["AI_DECISION", "IF_CONDITION", "SWITCH_CASE", "CHECK_PAYMENT", "LOOP_OVER"].includes(node.type)
+      ["AI_DECISION", "IF_CONDITION", "SWITCH_CASE", "CHECK_PAYMENT", "LOOP_OVER"].includes(node.type) ||
+      !!CATALOG_SALES_OUTPUT_LABELS[node.type]
     ) {
       if (input.branchChoice) {
         chosenOutput = input.branchChoice;

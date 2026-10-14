@@ -51,6 +51,7 @@ import {
 } from "@/lib/lead-journey/ctwa";
 import prisma from "@/lib/prisma";
 import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
+import { tryHandleApproverInbound } from "@/features/nerp-catalog/lib/approvals/order-approvals";
 import { pusherServer } from "@/lib/pusher";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { logActivity } from "@/features/admin/lib/activity-logger";
@@ -178,6 +179,23 @@ export async function persistCanonicalInbound(
   }
   if (canonical.type === "unsupported") {
     return { ok: true, skipped: `unsupported:${canonical.providerType ?? "unknown"}` };
+  }
+
+  // ── 2.5. Resposta de aprovador interno (spec 0104, RF-9b) ───────────────
+  // Só desvia quando o remetente é aprovador da empresa com pedido pendente;
+  // fora isso a mensagem segue o fluxo normal de lead.
+  if (canonical.type === "text" || canonical.type === "interactive_reply") {
+    const isApproverReply = await tryHandleApproverInbound({
+      organizationId: tracking.organizationId,
+      trackingId: ctx.trackingId,
+      fromPhone: canonical.sender.phone,
+      replyId: canonical.type === "interactive_reply" ? canonical.replyId : null,
+      text: canonical.type === "text" ? canonical.body : canonical.replyText,
+    }).catch((error) => {
+      console.error("[persist-canonical-inbound] approver_reply_failed", error);
+      return false;
+    });
+    if (isApproverReply) return { ok: true, skipped: "sales_approver_reply" };
   }
 
   // ── 3. Lead lookup ou criação ───────────────────────────────────────────

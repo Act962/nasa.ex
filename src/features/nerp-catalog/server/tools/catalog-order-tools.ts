@@ -58,6 +58,8 @@ export function makeCatalogOrderTools(ctx: CatalogOrderToolContext): ToolSet {
             quoteRequestedAt: true,
             quotedAt: true,
             quoteApprovedAt: true,
+            internalApprovalStartedAt: true,
+            internalApprovedAt: true,
           },
         });
         const total = Number(order.total);

@@ -444,6 +444,7 @@ export class OfficialProvider implements WhatsAppChatProvider {
         languageCode: input.languageCode,
         bodyParameters: input.bodyParameters,
         headerParameters: input.headerParameters,
+        buttonParameters: input.buttonParameters ? [...input.buttonParameters] : undefined,
         replyToWamid: input.replyToExternalMessageId,
       },
     );

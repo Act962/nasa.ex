@@ -5,7 +5,10 @@ import { publishLeadChanged } from "@/features/leads/realtime/publish";
 import { nerpPublicOrigin } from "@/features/nerp/lib/oauth";
 import { buildOrderPortalUrl, formatBrl } from "../utils/format-order";
 import type { CatalogOrderDelivery } from "../schemas/order-payload";
-import { sendOrderNotice } from "./order-channel";
+import { sendCustomerMessage, type TemplateFallback } from "./approvals/approval-delivery";
+import { resolveApprovalTemplates, type ApprovalTemplateNames } from "./approvals/approval-rules";
+import { firstNameOf } from "./approvals/approval-messages";
+import type { CatalogOrderCustomer } from "../schemas/order-payload";
 import {
   CATALOG_NOTICE_KIND,
   CATALOG_STAGE_KEYS,
@@ -17,11 +20,19 @@ import {
   type CatalogStageKey,
 } from "./catalog-stages";
 import { moveLeadToStage } from "@/features/leads/lib/move-lead";
+import { hasActiveSalesApprovers } from "./approvals/order-approvals";
 
 // Lead entrou numa coluna com chave de catálogo (spec 0044): troca a tag de etapa,
 // atualiza o pedido e avisa o cliente. Chamado depois do commit, best-effort (Regra 18).
 
-export type CatalogNoticeType = "payment_confirmed" | "star_earned" | "sent_to_separation" | "out_for_delivery" | "ready_for_pickup" | "delivered";
+export type CatalogNoticeType =
+  | "payment_confirmed"
+  | "star_earned"
+  | "sent_to_separation"
+  | "separated"
+  | "out_for_delivery"
+  | "ready_for_pickup"
+  | "delivered";
 
 type NoticeContent = { title: string; subtitle: string; whatsappText: string };
 
@@ -75,16 +86,27 @@ async function applyStageTag(params: { leadId: string; organizationId: string; t
 }
 
 // Um aviso por pedido e tipo: arrastar o card de volta e para frente não repete a mensagem (CB-1).
-async function sendNoticeOnce(params: { conversationId: string; catalogOrderId: string; noticeType: CatalogNoticeType; content: NoticeContent }) {
+// Fica sempre no chat e no acompanhamento; no WhatsApp sai em texto dentro da janela de 24h e,
+// fora dela, pelo template da etapa (spec 0104) — sem template, só no acompanhamento.
+async function sendNoticeOnce(params: {
+  conversationId: string;
+  catalogOrderId: string;
+  noticeType: CatalogNoticeType;
+  content: NoticeContent;
+  template?: TemplateFallback;
+}) {
   const noticeKey = `${params.catalogOrderId}:${params.noticeType}`;
   const alreadySent = await prisma.message.findFirst({
     where: { conversationId: params.conversationId, metadata: { path: ["noticeKey"], equals: noticeKey } },
     select: { id: true },
   });
   if (alreadySent) return;
-  await sendOrderNotice({
+  await sendCustomerMessage({
     conversationId: params.conversationId,
+    senderName: "Astro",
     text: params.content.whatsappText,
+    template: params.template,
+    isWhatsappForced: true,
     metadata: {
       kind: CATALOG_NOTICE_KIND,
       noticeKey,
@@ -139,14 +161,25 @@ function buildNotices(params: { stageKey: CatalogStageKey; saleNumber: number; t
             },
           }
         : {
-            type: "out_for_delivery",
+            type: "separated",
             content: {
-              title: "Pedido em rota de entrega",
-              subtitle: "Chega em breve no endereço informado",
-              whatsappText: `🛵 Pedido #${params.saleNumber} em rota de entrega. Acompanhe por aqui: ${params.portalUrl}`,
+              title: "Pedido separado",
+              subtitle: "Já já sai para entrega",
+              whatsappText: `📦 Pedido #${params.saleNumber} separado! Já já sai para entrega. Acompanhe por aqui: ${params.portalUrl}`,
             },
           },
     );
+  }
+  // Spec 0104: "em rota" é etapa própria (antes saía junto com "separado").
+  if (params.stageKey === CATALOG_STAGE_KEYS.onRoute && !params.isPickup) {
+    notices.push({
+      type: "out_for_delivery",
+      content: {
+        title: "Pedido em rota de entrega",
+        subtitle: "Chega em breve no endereço informado",
+        whatsappText: `🛵 Pedido #${params.saleNumber} saiu para entrega e chega em breve. Acompanhe por aqui: ${params.portalUrl}`,
+      },
+    });
   }
   // Spec 0103, RF-8.
   if (params.stageKey === CATALOG_STAGE_KEYS.delivered) {
@@ -160,6 +193,15 @@ function buildNotices(params: { stageKey: CatalogStageKey; saleNumber: number; t
     });
   }
   return notices;
+}
+
+// Template da etapa (seção 12 da spec 0104). Etapa sem template fica só no acompanhamento fora da janela.
+function noticeTemplateName(templates: ApprovalTemplateNames, noticeType: CatalogNoticeType): string | null {
+  if (noticeType === "separated") return templates.orderSeparated;
+  if (noticeType === "ready_for_pickup") return templates.readyForPickup;
+  if (noticeType === "out_for_delivery") return templates.onRoute;
+  if (noticeType === "delivered") return templates.delivered;
+  return null;
 }
 
 export async function handleCatalogStageEntry(params: { leadId: string; statusId: string; actorUserId?: string | null }) {
@@ -182,11 +224,11 @@ export async function handleCatalogStageEntry(params: { leadId: string; statusId
   const order = await prisma.catalogOrder.findFirst({
     where: { leadId: params.leadId, status: { not: "CANCELED" } },
     orderBy: { createdAt: "desc" },
-    select: { id: true, status: true, nerpSaleNumber: true, total: true, publicToken: true, delivery: true, lead: { select: { conversation: { select: { id: true } } } } },
+    select: { id: true, status: true, nerpSaleNumber: true, total: true, publicToken: true, delivery: true, customer: true, lead: { select: { conversation: { select: { id: true } } } } },
   });
   if (!order) return;
 
-  if (stageKey === CATALOG_STAGE_KEYS.separated && order.status === "PAID") {
+  if ((stageKey === CATALOG_STAGE_KEYS.separated || stageKey === CATALOG_STAGE_KEYS.onRoute) && order.status === "PAID") {
     await prisma.catalogOrder.update({ where: { id: order.id }, data: { status: "IN_LOGISTICS" } });
   }
   if (stageKey === CATALOG_STAGE_KEYS.delivered && (order.status === "PAID" || order.status === "IN_LOGISTICS")) {
@@ -196,6 +238,8 @@ export async function handleCatalogStageEntry(params: { leadId: string; statusId
   const conversationId = order.lead.conversation?.id;
   const isPaidOrLater = ["PAID", "IN_LOGISTICS", "DELIVERED"].includes(order.status);
   if (!conversationId || !isPaidOrLater) return;
+  // Venda guiada (spec 0104): "pagamento em conferência" e a liberação saem pelo fluxo dos Gatilhos.
+  if (stageKey === CATALOG_STAGE_KEYS.paid && (await hasActiveSalesApprovers(status.tracking.organizationId))) return;
 
   const earnedEntry = await prisma.loyaltyLedgerEntry.findFirst({
     where: { source: "CATALOG_ORDER", sourceId: order.id, type: "EARN" },
@@ -209,8 +253,22 @@ export async function handleCatalogStageEntry(params: { leadId: string; statusId
     starsEarned: earnedEntry?.stars ?? 0,
     isPickup: isPickupDelivery((order.delivery as CatalogOrderDelivery | null)?.method),
   });
+  const integration = await prisma.nerpCatalogIntegration.findUnique({
+    where: { organizationId: status.tracking.organizationId },
+    select: { approvalTemplates: true },
+  });
+  const templates = resolveApprovalTemplates(integration?.approvalTemplates);
+  const customerName = firstNameOf((order.customer as CatalogOrderCustomer | null)?.name);
   for (const notice of notices) {
-    await sendNoticeOnce({ conversationId, catalogOrderId: order.id, noticeType: notice.type, content: notice.content }).catch((error) =>
+    const templateName = noticeTemplateName(templates, notice.type);
+    const template: TemplateFallback | undefined = templateName
+      ? {
+          name: templateName,
+          bodyParameters: [customerName, String(order.nerpSaleNumber)],
+          ...(notice.type === "delivered" ? {} : { urlButton: { index: 0, suffix: order.publicToken } }),
+        }
+      : undefined;
+    await sendNoticeOnce({ conversationId, catalogOrderId: order.id, noticeType: notice.type, content: notice.content, template }).catch((error) =>
       console.error(`[nerp-catalog/stage] notice ${notice.type} failed`, error),
     );
   }

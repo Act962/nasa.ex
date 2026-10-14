@@ -92,6 +92,8 @@ export const listLeadProducts = base
           quoteRequestedAt: true,
           quotedAt: true,
           quoteApprovedAt: true,
+          internalApprovalStartedAt: true,
+          internalApprovedAt: true,
         },
       }),
       prisma.forgeProposal.findMany({
@@ -147,6 +149,9 @@ export const listLeadProducts = base
               name: item.name,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
+              referenceUnitPrice: item.referenceUnitPrice ?? null,
+              referenceBoxPrice: item.referenceBoxPrice ?? null,
+              packQty: item.packQty ?? null,
               total: item.total,
               imageUrl: item.imageUrl,
             }))

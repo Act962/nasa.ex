@@ -62,6 +62,9 @@ do pedido à entrega, sem sair da conversa.
 | RF-8 | Novo aviso ao cliente quando o lead entra na coluna "Entregue" (`catalog.delivered`), uma vez por pedido, como os demais avisos de etapa. |
 | RF-9 | Aba Produtos/Serviços do lead: pedido do catálogo em `RECEIVED`/`NEGOTIATING` mostra o botão "Enviar valor" e a situação do valor. |
 | RF-10 | Portal `/pedido/<token>`: esconde "Gerar PIX" enquanto a cobrança estiver bloqueada, mostra "A combinar" no lugar de R$ 0 e explica a situação do valor. |
+| RF-11 | Pedido de orçamento chega do NERP com preços de referência por item, calculados pela **tabela de preços do cliente** (`resolveManyPrices`): `referenceUnitPrice` (1 unidade) e `referenceBoxPrice` (faixa de `packQty` unidades × `packQty`), mais `packQty`. O formulário de valor já abre com o preço unitário de tabela e mostra "NERP: un. R$ X · caixa (N un.) R$ Y" em cada item; o consultor ajusta o que vai ofertar. Os preços de referência **não** entram no contexto do Astro nem chegam ao cliente antes do envio. |
+| RF-12 | Painel "Propostas e Orçamentos" do chat ganha a aba **"Pedido"** quando o lead tem pedido do catálogo em `RECEIVED`/`NEGOTIATING`; abre nela por padrão. Usa o mesmo formulário e a mesma procedure do "Enviar valor" (`nerp.catalogOrders.sendQuote`). |
+| RF-13 | Item com `packQty` > 1 tem seletor "por unidade / por caixa" no campo de preço. Por caixa, o valor digitado é dividido por `packQty`; o total do item é `quantidade × preço` arredondado a centavos **sem** arredondar o unitário antes, para a caixa fechar exata. |
 
 ### Não-funcionais
 
@@ -84,6 +87,9 @@ do pedido à entrega, sem sair da conversa.
 - [ ] **CA-9** — Dado valor aprovado, quando o atendente reenvia outro valor, então a aprovação é zerada e o cliente precisa aprovar de novo.
 - [ ] **CA-10** — Dado lead entrando em "Entregue" com pedido pago, então o cliente recebe uma vez o aviso de entrega.
 - [ ] **CA-11** — Dado `request_catalog_order_quote`, então o lead continua com a IA ativa, recebe a tag "Quer orçamento" e a equipe recebe o alerta.
+- [ ] **CA-12** — Dado um pedido de orçamento cujo produto custa R$ 12,50 na tabela do cliente e R$ 11,00 a partir de 12 unidades (caixa com 12), quando o consultor abre o formulário de valor, então o item vem preenchido com 12,50 e mostra "caixa (12 un.) R$ 132,00", e o valor pode ser alterado.
+- [ ] **CA-14** — Dado um item com caixa de 12 e 24 unidades no pedido, quando o consultor escolhe "por caixa" e digita 100,00, então o item fecha em R$ 200,00 (unitário exibido R$ 8,33); o total do item parte do preço sem arredondar.
+- [ ] **CA-13** — Dado um lead com pedido do catálogo aguardando valor, quando o consultor abre "Propostas e Orçamentos" no chat, então a aba "Pedido" aparece selecionada; sem pedido pendente, a aba não aparece.
 
 ## 5. Casos de borda
 
@@ -134,8 +140,8 @@ do pedido à entrega, sem sair da conversa.
 | Critério | Tipo | Como verificar |
 | --- | --- | --- |
 | CA-1, CA-2, CA-3, CA-5 | automatizado | `scripts/catalog-quote-qa-check.ts` (`getChargeBlockReason`) |
-| CA-6, CA-7, CB-8 | automatizado | `scripts/catalog-quote-qa-check.ts` (`computeQuotedTotals`) |
-| CA-4, CA-8, CA-9, CA-10, CA-11 | manual | Pedido de teste da Armazém Carvalho em sandbox do Asaas |
+| CA-6, CA-7, CA-14, CB-8 | automatizado | `scripts/catalog-quote-qa-check.ts` (`computeQuotedTotals`) |
+| CA-4, CA-8, CA-9, CA-10, CA-11, CA-12, CA-13 | manual | Pedido de teste da Armazém Carvalho em sandbox do Asaas |
 
 ## 9. Riscos e rollback
 
@@ -147,3 +153,5 @@ do pedido à entrega, sem sair da conversa.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-14 | Claude | Criada |
+| 2026-10-14 | Claude | RF-11/CA-12: preços da tabela do NERP (unidade e caixa) como base do valor; RF-12/CA-13: aba "Pedido" no Propostas e Orçamentos do chat. Exige o NERP enviar `referenceBoxPrice`/`packQty` (nerp-2, `deliver-order.ts`) |
+| 2026-10-14 | Claude | RF-13/CA-14: seletor por unidade / por caixa; total do item parte do preço sem arredondar |
