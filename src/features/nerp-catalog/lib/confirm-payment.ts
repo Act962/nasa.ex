@@ -30,16 +30,6 @@ export async function resendNerpSyncIfPending(orderId: string) {
   });
   const isPaid = order?.status === "PAID" || order?.status === "IN_LOGISTICS";
   if (!order || !isPaid || order.nerpSyncedAt) return;
-  await dispatchPaymentReceived({
-    provider: "ASAAS",
-    externalId: payment.asaasPaymentId,
-    organizationId: order.organizationId,
-    trackingId: order.trackingId,
-    leadId: order.lead.id,
-    amount: payment.amount,
-    extra: { source: "catalog_order", catalogOrderId: order.id, saleNumber: order.nerpSaleNumber },
-  });
-
   await inngest.send({
     name: CATALOG_ORDER_PAID_EVENT,
     data: { orderId, organizationId: order.organizationId },
@@ -177,6 +167,16 @@ export async function confirmCatalogOrderPayment(orderId: string, payment: Confi
       metadata: { kind: "catalog_order_paid", catalogOrderId: order.id },
     }).catch((error) => console.error("[nerp-catalog] paid_message_failed", error));
   }
+
+  await dispatchPaymentReceived({
+    provider: "ASAAS",
+    externalId: payment.asaasPaymentId,
+    organizationId: order.organizationId,
+    trackingId: order.trackingId,
+    leadId: order.lead.id,
+    amount: payment.amount,
+    extra: { source: "catalog_order", catalogOrderId: order.id, saleNumber: order.nerpSaleNumber },
+  });
 
   await inngest.send({
     name: CATALOG_ORDER_PAID_EVENT,
