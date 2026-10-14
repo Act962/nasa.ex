@@ -3461,6 +3461,11 @@ model CatalogOrder {
   invoiceUrl     String?                    @map("invoice_url")
   paidAt         DateTime?                  @map("paid_at")
   nerpSyncedAt   DateTime?                  @map("nerp_synced_at")
+  // Valor negociado pelo atendente (spec 0103): sem aprovação do cliente não há cobrança.
+  quoteRequestedAt DateTime?                @map("quote_requested_at")
+  quotedAt         DateTime?                @map("quoted_at")
+  quotedById       String?                  @map("quoted_by_id")
+  quoteApprovedAt  DateTime?                @map("quote_approved_at")
   createdAt      DateTime                   @default(now()) @map("created_at")
   updatedAt      DateTime                   @updatedAt @map("updated_at")
 

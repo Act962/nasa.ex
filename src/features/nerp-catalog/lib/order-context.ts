@@ -7,6 +7,7 @@ import type {
   CatalogOrderItem,
 } from "../schemas/order-payload";
 import { buildOrderPortalUrl, formatBrl } from "../utils/format-order";
+import { resolveQuoteState, type QuoteState } from "./order-quote";
 
 export async function loadActiveCatalogOrder(leadId: string) {
   const order = await prisma.catalogOrder.findFirst({
@@ -16,6 +17,8 @@ export async function loadActiveCatalogOrder(leadId: string) {
   if (!order) return null;
   return {
     id: order.id,
+    organizationId: order.organizationId,
+    leadId: order.leadId,
     saleNumber: order.nerpSaleNumber,
     status: order.status,
     items: order.items as CatalogOrderItem[],
@@ -27,11 +30,20 @@ export async function loadActiveCatalogOrder(leadId: string) {
     total: Number(order.total),
     paymentMethod: order.paymentMethod,
     hasPendingCharge: !!order.asaasPaymentId && order.status === "AWAITING_PAYMENT",
+    quoteState: resolveQuoteState({ ...order, total: Number(order.total) }),
     portalUrl: buildOrderPortalUrl(nerpPublicOrigin(), order.publicToken),
   };
 }
 
 export type ActiveCatalogOrder = NonNullable<Awaited<ReturnType<typeof loadActiveCatalogOrder>>>;
+
+const QUOTE_STATE_PROMPT: Record<QuoteState, string> = {
+  no_price: "Pedido SEM valor (produtos sem preço no catálogo). Peça o valor à equipe com `request_catalog_order_quote` assim que o cliente mostrar interesse em comprar.",
+  awaiting_quote: "A equipe já foi avisada e vai enviar o valor. Não invente valor; diga que está chegando.",
+  awaiting_approval: "A equipe enviou o valor acima e ele está AGUARDANDO a aprovação do cliente.",
+  approved: "O cliente APROVOU o valor acima. Siga para a forma de pagamento.",
+  priced: "Pedido com o valor do catálogo. Se o cliente quiser negociar, peça à equipe com `request_catalog_order_quote`.",
+};
 
 export function buildCatalogOrderPrompt(order: ActiveCatalogOrder): string {
   const itemLines = order.items
@@ -51,12 +63,17 @@ Entrega: ${order.delivery.method ?? "não informada"} | Endereço: ${order.deliv
 CPF/CNPJ do cliente: ${hasDocument ? "já informado" : "ainda NÃO informado"}
 Link de acompanhamento do cliente: ${order.portalUrl}
 
+## Situação do valor
+${QUOTE_STATE_PROMPT[order.quoteState]}
+
 ## Critérios de fechamento (siga nesta ordem)
 1. Confirme com o cliente os itens e quantidades do pedido.
 2. Confirme a modalidade de entrega e o endereço completo (ou retirada). Registre com \`update_catalog_order_details\`.
 3. Peça o CPF ou CNPJ (obrigatório para a cobrança) se ainda não tiver.
-4. Pergunte a forma de pagamento: PIX (use \`create_pix_charge\`) ou cartão/boleto (use \`create_payment_link\`).
-5. Só gere a cobrança depois dos itens 1 a 4 confirmados explicitamente pelo cliente. A ferramenta já envia o código/link ao cliente — não repita o código na sua mensagem.
-6. Quando o cliente disser que pagou, use \`check_catalog_order_payment\`. Nunca afirme que o pagamento caiu sem essa confirmação.
-7. Não altere preços nem conceda descontos: pedidos de mudança nos itens ou valores vão para um humano (\`transfer_to_human\`).`;
+4. Valor: se o pedido está sem valor, ou o cliente pede preço, orçamento, desconto ou quer negociar, use \`request_catalog_order_quote\` e diga que a equipe já vai enviar o valor por aqui. Você continua acompanhando a conversa.
+5. Quando o atendente enviar o valor, o cliente precisa aprovar. Aprovou ("sim", "pode fechar", "aprovado")? Use \`approve_catalog_order_quote\`. Quer mudar o valor? Use \`request_catalog_order_quote\` de novo.
+6. Pergunte a forma de pagamento: PIX (use \`create_pix_charge\`) ou cartão/boleto (use \`create_payment_link\`).
+7. Só gere a cobrança depois dos itens anteriores confirmados explicitamente pelo cliente. A ferramenta já envia o código/link ao cliente — não repita o código na sua mensagem. Se ela recusar, explique o motivo ao cliente com suas palavras.
+8. Quando o cliente disser que pagou, use \`check_catalog_order_payment\`. Nunca afirme que o pagamento caiu sem essa confirmação. Depois do pagamento o cliente recebe os avisos de separação e entrega automaticamente.
+9. Você nunca define, altera nem promete preço ou desconto: quem define o valor é sempre a equipe. Pedidos de mudar itens ou quantidades vão para um humano (\`transfer_to_human\`).`;
 }

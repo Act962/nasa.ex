@@ -76,3 +76,32 @@ export function buildOrderSummaryText(input: {
     ...(deliveryLines.length > 0 ? ["", ...deliveryLines] : []),
   ].join("\n");
 }
+
+export function buildQuoteMessageText(input: {
+  saleNumber: number;
+  items: CatalogOrderItem[];
+  subtotal: number;
+  shipping: number;
+  discount: number;
+  total: number;
+  note?: string;
+}): string {
+  const itemLines = input.items.map(
+    (item) => `• ${item.quantity}x ${item.name} — ${formatBrl(item.total)}`,
+  );
+  const totalLines = [
+    ...(input.shipping > 0 ? [`Frete: ${formatBrl(input.shipping)}`] : []),
+    ...(input.discount > 0 ? [`Desconto: -${formatBrl(input.discount)}`] : []),
+    `*Total: ${formatBrl(input.total)}*`,
+  ];
+  return [
+    `💰 *Valor do seu pedido #${input.saleNumber}*`,
+    "",
+    ...itemLines,
+    "",
+    ...totalLines,
+    ...(input.note?.trim() ? ["", input.note.trim()] : []),
+    "",
+    "Posso confirmar? Responda *SIM* para aprovar e eu já envio o PIX ou o link de pagamento.",
+  ].join("\n");
+}

@@ -157,9 +157,9 @@ export const router = {
   metaAds: metaAdsRouter,
   metaMcp: metaMcpRouter,
   astro: base.use(appRouterPermission("astro")).router(astroRoutes),
-  // Integração/conexão do NERP têm chave própria ("catalogo-online").
+  // Integração/conexão do NERP têm chave própria ("catalogo-online"); valor do pedido usa "lead-produtos".
   nerp: base
-    .use(appRouterPermission("nerp", { skipPathSegments: ["catalogIntegration", "disconnect", "getConnectionStatus"] }))
+    .use(appRouterPermission("nerp", { skipPathSegments: ["catalogIntegration", "catalogOrders", "disconnect", "getConnectionStatus"] }))
     .router(nerpRouter),
   starFriends: starFriendsRouter,
   /** App COMMENTS — automações de Instagram nativas (spec 0024). */

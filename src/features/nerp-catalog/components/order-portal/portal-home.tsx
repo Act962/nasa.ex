@@ -9,6 +9,14 @@ import { OrderPixStartCard } from "./order-pix-start-card";
 import { StampCard } from "./stamp-card";
 import { TierCard } from "./tier-visuals";
 import type { PortalOrder, PortalStarFriends } from "./portal-types";
+import type { QuoteState } from "../../lib/order-quote";
+
+// Spec 0103: enquanto o valor é negociado, o portal explica em vez de oferecer PIX.
+const PORTAL_QUOTE_NOTICE: Partial<Record<QuoteState, string>> = {
+  no_price: "O valor do seu pedido é combinado com a loja pelo chat ou WhatsApp.",
+  awaiting_quote: "A loja está preparando o valor do seu pedido. Você recebe por aqui e no WhatsApp.",
+  awaiting_approval: "A loja enviou o valor do seu pedido. Responda no chat ou no WhatsApp para aprovar.",
+};
 
 // Na Home cabem os cartões mais próximos de completar; o resto fica em Ofertas.
 const HOME_STAMP_CARDS = 2;
@@ -71,11 +79,16 @@ export function PortalHome({
                 {order.items.map((item) => `${item.quantity}x ${item.name}`).join(" · ")}
               </p>
             </div>
-            <span className="font-semibold whitespace-nowrap">{formatBrl(order.total)}</span>
+            <span className="font-semibold whitespace-nowrap">
+              {order.quoteState === "no_price" || order.quoteState === "awaiting_quote" ? "A combinar" : formatBrl(order.total)}
+            </span>
           </div>
           <OrderStatusTimeline status={order.status} logisticsStage={order.logisticsStage} stageKey={order.stageKey} />
           {isAwaitingPayment && <OrderPaymentCard payment={order.payment} />}
           {order.payment.canPayWithPix && <OrderPixStartCard token={token} />}
+          {PORTAL_QUOTE_NOTICE[order.quoteState] && order.status !== "AWAITING_PAYMENT" && (
+            <p className="rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">{PORTAL_QUOTE_NOTICE[order.quoteState]}</p>
+          )}
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={onOpenChat}>
               <MessageCircle className="size-4" /> Falar com a loja

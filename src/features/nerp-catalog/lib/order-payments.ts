@@ -15,6 +15,7 @@ import { loadAsaasCredentials } from "./integration-config";
 import { confirmCatalogOrderPayment, resendNerpSyncIfPending } from "./confirm-payment";
 import { CATALOG_STAGE_KEYS } from "./catalog-stages";
 import { advanceCatalogLeadToStage } from "./stage-flow";
+import { getChargeBlockReason } from "./order-quote";
 
 export const CATALOG_ORDER_REFERENCE_PREFIX = "catalog-order:";
 export const CATALOG_ORDER_PAYMENT_CREATED_EVENT = "nerp/catalog-order.payment-created";
@@ -55,6 +56,8 @@ async function chargeOrder(
   documentOverride?: string | null,
 ) {
   const order = await loadPayableOrder(orderId);
+  const chargeBlockReason = getChargeBlockReason({ ...order, total: Number(order.total) });
+  if (chargeBlockReason) throw new CatalogOrderPaymentError(chargeBlockReason);
   const customer = readCustomer(order);
   const cpfCnpj = (documentOverride ?? customer.document ?? "").replace(/\D/g, "");
   if (cpfCnpj.length !== 11 && cpfCnpj.length !== 14) {

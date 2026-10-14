@@ -163,6 +163,10 @@ export const GUIDE_ANCHORS = {
     id: "tracking.board.customize-sheet",
     description: "Sheet \"Personalizar board\" com os toggles de campos",
   },
+  catalogOrderSendQuote: {
+    id: "catalog-order.send-quote",
+    description: "Botão \"Enviar valor\" do pedido do Catálogo online, na aba Produtos/Serviços dos Detalhes do lead",
+  },
   leadSheetName: {
     id: "lead-sheet.name",
     description: "Campo de nome no Sheet de novo lead",

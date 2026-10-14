@@ -1,6 +1,7 @@
 // Confere e monta a estrutura de vendas pelo Catálogo online da Armazém Carvalho (ou outra org).
 // Sem "aplicar" só lê o banco. Com "aplicar": colunas e tags de etapa do pedido no funil de vendas,
-// tags de cliente, tags automáticas da empresa e o programa de fidelidade. Nunca grava chave de API,
+// tags de cliente e de intenção (Quer orçamento / Quer pagar, spec 0103), tags automáticas da
+// empresa e o programa de fidelidade. Nunca grava chave de API,
 // nunca instala app pago e nunca apaga nada. Rodar (com DATABASE_URL e AI_SECRETS_KEY de produção):
 //   pnpm tsx --conditions=react-server scripts/setup-armazem-carvalho.ts [--org=<id>] [--tracking=<id>] [aplicar]
 import "./astro-qa/load-env";
@@ -17,7 +18,6 @@ const CUSTOMER_TAGS = [
   { slug: "cliente-novo", name: "Cliente novo", color: "#06b6d4", description: "Ainda não tem nenhuma compra paga. Aplique quando o cliente fizer o primeiro pedido ou primeiro contato." },
   { slug: "ja-comprou", name: "Já comprou", color: "#10b981", description: "Tem pelo menos uma compra paga. Aplique quando o pagamento de um pedido for confirmado." },
   { slug: "cliente-recorrente", name: "Cliente recorrente", color: "#8b5cf6", description: "Tem duas ou mais compras pagas." },
-  { slug: "negociando-preco", name: "Negociando preço", color: "#f59e0b", description: "Cliente pediu orçamento ou está negociando valores de produtos do catálogo." },
   { slug: "comprovante-enviado", name: "Comprovante enviado", color: "#3b82f6", description: "Cliente enviou foto ou PDF de comprovante de pagamento pelo WhatsApp." },
 ] as const;
 
@@ -30,6 +30,8 @@ async function main() {
   const { CATALOG_STAGE_KEYS, CATALOG_STAGES } = await import("../src/features/nerp-catalog/lib/catalog-stages");
   const { DEFAULT_TAGS, AUTO_TAG_SLUGS } = await import("../src/features/org-defaults/lib/default-org-template");
   const { STAR_FRIENDS_APP_SLUG } = await import("../src/features/star-friends/lib/constants");
+  const { CATALOG_INTENT_TAGS } = await import("../src/features/nerp-catalog/lib/order-quote");
+  const customerTags = [...Object.values(CATALOG_INTENT_TAGS), ...CUSTOMER_TAGS];
 
   const orgIdFlag = readFlag("org");
   const organizations = orgIdFlag
@@ -131,7 +133,7 @@ async function main() {
   });
   const existingTagSlugs = new Set(orgWideTags.map((tag) => tag.slug));
   const missingAutoTags = DEFAULT_TAGS.filter((tag) => !existingTagSlugs.has(AUTO_TAG_SLUGS[tag.key]));
-  const missingCustomerTags = CUSTOMER_TAGS.filter((tag) => !existingTagSlugs.has(tag.slug));
+  const missingCustomerTags = customerTags.filter((tag) => !existingTagSlugs.has(tag.slug));
   log("Tags automáticas faltando", missingAutoTags.map((tag) => tag.name).join(", ") || "nenhuma");
   log("Tags de cliente faltando", missingCustomerTags.map((tag) => tag.name).join(", ") || "nenhuma");
 

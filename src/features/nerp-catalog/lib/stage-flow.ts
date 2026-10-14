@@ -21,7 +21,7 @@ import { moveLeadToStage } from "@/features/leads/lib/move-lead";
 // Lead entrou numa coluna com chave de catálogo (spec 0044): troca a tag de etapa,
 // atualiza o pedido e avisa o cliente. Chamado depois do commit, best-effort (Regra 18).
 
-export type CatalogNoticeType = "payment_confirmed" | "star_earned" | "sent_to_separation" | "out_for_delivery" | "ready_for_pickup";
+export type CatalogNoticeType = "payment_confirmed" | "star_earned" | "sent_to_separation" | "out_for_delivery" | "ready_for_pickup" | "delivered";
 
 type NoticeContent = { title: string; subtitle: string; whatsappText: string };
 
@@ -147,6 +147,17 @@ function buildNotices(params: { stageKey: CatalogStageKey; saleNumber: number; t
             },
           },
     );
+  }
+  // Spec 0103, RF-8.
+  if (params.stageKey === CATALOG_STAGE_KEYS.delivered) {
+    notices.push({
+      type: "delivered",
+      content: {
+        title: params.isPickup ? "Pedido retirado" : "Pedido entregue",
+        subtitle: "Obrigado pela compra!",
+        whatsappText: `🎉 Pedido #${params.saleNumber} ${params.isPickup ? "retirado" : "entregue"}. Obrigado pela compra! Qualquer coisa, é só chamar por aqui.`,
+      },
+    });
   }
   return notices;
 }
