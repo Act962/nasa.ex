@@ -7,6 +7,7 @@ import { NasaPlannerPostStatus, NasaPlannerPublishNetwork } from "@/generated/pr
 import { publishFbPagePhoto, publishFbPagePhotoStory, publishFbPageVideo } from "@/http/meta/planner-graph";
 import { loadInstagramPublisher, markInstagramChannelNeedsReconnect } from "./instagram-channels";
 import { attachCommentsAutomationAfterPublish } from "../comments-link";
+import type { ContentPublisher } from "@/modules/social/ports/content-publisher";
 import { classifyPublishError } from "./meta-errors";
 import { markPublishAccountError } from "./publish-accounts";
 import { buildPublishPlan, loadTargetToken, toContainerParams, type PublishPlan, type PublishTarget } from "./resolve-targets";
@@ -72,6 +73,45 @@ async function handleNetworkError(error: unknown, target: PublishTarget, organiz
   return { code: classified.code, message: classified.message };
 }
 
+type ContainersWait =
+  | { isReady: true }
+  | { isReady: false; reason: "failed" | "timeout"; containerId: string; failure: { code: string; message: string } };
+
+async function waitForContainers(
+  step: StepTools,
+  options: { stepKey: string; containerIds: string[]; pollInterval: string; loadPublisher: () => Promise<ContentPublisher> },
+): Promise<ContainersWait> {
+  let pendingIds = options.containerIds;
+  for (let checkIndex = 0; checkIndex < PROCESSING_MAX_CHECKS && pendingIds.length > 0; checkIndex++) {
+    await step.sleep(`${options.stepKey}-wait-${checkIndex}`, options.pollInterval);
+    const idsToCheck = pendingIds;
+    const statuses = await step.run(`${options.stepKey}-status-${checkIndex}`, async () => {
+      const publisher = await options.loadPublisher();
+      return Promise.all(idsToCheck.map(async (containerId) => ({ containerId, ...(await publisher.getMediaContainerStatus(containerId)) })));
+    });
+    const brokenContainer = statuses.find((status) => status.statusCode === "ERROR" || status.statusCode === "EXPIRED");
+    if (brokenContainer) {
+      return {
+        isReady: false,
+        reason: "failed",
+        containerId: brokenContainer.containerId,
+        failure: {
+          code: `CONTAINER_${brokenContainer.statusCode}`,
+          message: `A Meta não conseguiu processar a mídia${brokenContainer.detail ? `: ${brokenContainer.detail}` : "."}`,
+        },
+      };
+    }
+    pendingIds = statuses.filter((status) => status.statusCode !== "FINISHED").map((status) => status.containerId);
+  }
+  if (pendingIds.length === 0) return { isReady: true };
+  return {
+    isReady: false,
+    reason: "timeout",
+    containerId: pendingIds[0],
+    failure: { code: "PROCESSING_TIMEOUT", message: "A Meta não terminou de processar a mídia a tempo. Tente de novo." },
+  };
+}
+
 async function publishToInstagram(step: StepTools, plan: PublishPlan, input: WorkflowInput): Promise<NetworkOutcome> {
   const instagram = plan.instagram!;
   const loadPublisher = async () => {
@@ -80,11 +120,41 @@ async function publishToInstagram(step: StepTools, plan: PublishPlan, input: Wor
   };
   const attemptBase = { postId: input.postId, organizationId: plan.organizationId, network: NasaPlannerPublishNetwork.INSTAGRAM, scheduleVersion: input.scheduleVersion, trigger: input.trigger };
 
+  let readyItemIds: string[] | null = null;
+  if (instagram.media.kind === "CAROUSEL" && instagram.needsProcessing) {
+    const carouselItems = instagram.media.items;
+    const items = await step.run("ig-carousel-items", async () => {
+      try {
+        const publisher = await loadPublisher();
+        const childrenIds: string[] = [];
+        for (const item of carouselItems) {
+          childrenIds.push(await publisher.createMediaContainer({ kind: "CAROUSEL_ITEM", ...item }));
+        }
+        return { ok: true as const, childrenIds };
+      } catch (error) {
+        const failure = await handleNetworkError(error, instagram.target, plan.organizationId);
+        await recordAttempt({ ...attemptBase, step: "CONTAINER", error: failure });
+        return { ok: false as const, ...failure };
+      }
+    });
+    if (!items.ok) return items;
+
+    // A Meta recusa montar o carrossel enquanto algum vídeo dele ainda está processando.
+    const itemsWait = await waitForContainers(step, { stepKey: "ig-item", containerIds: items.childrenIds, pollInterval: VIDEO_POLL_INTERVAL, loadPublisher });
+    if (!itemsWait.isReady) {
+      await step.run(`ig-item-processing-${itemsWait.reason}`, () => recordAttempt({ ...attemptBase, step: "POLL", containerId: itemsWait.containerId, error: itemsWait.failure }));
+      return { ok: false, ...itemsWait.failure };
+    }
+    readyItemIds = items.childrenIds;
+  }
+
   const container = await step.run("ig-container", async () => {
     try {
       const publisher = await loadPublisher();
       let containerId: string;
-      if (instagram.media.kind === "CAROUSEL") {
+      if (readyItemIds) {
+        containerId = await publisher.createMediaContainer({ kind: "CAROUSEL", childrenIds: readyItemIds, caption: plan.caption });
+      } else if (instagram.media.kind === "CAROUSEL") {
         const childrenIds: string[] = [];
         for (const item of instagram.media.items) {
           childrenIds.push(await publisher.createMediaContainer({ kind: "CAROUSEL_ITEM", ...item }));
@@ -103,22 +173,11 @@ async function publishToInstagram(step: StepTools, plan: PublishPlan, input: Wor
   });
   if (!container.ok) return container;
 
-  const pollInterval = instagram.needsProcessing ? VIDEO_POLL_INTERVAL : IMAGE_POLL_INTERVAL;
-  let isReady = false;
-  for (let checkIndex = 0; checkIndex < PROCESSING_MAX_CHECKS && !isReady; checkIndex++) {
-    await step.sleep(`ig-wait-${checkIndex}`, pollInterval);
-    const status = await step.run(`ig-status-${checkIndex}`, async () => (await loadPublisher()).getMediaContainerStatus(container.containerId));
-    if (status.statusCode === "FINISHED") isReady = true;
-    if (status.statusCode === "ERROR" || status.statusCode === "EXPIRED") {
-      const failure = { code: `CONTAINER_${status.statusCode}`, message: `A Meta não conseguiu processar a mídia${status.detail ? `: ${status.detail}` : "."}` };
-      await step.run("ig-processing-failed", () => recordAttempt({ ...attemptBase, step: "POLL", containerId: container.containerId, error: failure }));
-      return { ok: false, ...failure };
-    }
-  }
-  if (!isReady) {
-    const failure = { code: "PROCESSING_TIMEOUT", message: "A Meta não terminou de processar a mídia a tempo. Tente de novo." };
-    await step.run("ig-processing-timeout", () => recordAttempt({ ...attemptBase, step: "POLL", containerId: container.containerId, error: failure }));
-    return { ok: false, ...failure };
+  const pollInterval = instagram.needsProcessing && !readyItemIds ? VIDEO_POLL_INTERVAL : IMAGE_POLL_INTERVAL;
+  const containerWait = await waitForContainers(step, { stepKey: "ig", containerIds: [container.containerId], pollInterval, loadPublisher });
+  if (!containerWait.isReady) {
+    await step.run(`ig-processing-${containerWait.reason}`, () => recordAttempt({ ...attemptBase, step: "POLL", containerId: container.containerId, error: containerWait.failure }));
+    return { ok: false, ...containerWait.failure };
   }
 
   return step.run("ig-publish", async () => {
