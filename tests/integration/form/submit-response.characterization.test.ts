@@ -423,6 +423,26 @@ describe("envio público — dados do lead, tags e título da resposta", () => {
     expect(await testPrisma.leadTag.count({ where: { leadId: result.lead!.id } })).toBe(0);
   });
 
+  it("CA-7 (spec 0106): tags de outra empresa, na resposta ou no botão Próximo, não são aplicadas", async () => {
+    const { form, organization } = await seedFormWithTracking();
+    const otherCompany = await createOrganizationWithOwner();
+    const ownTag = await createTag({ organizationId: organization.id, name: "Propria" });
+    const [foreignAnswerTag, foreignNextTag] = await Promise.all(
+      ["Alheia", "AlheiaProximo"].map((name) => createTag({ organizationId: otherCompany.organization.id, name })),
+    );
+    const answers = {
+      user_name: "Ana",
+      user_phone: PHONE,
+      perfis: { value: "x", meta: { tagIds: [ownTag.id, foreignAnswerTag.id] } },
+    };
+
+    const result = await submit(form.id, answers, { nextActionTagId: foreignNextTag.id });
+
+    const leadTags = await testPrisma.leadTag.findMany({ where: { leadId: result.lead!.id }, select: { tagId: true } });
+    expect(leadTags).toEqual([{ tagId: ownTag.id }]);
+    expect((await readJourney(result.lead!.id)).map((event) => event.kind)).not.toContain("tag_added");
+  });
+
   it("o título da resposta vem do campo marcado como título", async () => {
     const { form } = await seedFormWithTracking({
       jsonBlock: [{ id: "empresa", blockType: "TextField", attributes: { useAsResponseLabel: true } }],

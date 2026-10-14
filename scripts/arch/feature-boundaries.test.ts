@@ -6,6 +6,7 @@ import {
   countUninvokedErrorThrows,
   findFeatureKnots,
   findMutualFeaturePairs,
+  findTenancyCandidates,
   findTierViolations,
   takeSnapshot,
   type BoundarySnapshot,
@@ -22,6 +23,7 @@ const emptySnapshot: BoundarySnapshot = {
   tierViolations: [],
   orpcOutsideHooks: {},
   uninvokedErrorThrows: {},
+  tenancyCandidates: [],
 };
 
 describe("buildFeatureGraph", () => {
@@ -146,6 +148,34 @@ describe("countUninvokedErrorThrows", () => {
   });
 });
 
+describe("findTenancyCandidates", () => {
+  it("lista procedure autenticada que não cita empresa nem usa a trava", () => {
+    const candidates = findTenancyCandidates([
+      file("src/app/router/status/create.ts", "base.use(requiredAuthMiddleware).handler(async () => {})"),
+      file("src/app/router/status/list.ts", "base.use(requiredAuthMiddleware).use(requireTenantResource('tracking', x, 'lote-1')).handler("),
+      file("src/app/router/tags/list.ts", "base.use(requiredAuthMiddleware).handler(() => where({ organizationId }))"),
+      file("src/features/leads/server/get.ts", "base.use(requiredAuthMiddleware).handler(() => 1)"),
+      file("src/features/leads/components/a.tsx", "requiredAuthMiddleware .handler("),
+      file("src/app/router/public/get.ts", "base.handler(() => 1)"),
+      file("src/app/router/status/create.test.ts", "requiredAuthMiddleware .handler("),
+    ]);
+
+    expect(candidates).toEqual(["src/app/router/status/create.ts", "src/features/leads/server/get.ts"]);
+  });
+
+  it("procedure nova sem conferência é regressão; a que passou a conferir é melhoria", () => {
+    const report = compareWithBaseline(
+      { ...emptySnapshot, tenancyCandidates: ["src/app/router/novo.ts"] },
+      { ...emptySnapshot, tenancyCandidates: ["src/app/router/antigo.ts"] },
+    );
+
+    expect(report.regressions).toEqual([
+      "S5 procedure autenticada sem conferência de empresa: src/app/router/novo.ts (use requireTenantResource ou filtre pela empresa)",
+    ]);
+    expect(report.improvements).toEqual(["S5 src/app/router/antigo.ts passou a conferir a empresa"]);
+  });
+});
+
 describe("compareWithBaseline", () => {
   it("estado igual à baseline não tem regressão nem melhoria", () => {
     const snapshot = takeSnapshot([
@@ -163,6 +193,7 @@ describe("compareWithBaseline", () => {
       tierViolations: ["leads->admin"],
       orpcOutsideHooks: { "src/features/leads/a.tsx": 2 },
       uninvokedErrorThrows: { "src/app/router/leads/get.ts": 1 },
+      tenancyCandidates: [],
     };
     const baseline: BoundarySnapshot = {
       ...emptySnapshot,
@@ -188,6 +219,7 @@ describe("compareWithBaseline", () => {
       tierViolations: ["leads->admin"],
       orpcOutsideHooks: { "src/features/leads/a.tsx": 2 },
       uninvokedErrorThrows: { "src/app/router/leads/get.ts": 3 },
+      tenancyCandidates: [],
     };
 
     expect(compareWithBaseline(snapshot, snapshot).regressions).toEqual([]);
@@ -200,6 +232,7 @@ describe("compareWithBaseline", () => {
       tierViolations: ["leads->admin"],
       orpcOutsideHooks: { "src/features/leads/a.tsx": 2 },
       uninvokedErrorThrows: { "src/app/router/leads/get.ts": 3 },
+      tenancyCandidates: [],
     };
 
     const report = compareWithBaseline(emptySnapshot, baseline);

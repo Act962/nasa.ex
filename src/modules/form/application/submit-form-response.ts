@@ -104,7 +104,7 @@ async function persistSubmission(
   const { form, tenant } = found;
 
   const identity = readLeadIdentity(input.response);
-  const existingTagIds = await store.findExistingTagIds(answerTagIds);
+  const existingTagIds = await store.findExistingTagIds(tenant, answerTagIds);
   const target = formTarget(form);
 
   const leadEvents: LeadTimelineEvent[] = [];
@@ -221,7 +221,7 @@ async function persistSubmission(
       },
     });
 
-    if (input.nextActionTagId && (await store.attachTagToLeadIfExists(leadId, input.nextActionTagId))) {
+    if (input.nextActionTagId && (await store.attachTagToLeadIfExists(tenant, leadId, input.nextActionTagId))) {
       leadEvents.push({
         leadId,
         eventType: "TAG_ADDED",

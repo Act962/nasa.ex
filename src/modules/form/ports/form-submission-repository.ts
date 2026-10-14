@@ -41,18 +41,18 @@ export type RecordedSubmission = {
  *
  * `findPublishedForm` é a leitura sem escopo de onde o `TenantScope` nasce: o
  * envio é público e a empresa é a dona do formulário. As operações por id de
- * lead e de tag ainda não conferem a empresa, como no código de origem
- * (etapa 8 do plano de migração).
+ * lead ainda não conferem a empresa, como no código de origem.
  */
 export interface SubmissionStore {
   findPublishedForm(formId: string): Promise<{ form: PublishedForm; tenant: TenantScope } | null>;
-  findExistingTagIds(tagIds: readonly string[]): Promise<string[]>;
+  /** Só tags da empresa: o id vem da resposta pública (spec 0106). */
+  findExistingTagIds(tenant: TenantScope, tagIds: readonly string[]): Promise<string[]>;
   /** Rascunho deste formulário ainda não concluído. */
   findOpenDraft(formId: string, responseId: string): Promise<{ id: string; leadId: string | null } | null>;
   findLeadContact(leadId: string): Promise<LeadContact | null>;
   attachTagsToLead(leadId: string, tagIds: readonly string[]): Promise<void>;
-  /** Anexa a tag se ela existir. Devolve se anexou. */
-  attachTagToLeadIfExists(leadId: string, tagId: string): Promise<boolean>;
+  /** Anexa a tag se ela existir na empresa. Devolve se anexou. */
+  attachTagToLeadIfExists(tenant: TenantScope, leadId: string, tagId: string): Promise<boolean>;
   placeKnownLead(leadId: string, target: BoardPosition): Promise<LeadPlacement | null>;
   /** Acha a pessoa pelo telefone na empresa e a posiciona, ou cria o lead. */
   resolveAndPlaceLead(

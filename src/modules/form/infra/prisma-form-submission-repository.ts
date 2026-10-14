@@ -69,9 +69,9 @@ class PrismaSubmissionStore implements SubmissionStore {
     };
   }
 
-  async findExistingTagIds(tagIds: readonly string[]): Promise<string[]> {
+  async findExistingTagIds(tenant: TenantScope, tagIds: readonly string[]): Promise<string[]> {
     const tags = await this.tx.tag.findMany({
-      where: { id: { in: [...tagIds] } },
+      where: { id: { in: [...tagIds] }, organizationId: tenant.organizationId },
       select: { id: true },
     });
     return tags.map((tag) => tag.id);
@@ -95,8 +95,11 @@ class PrismaSubmissionStore implements SubmissionStore {
     });
   }
 
-  async attachTagToLeadIfExists(leadId: string, tagId: string): Promise<boolean> {
-    const tag = await this.tx.tag.findUnique({ where: { id: tagId }, select: { id: true } });
+  async attachTagToLeadIfExists(tenant: TenantScope, leadId: string, tagId: string): Promise<boolean> {
+    const tag = await this.tx.tag.findFirst({
+      where: { id: tagId, organizationId: tenant.organizationId },
+      select: { id: true },
+    });
     if (!tag) return false;
 
     await this.tx.leadTag.upsert({

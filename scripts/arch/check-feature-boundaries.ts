@@ -1,4 +1,4 @@
-// Confere as fronteiras entre features contra a baseline (regras R8, R9 e R11).
+// Confere as fronteiras entre features contra a baseline (regras R8, R9, R11, A1 e S5).
 // Uso: pnpm arch:features            falha se alguma regra piorou
 //      pnpm arch:features --update   regrava a baseline com o estado atual
 
@@ -42,7 +42,8 @@ function printSummary(label: string, snapshot: BoundarySnapshot) {
       `maior grupo interdependente com ${snapshot.largestFeatureKnot} features, ` +
       `${snapshot.tierViolations.length} imports contra as camadas (R11), ` +
       `${totalOrpcCalls(snapshot)} orpc.* fora de hook em ${Object.keys(snapshot.orpcOutsideHooks).length} arquivos (R9), ` +
-      `${totalUninvokedThrows(snapshot)} throw errors.X; sem invocar (A1)`,
+      `${totalUninvokedThrows(snapshot)} throw errors.X; sem invocar (A1), ` +
+      `${(snapshot.tenancyCandidates ?? []).length} procedures sem conferência de empresa (S5)`,
   );
 }
 

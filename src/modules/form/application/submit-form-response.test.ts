@@ -88,7 +88,7 @@ function setup(scenario: Scenario = {}) {
     async attachTagsToLead(leadId, tagIds) {
       writes.push(`tags:${leadId}:${tagIds.join(",")}`);
     },
-    async attachTagToLeadIfExists(leadId, tagId) {
+    async attachTagToLeadIfExists(_tenant, leadId, tagId) {
       if (!scenario.nextActionTagExists) return false;
       writes.push(`next-tag:${leadId}:${tagId}`);
       return true;

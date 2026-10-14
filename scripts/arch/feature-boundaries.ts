@@ -19,6 +19,11 @@ export type BoundarySnapshot = {
   orpcOutsideHooks: Record<string, number>;
   /** A1: `throw errors.X;` sem invocar, por arquivo. Lança a função, e o cliente recebe 500. */
   uninvokedErrorThrows: Record<string, number>;
+  /**
+   * S5: arquivos de procedure autenticada que não citam empresa nem usam a
+   * trava de isolamento. Heurística: candidatos, não vulnerabilidades confirmadas.
+   */
+  tenancyCandidates: string[];
 };
 
 export type BoundaryReport = {
@@ -32,6 +37,9 @@ const ORPC_CALL = /\borpc\.[a-zA-Z]/g;
 const ORPC_ALLOWED_PATH = /\/hooks\/|^src\/lib\/|^src\/app\/router\//;
 const TEST_FILE = /\.test\.tsx?$/;
 const UNINVOKED_ERROR_THROW = /\bthrow\s+errors\.[A-Z_]+\s*;/g;
+const PROCEDURE_PATH = /^src\/app\/router\/|^src\/features\/[a-z0-9-]+\/server\//;
+const TENANT_SCOPE_EVIDENCE =
+  /requireOrgMiddleware|requireTenantResource|organizationId|orgId|activeOrganizationId|requireAdminMiddleware|requireSystemAdminMiddleware/;
 
 export function buildFeatureGraph(files: readonly SourceFile[]): FeatureGraph {
   const graph: FeatureGraph = new Map();
@@ -139,6 +147,20 @@ export function countUninvokedErrorThrows(files: readonly SourceFile[]): Record<
   return sortByPath(counts);
 }
 
+export function findTenancyCandidates(files: readonly SourceFile[]): string[] {
+  return files
+    .filter(
+      (file) =>
+        PROCEDURE_PATH.test(file.path) &&
+        !TEST_FILE.test(file.path) &&
+        file.content.includes("requiredAuthMiddleware") &&
+        file.content.includes(".handler(") &&
+        !TENANT_SCOPE_EVIDENCE.test(file.content),
+    )
+    .map((file) => file.path)
+    .sort((left, right) => left.localeCompare(right));
+}
+
 export function takeSnapshot(files: readonly SourceFile[]): BoundarySnapshot {
   const graph = buildFeatureGraph(files);
   return {
@@ -147,6 +169,7 @@ export function takeSnapshot(files: readonly SourceFile[]): BoundarySnapshot {
     tierViolations: findTierViolations(graph),
     orpcOutsideHooks: countOrpcOutsideHooks(files),
     uninvokedErrorThrows: countUninvokedErrorThrows(files),
+    tenancyCandidates: findTenancyCandidates(files),
   };
 }
 
@@ -216,6 +239,14 @@ export function compareWithBaseline(
     const throwCount = current.uninvokedErrorThrows[filePath] ?? 0;
     if (throwCount < baselineCount) improvements.push(`A1 ${filePath}: ${baselineCount} -> ${throwCount}`);
   }
+
+  const tenancyCandidates = diffLists(current.tenancyCandidates, baseline.tenancyCandidates ?? []);
+  for (const filePath of tenancyCandidates.added) {
+    regressions.push(
+      `S5 procedure autenticada sem conferência de empresa: ${filePath} (use requireTenantResource ou filtre pela empresa)`,
+    );
+  }
+  for (const filePath of tenancyCandidates.removed) improvements.push(`S5 ${filePath} passou a conferir a empresa`);
 
   return { regressions, improvements };
 }

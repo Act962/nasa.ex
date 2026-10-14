@@ -222,11 +222,13 @@ export const submitResponse = base
 
         let leadId: string | null = null;
 
+        // Só tags da empresa do formulário: o id vem da resposta pública (spec 0106).
         const tagsFind = await tx.tag.findMany({
           where: {
             id: {
               in: tagIds,
             },
+            organizationId: form.organizationId,
           },
         });
 
@@ -485,8 +487,8 @@ export const submitResponse = base
           // Action: "add_tag" do botão Próximo — aplica tag escolhida no lead.
           // Idempotente: ignora se já existir.
           if (nextActionTagId) {
-            const tagExists = await tx.tag.findUnique({
-              where: { id: nextActionTagId },
+            const tagExists = await tx.tag.findFirst({
+              where: { id: nextActionTagId, organizationId: form.organizationId },
               select: { id: true },
             });
             if (tagExists) {

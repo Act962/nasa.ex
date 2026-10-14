@@ -145,7 +145,7 @@ Facebook e Instagram validam `hub.verify_token` no **GET**, mas o **POST não va
 
 | | |
 | --- | --- |
-| **Status** | 🚧 Em 2026-10-13 `form/delete` passou a exigir a empresa ativa da sessão, com teste entre empresas ([spec 0104](../specs/form/0104-correcoes-achadas-na-caracterizacao.md)). As demais procedures seguem abertas (etapa 8 do plano de migração) |
+| **Status** | 🚧 `form/delete` corrigido em 2026-10-13 (spec 0104). Em 2026-10-14: trava reutilizável `requireTenantResource` e lote 1 nas outras cinco procedures confirmadas ([spec 0106](../specs/security/0106-trava-de-isolamento-entre-empresas.md)), por enquanto só registrando até `TENANCY_GUARD_ENFORCED_BATCHES=lote-1`; tags de outra empresa barradas no formulário público; catraca no job `arch` impede procedure nova sem conferência (173 candidatas na baseline, triadas em [`architecture/tenancy-triage.md`](architecture/tenancy-triage.md)) |
 | **Escopo** | ~175–190 procedures em `src/app/router/` |
 | **Impacto** | **Incidente LGPD.** Leitura e destruição de dados entre clientes |
 
@@ -179,12 +179,12 @@ O time já suspeitava: existem `scripts/diag-cross-org.ts` e `scripts/seed-cross
 
 **Correção** (item longo da Fase 0 — 1 a 2 semanas):
 
-- [ ] Script que classifica cada uma das ~190 em
+- [x] Script que classifica cada uma das ~190 em
       `{escopada-por-org | escopada-por-usuário | pública-intencional | VULNERÁVEL}`
       (partir de `scripts/diag-cross-org.ts`)
 - [ ] Revisão humana da classificação — nem toda procedure sem org é falha (preferências de usuário
       são legitimamente escopadas por usuário)
-- [ ] Guard de tenancy reutilizável: middleware que recebe o ID do input e valida a posse antes do handler
+- [x] Guard de tenancy reutilizável: middleware que recebe o ID do input e valida a posse antes do handler (`requireTenantResource`, 2026-10-14)
 - [ ] Correção em lotes por domínio, começando pelas **destrutivas**
 - [ ] Teste cross-org para **cada** procedure corrigida — "org A acessa recurso de org B → FORBIDDEN".
       Estes são os primeiros testes do projeto e definem o template
@@ -438,6 +438,7 @@ Registrados para não serem re-auditados sem motivo:
 | 2026-08-18 | Registro inicial. 8 críticos, 6 altos, 5 médios, a partir da auditoria de `f67796d2`. Todos os itens 🔴 confirmados por leitura direta do código. Nenhuma correção aplicada. |
 | 2026-09-29 | S8 corrigido: bloco de debug removido depois de gravar em log a API key do Asaas de uma loja durante teste de PIX real. Pendentes: logging com redação e rotação das chaves expostas. |
 | 2026-09-26 | M6 adicionado e corrigido (vazamento do Financeiro pelo ASTRO para membro sem acesso), achado pela bateria de testes do ASTRO. |
+| 2026-10-14 | S5: trava `requireTenantResource` e lote 1 (`status/create`, `leads/deleteFile`, `conversation/get`, `status/listSimple`, `column/getMany`), só registrando até ser aplicado por variável; tags de outra empresa barradas no formulário público; catraca S5 no job `arch` ([spec 0106](../specs/security/0106-trava-de-isolamento-entre-empresas.md)). |
 | 2026-10-13 | A1 concluído: os 101 `throw errors.X;` restantes invocados (zero no código). S5: `form/delete` corrigido com teste entre empresas ([spec 0104](../specs/form/0104-correcoes-achadas-na-caracterizacao.md)); demais procedures seguem abertas. |
 | 2026-10-13 | A1: 169 `throw errors.INTERNAL_SERVER_ERROR;` corrigidos por codemod; catraca no job `arch` contra ocorrência nova. Restam 101. |
 | 2026-10-13 | S1, S2 e S4 ganharam teste de integração por rota. S1 e S2 passam a ✅ (falta implantar e conferir em homologação). S4 segue 🚧: Facebook e Instagram continuam em só-registro por padrão. |

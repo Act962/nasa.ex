@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireTenantResource } from "@/app/middlewares/tenancy";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
@@ -23,6 +24,7 @@ export const deleteLeadFile = base
       fileId: z.string(),
     }),
   )
+  .use(requireTenantResource("lead", (input: { leadId: string }) => input.leadId, "lote-1"))
   .handler(async ({ input, errors, context }) => {
     try {
       const pendingLeadEvents: RecordLeadEventInput[] = [];

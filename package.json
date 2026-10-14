@@ -24,6 +24,7 @@
     "arch:deps": "depcruise src --config .dependency-cruiser.js --ignore-known .dependency-cruiser-known-violations.json",
     "arch:deps:baseline": "depcruise-baseline src --config .dependency-cruiser.js --output-to .dependency-cruiser-known-violations.json",
     "arch:features": "tsx scripts/arch/check-feature-boundaries.ts",
+    "arch:tenancy-triage": "tsx scripts/arch/triage-tenancy-candidates.ts",
     "inngest:dev": "inngest-cli dev",
     "dev:all": "mprocs",
     "db:generate": "prisma generate",
