@@ -28,6 +28,12 @@ export function toOrderCode(publicToken: string): string {
   return publicToken.slice(0, 6).toUpperCase();
 }
 
+/** Código do texto pronto de `buildOrderWhatsappUrl` ("... (código AB12CD)"); o cliente pode ter editado o resto. */
+export function extractOrderCode(text: string): string | null {
+  const match = /c[óo]digo\s*:?\s*([A-Za-z0-9_-]{6})\b/i.exec(text);
+  return match ? match[1] : null;
+}
+
 export function buildOrderPortalUrl(appOrigin: string, publicToken: string): string {
   return `${appOrigin.replace(/\/$/, "")}/pedido/${publicToken}`;
 }

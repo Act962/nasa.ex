@@ -10,6 +10,7 @@ import { getLeadCreditStatus } from "@/features/payment/server/entries/lead-cred
 import { previewPurchaseStars } from "@/features/star-friends/lib/earn";
 import { nerpPublicOrigin } from "@/features/nerp/lib/oauth";
 import { loadActiveCatalogOrder } from "@/features/nerp-catalog/lib/order-context";
+import { isOrderAwaitingCustomer, minutesUntilReminderHours, sendContactReminder } from "@/features/nerp-catalog/lib/guided-order-contact";
 import { approveOrderQuote } from "@/features/nerp-catalog/lib/order-quote-actions";
 import { buildOrderPortalUrl, formatBrl } from "@/features/nerp-catalog/utils/format-order";
 import type { CatalogOrderCustomer, CatalogOrderItem } from "@/features/nerp-catalog/schemas/order-payload";
@@ -30,7 +31,7 @@ import {
 import { sendCustomerMessage } from "@/features/nerp-catalog/lib/approvals/approval-delivery";
 import { getCustomerWindow } from "@/features/tracking-chat/lib/customer-window";
 import { findOrCreateTags } from "../agent-presets/find-or-create-tags";
-import { extractDocument, matchConsultants } from "../catalog-sales-matching";
+import { extractDocument, isAffirmativeWithoutName, matchConsultants } from "../catalog-sales-matching";
 import { markAwaitingReply } from "./conversation-steps";
 import { AWAITING_REPLY_KEY } from "../conversation-steps";
 import type { NodeExecutionResult, NodeExecutor } from "../run-workflow";
@@ -45,6 +46,8 @@ export const CATALOG_ORDER_ACTION_OUTPUTS = ["main", "no_order"] as const;
 const DEFAULT_APPROVAL_TIMEOUT_MINUTES = 48 * 60;
 const DEFAULT_REPLY_TIMEOUT_MINUTES = 24 * 60;
 const MAX_ASK_ATTEMPTS = 2;
+/** Sem telefone ou sem WhatsApp no tracking: esperar não adianta. */
+const UNREACHABLE_REASONS = new Set(["no_phone", "no_whatsapp_instance"]);
 // Sem pergunta configurada a ação lê a mensagem que disparou o fluxo (gatilho por tag) ou a última resposta.
 const DEFAULT_SOURCE_TEXT = "{{trigger.leadMessage.text}} {{vars.lastIncomingMessage}}";
 const SALES_SECTORS: SalesSector[] = ["COMMERCIAL", "FINANCE", "LOGISTICS", "ACCOUNTING"];
@@ -331,6 +334,8 @@ async function askCustomer(params: {
   data: Record<string, unknown>;
   context: WorkflowContext;
   isRetryOfPending?: boolean;
+  /** Fora da janela de 24h sai este template; sem ele, a pergunta espera o cliente escrever. */
+  template?: { name: string; bodyParameters: string[] };
 }): Promise<NodeExecutionResult> {
   const conversation = await prisma.conversation.findFirst({
     where: { leadId: params.scope.leadId, trackingId: params.scope.trackingId },
@@ -345,11 +350,13 @@ async function askCustomer(params: {
     isWhatsappForced: true,
     // Re-pergunta com a janela ainda fechada não repete a cópia no chat.
     shouldPersistWhenUnsent: !params.isRetryOfPending,
+    template: params.template,
   }).catch((error: unknown) => ({ isSent: false as const, reason: error instanceof Error ? error.message : "whatsapp_send_failed" }));
-  const isQuestionPending = !delivery.isSent && delivery.reason === "outside_window_without_template";
-  if (!delivery.isSent && !isQuestionPending && delivery.reason !== "portal_only") {
+  if (!delivery.isSent && UNREACHABLE_REASONS.has(delivery.reason)) {
     return failed(`Não foi possível perguntar ao cliente (${delivery.reason}).`);
   }
+  // Não saiu (janela fechada, template ainda em análise na Meta): espera o cliente escrever e pergunta na hora.
+  const isQuestionPending = !delivery.isSent && delivery.reason !== "portal_only";
   // Janela fechada: espera a primeira mensagem do cliente (no prazo configurado) para perguntar de novo.
   const timeoutMinutes = await resolveTimeoutMinutes(params.data, params.scope, DEFAULT_REPLY_TIMEOUT_MINUTES);
   await markAwaitingReply({ leadId: params.scope.leadId, trackingId: params.scope.trackingId, nodeId: params.nodeId, timeoutMinutes });
@@ -408,11 +415,26 @@ export const routeToConsultantExecutor: NodeExecutor = async ({ nodeId, data, co
   const reply = readCustomerReply(nodeId, data, context);
   if (reply.kind === "ask") {
     if (dryRun) return { output: { simulated: true }, chosenOutput: "not_found" };
-    return askCustomer({ nodeId, scope, text: readString(data, "question") ?? "", attempt: reply.attempt, isRetryOfPending: reply.isRetryOfPending, data, context });
+    return askCustomer({
+      nodeId,
+      scope,
+      text: readString(data, "question") ?? "",
+      attempt: reply.attempt,
+      isRetryOfPending: reply.isRetryOfPending,
+      data,
+      context,
+    });
   }
   if (reply.kind === "not_for_me") return keepWaiting(nodeId, context);
+  // Sem resposta no prazo, ou o cliente já está respondendo outra pergunta: encerra calado (saída sem ligação),
+  // para o "já passei pra equipe" não aparecer fora de hora.
   if (reply.kind === "timeout" || (await isQuestionSuperseded(scope, nodeId))) {
-    return { output: { isWaitingCustomer: false, vars: { consultor: { nome: "" } } }, chosenOutput: "not_found" };
+    return { output: { isWaitingCustomer: false, vars: { consultor: { nome: "" } } }, chosenOutput: "ended" };
+  }
+
+  // Tocou "Tenho sim" (ou escreveu só isso): pergunta o nome uma vez, já dentro da janela.
+  if (reply.kind === "answer" && isAffirmativeWithoutName(reply.text) && reply.attempt < MAX_ASK_ATTEMPTS) {
+    return askCustomer({ nodeId, scope, text: readString(data, "nameQuestion") ?? "Show! Qual o nome dele? 😊", attempt: reply.attempt + 1, data, context });
   }
 
   const consultants = await prisma.trackingConsultant.findMany({
@@ -438,14 +460,44 @@ export const routeToConsultantExecutor: NodeExecutor = async ({ nodeId, data, co
   return { output: { isWaitingCustomer: false, vars: { consultor: { nome: consultant.name } } }, chosenOutput: "found" };
 };
 
-type CatalogOrderAction = "load" | "approve_quote" | "approve_delivery_change" | "release" | "await_reply";
-const CATALOG_ORDER_ACTIONS: CatalogOrderAction[] = ["load", "approve_quote", "approve_delivery_change", "release", "await_reply"];
+type CatalogOrderAction = "load" | "approve_quote" | "approve_delivery_change" | "release" | "await_reply" | "remind_customer";
+const CATALOG_ORDER_ACTIONS: CatalogOrderAction[] = ["load", "approve_quote", "approve_delivery_change", "release", "await_reply", "remind_customer"];
+const DEFAULT_CONTACT_REMINDER_MINUTES = 30;
+
+/** A mensagem do cliente acorda a espera antes do prazo; aí a tag já saiu e nada é enviado. */
+function waitForCustomerContact(orderId: string, timeoutMinutes: number): NodeExecutionResult {
+  return {
+    status: "WAITING",
+    output: { action: "remind_customer", isWaitingReminder: true, orderId, resumeSameNode: true, eventNames: ["message-incoming"], timeoutMinutes },
+  };
+}
 
 // "Atualizar pedido do catálogo": carrega o pedido em variáveis e registra os aceites do cliente.
 export const catalogOrderActionExecutor: NodeExecutor = async ({ nodeId, data, context, dryRun }) => {
   const action = CATALOG_ORDER_ACTIONS.includes(data.action as CatalogOrderAction) ? (data.action as CatalogOrderAction) : "load";
   const scope = await resolveLeadScope(context);
   if (!scope) return failed("Fluxo sem lead.");
+
+  // "Lembrar o cliente de enviar o pedido" (RF-0b): espera só este pedido; se ele ainda não escreveu, um lembrete.
+  if (action === "remind_customer") {
+    if (dryRun) return { output: { action } };
+    const previous = context.nodeOutputs?.[nodeId] as { isWaitingReminder?: boolean; orderId?: string } | undefined;
+    if (!previous?.isWaitingReminder || !previous.orderId) {
+      const order = await loadCatalogOrderForFlow(scope.leadId, context);
+      if (!order) return { output: { action }, chosenOutput: "no_order" };
+      const delayMinutes = typeof data.delayMinutes === "number" && data.delayMinutes > 0 ? data.delayMinutes : DEFAULT_CONTACT_REMINDER_MINUTES;
+      return waitForCustomerContact(order.id, delayMinutes);
+    }
+    // Acordou por mensagem do cliente (não pelo prazo): ele já escreveu, nada a lembrar.
+    const isTimedOut = (context.vars as Record<string, unknown>).lastWaitTimedOut === true;
+    if (!isTimedOut || !(await isOrderAwaitingCustomer(previous.orderId))) {
+      return { output: { action, isWaitingReminder: false, reminded: false } };
+    }
+    const minutesUntilDaytime = minutesUntilReminderHours();
+    if (minutesUntilDaytime > 0) return waitForCustomerContact(previous.orderId, minutesUntilDaytime);
+    const result = await sendContactReminder(previous.orderId);
+    return { output: { action, isWaitingReminder: false, reminded: result.isSent } };
+  }
 
   // "Esperar a resposta do cliente": marca a última mensagem enviada para o Astro não responder por cima.
   if (action === "await_reply") {

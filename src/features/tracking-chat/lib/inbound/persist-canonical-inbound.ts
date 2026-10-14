@@ -52,6 +52,7 @@ import {
 import prisma from "@/lib/prisma";
 import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { tryHandleApproverInbound } from "@/features/nerp-catalog/lib/approvals/order-approvals";
+import { tryStartGuidedOrderFromInbound } from "@/features/nerp-catalog/lib/guided-order-contact";
 import { pusherServer } from "@/lib/pusher";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { logActivity } from "@/features/admin/lib/activity-logger";
@@ -355,11 +356,25 @@ export async function persistCanonicalInbound(
     messageData,
   });
 
+  // ── 6.5. Venda guiada: cliente enviou o pedido do catálogo (spec 0104, RF-0) ─
+  // Depois do dispatch acima, para o fluxo que vai começar não ler esta mensagem
+  // como resposta. Quem responde é o fluxo "chegada do pedido", não o Astro.
+  const isGuidedOrderStart = canonical.sender.fromMe
+    ? false
+    : await tryStartGuidedOrderFromInbound({
+        organizationId: tracking.organizationId,
+        leadId: lead.id,
+        text: messageData.body ?? "",
+      }).catch((error: unknown) => {
+        console.error("[persist-canonical-inbound] inicio da venda guiada falhou", error);
+        return false;
+      });
+
   // ── 7. firePostInboundAutomations ───────────────────────────────────────
   await firePostInboundAutomations({
     trackingId: ctx.trackingId,
     organizationId: tracking.organizationId,
-    globalAiActive: tracking.globalAiActive,
+    globalAiActive: tracking.globalAiActive && !isGuidedOrderStart,
     lead: {
       id: lead.id,
       isActive: lead.isActive,

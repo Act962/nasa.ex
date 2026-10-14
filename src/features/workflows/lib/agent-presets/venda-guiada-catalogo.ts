@@ -3,6 +3,7 @@
  * revisar textos e setores antes de ligar. O Astro segue conversando; estes fluxos fazem as etapas
  * operacionais e mandam as mensagens das etapas (com template quando a janela de 24h fechou).
  *
+ *   0. Lembrete (tag "Aguardando cliente no WhatsApp"): 30 min sem o cliente enviar o pedido → um lembrete.
  *   1. Chegada do pedido (tag "Pedido do catálogo"): pergunta do consultor → crédito em silêncio.
  *   2. Aprovação do valor (tag "Valor em aprovação"): setores aprovam → CPF/CNPJ → valor, prazo e pontos ao cliente.
  *   3. Pagamento (Pagamento recebido do catálogo): "estamos conferindo" → financeiro e logística → prazo novo? → link.
@@ -12,6 +13,7 @@ import type { ApprovalTemplateNames } from "@/features/nerp-catalog/lib/approval
 import type { Blueprint, BlueprintEdge, BlueprintNode } from "./create-from-blueprint";
 
 export const GUIDED_SALE_TAGS = [
+  { slug: "aguardando-cliente-whatsapp", name: "Aguardando cliente no WhatsApp", color: "#eab308" },
   { slug: "pedido-do-catalogo", name: "Pedido do catálogo", color: "#0ea5e9" },
   { slug: "valor-em-aprovacao", name: "Valor em aprovação", color: "#6366f1" },
 ] as const;
@@ -35,6 +37,30 @@ function tagTrigger(slug: string) {
   return { action: { tagIds: [`{{TAG:${slug}}}`], conditions: [] } };
 }
 
+function buildContactReminderFlow(): Blueprint {
+  return {
+    name: "Venda guiada — lembrete do pedido",
+    description: "Cliente pediu no catálogo e não enviou pelo WhatsApp: espera 30 min e manda um lembrete só (de dia). Se ele escrever antes, nada sai.",
+    nodes: [
+      {
+        id: "trigger",
+        type: NodeType.LEAD_TAGGED,
+        position: { x: 0, y: 0 },
+        data: tagTrigger("aguardando-cliente-whatsapp"),
+        name: "Pedido aguardando o cliente",
+      },
+      {
+        id: "remind",
+        type: NodeType.CATALOG_ORDER_ACTION,
+        position: { x: STEP_X, y: 0 },
+        data: { action: "remind_customer", delayMinutes: 30 },
+        name: "Lembra o cliente (uma vez)",
+      },
+    ],
+    edges: [edge("trigger", "remind")],
+  };
+}
+
 function buildArrivalFlow(): Blueprint {
   const nodes: BlueprintNode[] = [
     { id: "trigger", type: NodeType.LEAD_TAGGED, position: { x: 0, y: 0 }, data: tagTrigger("pedido-do-catalogo"), name: "Pedido do catálogo chegou" },
@@ -52,11 +78,18 @@ function buildArrivalFlow(): Blueprint {
       data: textMessage("Show! Já passei seu pedido pro {{vars.consultor.nome}}, ele te chama aqui já já 😉"),
       name: "Avisa que passou ao consultor",
     },
-    { id: "credit", type: NodeType.CHECK_CREDIT, position: { x: STEP_X * 2, y: 160 }, data: {}, name: "Crédito (em silêncio)" },
+    {
+      id: "team-message",
+      type: NodeType.SEND_MESSAGE,
+      position: { x: STEP_X * 2, y: 160 },
+      data: textMessage("Tranquilo! Já passei seu pedido pra nossa equipe. Em instantes te mando o valor por aqui 😉"),
+      name: "Avisa que a equipe vai mandar o valor",
+    },
+    { id: "credit", type: NodeType.CHECK_CREDIT, position: { x: STEP_X * 3, y: 160 }, data: {}, name: "Crédito (em silêncio)" },
     {
       id: "credit-alert",
       type: NodeType.NOTIFY_TEAM,
-      position: { x: STEP_X * 3, y: 260 },
+      position: { x: STEP_X * 4, y: 260 },
       data: notifyTeam("{{lead.name}} fez pedido no catálogo e tem conta vencida ({{vars.credito.totalVencido}}). Confira antes de aprovar."),
       name: "Avisa inadimplência",
     },
@@ -70,7 +103,8 @@ function buildArrivalFlow(): Blueprint {
       edge("consultant", "handoff-message", "found"),
       // Quem já tem consultor também passa pelo crédito (decisão do usuário): o aviso vai ao consultor.
       edge("handoff-message", "credit"),
-      edge("consultant", "credit", "not_found"),
+      edge("consultant", "team-message", "not_found"),
+      edge("team-message", "credit"),
       edge("credit", "credit-alert", "overdue"),
     ],
   };
@@ -316,6 +350,7 @@ export function buildGuidedSaleBlueprints(params: {
   registration?: RegistrationForm | null;
 }): Blueprint[] {
   return [
+    buildContactReminderFlow(),
     buildArrivalFlow(),
     buildQuoteApprovalFlow(params.templates),
     buildPaymentFlow({ templates: params.templates, organizationId: params.organizationId, registration: params.registration ?? null }),

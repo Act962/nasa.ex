@@ -21,6 +21,7 @@ import {
 import { CATALOG_ORDER_MESSAGE_PREFIX } from "./order-channel";
 import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { sendCustomerMessage } from "./approvals/approval-delivery";
+import { markOrderAwaitingCustomer } from "./guided-order-contact";
 import { resolveApprovalTemplates } from "./approvals/approval-rules";
 import { toLeadAmountCents } from "../utils/format-order";
 import { handleCatalogStageEntry } from "./stage-flow";
@@ -278,9 +279,12 @@ export async function receiveCatalogOrder(
     console.error("[nerp-catalog] stage_entry_failed", error),
   );
 
-  // Venda guiada (spec 0104, D-5): a tag dispara o fluxo "chegada do pedido" nos Gatilhos.
+  // Venda guiada (spec 0104, D-6): nada vai ao cliente agora. O fluxo "chegada do pedido" começa quando ele
+  // envia o pedido pelo WhatsApp (tryStartGuidedOrderFromInbound); até lá o lead fica marcado no painel.
   if (isGuidedSale) {
-    await applyCatalogIntentTag({ organizationId, leadId: lead.id, key: "orderReceived", shouldRetrigger: true });
+    await markOrderAwaitingCustomer({ organizationId, leadId: lead.id }).catch((error) =>
+      console.error("[nerp-catalog] awaiting_tag_failed", error),
+    );
   }
 
   if (lead.isNew) {
