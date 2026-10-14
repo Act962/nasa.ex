@@ -4,6 +4,7 @@ import { getPresignedReadUrl } from "@/lib/r2-url";
 import { userActor } from "@/features/star-friends/lib/actor";
 import { auditLoyaltyAction } from "@/features/star-friends/lib/audit";
 import { drawCampaignWinner } from "@/features/star-friends/lib/campaign/draw";
+import { approveReceipt, rejectReceipt } from "@/features/star-friends/lib/campaign/review-receipt";
 import { sweepCampaignDuplicates } from "@/features/star-friends/lib/campaign/sweep-duplicates";
 import { onlyDigits, rulesVersionOf } from "@/features/star-friends/utils/campaign";
 import { starFriendsWith } from "./_base";
@@ -20,6 +21,10 @@ const CAMPAIGN_ERRORS: Record<string, string> = {
   already_drawn: "Esta campanha já foi sorteada.",
   sweep_required: "Faça a varredura de duplicados antes de sortear: há cupons que ainda não passaram por ela.",
   no_numbers: "Não há números válidos para sortear.",
+  pending_review: "Há cupons em conferência. Aprove ou recuse todos antes de sortear.",
+  not_pending: "Este cupom já foi conferido.",
+  out_of_period: "A data informada está fora do período da campanha.",
+  duplicate: "Já existe um cupom com o mesmo número, data e valor nesta campanha.",
 };
 
 export const getStarFriendsCampaign = starFriendsWith("canView")
@@ -62,6 +67,7 @@ export const getStarFriendsCampaign = starFriendsWith("canView")
         duplicateReceipts: countOf("DUPLICATE"),
         rejectedReceipts: countOf("REJECTED"),
         voidedReceipts: countOf("VOIDED"),
+        pendingReceipts: countOf("PENDING_REVIEW"),
         flaggedReceipts,
         acceptedTotalCents: receiptsByStatus.find((row) => row.status === "ACCEPTED")?._sum.totalCents ?? 0,
         validNumbers,
@@ -141,7 +147,7 @@ export const listStarFriendsCampaignReceipts = starFriendsWith("canView")
   .input(
     z.object({
       campaignId: z.string(),
-      filter: z.enum(["ALL", "ACCEPTED", "FLAGGED", "DUPLICATE", "REJECTED", "VOIDED"]).default("ALL"),
+      filter: z.enum(["ALL", "PENDING_REVIEW", "ACCEPTED", "FLAGGED", "DUPLICATE", "REJECTED", "VOIDED"]).default("ALL"),
       cursor: z.string().optional(),
     }),
   )
@@ -204,6 +210,40 @@ export const exportStarFriendsCampaignNumbers = starFriendsWith("canView")
       },
     });
     return { luckyNumbers };
+  });
+
+export const reviewStarFriendsCampaignReceipt = starFriendsWith("canApprove")
+  .input(
+    z.discriminatedUnion("decision", [
+      z.object({
+        decision: z.literal("approve"),
+        receiptId: z.string(),
+        totalCents: z.number().int().min(1).max(100_000_00),
+        issuedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+        receiptNumber: z.string().trim().max(20).nullable(),
+      }),
+      z.object({
+        decision: z.literal("reject"),
+        receiptId: z.string(),
+        rejectReason: z.string().trim().max(200).nullable(),
+      }),
+    ]),
+  )
+  .handler(async ({ input, context, errors }) => {
+    const actor = userActor(context.user);
+    const result =
+      input.decision === "approve"
+        ? await approveReceipt({
+            organizationId: context.org.id,
+            receiptId: input.receiptId,
+            totalCents: input.totalCents,
+            issuedOn: input.issuedOn,
+            receiptNumber: input.receiptNumber,
+            actor,
+          })
+        : await rejectReceipt({ organizationId: context.org.id, receiptId: input.receiptId, rejectReason: input.rejectReason, actor });
+    if (!result.ok) throw errors.BAD_REQUEST({ message: CAMPAIGN_ERRORS[result.reason] });
+    return result;
   });
 
 export const sweepStarFriendsCampaign = starFriendsWith("canApprove")

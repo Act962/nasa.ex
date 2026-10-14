@@ -122,6 +122,7 @@ async function loadOrganizationKeys(
  */
 export async function resolveExtractionModels(
   organizationId: string,
+  modelIdByProvider: Partial<Record<ExtractionProvider, string>> = {},
 ): Promise<ResolvedExtractionModel[]> {
   const organizationKeys = await loadOrganizationKeys(organizationId);
   const override = parseProviderOverride();
@@ -141,7 +142,7 @@ export async function resolveExtractionModels(
     // não faz sentido no Gemini, então os fallbacks usam o default de cada um.
     const isPrimary = resolved.length === 0;
     const modelId =
-      modelOverride && isPrimary ? modelOverride : DEFAULT_MODEL_BY_PROVIDER[provider];
+      modelOverride && isPrimary ? modelOverride : (modelIdByProvider[provider] ?? DEFAULT_MODEL_BY_PROVIDER[provider]);
 
     resolved.push({
       model: buildModel(provider, apiKey, modelId),

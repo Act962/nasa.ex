@@ -3663,6 +3663,7 @@ enum LoyaltyReceiptStatus {
   DUPLICATE
   REJECTED
   VOIDED
+  PENDING_REVIEW
 }
 
 enum LoyaltyLuckyNumberStatus {
@@ -3719,8 +3720,9 @@ model LoyaltyCampaignEntry {
   @@map("loyalty_campaign_entries")
 }
 
-// `fileSha256`, `accessKey` e `fingerprint` só ficam preenchidos em cupom aceito:
-// os índices únicos são a trava contra dois envios simultâneos do mesmo cupom.
+// `fileSha256`, `accessKey` e `fingerprint` só ficam preenchidos em cupom aceito ou em conferência
+// (`PENDING_REVIEW`, só o `fileSha256`): os índices únicos são a trava contra dois envios
+// simultâneos do mesmo cupom.
 model LoyaltyReceipt {
   id             String               @id @default(cuid())
   organizationId String               @map("organization_id")

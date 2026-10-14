@@ -78,13 +78,19 @@ Aba **Campanha** do app. O cliente manda a foto do cupom pelo WhatsApp e ganha n
 | Quem | O que vê |
 | --- | --- |
 | Cliente novo | Pede o nome → resumo das regras + link, com "Aceito" / "Não aceito" → pede a foto do cupom |
-| Cliente cadastrado | "Cadastrar novo cupom", "Ver meus pontos", "Ver meus códigos" |
+| Cliente cadastrado | "Cadastrar novo cupom", "Ver meus pontos", "Ver meus códigos". Com a campanha aberta, a foto ou PDF que ele mandar já vale como cupom, sem o clique |
 
 "Meus pontos" e "meus códigos" pedem o número cadastrado. Ele só é comparado com o número de quem escreve; diferente, a resposta é "Você não está acessando pelo dispositivo que se cadastrou na promoção." Nenhuma consulta usa o número digitado.
 
 **Cupom repetido**: recusado na hora por mesmo arquivo (`sha256`), mesma chave de acesso (44 dígitos) ou mesma impressão digital (CNPJ + número + dia + total), entre quaisquer clientes. Leitura incompleta é aceita com alerta. A **varredura** trata como a mesma compra o mesmo número de cupom, ou o mesmo CNPJ + dia + total (a hora só separa quando foi lida nos dois e difere em mais de 2 minutos), mantém o mais antigo e anula os números dos demais; depois confere se o cliente não ficou com mais números do que as compras válidas dão. O **sorteio** só roda com varredura feita depois do último cupom e grava a semente.
 
 A varredura anula números, mas não estorna as stars já creditadas por eles.
+
+**Leitura do cupom**: `gpt-4o` na OpenAI (os modelos menores trocavam dígitos do CNPJ na mesma foto). CNPJ e chave de acesso só valem com o dígito verificador certo; senão contam como não lidos. Ano da compra lido errado é corrigido para o ano da campanha, com alerta, quando o dia e o mês caem no período.
+
+**Conferência manual** (RF-15): o cupom que a leitura não resolveu (valor total não lido, ou IA indisponível) fica com status `PENDING_REVIEW` em vez de ser recusado, e o cliente é avisado de que foi recebido. Na aba Campanha, filtro **Em conferência**: quem tem a permissão de "Aprovar" informa o valor total (data e número opcionais) e aprova, ou recusa com motivo. A aprovação confere período e repetição, gera os números e zera a varredura (o sorteio passa a exigir outra). O sorteio não roda com cupom em conferência. O cliente é avisado do resultado na conversa só com a janela de 24 h aberta. Código em `lib/campaign/review-receipt.ts`; o cálculo de números e stars é compartilhado em `lib/campaign/grant-lucky-numbers.ts`.
+
+O limite diário conta cupons aceitos e em conferência; recusados e repetidos não contam, mas há um teto de 4 tentativas por cupom permitido.
 
 **Opções de menu com resposta fixa** (aba "Botões" do Chatbot IA, campo "o que a opção faz"): abrir a campanha, ofertas (stories do Instagram cadastrado), Instagram e endereço (Localização da empresa).
 
