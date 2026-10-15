@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "../../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import type { LeadJourneyEventKind } from "@/lib/lead-journey/track";
+import { resolveLeadChannel } from "@/features/leads/lib/lead-channel";
 
 /**
  * Timeline unificada da jornada de um lead. Faz UNION de várias fontes:
@@ -59,6 +60,9 @@ export const getLeadJourney = base
         metaCampaignId: true,
         metaAdId: true,
         metaHeadline: true,
+        ctwaClid: true,
+        conversation: { select: { channel: true } },
+        _count: { select: { linnkerScans: true } },
       },
     });
     if (!lead) throw errors.NOT_FOUND();
@@ -584,6 +588,14 @@ export const getLeadJourney = base
         metaCampaignId: lead.metaCampaignId,
         metaAdId: lead.metaAdId,
         metaHeadline: lead.metaHeadline,
+        // Spec 0105: canal com nome e ícone; lead antigo é deduzido pela conversa e pelo Linnker.
+        channel: resolveLeadChannel({
+          source: lead.source,
+          ctwaClid: lead.ctwaClid,
+          metaAdId: lead.metaAdId,
+          conversationChannel: lead.conversation?.channel ?? null,
+          hasLinnkerScan: lead._count.linnkerScans > 0,
+        }),
       },
       events: merged.slice(0, input.limit),
     };

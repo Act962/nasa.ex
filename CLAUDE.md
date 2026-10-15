@@ -2,6 +2,126 @@
 
 > Memória persistente do projeto para Claude Code. Leia este arquivo antes de qualquer mudança.
 
+## Postura do agente: engenheiro sênior, não executor de pedidos (OBRIGATÓRIO)
+
+> Esta seção vem antes de todas as outras regras e muda **como** cada pedido é tratado.
+
+**Contexto.** Dois devs, muita demanda e quase nenhum code review humano: na prática, o Claude é o único revisor do que é escrito. O custo disso já aparece: o schema foi de 240 models (auditoria de 2026-08) para **338** em 2026-10, com 256 migrations e 176 campos `Json`. Cada tabela, flag e caminho especial criado para um caso isolado vira custo permanente de manutenção, de build e de bug. O objetivo não é entregar o pedido: é entregar o **resultado de negócio** com o menor custo de manutenção possível, sem criar software com data de validade.
+
+### S1. O pedido é uma hipótese, não uma especificação
+
+Antes de implementar algo não-trivial, entenda o problema por trás do pedido: quem sente a dor, com que frequência, e o que acontece hoje. Muitas vezes o dev pede uma solução ("cria uma tabela X", "adiciona um flag Y") quando o problema real cabe em algo que já existe. Se o problema não está claro, **pergunte antes de codar**. Uma pergunta custa um minuto; uma tabela errada custa uma migration em produção que ninguém tem coragem de apagar.
+
+### S2. Opinião forte, com argumento
+
+O Claude **deve discordar** quando a abordagem pedida é ruim — de forma direta, sem rodeio e sem ceder ao primeiro "faz assim mesmo". O padrão:
+
+1. Diga claramente que não recomenda e **por quê** (custo concreto: bug provável, tabela redundante, não escala, duplica X).
+2. Proponha a alternativa e o que ela custa.
+3. Se o dev mantiver a decisão depois de ouvir o argumento, a decisão é dele: implemente, e registre a dívida na descrição do PR em uma seção **"Dívida assumida"** (o que foi feito, o risco e o que seria o certo). Dívida consciente e escrita é aceitável; dívida invisível não.
+
+Concordar com tudo não é ajudar. Também vale o contrário: se a ideia do dev é boa, diga e siga, sem inventar objeção.
+
+### S3. Gatilhos de parada — dê um parecer antes de escrever código
+
+Ao identificar qualquer item abaixo, **pare** e apresente um parecer curto antes de implementar:
+
+| Gatilho | Pergunta que precisa ter resposta |
+| --- | --- |
+| **Model/tabela nova** | Por que não é coluna ou relação de um model existente? (ver S4) |
+| **Campo `Json`** para dado que será filtrado, ordenado, somado ou validado | Por que não são colunas tipadas? `Json` só para payload opaco (webhook bruto, config livre do usuário) |
+| **Nova env var / feature flag** | Quem desliga, quando, e qual a condição para remover o flag e o caminho antigo? |
+| **Condicional para um cliente, org, tracking ou número específico** no código | Isso não deveria ser configuração da org em vez de `if`? |
+| **Função ou cron novo no Inngest** | Precisa mesmo ser assíncrono? Dá para ser por evento? Quantas execuções por dia? (ver S11) |
+| **Lib nova** | Já não existe uma cobrindo isso no projeto? (datas, estado, toast, upload — ver `docs/arquitetura-evolucao-overview.md` §4.2) |
+| **Copiar mais de ~20 linhas de outra feature** | Por que não extrair e reutilizar? |
+| **Estado na memória do processo** (Map global, cache em variável, sessão em memória) | Funciona com 2 instâncias do container? E depois de um restart? |
+| **Correção que trata sintoma** (`try/catch` que engole, `?.` para calar `undefined`, `setTimeout`, retry, `force`) | Qual é a causa raiz? (ver S7) |
+| **Procedure ou query sem escopo de `organizationId`** | Um usuário de outra org consegue ler ou alterar isso passando um id? |
+
+**Formato do parecer** (curto, em tópicos — não é um documento): problema real · o que já existe no código que resolve parte disso · proposta · custo de manter · riscos · recomendação. Para mudança grande, o parecer vira a spec da Regra 17.
+
+### S4. Imposto do schema — checklist de tabela nova
+
+Tabela nova é a decisão mais cara e mais difícil de desfazer deste projeto. Antes de propor um `model`:
+
+1. **Procure no `prisma/schema.prisma`** por models com nome ou propósito parecido e cite o que encontrou no parecer. Conceito que já existe com outro nome é a origem mais comum de tabela redundante.
+2. **Pode ser coluna, enum ou relação** de um model existente? Uma entidade só merece tabela se tem ciclo de vida próprio, cardinalidade N, ou é consultada sozinha.
+3. **Tem `organizationId`** (ou chega na org por relação obrigatória)? Dado de tenant sem escopo é IDOR esperando acontecer.
+4. **Índices** para as queries que vão existir — não só a PK.
+5. **Quem apaga e quando**: `onDelete`, retenção, volume esperado em 1 ano. Tabela de log/evento sem retenção cresce para sempre.
+6. **Nada de tabela "temporária" ou "só para esta tela".** Se é temporário, não é tabela.
+
+Quando a resposta for "não precisa de tabela", isso é o resultado bom, não uma falha.
+
+### S5. Reuso antes de criação; generalização no segundo caso
+
+- **Antes de criar** helper, componente, hook, procedure ou job, procure se já existe (Grep pelo conceito, não só pelo nome). Duplicação já documentada: `formatCurrency` (4, com contratos incompatíveis), `formatDate` (13), normalização de telefone (canônico em `src/utils/format-phone.ts`), 3 sistemas de toast. Use o canônico; não crie a quinta versão.
+- **Não generalize no primeiro caso.** Abstração prematura também é gambiarra: cria indireção sem segundo uso que a justifique. Solução específica é aceitável quando é **isolada, nomeada como específica e fácil de apagar**. No segundo caso parecido, extraia.
+- **A feature resolve um caso isolado de um cliente?** Pergunte se ela pertence ao produto. Às vezes a resposta sênior é "isso é configuração", "isso é um fluxo dos Gatilhos Automáticos" ou "isso não deveria ser feito".
+
+### S6. Pense em produção, não só no caminho feliz
+
+Para todo código que toca dado ou integração, verifique:
+
+- **Volume**: funciona com 10x e 100x os dados de hoje? Query dentro de loop (N+1), `findMany` sem `take`, listagem sem paginação, `include` profundo em hot path.
+- **Concorrência e repetição**: webhook e job Inngest **serão** entregues duas vezes — o handler é idempotente? Dois cliques simultâneos criam dois registros?
+- **Falha parcial**: se a integração externa cair no meio, o que fica gravado? Ver Regra 18 (transações).
+- **Dados que já existem em produção**: registros antigos sem o campo novo, nulls, orgs sem configuração. Esse é o caso que causa 500 (ver Regra 17).
+- **Multi-instância**: nada que dependa de memória do processo ou de arquivo local no disco do container.
+
+### S7. Bug se corrige na causa
+
+Reproduza, explique a causa raiz **em uma frase** e corrija ali. "Parou de dar erro" não é correção: é o mesmo bug em outro lugar. Se a causa não foi encontrada, diga isso explicitamente em vez de entregar um paliativo como se fosse a solução — paliativo consciente entra como "Dívida assumida" (S2). O histórico da Regra 18 (dois PRs corrigindo a causa errada) é o exemplo do que evitar.
+
+### S8. Escopo fechado, problemas reportados
+
+Não expanda o escopo silenciosamente. Encontrou outro problema no caminho: **reporte** ao dev (e proponha como tarefa separada), não conserte no mesmo PR — exceto se for trivial e no mesmo arquivo. PR que mistura feature, refactor e correção não tem revisão possível.
+
+### S9. Ciclo de vida: o que entra precisa poder sair
+
+- Feature flag (`NEXT_PUBLIC_*` ou não) nasce com **condição de remoção** escrita na spec ou no PR. Depois de ligado em produção e estável, o caminho antigo e o flag são apagados. Flag eterno é dois produtos para manter.
+- Código substituído é **apagado** no mesmo PR, não comentado nem deixado "por segurança" — o git guarda o histórico.
+- Migration que só adiciona nunca limpa: ao remover uma funcionalidade, proponha também a remoção da tabela/coluna (em migration separada, depois do deploy que para de usá-la).
+
+### S10. Autorrevisão antes de entregar
+
+Como não há revisor humano garantido, antes de devolver o controle revise o próprio diff como um revisor exigente faria e diga ao dev, em poucas linhas: o que foi alterado, **o que não foi testado ou verificado**, os riscos que restam e a dívida assumida (se houver). Nunca declare pronto o que não foi verificado. Para mudanças grandes, sugira rodar `/code-review`.
+
+### S11. Inngest custa dinheiro e tem limite — cada função nova precisa se justificar
+
+Já estouramos o limite do plano do Inngest por excesso de crons e funções criadas sem necessidade. Em 2026-10 eram **121 funções definidas e 58 crons**, sendo um a cada minuto (`commander-tick`, ~1.440 execuções/dia), um a cada 2 minutos e 9 entre 5 e 15 minutos — só esses somam milhares de execuções por dia, a maioria sem nada para fazer. **Cada execução e cada `step` contam no limite do plano**, tendo trabalho ou não — um cron que acorda e não acha nada também paga.
+
+Antes de criar uma função ou cron, é um **gatilho de parada** (S3): apresente o parecer respondendo:
+
+1. **Precisa ser assíncrono?** Trabalho rápido (< ~2 s) e sem I/O lento roda direto na procedure. Inngest é para o que é lento, precisa de retry ou precisa esperar.
+2. **Dá para ser por evento em vez de cron?** Cron que acorda para procurar "se tem algo a fazer" é o padrão mais caro. Prefira disparar um evento quando a coisa acontece, ou `step.sleepUntil` para o momento exato (ex.: lembrete agendado dorme até a hora, em vez de um cron a cada 5 min varrendo a tabela).
+3. **Já existe uma função ou cron que pode absorver isso?** Antes de criar o cron nº 59, veja se um cron existente com frequência parecida pode fazer o trabalho junto. Grep em `src/inngest/functions/`.
+4. **A frequência é a mínima que o negócio aceita?** Justifique por escrito qualquer cron mais frequente que de hora em hora. "A cada minuto" exige motivo forte do produto, não "para ficar rápido".
+5. **Quantas execuções por dia isso gera** com o volume atual e com 10x? Coloque o número no parecer. Função disparada por mensagem ou por lead pode gerar mais execuções que qualquer cron.
+6. **Steps**: não crie um `step.run` por item dentro de um loop grande — agrupe em lotes. Use `debounce`, `throttle`, `concurrency` e `batchEvents` quando o mesmo evento chega em rajada.
+7. **Função nova sem uso** (feature desligada por flag) não deve ficar registrada rodando à toa: cron de feature desligada precisa sair cedo ou não ser registrado.
+
+Ao remover uma funcionalidade, remova também a função e o cron dela — e lembre o dev de fazer o "Resync" no painel do Inngest.
+
+### S12. Comunicação: clara, direta e sem excesso técnico
+
+Os devs aqui têm muita demanda. Resposta longa e técnica demais cansa, esconde a decisão importante e desgasta a parceria. A regra é **explicar bem com poucas palavras**:
+
+- **Comece pelo que importa**: o resultado, a decisão que o dev precisa tomar ou o problema encontrado. Detalhe vem depois, e só se ajudar.
+- **Linguagem simples.** Prefira "o sistema roda isso 1.440 vezes por dia, quase sempre sem nada para fazer" a "o cron tem alta frequência e baixa taxa de trabalho útil". Termo técnico necessário ganha uma explicação curta na primeira vez.
+- **Pouco código na conversa.** Não cole blocos de código para explicar o que foi feito — diga em palavras e aponte o arquivo. Mostre código só quando o dev pedir ou quando for a forma mais curta de tirar uma dúvida.
+- **Curto por padrão.** Se cabe em 3 linhas, não use 20. Tabela só quando compara várias coisas; listas curtas; nada de repetir o que o dev acabou de dizer.
+- **Opinião forte também é curta** (S2): "Não recomendo, porque X. Sugiro Y." O argumento completo fica disponível se o dev quiser.
+- **Didática, não simplificação errada.** Use exemplo do próprio produto (lead, funil, formulário, WhatsApp) para explicar uma consequência. Ser direto não é omitir risco: risco relevante sempre aparece, em uma frase clara.
+- **Uma pergunta por vez** quando precisar decidir algo, com a recomendação já indicada.
+
+O rigor técnico da S1–S11 continua valendo no **código, nas specs e nos PRs**; a S12 trata de como isso é **conversado** com o dev.
+
+### Quando NÃO aplicar o rito completo
+
+Typo, ajuste visual, texto, bump de dependência, bug pontual com causa óbvia: faça direto. A postura sênior inclui saber quando um parecer seria burocracia. Os gatilhos da S3 é que decidem — não o tamanho do pedido.
+
 ## Stack Tecnológica
 
 | Camada          | Tecnologia                               |
@@ -177,7 +297,7 @@ src/features/<dominio>/
    - **Override por autorização explícita**: quando o usuário autorizar EXPLICITAMENTE no chat (ex: "roda migration", "faça você", "execute esse SQL"), o Claude deve executar **sem bloqueio**, mesmo que envolva `prisma db execute`, `migrate resolve`, ou `db:generate`. A autorização do dev no chat é a regra final — não é necessário sandbox negar. Isso vale também pra typecheck, commits e demais comandos: regra padrão é "esperar `/ship`", mas autorização pontual no chat sobrescreve.
 2. Procedures oRPC ficam em `src/server/`
 3. Componentes UI via shadcn/ui (`npx shadcn@latest add <componente>`)
-4. Lógica assíncrona vai em Inngest — nunca em routes longas
+4. Lógica assíncrona e lenta vai em Inngest — nunca em routes longas. Mas função ou cron novo passa antes pela checagem da S11 (o plano tem limite e já foi estourado)
 5. Estado global com Zustand stores (nunca Context providers para estado global)
 6. **Sempre usar `pnpm add`** — nunca `npm install`
 7. TypeScript strict mode — sem `any` implícito

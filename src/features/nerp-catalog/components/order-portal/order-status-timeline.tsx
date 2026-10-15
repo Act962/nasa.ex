@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATALOG_STAGES, catalogStageIndex, type CatalogStageKey } from "../../lib/catalog-stages";
+import { GUIDED_TIMELINE_STEPS } from "../../lib/guided-timeline";
 
 type OrderStatus =
   | "RECEIVED"
@@ -49,18 +50,53 @@ function StageTimeline({ stageKey }: { stageKey: CatalogStageKey }) {
   );
 }
 
+// Venda guiada (spec 0104, RF-22): as etapas do WhatsApp, com o recado da etapa atual.
+function GuidedTimeline({ step, hint }: { step: number; hint: string | null }) {
+  return (
+    <ol className="flex flex-col gap-3">
+      {GUIDED_TIMELINE_STEPS.map((label, index) => {
+        const isDone = index < step || (index === step && index === GUIDED_TIMELINE_STEPS.length - 1);
+        const isCurrent = index === step && !isDone;
+        return (
+          <li key={label} className="flex items-start gap-3">
+            <span
+              className={cn(
+                "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs transition-colors",
+                isDone && "border-primary bg-primary text-primary-foreground",
+                isCurrent && "border-primary text-primary ring-4 ring-primary/20",
+                !isDone && !isCurrent && "border-muted-foreground/30 text-muted-foreground",
+              )}
+            >
+              {isDone ? <Check className="size-3.5" /> : index + 1}
+            </span>
+            <div className="flex flex-col">
+              <span className={cn("text-sm", isCurrent ? "font-semibold text-primary" : isDone ? "" : "text-muted-foreground")}>
+                {label}
+              </span>
+              {isCurrent && hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export function OrderStatusTimeline({
   status,
   logisticsStage,
   stageKey,
+  guidedTimeline,
 }: {
   status: OrderStatus;
   logisticsStage: string | null;
   stageKey?: CatalogStageKey | null;
+  guidedTimeline?: { step: number; hint: string | null } | null;
 }) {
   if (status === "CANCELED") {
     return <p className="text-sm font-medium text-destructive">Pedido cancelado.</p>;
   }
+  if (guidedTimeline) return <GuidedTimeline step={guidedTimeline.step} hint={guidedTimeline.hint} />;
   if (stageKey) return <StageTimeline stageKey={stageKey} />;
 
   return (

@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
               statusId: status.id,
               phone,
               trackingId,
-              source: LeadSource.OTHER,
+              source: LeadSource.FACEBOOK,
               profile: profileKey,
               order: firstLead ? Number(firstLead.order) - 1 : 0,
               lastInboundAt: new Date(),

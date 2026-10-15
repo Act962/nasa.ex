@@ -9,6 +9,14 @@ import { auditLoyaltyAction } from "./audit";
 
 export type PurchaseItemSnapshot = { name: string; quantity: number; total: number };
 
+/** Pontos que uma compra do catálogo renderia, com a mesma regra de `awardPurchaseStars` (spec 0104, RF-19). */
+export async function previewPurchaseStars(organizationId: string, amount: number): Promise<number | null> {
+  const program = await getActiveProgram(organizationId);
+  if (!program || !program.countCatalogOrders) return null;
+  if (amount < Number(program.minPurchaseAmount)) return null;
+  return program.starsPerPurchase;
+}
+
 // Idempotente pela chave única (source, sourceId, EARN): webhook, polling e
 // mudança manual de status podem chamar mais de uma vez para a mesma compra.
 export async function awardPurchaseStars(input: {

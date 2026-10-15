@@ -4,7 +4,7 @@ import { Suspense, type ComponentType } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { BarChart3, CircleHelp, LayoutTemplate, Lock, Send, Users } from "lucide-react";
+import { BarChart3, CircleHelp, LayoutTemplate, Lock, Mail, Send, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import { useCampanhasSectionCounts } from "../hooks/use-campanhas-section-counts";
@@ -32,6 +32,13 @@ const NAV: NavItem[] = [
     description: "Templates aprovados",
     icon: LayoutTemplate,
     match: (path) => path.startsWith("/campanhas/templates"),
+  },
+  {
+    href: "/campanhas/email-templates",
+    label: "Modelos de email",
+    description: "Disparo por email",
+    icon: Mail,
+    match: (path) => path.startsWith("/campanhas/email-templates"),
   },
   {
     href: "/campanhas/contatos",

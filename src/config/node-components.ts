@@ -81,6 +81,11 @@ export const nodeComponents = {
   [NodeType.SCHEDULE_TRIGGER]: AgentNode,
   [NodeType.COMPLIANCE_ITEM_DUE]: AgentNode,
   [NodeType.NOTIFY_TEAM]: AgentNode,
+  [NodeType.SALES_APPROVAL]: AgentNode,
+  [NodeType.CHECK_CREDIT]: AgentNode,
+  [NodeType.FIND_CUSTOMER_BY_DOCUMENT]: AgentNode,
+  [NodeType.ROUTE_TO_CONSULTANT]: AgentNode,
+  [NodeType.CATALOG_ORDER_ACTION]: AgentNode,
 } as const satisfies NodeTypes;
 
 export type RegisteredNodeTypes = keyof typeof nodeComponents;

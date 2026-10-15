@@ -34,10 +34,12 @@ import { joinAsSingleMessage, splitForWhatsapp } from "./split-message";
 import { persistOutboundMessage } from "./persist";
 import { buildAgentTools } from "../server/tools";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
-import { buildCatalogOrderPrompt } from "@/features/nerp-catalog/lib/order-context";
+import { buildCatalogOrderPrompt, PRODUCT_CHECK_PROMPT } from "@/features/nerp-catalog/lib/order-context";
 import { deliverTextToLead } from "@/features/nerp-catalog/lib/order-channel";
 
 const RECENT_CLIENT_MESSAGES = 3;
+/** Teto do WhatsApp é 4.096; folga para não estourar com emojis. */
+const CATALOG_ORDER_MESSAGE_MAX_LEN = 3500;
 
 /** O que o cliente escreveu por último, para escolher o recorte do roteiro sem chamar modelo. */
 function recentClientText(history: { role: string; content: unknown }[]): string {
@@ -341,9 +343,10 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     }),
   );
   const baseWithKnowledge = knowledgeBlock ? `${baseSystem}\n\n${knowledgeBlock}` : baseSystem;
-  const baseWithOrder = ctx.catalogOrder
+  const baseWithCatalog = ctx.catalogOrder
     ? `${baseWithKnowledge}\n\n${buildCatalogOrderPrompt(ctx.catalogOrder)}`
     : baseWithKnowledge;
+  const baseWithOrder = ctx.hasProductCheck ? `${baseWithCatalog}\n\n${PRODUCT_CHECK_PROMPT}` : baseWithCatalog;
   const systemPrompt =
     ctx.trigger === "idle-reopen-with-instruction"
       ? `${baseWithOrder}\n\n# Reabertura automática\n\nO lead está ocioso${
@@ -455,7 +458,13 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
           voiceName: ctx.capabilities.voiceName,
         });
       }
-      const parts = ctx.capabilities.singleMessageReply ? joinAsSingleMessage(aiResult.text) : splitForWhatsapp(aiResult.text);
+      // Pedido do catálogo em andamento: uma mensagem só, sempre (picotada, a venda guiada vira rajada de
+      // mensagens), e sem o corte de 700 caracteres, para uma lista de itens não chegar pela metade.
+      const parts = ctx.catalogOrder
+        ? joinAsSingleMessage(aiResult.text, CATALOG_ORDER_MESSAGE_MAX_LEN)
+        : ctx.capabilities.singleMessageReply
+          ? joinAsSingleMessage(aiResult.text)
+          : splitForWhatsapp(aiResult.text);
       for (let i = 0; i < parts.length; i++) {
         const chunk = parts[i];
         if (ctx.catalogOrder) {

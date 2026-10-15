@@ -1,4 +1,7 @@
 import {
+  Database,
+  Mail,
+  ShoppingCart,
   MessageCircle,
   MessageCircleReply,
   CalendarPlus,
@@ -53,6 +56,9 @@ const ICON_MAP: Record<string, { icon: typeof MessageCircle; color: string; bg: 
   won: { icon: Trophy, color: "text-success", bg: "bg-success/15" },
   lost: { icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
   deleted: { icon: Trash2, color: "text-muted-foreground", bg: "bg-muted" },
+  erp_purchase: { icon: ShoppingCart, color: "text-success", bg: "bg-success/10" },
+  erp_customer_since: { icon: Database, color: "text-info", bg: "bg-info/10" },
+  email_sent: { icon: Mail, color: "text-info", bg: "bg-info/10" },
 };
 
 const FALLBACK = { icon: Activity, color: "text-muted-foreground", bg: "bg-muted" };
@@ -83,6 +89,9 @@ const LABELS: Record<string, string> = {
   won: "Lead ganho",
   lost: "Lead perdido",
   deleted: "Lead arquivado",
+  erp_purchase: "Compra no ERP",
+  erp_customer_since: "Cliente cadastrado no ERP",
+  email_sent: "Recebeu email de campanha",
 };
 
 export function kindLabel(kind: LeadJourneyEventKind | string) {

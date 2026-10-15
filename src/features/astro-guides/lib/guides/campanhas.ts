@@ -3,6 +3,27 @@ import { GUIDE_RESULT_KINDS } from "../result-kinds";
 
 export const CAMPANHAS_GUIDES: GuideDef[] = [
   {
+    key: "campanhas.email-template.create",
+    app: "campanhas",
+    title: "Criar um modelo de email",
+    summary: "Monte o assunto e o texto do email com o nome do cliente e envie um teste para você.",
+    topicPattern: /\b(cri\w*|mont\w*|fa[cz]\w*|nov\w*)\b.*\b(modelos?|templates?)\b.*\b(e-?mails?)\b/,
+    steps: [
+      {
+        anchor: "emailTemplateSaveButton",
+        route: "/campanhas/email-templates",
+        title: "Preencha e clique em Salvar modelo",
+        message: "Use {{primeiro_nome}} para o nome do cliente. \"Enviar teste para mim\" mostra como o email chega.",
+        position: "top",
+        advanceOn: "click",
+      },
+    ],
+    finish: {
+      title: "Modelo salvo! 📝",
+      message: "Agora é só marcar os contatos em Contatos e usar Disparar email.",
+    },
+  },
+  {
     key: "whatsapp-oficial.connect-number",
     app: "campanhas",
     title: "Conectar um número na API oficial do WhatsApp",

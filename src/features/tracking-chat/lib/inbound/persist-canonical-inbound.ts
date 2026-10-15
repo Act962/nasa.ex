@@ -51,6 +51,8 @@ import {
 } from "@/lib/lead-journey/ctwa";
 import prisma from "@/lib/prisma";
 import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
+import { tryHandleApproverInbound } from "@/features/nerp-catalog/lib/approvals/order-approvals";
+import { tryStartGuidedOrderFromInbound } from "@/features/nerp-catalog/lib/guided-order-contact";
 import { pusherServer } from "@/lib/pusher";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { logActivity } from "@/features/admin/lib/activity-logger";
@@ -178,6 +180,23 @@ export async function persistCanonicalInbound(
   }
   if (canonical.type === "unsupported") {
     return { ok: true, skipped: `unsupported:${canonical.providerType ?? "unknown"}` };
+  }
+
+  // ── 2.5. Resposta de aprovador interno (spec 0104, RF-9b) ───────────────
+  // Só desvia quando o remetente é aprovador da empresa com pedido pendente;
+  // fora isso a mensagem segue o fluxo normal de lead.
+  if (canonical.type === "text" || canonical.type === "interactive_reply") {
+    const isApproverReply = await tryHandleApproverInbound({
+      organizationId: tracking.organizationId,
+      trackingId: ctx.trackingId,
+      fromPhone: canonical.sender.phone,
+      replyId: canonical.type === "interactive_reply" ? canonical.replyId : null,
+      text: canonical.type === "text" ? canonical.body : canonical.replyText,
+    }).catch((error) => {
+      console.error("[persist-canonical-inbound] approver_reply_failed", error);
+      return false;
+    });
+    if (isApproverReply) return { ok: true, skipped: "sales_approver_reply" };
   }
 
   // ── 3. Lead lookup ou criação ───────────────────────────────────────────
@@ -337,11 +356,25 @@ export async function persistCanonicalInbound(
     messageData,
   });
 
+  // ── 6.5. Venda guiada: cliente enviou o pedido do catálogo (spec 0104, RF-0) ─
+  // Depois do dispatch acima, para o fluxo que vai começar não ler esta mensagem
+  // como resposta. Quem responde é o fluxo "chegada do pedido", não o Astro.
+  const isGuidedOrderStart = canonical.sender.fromMe
+    ? false
+    : await tryStartGuidedOrderFromInbound({
+        organizationId: tracking.organizationId,
+        leadId: lead.id,
+        text: messageData.body ?? "",
+      }).catch((error: unknown) => {
+        console.error("[persist-canonical-inbound] inicio da venda guiada falhou", error);
+        return false;
+      });
+
   // ── 7. firePostInboundAutomations ───────────────────────────────────────
   await firePostInboundAutomations({
     trackingId: ctx.trackingId,
     organizationId: tracking.organizationId,
-    globalAiActive: tracking.globalAiActive,
+    globalAiActive: tracking.globalAiActive && !isGuidedOrderStart,
     lead: {
       id: lead.id,
       isActive: lead.isActive,

@@ -350,6 +350,25 @@ export const AI_RESOURCES: AiResource[] = [
     settingsPlace: "satellites",
   },
   {
+    id: "catalog.delivery-date",
+    app: "Catálogo online",
+    label: "Ler o prazo de entrega escrito pela equipe",
+    description: "Transformar \"amanhã 11h\" na data da previsão de entrega na aprovação do pedido.",
+    kind: "text",
+    keyRule: "company-then-platform",
+    model: {
+      kind: "cascade",
+      options: [
+        { provider: "openai", modelId: "gpt-4o-mini" },
+        { provider: "google", modelId: "gemini-2.5-flash-lite" },
+        { provider: "anthropic", modelId: "claude-haiku-4-5" },
+      ],
+    },
+    usageFeatures: ["catalog.delivery-date"],
+    usageActions: ["ai_text_generated"],
+    settingsPlace: "satellites",
+  },
+  {
     id: "finance.budget",
     app: "Financeiro",
     label: "Extrair orçamento de um documento",

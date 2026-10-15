@@ -28,6 +28,12 @@ export function toOrderCode(publicToken: string): string {
   return publicToken.slice(0, 6).toUpperCase();
 }
 
+/** Código do texto pronto de `buildOrderWhatsappUrl` ("... (código AB12CD)"); o cliente pode ter editado o resto. */
+export function extractOrderCode(text: string): string | null {
+  const match = /c[óo]digo\s*:?\s*([A-Za-z0-9_-]{6})\b/i.exec(text);
+  return match ? match[1] : null;
+}
+
 export function buildOrderPortalUrl(appOrigin: string, publicToken: string): string {
   return `${appOrigin.replace(/\/$/, "")}/pedido/${publicToken}`;
 }
@@ -43,6 +49,11 @@ export function buildOrderWhatsappUrl(input: {
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
 
+/** Nome com o código logo depois: a equipe acha o produto no ERP sem procurar pelo nome. */
+function itemLabel(item: CatalogOrderItem): string {
+  return item.sku ? `${item.name} (cód. ${item.sku})` : item.name;
+}
+
 export function buildOrderSummaryText(input: {
   saleNumber: number;
   items: CatalogOrderItem[];
@@ -52,15 +63,21 @@ export function buildOrderSummaryText(input: {
   total: number;
   delivery: CatalogOrderDelivery;
 }): string {
-  const itemLines = input.items.map(
-    (item) => `• ${item.quantity}x ${item.name} — ${formatBrl(item.total)}`,
+  // Pedido de orçamento (catálogo sem preço) chega zerado: R$ 0,00 em cada linha só confunde.
+  const isQuoteRequest = input.total <= 0;
+  const itemLines = input.items.map((item) =>
+    isQuoteRequest
+      ? `• ${item.quantity}x ${itemLabel(item)}`
+      : `• ${item.quantity}x ${itemLabel(item)} — ${formatBrl(item.total)}`,
   );
-  const totalLines = [
-    `Subtotal: ${formatBrl(input.subtotal)}`,
-    ...(input.shipping > 0 ? [`Frete: ${formatBrl(input.shipping)}`] : []),
-    ...(input.discount > 0 ? [`Desconto: -${formatBrl(input.discount)}`] : []),
-    `*Total: ${formatBrl(input.total)}*`,
-  ];
+  const totalLines = isQuoteRequest
+    ? ["Valor: a equipe vai enviar"]
+    : [
+        `Subtotal: ${formatBrl(input.subtotal)}`,
+        ...(input.shipping > 0 ? [`Frete: ${formatBrl(input.shipping)}`] : []),
+        ...(input.discount > 0 ? [`Desconto: -${formatBrl(input.discount)}`] : []),
+        `*Total: ${formatBrl(input.total)}*`,
+      ];
   const deliveryLines = [
     ...(input.delivery.method ? [`Entrega: ${input.delivery.method}`] : []),
     ...(input.delivery.address ? [`Endereço: ${input.delivery.address}`] : []),
@@ -74,5 +91,34 @@ export function buildOrderSummaryText(input: {
     "",
     ...totalLines,
     ...(deliveryLines.length > 0 ? ["", ...deliveryLines] : []),
+  ].join("\n");
+}
+
+export function buildQuoteMessageText(input: {
+  saleNumber: number;
+  items: CatalogOrderItem[];
+  subtotal: number;
+  shipping: number;
+  discount: number;
+  total: number;
+  note?: string;
+}): string {
+  const itemLines = input.items.map(
+    (item) => `• ${item.quantity}x ${itemLabel(item)} — ${formatBrl(item.total)}`,
+  );
+  const totalLines = [
+    ...(input.shipping > 0 ? [`Frete: ${formatBrl(input.shipping)}`] : []),
+    ...(input.discount > 0 ? [`Desconto: -${formatBrl(input.discount)}`] : []),
+    `*Total: ${formatBrl(input.total)}*`,
+  ];
+  return [
+    `💰 *Valor do seu pedido #${input.saleNumber}*`,
+    "",
+    ...itemLines,
+    "",
+    ...totalLines,
+    ...(input.note?.trim() ? ["", input.note.trim()] : []),
+    "",
+    "Posso confirmar? Responda *SIM* para aprovar e eu já envio o PIX ou o link de pagamento.",
   ].join("\n");
 }

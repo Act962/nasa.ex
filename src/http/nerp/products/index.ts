@@ -20,9 +20,47 @@ export type UpdateProductInput = z.infer<typeof updateProductInputSchema>;
 export type DuplicateProductInput = z.infer<typeof duplicateProductInputSchema>;
 export type DeleteProductInput = z.infer<typeof deleteProductInputSchema>;
 
+const DEFAULT_PAGE_SIZE = 20;
+
+const NERP_SORT: Record<string, string> = {
+  "name:asc": "name-asc",
+  "name:desc": "name-desc",
+  "salePrice:asc": "price-asc",
+  "salePrice:desc": "price-desc",
+  "createdAt:desc": "recent",
+};
+
+const nerpListResponseSchema = z.object({
+  products: z.array(z.unknown()),
+  totalCount: z.number().int().optional(),
+});
+
+/**
+ * O nerp pagina por cursor (`limit` obrigatório) e a tela do Órbita por página numerada. Para a página N pede os
+ * N × pageSize primeiros e devolve a última fatia: listas de cadastro são curtas na navegação e isso evita guardar cursor.
+ */
 export async function listProducts(cfg: NerpOrgConfig, input: ListProductsInput) {
-  const raw = await callNerpProcedure<unknown>(cfg, "products.list", input);
-  return listProductsOutputSchema.parse(raw);
+  const page = input.page ?? 1;
+  const pageSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
+  const sort = input.sortBy ? NERP_SORT[`${input.sortBy}:${input.sortDir ?? "asc"}`] : undefined;
+  const raw = await callNerpProcedure<unknown>(cfg, "products.list", {
+    search: input.search,
+    category: input.categoryId ? [input.categoryId] : undefined,
+    limit: page * pageSize,
+    ...(sort ? { sort } : {}),
+  });
+  const response = nerpListResponseSchema.parse(raw);
+  const totalCount = response.totalCount ?? response.products.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  return listProductsOutputSchema.parse({
+    products: response.products.slice((page - 1) * pageSize),
+    page,
+    pageSize,
+    totalCount,
+    totalPages,
+    hasNextPage: page < totalPages,
+    hasPreviousPage: page > 1,
+  });
 }
 
 export async function getProduct(cfg: NerpOrgConfig, input: GetProductInput) {

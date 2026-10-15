@@ -15,6 +15,7 @@ import { loadAsaasCredentials } from "./integration-config";
 import { confirmCatalogOrderPayment, resendNerpSyncIfPending } from "./confirm-payment";
 import { CATALOG_STAGE_KEYS } from "./catalog-stages";
 import { advanceCatalogLeadToStage } from "./stage-flow";
+import { getChargeBlockReason } from "./order-quote";
 
 export const CATALOG_ORDER_REFERENCE_PREFIX = "catalog-order:";
 export const CATALOG_ORDER_PAYMENT_CREATED_EVENT = "nerp/catalog-order.payment-created";
@@ -55,6 +56,8 @@ async function chargeOrder(
   documentOverride?: string | null,
 ) {
   const order = await loadPayableOrder(orderId);
+  const chargeBlockReason = getChargeBlockReason({ ...order, total: Number(order.total) });
+  if (chargeBlockReason) throw new CatalogOrderPaymentError(chargeBlockReason);
   const customer = readCustomer(order);
   const cpfCnpj = (documentOverride ?? customer.document ?? "").replace(/\D/g, "");
   if (cpfCnpj.length !== 11 && cpfCnpj.length !== 14) {
@@ -80,6 +83,33 @@ async function chargeOrder(
   });
 
   return { order, customer, cpfCnpj, charge, credentials };
+}
+
+// Spec 0104, RF-6: a cobrança gerada já entra no financeiro como conta a receber do lead.
+async function recordOrderReceivable(order: { id: string; organizationId: string; leadId: string; trackingId: string; nerpSaleNumber: number; total: unknown }, asaasPaymentId: string) {
+  try {
+    const existing = await prisma.paymentEntry.findFirst({
+      where: { organizationId: order.organizationId, leadId: order.leadId, type: "RECEIVABLE", documentNumber: asaasPaymentId },
+      select: { id: true },
+    });
+    if (existing) return;
+    await prisma.paymentEntry.create({
+      data: {
+        organizationId: order.organizationId,
+        type: "RECEIVABLE",
+        status: "PENDING",
+        description: `Pedido #${order.nerpSaleNumber} — Catálogo online`,
+        amount: Math.round(Number(order.total) * 100),
+        dueDate: new Date(`${dueDatePlus(1)}T23:59:59-03:00`),
+        documentNumber: asaasPaymentId,
+        notes: "Cobrança Asaas gerada pelo pedido do catálogo",
+        trackingId: order.trackingId,
+        leadId: order.leadId,
+      },
+    });
+  } catch (error) {
+    console.error("[nerp-catalog] receivable_entry_failed", error);
+  }
 }
 
 async function startPaymentWatch(orderId: string, asaasPaymentId: string) {
@@ -117,6 +147,7 @@ export async function createOrderPixCharge(orderId: string, documentOverride?: s
       customer: { ...customer, document: cpfCnpj },
     },
   });
+  await recordOrderReceivable(order, charge.id);
   await startPaymentWatch(order.id, charge.id);
 
   return {
@@ -147,6 +178,7 @@ export async function createOrderPaymentLink(orderId: string, documentOverride?:
       customer: { ...customer, document: cpfCnpj },
     },
   });
+  await recordOrderReceivable(order, charge.id);
   await startPaymentWatch(order.id, charge.id);
 
   return { invoiceUrl: charge.invoiceUrl, total: Number(order.total) };

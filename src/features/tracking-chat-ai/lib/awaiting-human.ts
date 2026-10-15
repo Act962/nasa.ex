@@ -8,13 +8,21 @@ import { applyAwaitingTagNow } from "@/features/org-defaults/lib/auto-tags";
 // descobria ao abrir o chat. Reaproveita a tag padrão "Aguard. atendimento" (que dispara os
 // fluxos de "lead recebe uma tag") e o motor de alertas (sino, aviso na tela, push, ASTRO).
 
-export type AwaitingHumanReason = "client_asked" | "assistant_could_not_solve" | "usage_limit" | "no_balance";
+export type AwaitingHumanReason =
+  | "client_asked"
+  | "assistant_could_not_solve"
+  | "usage_limit"
+  | "no_balance"
+  | "quote_requested"
+  | "manual_payment";
 
 const REASON_TEXT: Record<AwaitingHumanReason, string> = {
   client_asked: "pediu para falar com um atendente",
   assistant_could_not_solve: "precisa de um atendente",
   usage_limit: "atingiu o limite de respostas da assistente e espera um atendente",
   no_balance: "espera um atendente (assistente sem saldo de Stars)",
+  quote_requested: "espera o valor do pedido do catálogo",
+  manual_payment: "aprovou o pedido e espera o pagamento (a loja não tem cobrança automática)",
 };
 
 /** Nunca lança: falha de aviso não pode impedir a transferência nem a mensagem ao cliente. */

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ChevronRightIcon,
   FileSignatureIcon,
   HammerIcon,
   ListIcon,
+  PackageIcon,
   XIcon,
   ZapIcon,
 } from "lucide-react";
@@ -21,10 +22,17 @@ import { toast } from "sonner";
 import { BudgetCreateView } from "./budget-create-view";
 import { UnifiedHistoryView } from "./unified-history-view";
 import { CreateProposalView } from "../forge-panel";
+import { useLeadProducts } from "@/features/leads/hooks/use-lead-products";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import {
+  CatalogOrderQuoteView,
+  type PendingCatalogOrder,
+} from "./catalog-order-quote-view";
 
 /**
  * Painel mesclado "Propostas e Orçamentos" — substitui os botões
- * separados de "Orçamento" e "Forge" no chat. 3 tabs:
+ * separados de "Orçamento" e "Forge" no chat. 3 tabs (+ "Pedido" quando
+ * há pedido do Catálogo online aguardando valor, spec 0103 RF-12):
  *
  *  1. **Orçamento Rápido**  → valor + descrição + upload PDF c/ IA.
  *     Cria `PaymentEntry` "A receber" (métricas) e envia ao cliente
@@ -57,7 +65,7 @@ interface ProposalsAndBudgetsPanelProps {
   } | null;
 }
 
-type TabId = "rapido" | "estruturado" | "historico";
+type TabId = "pedido" | "rapido" | "estruturado" | "historico";
 
 export function ProposalsAndBudgetsPanel({
   onClose,
@@ -71,7 +79,34 @@ export function ProposalsAndBudgetsPanel({
 }: ProposalsAndBudgetsPanelProps) {
   // Quando vem com `initialAttach`, abre direto em "Rápido" pra ver o
   // formulário já preenchido pela IA.
-  const [tab, setTab] = useState<TabId>(initialAttach ? "rapido" : "rapido");
+  const [selectedTab, setSelectedTab] = useState<TabId | null>(
+    initialAttach ? "rapido" : null,
+  );
+
+  const { data: leadProducts } = useLeadProducts(leadId);
+  const pendingCatalogOrder = useMemo<PendingCatalogOrder | null>(() => {
+    const order = leadProducts?.catalogOrders.find(
+      (catalogOrder) => catalogOrder.canSendQuote || catalogOrder.canConfirmPayment,
+    );
+    if (!order) return null;
+    return {
+      id: order.id,
+      saleNumber: order.saleNumber,
+      shipping: order.shipping,
+      discount: order.discount,
+      items: order.items,
+      isTeamApproval: order.isTeamApproval,
+      total: order.total,
+      canConfirmPayment: order.canConfirmPayment,
+    };
+  }, [leadProducts]);
+
+  // Pedido do catálogo aguardando valor abre direto na aba "Pedido".
+  const tab: TabId =
+    selectedTab === "pedido" && !pendingCatalogOrder
+      ? "rapido"
+      : (selectedTab ?? (pendingCatalogOrder ? "pedido" : "rapido"));
+  const setTab = (nextTab: TabId) => setSelectedTab(nextTab);
 
   // Sub-estado da tab "Estruturado" — alterna entre lista e criar.
   const [creatingProposal, setCreatingProposal] = useState(false);
@@ -109,7 +144,19 @@ export function ProposalsAndBudgetsPanel({
           className="flex w-full flex-col"
         >
           <div className="px-5 pt-3">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList
+              className={`grid w-full ${pendingCatalogOrder ? "grid-cols-4" : "grid-cols-3"}`}
+            >
+              {pendingCatalogOrder && (
+                <TabsTrigger
+                  value="pedido"
+                  className="flex items-center gap-1.5"
+                  data-guide={GUIDE_ANCHORS.catalogOrderChatQuoteTab.id}
+                >
+                  <PackageIcon className="size-3.5" />
+                  Pedido
+                </TabsTrigger>
+              )}
               <TabsTrigger value="rapido" className="flex items-center gap-1.5">
                 <ZapIcon className="size-3.5" />
                 Orçamento Rápido
@@ -130,6 +177,15 @@ export function ProposalsAndBudgetsPanel({
               </TabsTrigger>
             </TabsList>
           </div>
+
+          {pendingCatalogOrder && (
+            <TabsContent value="pedido" className="m-0 border-none outline-none">
+              <CatalogOrderQuoteView
+                order={pendingCatalogOrder}
+                onSent={onClose}
+              />
+            </TabsContent>
+          )}
 
           {/* ── Orçamento Rápido ──────────────────────────────────── */}
           <TabsContent value="rapido" className="m-0 border-none outline-none">

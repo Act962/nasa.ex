@@ -12,6 +12,7 @@
  *
  * Componentes auxiliares moram aqui mesmo pra reduzir surface.
  */
+import { CATALOG_SALES_OUTPUT_LABELS } from "@/features/workflows/lib/catalog-sales-outputs";
 import { useEffect, useMemo, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { useAtomValue } from "jotai";
@@ -123,6 +124,7 @@ export function StepByStepContainer({ workflowId }: { workflowId: string }) {
         { id: "failed", label: "Falhou" },
       ];
     }
+    if (CATALOG_SALES_OUTPUT_LABELS[nodeType]) return CATALOG_SALES_OUTPUT_LABELS[nodeType];
     if (nodeType === "LOOP_OVER") {
       return [
         { id: "loop", label: "Próxima iteração" },
@@ -143,9 +145,9 @@ export function StepByStepContainer({ workflowId }: { workflowId: string }) {
 
   const needsBranchChoice =
     currentNodeData?.type &&
-    ["AI_DECISION", "IF_CONDITION", "CHECK_PAYMENT", "SWITCH_CASE", "LOOP_OVER"].includes(
+    (["AI_DECISION", "IF_CONDITION", "CHECK_PAYMENT", "SWITCH_CASE", "LOOP_OVER"].includes(
       currentNodeData.type,
-    );
+    ) || !!CATALOG_SALES_OUTPUT_LABELS[currentNodeData.type]);
   const branches = branchesFor(
     currentNodeData?.type,
     currentNodeData?.data as Record<string, unknown>,

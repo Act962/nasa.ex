@@ -67,7 +67,7 @@ export const registerLinnkerScan = base
                 phone,
                 trackingId: tracking.id,
                 statusId: status.id,
-                source: LeadSource.OTHER,
+                source: LeadSource.LINNKER,
                 ...trackingToLeadData(t),
               },
             });

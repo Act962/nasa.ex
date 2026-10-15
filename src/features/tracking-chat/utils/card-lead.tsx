@@ -25,5 +25,9 @@ export const LeadSourceColors: Record<
   [LeadSource.GOOGLE_MAPS]: { color: "#4285F4", label: "Google Maps" },
   [LeadSource.IN_CHAT]:     { color: "#8b5cf6", label: "In-Chat" },
   [LeadSource.ASTRO_CHAT]:  { color: "#7c3aed", label: "ASTRO CHAT" },
-  [LeadSource.NERP_CATALOG]: { color: "#10b981", label: "Catálogo NERP" },
+  [LeadSource.NERP_CATALOG]: { color: "#10b981", label: "Catálogo online" },
+  [LeadSource.FACEBOOK]:    { color: "#1877F2", label: "Facebook" },
+  [LeadSource.LINNKER]:     { color: "#0ea5e9", label: "Linnker" },
+  [LeadSource.INSTAGRAM_COMMENT]: { color: "#E1306C", label: "Instagram post" },
+  [LeadSource.ERP]: { color: "#0ea5e9", label: "Carteira do ERP" },
 };

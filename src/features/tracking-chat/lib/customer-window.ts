@@ -8,6 +8,9 @@ import prisma from "@/lib/prisma";
 
 export const CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+/** Mesmo valor de `CATALOG_ORDER_MESSAGE_PREFIX` (nerp-catalog/lib/order-channel.ts). */
+const CATALOG_ORDER_MESSAGE_ID_PREFIX = "nerp-order-";
+
 export interface CustomerWindow {
   readonly withinWindow: boolean;
   readonly lastInboundAt: Date | null;
@@ -25,6 +28,8 @@ export async function getCustomerWindow(
       fromMe: false,
       viaInChat: false,
       conversation: { channel: "WHATSAPP" },
+      // O pedido do Catálogo online entra como mensagem do cliente, mas não veio do WhatsApp.
+      NOT: { messageId: { startsWith: CATALOG_ORDER_MESSAGE_ID_PREFIX } },
     },
     orderBy: { createdAt: "desc" },
     select: { createdAt: true },

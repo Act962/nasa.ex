@@ -38,11 +38,27 @@ export async function ensureCatalogStages(params: {
       statusIdByKey[stage.key] = byName.id;
       continue;
     }
+    // Etapa nova entre etapas que já existem (ex.: "Em rota" depois de "Separado") entra no meio,
+    // sem renumerar as outras colunas (a ordem é decimal).
+    const stageIndex = CATALOG_STAGES.indexOf(stage);
+    const nextExistingStage = CATALOG_STAGES.slice(stageIndex + 1)
+      .map((laterStage) => existingStatuses.find((status) => status.systemKey === laterStage.key))
+      .find((status) => status !== undefined);
+    let order = nextOrder;
+    if (nextExistingStage) {
+      const nextStageOrder = Number(nextExistingStage.order);
+      const previousOrder = existingStatuses.reduce(
+        (highest, status) => (Number(status.order) < nextStageOrder ? Math.max(highest, Number(status.order)) : highest),
+        nextStageOrder - 1,
+      );
+      order = (previousOrder + nextStageOrder) / 2;
+    } else {
+      nextOrder += 1;
+    }
     const created = await client.status.create({
-      data: { name: stage.name, color: stage.color, order: nextOrder, systemKey: stage.key, trackingId: params.trackingId },
+      data: { name: stage.name, color: stage.color, order, systemKey: stage.key, trackingId: params.trackingId },
       select: { id: true },
     });
-    nextOrder += 1;
     statusIdByKey[stage.key] = created.id;
   }
 

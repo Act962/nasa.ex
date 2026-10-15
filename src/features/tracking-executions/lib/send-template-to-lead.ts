@@ -32,6 +32,8 @@ export interface WorkflowTemplateContent {
   readonly bodyText: string;
   readonly headerParameters: string[];
   readonly bodyParameters: string[];
+  /** Sufixo da URL dinâmica do botão de link (spec 0104), já interpolado. */
+  readonly urlButtonSuffix?: { index: number; value: string } | null;
 }
 
 export function assertTemplateSupported(resolved: ResolvedOutboundProvider): void {
@@ -93,6 +95,13 @@ export function toWorkflowTemplateContent(
     bodyText: typeof template.bodyText === "string" ? template.bodyText : "",
     headerParameters: toInterpolatedParameters(template.headerParameters),
     bodyParameters: toInterpolatedParameters(template.bodyParameters),
+    urlButtonSuffix:
+      typeof template.urlButtonSuffix === "string" && template.urlButtonSuffix.trim()
+        ? {
+            index: typeof template.urlButtonIndex === "number" ? template.urlButtonIndex : 0,
+            value: interpolateParameter(template.urlButtonSuffix).trim(),
+          }
+        : null,
   };
 }
 
@@ -159,6 +168,9 @@ export async function sendTemplateMessage(params: {
         : undefined,
       bodyParameters: template.bodyParameters.length
         ? template.bodyParameters
+        : undefined,
+      buttonParameters: template.urlButtonSuffix?.value
+        ? [{ index: template.urlButtonSuffix.index, subType: "url" as const, value: template.urlButtonSuffix.value }]
         : undefined,
     }),
   );

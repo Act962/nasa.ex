@@ -3,6 +3,9 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { requireAppPermission } from "@/app/middlewares/app-permission";
 import { base } from "@/app/middlewares/base";
 import { catalogOrderItemSchema } from "@/features/nerp-catalog/schemas/order-payload";
+import { isTeamApprovalFlowReady } from "@/features/nerp-catalog/lib/order-quote-actions";
+import { resolveQuoteState } from "@/features/nerp-catalog/lib/order-quote";
+import { canConfirmManualPayment } from "@/features/nerp-catalog/lib/manual-payment";
 import type {
   CatalogOrderStatus,
   ForgeContractStatus,
@@ -74,7 +77,7 @@ export const listLeadProducts = base
     });
     if (!lead) throw errors.NOT_FOUND({ message: "Lead não encontrado" });
 
-    const [catalogOrderRows, forgeProposalRows] = await Promise.all([
+    const [catalogOrderRows, forgeProposalRows, isTeamApproval] = await Promise.all([
       prisma.catalogOrder.findMany({
         where: { leadId: lead.id, organizationId: context.org.id },
         orderBy: { createdAt: "desc" },
@@ -85,7 +88,15 @@ export const listLeadProducts = base
           createdAt: true,
           paidAt: true,
           total: true,
+          shipping: true,
+          discount: true,
           items: true,
+          quoteRequestedAt: true,
+          quotedAt: true,
+          quoteApprovedAt: true,
+          internalApprovalStartedAt: true,
+          internalApprovedAt: true,
+          asaasPaymentId: true,
         },
       }),
       prisma.forgeProposal.findMany({
@@ -120,9 +131,11 @@ export const listLeadProducts = base
           },
         },
       }),
+      isTeamApprovalFlowReady(context.org.id).catch(() => false),
     ]);
 
     const catalogOrders = catalogOrderRows.map((order) => {
+      const canSendQuote = order.status === "RECEIVED" || order.status === "NEGOTIATING";
       const parsedItems = catalogOrderItemsSchema.safeParse(order.items);
       return {
         id: order.id,
@@ -132,11 +145,22 @@ export const listLeadProducts = base
         createdAt: order.createdAt.toISOString(),
         paidAt: order.paidAt?.toISOString() ?? null,
         total: order.total.toNumber(),
+        shipping: order.shipping.toNumber(),
+        discount: order.discount.toNumber(),
+        quoteState: resolveQuoteState({ ...order, total: order.total.toNumber() }),
+        canSendQuote,
+        // Venda guiada (spec 0104): o botão diz "Enviar para aprovação" quando o valor passa pela equipe antes.
+        isTeamApproval: canSendQuote && isTeamApproval,
+        // Loja sem Asaas: cliente aprovou o valor e o pagamento chega por fora; a equipe confirma na aba Pedido.
+        canConfirmPayment: canConfirmManualPayment(order),
         items: parsedItems.success
           ? parsedItems.data.map((item) => ({
               name: item.name,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
+              referenceUnitPrice: item.referenceUnitPrice ?? null,
+              referenceBoxPrice: item.referenceBoxPrice ?? null,
+              packQty: item.packQty ?? null,
               total: item.total,
               imageUrl: item.imageUrl,
             }))

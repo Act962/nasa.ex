@@ -7,6 +7,7 @@ import { makeTransferToHumanTool } from "./transfer-to-human";
 import { makeAddTagsToLeadTool } from "./add-tags-to-lead";
 import { makeSendButtonsTool } from "./send-buttons";
 import { makeCatalogOrderTools } from "@/features/nerp-catalog/server/tools/catalog-order-tools";
+import { makeProductCheckTool } from "@/features/nerp-catalog/server/tools/product-check-tool";
 import { makeStarFriendsTools } from "@/features/star-friends/server/tools";
 import { makeLeadAgendaTools, type LeadAgendaScope } from "./agenda";
 import { makeLeadServiceTools } from "./client-services";
@@ -42,6 +43,15 @@ export function buildAgentTools(ctx: AgentContext): ToolSet {
         assistantName: ctx.settings?.assistantName ?? "Astro",
       }),
     );
+  }
+
+  if (ctx.hasProductCheck) {
+    tools.request_product_check = makeProductCheckTool({
+      organizationId: ctx.organizationId,
+      trackingId: ctx.trackingId,
+      leadId: ctx.lead.id,
+      conversationId: ctx.conversation.id,
+    });
   }
 
   // Agenda para o cliente (spec 0084): só com a opção ligada e ao menos uma agenda liberada.
