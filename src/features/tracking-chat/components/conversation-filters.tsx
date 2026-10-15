@@ -179,9 +179,17 @@ export function ConversationFilters({
                   autoFocus
                   value={tagSearch}
                   onChange={(event) => setTagSearch(event.target.value)}
-                  // O menu do Radix usa as teclas para navegar/typeahead; só o Esc fecha.
+                  // O typeahead do Radix roubaria as letras; a seta para baixo
+                  // leva o foco às etiquetas, e dali a navegação do menu segue.
                   onKeyDown={(event) => {
-                    if (event.key !== "Escape") event.stopPropagation();
+                    if (event.key === "Escape") return;
+                    event.stopPropagation();
+                    if (event.key !== "ArrowDown") return;
+                    event.preventDefault();
+                    event.currentTarget
+                      .closest<HTMLElement>('[role="menu"]')
+                      ?.querySelector<HTMLElement>('[role="menuitemcheckbox"]')
+                      ?.focus();
                   }}
                   placeholder="Buscar etiqueta..."
                   aria-label="Buscar etiqueta"
