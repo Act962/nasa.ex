@@ -39,8 +39,28 @@ export async function runAstroCommanderTick(step: InlineStep) {
 
   if (due.length === 0) return { disparados: 0 };
 
-  // Reagenda ANTES de disparar: se a execução falhar, o comando não fica
-  // preso repetindo o mesmo minuto a cada tick.
+  // Dispara ANTES de reagendar: se o envio falhar, nada avançou e o próximo
+  // tick tenta de novo. O `id` deduplica no Inngest (24 h): se o envio passou e
+  // o reagendamento falhou, o próximo tick reenvia o mesmo evento e ele é
+  // descartado, então a execução não duplica nem se perde.
+  await step.sendEvent(
+    "disparar-execucoes",
+    due.map((command) => {
+      // `step.run` serializa o resultado: o que volta aqui já é string.
+      const scheduledFor = new Date(command.nextRunAt ?? now).toISOString();
+      return {
+        name: "astro/command.run",
+        id: `astro-command-${command.id}-${scheduledFor}`,
+        data: {
+          commandId: command.id,
+          organizationId: command.organizationId,
+          trigger: "SCHEDULE" as const,
+          scheduledFor,
+        },
+      };
+    }),
+  );
+
   await step.run("reagendar", async () => {
     for (const command of due) {
       if (command.triggerType === "ONCE") {
@@ -67,20 +87,6 @@ export async function runAstroCommanderTick(step: InlineStep) {
       });
     }
   });
-
-  await step.sendEvent(
-    "disparar-execucoes",
-    due.map((command) => ({
-      name: "astro/command.run",
-      data: {
-        commandId: command.id,
-        organizationId: command.organizationId,
-        trigger: "SCHEDULE" as const,
-        // `step.run` serializa o resultado: o que volta aqui já é string.
-        scheduledFor: new Date(command.nextRunAt ?? now).toISOString(),
-      },
-    })),
-  );
 
   return { disparados: due.length };
 }
