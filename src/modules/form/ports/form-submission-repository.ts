@@ -45,7 +45,7 @@ export type RecordedSubmission = {
  */
 export interface SubmissionStore {
   findPublishedForm(formId: string): Promise<{ form: PublishedForm; tenant: TenantScope } | null>;
-  /** Só tags da empresa: o id vem da resposta pública (spec 0106). */
+  /** Só tags da empresa: o id vem da resposta pública (spec 0111). */
   findExistingTagIds(tenant: TenantScope, tagIds: readonly string[]): Promise<string[]>;
   /** Rascunho deste formulário ainda não concluído. */
   findOpenDraft(formId: string, responseId: string): Promise<{ id: string; leadId: string | null } | null>;

@@ -1,5 +1,5 @@
 ---
-id: 0106
+id: 0111
 titulo: Trava de isolamento entre empresas, lote 1
 dominio: security
 status: em-revisao
@@ -11,7 +11,7 @@ pr: https://github.com/Act962/nasa.ex/pull/459
 peso: leve
 ---
 
-# 0106 — Trava de isolamento entre empresas, lote 1
+# 0111 — Trava de isolamento entre empresas, lote 1
 
 ## 1. Contexto
 
@@ -19,7 +19,7 @@ S5 da auditoria de segurança ([`docs/seguranca-auditoria-2026-08.md`](../../doc
 procedures autenticadas recebem o id de um recurso e o usam sem conferir se ele pertence a uma
 empresa do usuário. Quem está logado em qualquer empresa e conhece o id lê ou altera dado de outra.
 
-A auditoria confirmou seis casos por leitura. `form/delete` foi corrigido na spec 0104. Esta spec
+A auditoria confirmou seis casos por leitura. `form/delete` foi corrigido na spec 0109. Esta spec
 cobre os outros cinco e um sétimo achado durante a migração do formulário (etapa 7): o formulário
 público aplica ao lead tags de qualquer empresa, porque o id da tag vem da resposta.
 
@@ -92,3 +92,4 @@ volta revertendo o commit.
 | --- | --- |
 | 2026-10-14 | Criada e implementada |
 | 2026-10-15 | Lote nega por padrão; a variável virou `TENANCY_GUARD_LOG_ONLY_BATCHES`, saída de emergência. Recusas também vão para o log |
+| 2026-10-15 | Renumerada de 0106 para 0111: a `main` recebeu as specs 0103 a 0107 antes deste PR ser mesclado |

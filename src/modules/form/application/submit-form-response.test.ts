@@ -361,7 +361,7 @@ describe("submitFormResponse — sem lead e efeitos opcionais", () => {
     expect(withoutTag.effectInput("recordLeadEvents")).toHaveLength(1);
   });
 
-  it("CA-8 (spec 0104): a 10ª resposta pede a pontuação antes de qualquer outro efeito", async () => {
+  it("CA-8 (spec 0109): a 10ª resposta pede a pontuação antes de qualquer outro efeito", async () => {
     const { submit, effectNames, effectInput } = setup({ responseCount: 10 });
 
     await submit();

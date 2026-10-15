@@ -150,7 +150,7 @@ export const submitResponse = base
       // circular que só o timeout de 5s desfaz, devolvendo 500 ao usuário.
       const pendingJourneyEvents: TrackLeadEventInput[] = [];
       // Como o envio aconteceu (reenvio, rascunho finalizado). Vai no metadata do
-      // FORM_SUBMITTED, que é o único registro do envio na jornada (spec 0104).
+      // FORM_SUBMITTED, que é o único registro do envio na jornada (spec 0109).
       const submitJourneyFlags: { returning?: boolean; finalized?: true } = {};
       let pendingMilestone: { userId: string; organizationId: string; action: string } | null = null;
       // Mod 2: lead reposicionado (movido de coluna ou realocado de tracking)
@@ -222,7 +222,7 @@ export const submitResponse = base
 
         let leadId: string | null = null;
 
-        // Só tags da empresa do formulário: o id vem da resposta pública (spec 0106).
+        // Só tags da empresa do formulário: o id vem da resposta pública (spec 0111).
         const tagsFind = await tx.tag.findMany({
           where: {
             id: {

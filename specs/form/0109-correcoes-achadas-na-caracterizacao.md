@@ -1,5 +1,5 @@
 ---
-id: 0104
+id: 0109
 titulo: Correções achadas na caracterização do formulário
 dominio: form
 status: em-revisao
@@ -11,7 +11,7 @@ pr: https://github.com/Act962/nasa.ex/pull/459
 peso: leve
 ---
 
-# 0104 — Correções achadas na caracterização do formulário
+# 0109 — Correções achadas na caracterização do formulário
 
 ## 1. Contexto
 
@@ -93,3 +93,4 @@ Reverter o commit. Nenhuma mudança de schema.
 | Data | Mudança |
 | --- | --- |
 | 2026-10-13 | Criada e implementada |
+| 2026-10-15 | Renumerada de 0104 para 0109: a `main` recebeu as specs 0103 a 0107 antes deste PR ser mesclado |

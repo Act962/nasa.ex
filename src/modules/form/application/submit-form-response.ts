@@ -27,7 +27,7 @@ import type {
 } from "../ports/submission-effects";
 
 /**
- * Envio de uma resposta de formulário público (specs 0001, 0002, 0100 e 0104).
+ * Envio de uma resposta de formulário público (specs 0001, 0002, 0100 e 0109).
  *
  * Duas fases, e a separação é a regra 18 do projeto: `persistSubmission` só
  * grava, dentro de uma transação, e devolve o que precisa acontecer depois;

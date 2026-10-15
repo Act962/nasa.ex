@@ -73,7 +73,7 @@ describe("isolamento entre empresas — procedure que já confere a empresa", ()
   });
 });
 
-describe("isolamento entre empresas — form/delete (S5, spec 0104)", () => {
+describe("isolamento entre empresas — form/delete (S5, spec 0109)", () => {
   it("CA-1: outra empresa não apaga o formulário e recebe NOT_FOUND", async () => {
     const companyA = await createOrganizationWithOwner();
     const companyB = await createOrganizationWithOwner();

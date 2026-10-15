@@ -28,7 +28,7 @@ describe("buildResponseSlug", () => {
     expect(buildResponseSlug("a".repeat(100), localDate)).toBe(`${"a".repeat(80)}-20260105`);
   });
 
-  it("CA-6 (spec 0104): corte em 80 que cai num separador não deixa hífen duplo", () => {
+  it("CA-6 (spec 0109): corte em 80 que cai num separador não deixa hífen duplo", () => {
     expect(buildResponseSlug(`${"a".repeat(79)} b`, localDate)).toBe(
       `${"a".repeat(79)}-20260105`,
     );

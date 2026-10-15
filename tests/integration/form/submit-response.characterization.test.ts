@@ -142,7 +142,7 @@ describe("envio público — formulário e validação de entrada", () => {
     expect(response.jsonResponse).toBe("isto não é json");
   });
 
-  it("CA-9 (spec 0104): resposta com o JSON `null` é tratada como resposta vazia, sem erro interno", async () => {
+  it("CA-9 (spec 0109): resposta com o JSON `null` é tratada como resposta vazia, sem erro interno", async () => {
     const { form } = await seedFormWithTracking();
 
     const result = await call(submitResponse, { id: form.id, response: "null" }, procedureContext);
@@ -189,7 +189,7 @@ describe("spec 0001 — onde o lead fica depois do envio", () => {
     expect(response.leadId).toBe(leads[0].id);
   });
 
-  it("CA-4 (spec 0104): lead inexistente tem um registro do envio na jornada e nenhuma mudança de coluna", async () => {
+  it("CA-4 (spec 0109): lead inexistente tem um registro do envio na jornada e nenhuma mudança de coluna", async () => {
     const { form } = await seedFormWithTracking();
 
     const result = await submit(form.id, { user_name: "Ana", user_phone: PHONE });
@@ -253,7 +253,7 @@ describe("spec 0001 — onde o lead fica depois do envio", () => {
       expect.objectContaining({ id: existing.id, tracking: "Funil do formulário", status: "Novo" }),
     ]);
     const journey = await readJourney(existing.id);
-    // CA-5 (spec 0104): a mudança de coluna é registrada uma vez.
+    // CA-5 (spec 0109): a mudança de coluna é registrada uma vez.
     expect(journey.filter((event) => event.kind === "status_changed")).toEqual([
       {
         kind: "status_changed",
@@ -423,7 +423,7 @@ describe("envio público — dados do lead, tags e título da resposta", () => {
     expect(await testPrisma.leadTag.count({ where: { leadId: result.lead!.id } })).toBe(0);
   });
 
-  it("CA-7 (spec 0106): tags de outra empresa, na resposta ou no botão Próximo, não são aplicadas", async () => {
+  it("CA-7 (spec 0111): tags de outra empresa, na resposta ou no botão Próximo, não são aplicadas", async () => {
     const { form, organization } = await seedFormWithTracking();
     const otherCompany = await createOrganizationWithOwner();
     const ownTag = await createTag({ organizationId: organization.id, name: "Propria" });

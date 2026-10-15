@@ -3,7 +3,7 @@ import { base } from "./base";
 
 /**
  * Trava de isolamento entre empresas para procedures que recebem o id de um
- * recurso (S5 da auditoria de segurança, spec 0106).
+ * recurso (S5 da auditoria de segurança, spec 0111).
  *
  * Alcança o recurso quem é membro da empresa dona dele, participante do
  * tracking ou membro do workspace. A empresa ativa da sessão não entra na

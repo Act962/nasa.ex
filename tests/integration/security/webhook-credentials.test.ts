@@ -35,7 +35,7 @@ function metaRequest(path: string, signature?: string) {
   });
 }
 
-describe("spec 0103 — webhook de compra de domínio (S4)", () => {
+describe("spec 0108 — webhook de compra de domínio (S4)", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
@@ -66,7 +66,7 @@ describe("spec 0103 — webhook de compra de domínio (S4)", () => {
 describe.each([
   ["Messenger", "facebook", postFacebookWebhook],
   ["Instagram", "instagram", postInstagramWebhook],
-])("spec 0103 — webhook antigo do %s (S4)", (_nome, path, postWebhook) => {
+])("spec 0108 — webhook antigo do %s (S4)", (_nome, path, postWebhook) => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });

@@ -1,4 +1,4 @@
-// Lote 1 da trava de isolamento entre empresas (S5, spec 0106): a empresa B
+// Lote 1 da trava de isolamento entre empresas (S5, spec 0111): a empresa B
 // pede, pelo id, um recurso da empresa A. Por padrão a procedure recusa e o
 // recurso fica intacto; na saída de emergência (só registrando), a procedure
 // segue e o log diz o que seria negado.

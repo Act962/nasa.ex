@@ -106,15 +106,15 @@ corrigidos:
 
 | # | Arquivo | Comportamento atual | Efeito | Gravidade sugerida |
 | --- | --- | --- | --- | --- |
-| 1 | `src/lib/reminder-recurrence.ts` (`computeNextRemindAt`) | ✅ **Corrigido em 2026-10-13** ([spec 0105](../../specs/tracking-chat/0105-lembrete-mensal-em-mes-curto.md)). Era: lembrete mensal em dia 29, 30 ou 31 pulava o mês sem esse dia e mudava de dia para sempre (31/01 → 03/03). Alcançável só em lembrete mensal sem dia fixo, porque o dia fixo é limitado a 1–28 nas três entradas | Lembrete mensal não disparava em meses curtos | Alta |
-| 2 | `src/lib/reminder-recurrence.ts` (`buildFirstRemindAt`) | ✅ **Corrigido junto** (spec 0105, CA-7). Era: dia 31 pedido em abril agendava 01/05. Inalcançável hoje pelo mesmo limite de 1–28 | — | Baixa |
-| 3 | `src/features/form/lib/form-readiness.ts` | ✅ **Corrigido em 2026-10-13** ([spec 0104](../../specs/form/0104-correcoes-achadas-na-caracterizacao.md), CA-7). Era: parágrafo com `text` vazio (string) dado como sem conteúdo mesmo com `content` preenchido | Formulário podia aparecer como não pronto sem motivo | Baixa |
-| 4 | `src/features/form/lib/response-slug.ts` | ✅ **Corrigido em 2026-10-13** ([spec 0104](../../specs/form/0104-correcoes-achadas-na-caracterizacao.md), CA-6). Era: nome cortado em 80 caracteres podia terminar em hífen, gerando `--` antes da data | Cosmético | Baixa |
+| 1 | `src/lib/reminder-recurrence.ts` (`computeNextRemindAt`) | ✅ **Corrigido em 2026-10-13** ([spec 0110](../../specs/tracking-chat/0110-lembrete-mensal-em-mes-curto.md)). Era: lembrete mensal em dia 29, 30 ou 31 pulava o mês sem esse dia e mudava de dia para sempre (31/01 → 03/03). Alcançável só em lembrete mensal sem dia fixo, porque o dia fixo é limitado a 1–28 nas três entradas | Lembrete mensal não disparava em meses curtos | Alta |
+| 2 | `src/lib/reminder-recurrence.ts` (`buildFirstRemindAt`) | ✅ **Corrigido junto** (spec 0110, CA-7). Era: dia 31 pedido em abril agendava 01/05. Inalcançável hoje pelo mesmo limite de 1–28 | — | Baixa |
+| 3 | `src/features/form/lib/form-readiness.ts` | ✅ **Corrigido em 2026-10-13** ([spec 0109](../../specs/form/0109-correcoes-achadas-na-caracterizacao.md), CA-7). Era: parágrafo com `text` vazio (string) dado como sem conteúdo mesmo com `content` preenchido | Formulário podia aparecer como não pronto sem motivo | Baixa |
+| 4 | `src/features/form/lib/response-slug.ts` | ✅ **Corrigido em 2026-10-13** ([spec 0109](../../specs/form/0109-correcoes-achadas-na-caracterizacao.md), CA-6). Era: nome cortado em 80 caracteres podia terminar em hífen, gerando `--` antes da data | Cosmético | Baixa |
 
 A causa dos itens 1 e 2 era a mesma: `addOneMonth` somava um mês a uma data cujo dia pode não existir no
 mês seguinte, e `Date.UTC` transbordava em vez de limitar. O limite ao último dia do mês
 era aplicado depois, já sobre o mês errado. Pendência: reparo dos lembretes já afetados em produção
-(spec 0105, §9).
+(spec 0110, §9).
 
 Desvios em relação ao planejado no §4: os testes **ficam** na checagem de tipos do `tsconfig.json`
 (são poucos arquivos, e erro de tipo em teste passa a quebrar o build, o que é desejável). Conferir o
@@ -125,7 +125,7 @@ O arquivo de configuração é `vitest.config.mts`, porque o `package.json` não
 ## 7. Achados da caracterização do envio de formulário (2026-10-13)
 
 Comportamentos registrados em teste. A coluna **Situação** diz o que foi feito com cada um em
-2026-10-13 ([spec 0104](../../specs/form/0104-correcoes-achadas-na-caracterizacao.md)): os defeitos foram corrigidos, os intencionais foram conferidos no código e
+2026-10-13 ([spec 0109](../../specs/form/0109-correcoes-achadas-na-caracterizacao.md)): os defeitos foram corrigidos, os intencionais foram conferidos no código e
 mantidos, e três seguem como estão por serem decisão de produto.
 
 | # | Comportamento registrado | Leitura | Situação |
@@ -138,7 +138,7 @@ mantidos, e três seguem como estão por serem decisão de produto.
 | 6 | O salvamento parcial cria o lead no primeiro "Próximo". Quem abandona o formulário deixa um lead no funil, sem aviso à equipe além do board | Decisão de produto: é assim que o consultor acompanha o preenchimento ao vivo | Mantido. Decisão de produto em aberto |
 | 7 | A pontuação da 10ª e da 100ª resposta só acontece se a regra existir no banco. A função que criava as regras padrão (`ensureGlobalSpacePointRules`) está com o corpo comentado | Em banco sem as regras cadastradas, ninguém pontua, sem erro e sem aviso | Mantido, intencional: as regras vêm de `prisma/seed-a.ts`. **A conferir em produção** se o seed rodou (`SELECT count(*) FROM space_point_rules`) |
 | 8 | A pontuação roda dentro da transação do envio, com o cliente global (regra 18). Não trava: o envio conclui normalmente | Violação da regra sem o efeito de espera circular | ✅ Corrigido (CA-8): roda depois do commit |
-| 9 | As tags vindas da resposta (`meta.tagId`) e a tag do botão "Próximo" eram aplicadas ao lead sem conferir se pertenciam à empresa do formulário | Quem conhecia o id de uma tag de outra empresa conseguia anexá-la a um lead pelo formulário público | ✅ Corrigido em 2026-10-14 nos dois caminhos do envio ([spec 0106](../../specs/security/0106-trava-de-isolamento-entre-empresas.md), CA-7) |
+| 9 | As tags vindas da resposta (`meta.tagId`) e a tag do botão "Próximo" eram aplicadas ao lead sem conferir se pertenciam à empresa do formulário | Quem conhecia o id de uma tag de outra empresa conseguia anexá-la a um lead pelo formulário público | ✅ Corrigido em 2026-10-14 nos dois caminhos do envio ([spec 0111](../../specs/security/0111-trava-de-isolamento-entre-empresas.md), CA-7) |
 | 10 | O envio final e o salvamento parcial leem a identidade da pessoa com regras diferentes: no envio, nome vazio vira "Sem nome"; no salvamento parcial, nome vazio fica vazio e campo que não é texto é ignorado. O lead criado pelo salvamento parcial também não grava `statusEnteredAt`, que o envio final grava | Lead que nasce no primeiro "Próximo" pode ficar sem nome e sem a data de entrada na coluna. Achado ao migrar o salvamento parcial | Aberto. Preservado na migração (as duas regras estão em `modules/form/domain/submission.ts`, lado a lado); unificar depende de decisão |
 
 Sobre a regra 18: `leads/create-lead-with-tags.ts` chama `logActivity` (cliente global) dentro da
