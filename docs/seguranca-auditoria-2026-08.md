@@ -145,7 +145,7 @@ Facebook e Instagram validam `hub.verify_token` no **GET**, mas o **POST não va
 
 | | |
 | --- | --- |
-| **Status** | 🚧 `form/delete` corrigido em 2026-10-13 (spec 0104). Em 2026-10-14: trava reutilizável `requireTenantResource` e lote 1 nas outras cinco procedures confirmadas ([spec 0106](../specs/security/0106-trava-de-isolamento-entre-empresas.md)), por enquanto só registrando até `TENANCY_GUARD_ENFORCED_BATCHES=lote-1`; tags de outra empresa barradas no formulário público; catraca no job `arch` impede procedure nova sem conferência (173 candidatas na baseline, triadas em [`architecture/tenancy-triage.md`](architecture/tenancy-triage.md)) |
+| **Status** | 🚧 `form/delete` corrigido em 2026-10-13 (spec 0104). Em 2026-10-14: trava reutilizável `requireTenantResource` e lote 1 nas outras cinco procedures confirmadas ([spec 0106](../specs/security/0106-trava-de-isolamento-entre-empresas.md)), negando por padrão desde 2026-10-15 (`TENANCY_GUARD_LOG_ONLY_BATCHES=lote-1` volta a só registrar, em emergência); tags de outra empresa barradas no formulário público; catraca no job `arch` impede procedure nova sem conferência (173 candidatas na baseline, triadas em [`architecture/tenancy-triage.md`](architecture/tenancy-triage.md)) |
 | **Escopo** | ~175–190 procedures em `src/app/router/` |
 | **Impacto** | **Incidente LGPD.** Leitura e destruição de dados entre clientes |
 
@@ -438,6 +438,7 @@ Registrados para não serem re-auditados sem motivo:
 | 2026-08-18 | Registro inicial. 8 críticos, 6 altos, 5 médios, a partir da auditoria de `f67796d2`. Todos os itens 🔴 confirmados por leitura direta do código. Nenhuma correção aplicada. |
 | 2026-09-29 | S8 corrigido: bloco de debug removido depois de gravar em log a API key do Asaas de uma loja durante teste de PIX real. Pendentes: logging com redação e rotação das chaves expostas. |
 | 2026-09-26 | M6 adicionado e corrigido (vazamento do Financeiro pelo ASTRO para membro sem acesso), achado pela bateria de testes do ASTRO. |
+| 2026-10-15 | S5: lote 1 passa a negar por padrão, sem fase de registro (decisão do time). Saída de emergência `TENANCY_GUARD_LOG_ONLY_BATCHES`; recusas registradas no log. |
 | 2026-10-14 | S5: trava `requireTenantResource` e lote 1 (`status/create`, `leads/deleteFile`, `conversation/get`, `status/listSimple`, `column/getMany`), só registrando até ser aplicado por variável; tags de outra empresa barradas no formulário público; catraca S5 no job `arch` ([spec 0106](../specs/security/0106-trava-de-isolamento-entre-empresas.md)). |
 | 2026-10-13 | A1 concluído: os 101 `throw errors.X;` restantes invocados (zero no código). S5: `form/delete` corrigido com teste entre empresas ([spec 0104](../specs/form/0104-correcoes-achadas-na-caracterizacao.md)); demais procedures seguem abertas. |
 | 2026-10-13 | A1: 169 `throw errors.INTERNAL_SERVER_ERROR;` corrigidos por codemod; catraca no job `arch` contra ocorrência nova. Restam 101. |

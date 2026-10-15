@@ -354,6 +354,7 @@ testes não há o que mutar).
 
 | Data | O quê |
 | --- | --- |
+| 2026-10-15 | `tenancy-guard-batch-1.test.ts`: a trava sem variável nega (CA-1, incluindo a linha de log da recusa); o modo só registrando passou a ser ligado por `TENANCY_GUARD_LOG_ONLY_BATCHES` (CA-6). Conferido tirando a trava: 6 casos falham. |
 | 2026-10-15 | Módulo `form` passou a ser o caminho padrão: as caracterizações do envio rodam pelo módulo sem variável, e `submit-through-module.test.ts` virou `submit-through-legacy-path.test.ts`, que liga `FORM_SUBMIT_USE_MODULE=false` e confere a leitura da variável. Conferido quebrando o módulo de propósito: os 15 casos do salvamento parcial falham no caminho padrão e passam no antigo. |
 | 2026-10-14 | `tests/integration/tenancy/tenancy-guard-batch-1.test.ts`: as cinco procedures do lote 1 com a trava aplicada e só registrando, incluindo vínculos legítimos (várias empresas, participante, membro de workspace). Conferido que os casos entre empresas falham com a trava desligada. O job `arch` ganhou a catraca S5. |
 | 2026-10-14 | Caso de uso do salvamento parcial testado com ports falsos (`save-form-draft.test.ts`). A suíte da flag passa a exercitar também o salvamento parcial pelo módulo. Suíte: 321 unitários, 175 de integração. |

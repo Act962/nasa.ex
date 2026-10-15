@@ -1,7 +1,7 @@
 // Lote 1 da trava de isolamento entre empresas (S5, spec 0106): a empresa B
-// pede, pelo id, um recurso da empresa A. Com o lote aplicado, a procedure
-// recusa e o recurso fica intacto; só registrando, a procedure segue e o log
-// diz o que seria negado.
+// pede, pelo id, um recurso da empresa A. Por padrão a procedure recusa e o
+// recurso fica intacto; na saída de emergência (só registrando), a procedure
+// segue e o log diz o que seria negado.
 
 import { call } from "@orpc/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -75,9 +75,9 @@ const procedures = [
   },
 ] as const;
 
-describe("lote 1 aplicado (TENANCY_GUARD_ENFORCED_BATCHES=lote-1)", () => {
+describe("lote 1 aplicado (padrão)", () => {
   beforeEach(() => {
-    vi.stubEnv("TENANCY_GUARD_ENFORCED_BATCHES", "lote-1");
+    vi.stubEnv("TENANCY_GUARD_LOG_ONLY_BATCHES", undefined);
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -91,6 +91,22 @@ describe("lote 1 aplicado (TENANCY_GUARD_ENFORCED_BATCHES=lote-1)", () => {
     await expect(procedure.run(resources)).rejects.toMatchObject({ code: "NOT_FOUND" });
 
     if ("isIntact" in procedure) expect(await procedure.isIntact(resources)).toBe(true);
+  });
+
+  it("CA-1: a recusa fica no log, para achar vínculo legítimo que a regra não conhece", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const resources = await seedCompanyResources(await createOrganizationWithOwner());
+    const companyB = await createOrganizationWithOwner();
+    signInAs(companyB);
+
+    await expect(
+      call(listStatusSimple, { trackingId: resources.tracking.id }, procedureContext),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    expect(warn.mock.calls.flat().join(" ")).toContain(
+      `[tenancy-guard] negado batch=lote-1 procedure=`,
+    );
+    warn.mockRestore();
   });
 
   it.each(procedures)("CA-2: $name — a própria empresa continua usando", async (procedure) => {
@@ -150,7 +166,14 @@ describe("lote 1 aplicado (TENANCY_GUARD_ENFORCED_BATCHES=lote-1)", () => {
   });
 });
 
-describe("lote 1 só registrando (padrão)", () => {
+describe("lote 1 só registrando (TENANCY_GUARD_LOG_ONLY_BATCHES=lote-1)", () => {
+  beforeEach(() => {
+    vi.stubEnv("TENANCY_GUARD_LOG_ONLY_BATCHES", "lote-1");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("CA-6: outra empresa ainda é atendida e o log diz o que seria negado", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const companyA = await createOrganizationWithOwner();

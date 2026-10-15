@@ -724,6 +724,7 @@ acrescentar itens à Fase 0**.
 
 | Data | O quê |
 | --- | --- |
+| 2026-10-15 | **Etapa 8: lote 1 nega por padrão** (decisão do time, [spec 0106](../specs/security/0106-trava-de-isolamento-entre-empresas.md)). `TENANCY_GUARD_ENFORCED_BATCHES` deu lugar a `TENANCY_GUARD_LOG_ONLY_BATCHES`, saída de emergência que volta um lote a só registrar. Toda recusa vai para o log. |
 | 2026-10-15 | **Piloto `form`: módulo ativo por padrão** (decisão do time). O envio e o salvamento parcial rodam pelo módulo sem configurar nada; `FORM_SUBMIT_USE_MODULE=false` vira saída de emergência até o passo 7e. A suíte que exercita o caminho antigo passou a ser `tests/integration/form/submit-through-legacy-path.test.ts`. |
 | 2026-10-14 | **Etapa 8 iniciada** ([spec 0106](../specs/security/0106-trava-de-isolamento-entre-empresas.md)): trava de isolamento entre empresas `requireTenantResource` em `src/app/middlewares/tenancy.ts` (membro da empresa, participante do tracking ou membro do workspace), lote 1 em cinco procedures, só registrando até `TENANCY_GUARD_ENFORCED_BATCHES`. Nova métrica S5 na baseline de `scripts/arch/` (173 candidatas; procedure nova sem conferência falha o CI) e triagem gerada em `architecture/tenancy-triage.md`. |
 | 2026-10-14 | Baseline de fronteiras regravada após merge da `main`: a `main` ganhou o ciclo `star-friends`↔`tracking-chat` (`review-receipt.ts` importa de `tracking-chat`, que já importava de `star-friends`). 75 ciclos. Volta a acontecer a cada merge enquanto o job `arch` não roda na `main`. |

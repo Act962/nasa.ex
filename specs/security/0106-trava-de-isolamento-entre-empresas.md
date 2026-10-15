@@ -5,7 +5,7 @@ dominio: security
 status: em-revisao
 autor: João Gabriel
 criada: 2026-10-14
-atualizada: 2026-10-14
+atualizada: 2026-10-15
 branch: claude/architecture-audit-modernization-0f66d6
 pr: https://github.com/Act962/nasa.ex/pull/459
 peso: leve
@@ -51,7 +51,7 @@ tem vínculo legítimo.
 | RF-2 | A empresa ativa da sessão não entra na regra: quem é membro de várias empresas usa recursos de todas |
 | RF-3 | Recurso de outra empresa responde `NOT_FOUND`, como recurso inexistente, para não revelar que o id existe |
 | RF-4 | Recurso inexistente segue para a procedure, que responde como já respondia |
-| RF-5 | Cada lote começa **só registrando** o que seria negado (`[tenancy-guard] seria negado ...` no log) e passa a negar quando o nome do lote entra em `TENANCY_GUARD_ENFORCED_BATCHES` |
+| RF-5 | Todo lote **nega por padrão** e registra cada recusa no log (`[tenancy-guard] negado ...`). Lote listado em `TENANCY_GUARD_LOG_ONLY_BATCHES` só registra (`[tenancy-guard] seria negado ...`) e deixa passar: saída de emergência |
 | RF-6 | O formulário público só aplica tags da empresa dona do formulário. Vale já, sem fase de registro: tag de outra empresa nunca é uso legítimo |
 | RF-7 | O CI falha se surgir procedure autenticada nova sem conferência de empresa (catraca S5 no job `arch`) |
 
@@ -59,29 +59,31 @@ tem vínculo legítimo.
 
 | ID | Critério | Teste |
 | --- | --- | --- |
-| CA-1 | Com o lote aplicado, outra empresa recebe `NOT_FOUND` nas cinco procedures, e criação e exclusão não acontecem | `tests/integration/tenancy/tenancy-guard-batch-1.test.ts` |
+| CA-1 | Sem configurar nada, outra empresa recebe `NOT_FOUND` nas cinco procedures, criação e exclusão não acontecem e a recusa vai para o log | `tests/integration/tenancy/tenancy-guard-batch-1.test.ts` |
 | CA-2 | A própria empresa segue usando as cinco | idem |
 | CA-3 | Membro das duas empresas usa o recurso de A com B ativa | idem |
 | CA-4 | Participante do tracking e membro do workspace de fora da empresa seguem usando | idem |
 | CA-5 | Id inexistente recebe a resposta de antes | idem |
-| CA-6 | Sem o lote aplicado, outra empresa é atendida e o log registra o que seria negado | idem |
+| CA-6 | Com o lote em `TENANCY_GUARD_LOG_ONLY_BATCHES`, outra empresa é atendida e o log registra o que seria negado | idem |
 | CA-7 | Tags de outra empresa, na resposta ou no "Próximo", não são aplicadas, nos dois caminhos do envio | `tests/integration/form/submit-response.characterization.test.ts` |
 | CA-8 | Procedure nova sem conferência é regressão no `pnpm arch` | `scripts/arch/feature-boundaries.test.ts` |
 
 ## 5. Implantação
 
-1. Publicar sem `TENANCY_GUARD_ENFORCED_BATCHES`. O lote só registra.
-2. Acompanhar `[tenancy-guard] seria negado batch=lote-1` no log por alguns dias. Cada linha diz a
-   procedure, o recurso e o usuário. Linha de uso legítimo indica vínculo que a regra não conhece:
-   parar e revisar a regra antes de aplicar.
-3. Sem linha legítima, definir `TENANCY_GUARD_ENFORCED_BATCHES=lote-1`. Não exige novo build.
+Decisão do time (2026-10-15): o lote 1 já sai negando, sem fase de registro. As cinco procedures
+têm caso confirmado de abuso e a regra aceita todo vínculo conhecido; esperar alguém ligar a trava
+deixaria as rotas abertas por mais tempo.
 
-**Recomendação:** as cinco procedures têm caso confirmado de abuso e a regra aceita todo vínculo
-conhecido. Encurtar o passo 2 para um ou dois dias é razoável.
+1. Publicar sem configurar nada. O lote nega.
+2. Nos primeiros dias, olhar `[tenancy-guard] negado batch=lote-1` no log. Cada linha diz a
+   procedure, o recurso e o usuário. Linha de uso legítimo indica vínculo que a regra não conhece:
+   aplicar o rollback e revisar a regra.
+
+Lotes seguintes podem nascer na saída de emergência, se o risco de bloquear uso legítimo for maior.
 
 ## 6. Rollback
 
-Remover `lote-1` de `TENANCY_GUARD_ENFORCED_BATCHES` volta o lote a só registrar. A regra das tags
+Definir `TENANCY_GUARD_LOG_ONLY_BATCHES=lote-1` e reiniciar volta o lote a só registrar, sem novo build. A regra das tags
 volta revertendo o commit.
 
 ## 7. Changelog
@@ -89,3 +91,4 @@ volta revertendo o commit.
 | Data | Mudança |
 | --- | --- |
 | 2026-10-14 | Criada e implementada |
+| 2026-10-15 | Lote nega por padrão; a variável virou `TENANCY_GUARD_LOG_ONLY_BATCHES`, saída de emergência. Recusas também vão para o log |

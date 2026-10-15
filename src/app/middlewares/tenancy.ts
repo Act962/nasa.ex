@@ -9,8 +9,8 @@ import { base } from "./base";
  * tracking ou membro do workspace. A empresa ativa da sessão não entra na
  * conta: quem participa de várias empresas usa recursos de todas.
  *
- * Cada lote nasce só registrando o que seria negado e passa a negar quando
- * entra em `TENANCY_GUARD_ENFORCED_BATCHES`.
+ * Todo lote nega por padrão. `TENANCY_GUARD_LOG_ONLY_BATCHES` é a saída de
+ * emergência: o lote listado só registra o que seria negado e deixa passar.
  */
 
 export type TenantResourceKind = "tracking" | "lead" | "conversation" | "workspace";
@@ -79,10 +79,10 @@ export async function checkTenantResourceAccess(
   return membership || trackingParticipation || workspaceMembership ? "allowed" : "denied";
 }
 
-export function isTenancyBatchEnforced(batch: TenancyGuardBatch): boolean {
-  return (process.env.TENANCY_GUARD_ENFORCED_BATCHES ?? "")
+export function isTenancyBatchLogOnly(batch: TenancyGuardBatch): boolean {
+  return (process.env.TENANCY_GUARD_LOG_ONLY_BATCHES ?? "")
     .split(",")
-    .map((enforcedBatch) => enforcedBatch.trim())
+    .map((logOnlyBatch) => logOnlyBatch.trim())
     .includes(batch);
 }
 
@@ -103,10 +103,11 @@ export function requireTenantResource<TInput>(
       const verdict = await checkTenantResourceAccess(context.user.id, kind, resourceId);
 
       if (verdict === "denied") {
-        if (isTenancyBatchEnforced(batch)) throw errors.NOT_FOUND();
+        const isLogOnly = isTenancyBatchLogOnly(batch);
         console.warn(
-          `[tenancy-guard] seria negado batch=${batch} procedure=${path.join(".")} ${kind}=${resourceId} user=${context.user.id}`,
+          `[tenancy-guard] ${isLogOnly ? "seria negado" : "negado"} batch=${batch} procedure=${path.join(".")} ${kind}=${resourceId} user=${context.user.id}`,
         );
+        if (!isLogOnly) throw errors.NOT_FOUND();
       }
 
       return next();
