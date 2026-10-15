@@ -19,12 +19,12 @@
  * cobrança que na verdade já estava paga.
  */
 
-import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import {
   notifyPixRescue,
   reconcileStuckTrafegoPix,
 } from "@/features/trafego/server/lib/reconcile-asaas-pix";
+import type { InlineStep } from "@/inngest/inline-step";
 
 /** Cobrança recém-criada não entra: o webhook merece a chance de chegar. */
 const MIN_AGE_MINUTES = 20;
@@ -32,41 +32,37 @@ const MIN_AGE_MINUTES = 20;
 const MAX_AGE_DAYS = 7;
 const SWEEP_LIMIT = 100;
 
-export const trafegoPixPendingSweep = inngest.createFunction(
-  { id: "trafego-pix-pending-sweep", retries: 1 },
-  { cron: "15 * * * *" },
-  async ({ step }) => {
-    const now = new Date();
+export async function runTrafegoPixPendingSweep(step: InlineStep) {
+  const now = new Date();
 
-    const reconciled = await step.run("reconcile-asaas", () =>
-      reconcileStuckTrafegoPix({
-        minAgeMinutes: MIN_AGE_MINUTES,
-        maxAgeDays: MAX_AGE_DAYS,
-        limit: SWEEP_LIMIT,
-      }),
-    );
+  const reconciled = await step.run("reconcile-asaas", () =>
+    reconcileStuckTrafegoPix({
+      minAgeMinutes: MIN_AGE_MINUTES,
+      maxAgeDays: MAX_AGE_DAYS,
+      limit: SWEEP_LIMIT,
+    }),
+  );
 
-    // Resgate aqui significa que o webhook não entregou. O pedido foi salvo,
-    // mas alguém precisa olhar a fila antes do próximo cliente pagar e esperar.
-    if (reconciled.rescued > 0 || reconciled.failed > 0) {
-      await step.run("notify-rescue", () => notifyPixRescue(reconciled));
-    }
+  // Resgate aqui significa que o webhook não entregou. O pedido foi salvo,
+  // mas alguém precisa olhar a fila antes do próximo cliente pagar e esperar.
+  if (reconciled.rescued > 0 || reconciled.failed > 0) {
+    await step.run("notify-rescue", () => notifyPixRescue(reconciled));
+  }
 
-    const result = await step.run("expire-pix-pendings", () =>
-      prisma.trafegoPendingPurchase.updateMany({
-        where: {
-          paymentMethod: "PIX",
-          status: "PENDING",
-          pixExpiresAt: { lt: now },
-        },
-        data: { status: "EXPIRED" },
-      }),
-    );
+  const result = await step.run("expire-pix-pendings", () =>
+    prisma.trafegoPendingPurchase.updateMany({
+      where: {
+        paymentMethod: "PIX",
+        status: "PENDING",
+        pixExpiresAt: { lt: now },
+      },
+      data: { status: "EXPIRED" },
+    }),
+  );
 
-    return {
-      reconciled,
-      expired: result.count,
-      at: now.toISOString(),
-    };
-  },
-);
+  return {
+    reconciled,
+    expired: result.count,
+    at: now.toISOString(),
+  };
+}

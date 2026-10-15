@@ -14,88 +14,84 @@
  * não o número de leads (a query usa índice em `lastInboundAt`).
  */
 
-import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { dispatchAlert } from "@/features/alerts/lib/alert-engine";
 import { LeadAction } from "@/generated/prisma/enums";
+import type { InlineStep } from "@/inngest/inline-step";
 
 interface StaleParams {
   days: number;
 }
 
-export const detectStaleLeads = inngest.createFunction(
-  { id: "detect-stale-leads", retries: 1 },
-  { cron: "0 * * * *" }, // hora em hora
-  async ({ step }) => {
-    const rules = await step.run("fetch-rules", async () =>
-      prisma.alertRule.findMany({
-        where: { eventType: "lead.stale", isActive: true },
+export async function runDetectStaleLeads(step: InlineStep) {
+  const rules = await step.run("fetch-rules", async () =>
+    prisma.alertRule.findMany({
+      where: { eventType: "lead.stale", isActive: true },
+      select: {
+        id: true,
+        organizationId: true,
+        params: true,
+      },
+    }),
+  );
+
+  if (rules.length === 0) {
+    return { rulesScanned: 0, dispatched: 0 };
+  }
+
+  let totalDispatched = 0;
+
+  for (const rule of rules) {
+    const params = rule.params as unknown as StaleParams | null;
+    const days = params && typeof params.days === "number" ? params.days : 0;
+    if (!days || days < 1) continue;
+
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // Lead ativo cujo lastInboundAt é antigo OU null + createdAt antigo
+    // (lead que nunca recebeu mensagem inbound conta como "parado" também).
+    const staleLeads = await step.run(`fetch-stale-${rule.id}`, async () =>
+      prisma.lead.findMany({
+        where: {
+          currentAction: LeadAction.ACTIVE,
+          isActive: true,
+          ...(rule.organizationId
+            ? { tracking: { organizationId: rule.organizationId } }
+            : {}),
+          OR: [
+            { lastInboundAt: { lt: cutoff } },
+            { lastInboundAt: null, createdAt: { lt: cutoff } },
+          ],
+        },
         select: {
           id: true,
-          organizationId: true,
-          params: true,
+          responsibleId: true,
+          lastInboundAt: true,
+          createdAt: true,
+          tracking: { select: { organizationId: true } },
         },
+        // Cap defensivo — se uma org tem milhões de leads parados, processa
+        // em chunks futuros (Inngest step.run paginado). Por enquanto: 500/run.
+        take: 500,
       }),
     );
 
-    if (rules.length === 0) {
-      return { rulesScanned: 0, dispatched: 0 };
-    }
-
-    let totalDispatched = 0;
-
-    for (const rule of rules) {
-      const params = rule.params as unknown as StaleParams | null;
-      const days = params && typeof params.days === "number" ? params.days : 0;
-      if (!days || days < 1) continue;
-
-      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
-      // Lead ativo cujo lastInboundAt é antigo OU null + createdAt antigo
-      // (lead que nunca recebeu mensagem inbound conta como "parado" também).
-      const staleLeads = await step.run(`fetch-stale-${rule.id}`, async () =>
-        prisma.lead.findMany({
-          where: {
-            currentAction: LeadAction.ACTIVE,
-            isActive: true,
-            ...(rule.organizationId
-              ? { tracking: { organizationId: rule.organizationId } }
-              : {}),
-            OR: [
-              { lastInboundAt: { lt: cutoff } },
-              { lastInboundAt: null, createdAt: { lt: cutoff } },
-            ],
-          },
-          select: {
-            id: true,
-            responsibleId: true,
-            lastInboundAt: true,
-            createdAt: true,
-            tracking: { select: { organizationId: true } },
-          },
-          // Cap defensivo — se uma org tem milhões de leads parados, processa
-          // em chunks futuros (Inngest step.run paginado). Por enquanto: 500/run.
-          take: 500,
-        }),
+    for (const lead of staleLeads) {
+      // step.run serializa Date → string; reconstrói pra calcular delta.
+      const refDate = new Date(lead.lastInboundAt ?? lead.createdAt);
+      const daysSilent = Math.floor(
+        (Date.now() - refDate.getTime()) / (24 * 60 * 60 * 1000),
       );
 
-      for (const lead of staleLeads) {
-        // step.run serializa Date → string; reconstrói pra calcular delta.
-        const refDate = new Date(lead.lastInboundAt ?? lead.createdAt);
-        const daysSilent = Math.floor(
-          (Date.now() - refDate.getTime()) / (24 * 60 * 60 * 1000),
-        );
-
-        const result = await dispatchAlert("lead.stale", {
-          leadId: lead.id,
-          daysSilent,
-          orgId: lead.tracking.organizationId,
-          responsibleId: lead.responsibleId ?? null,
-        });
-        totalDispatched += result.dispatchedCount;
-      }
+      const result = await dispatchAlert("lead.stale", {
+        leadId: lead.id,
+        daysSilent,
+        orgId: lead.tracking.organizationId,
+        responsibleId: lead.responsibleId ?? null,
+      });
+      totalDispatched += result.dispatchedCount;
     }
+  }
 
-    return { rulesScanned: rules.length, dispatched: totalDispatched };
-  },
-);
+  return { rulesScanned: rules.length, dispatched: totalDispatched };
+}

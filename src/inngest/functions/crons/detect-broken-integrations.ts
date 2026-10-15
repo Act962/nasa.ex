@@ -16,47 +16,43 @@
  * só vira 1 notif por dia.
  */
 
-import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { dispatchAlert } from "@/features/alerts/lib/alert-engine";
+import type { InlineStep } from "@/inngest/inline-step";
 
-export const detectBrokenIntegrations = inngest.createFunction(
-  { id: "detect-broken-integrations", retries: 1 },
-  { cron: "0 * * * *" }, // hora em hora
-  async ({ step }) => {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+export async function runDetectBrokenIntegrations(step: InlineStep) {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-    const downInstances = await step.run("fetch-down-wa", async () =>
-      prisma.whatsAppInstance.findMany({
-        where: {
-          status: "DISCONNECTED",
-          isActive: true,
-          updatedAt: { lt: oneHourAgo },
-        },
-        select: {
-          id: true,
-          organizationId: true,
-          updatedAt: true,
-        },
-        take: 200, // cap defensivo
-      }),
+  const downInstances = await step.run("fetch-down-wa", async () =>
+    prisma.whatsAppInstance.findMany({
+      where: {
+        status: "DISCONNECTED",
+        isActive: true,
+        updatedAt: { lt: oneHourAgo },
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        updatedAt: true,
+      },
+      take: 200, // cap defensivo
+    }),
+  );
+
+  let dispatched = 0;
+  for (const inst of downInstances) {
+    const updatedAtDate = new Date(inst.updatedAt);
+    const minutesSince = Math.floor(
+      (Date.now() - updatedAtDate.getTime()) / 60_000,
     );
 
-    let dispatched = 0;
-    for (const inst of downInstances) {
-      const updatedAtDate = new Date(inst.updatedAt);
-      const minutesSince = Math.floor(
-        (Date.now() - updatedAtDate.getTime()) / 60_000,
-      );
+    const result = await dispatchAlert("integration.whatsapp_down", {
+      instanceId: inst.id,
+      orgId: inst.organizationId,
+      disconnectedSinceMinutes: minutesSince,
+    });
+    dispatched += result.dispatchedCount;
+  }
 
-      const result = await dispatchAlert("integration.whatsapp_down", {
-        instanceId: inst.id,
-        orgId: inst.organizationId,
-        disconnectedSinceMinutes: minutesSince,
-      });
-      dispatched += result.dispatchedCount;
-    }
-
-    return { whatsappDown: downInstances.length, dispatched };
-  },
-);
+  return { whatsappDown: downInstances.length, dispatched };
+}
