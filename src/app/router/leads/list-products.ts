@@ -5,6 +5,7 @@ import { base } from "@/app/middlewares/base";
 import { catalogOrderItemSchema } from "@/features/nerp-catalog/schemas/order-payload";
 import { isTeamApprovalFlowReady } from "@/features/nerp-catalog/lib/order-quote-actions";
 import { resolveQuoteState } from "@/features/nerp-catalog/lib/order-quote";
+import { canConfirmManualPayment } from "@/features/nerp-catalog/lib/manual-payment";
 import type {
   CatalogOrderStatus,
   ForgeContractStatus,
@@ -95,6 +96,7 @@ export const listLeadProducts = base
           quoteApprovedAt: true,
           internalApprovalStartedAt: true,
           internalApprovedAt: true,
+          asaasPaymentId: true,
         },
       }),
       prisma.forgeProposal.findMany({
@@ -149,6 +151,8 @@ export const listLeadProducts = base
         canSendQuote,
         // Venda guiada (spec 0104): o botão diz "Enviar para aprovação" quando o valor passa pela equipe antes.
         isTeamApproval: canSendQuote && isTeamApproval,
+        // Loja sem Asaas: cliente aprovou o valor e o pagamento chega por fora; a equipe confirma na aba Pedido.
+        canConfirmPayment: canConfirmManualPayment(order),
         items: parsedItems.success
           ? parsedItems.data.map((item) => ({
               name: item.name,

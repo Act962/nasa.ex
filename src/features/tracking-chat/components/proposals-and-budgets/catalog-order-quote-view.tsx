@@ -2,6 +2,7 @@
 
 import { SendQuoteForm, type QuoteFormItem } from "@/features/nerp-catalog/components/send-quote-form";
 import { OrderApprovalsPanel } from "@/features/nerp-catalog/components/order-approvals-panel";
+import { ConfirmPaymentCard } from "@/features/nerp-catalog/components/confirm-payment-card";
 
 export type PendingCatalogOrder = {
   id: string;
@@ -10,6 +11,9 @@ export type PendingCatalogOrder = {
   discount: number;
   items: QuoteFormItem[];
   isTeamApproval: boolean;
+  total: number;
+  /** Cliente aprovou o valor e o pagamento chega por fora (loja sem Asaas). */
+  canConfirmPayment: boolean;
 };
 
 interface CatalogOrderQuoteViewProps {
@@ -28,15 +32,19 @@ export function CatalogOrderQuoteView({ order, onSent }: CatalogOrderQuoteViewPr
           WhatsApp e o Astro gera o PIX ou o link.
         </p>
       </div>
-      <SendQuoteForm
-        key={order.id}
-        orderId={order.id}
-        items={order.items}
-        shipping={order.shipping}
-        discount={order.discount}
-        isTeamApproval={order.isTeamApproval}
-        onSent={onSent}
-      />
+      {order.canConfirmPayment ? (
+        <ConfirmPaymentCard orderId={order.id} saleNumber={order.saleNumber} total={order.total} onConfirmed={onSent} />
+      ) : (
+        <SendQuoteForm
+          key={order.id}
+          orderId={order.id}
+          items={order.items}
+          shipping={order.shipping}
+          discount={order.discount}
+          isTeamApproval={order.isTeamApproval}
+          onSent={onSent}
+        />
+      )}
       <OrderApprovalsPanel orderId={order.id} />
     </div>
   );

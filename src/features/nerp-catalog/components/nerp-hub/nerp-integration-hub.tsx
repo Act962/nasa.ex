@@ -32,6 +32,7 @@ import { useNerpCatalogIntegration } from "../../hooks/use-nerp-catalog-integrat
 import { useCheckPermission } from "@/hooks/use-check-permission";
 import { CatalogOnlineSettingsForm } from "./catalog-online-settings-form";
 import { SalesApproversCard } from "./sales-approvers-card";
+import { ErpCarteiraCard } from "@/features/erp-carteira/components/erp-carteira-card";
 
 const CONNECT_URL = `/api/integrations/nerp/start?returnUrl=${encodeURIComponent("/integrations/nerp")}`;
 
@@ -267,6 +268,7 @@ export function NerpIntegrationHub() {
       </Card>
 
       {isConnected && <SalesApproversCard canEdit={canConfigureCatalog} />}
+      {isConnected && <ErpCarteiraCard />}
     </div>
   );
 }

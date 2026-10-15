@@ -485,3 +485,12 @@ dispatchBroadcast
 | `server/lib/assert-broadcast-sendable.ts` | exige mapa cobrindo todas as `{{n}}` do corpo aprovado |
 
 Status (entregue/lido) atualiza a `Message` e o `BroadcastRecipient` pelo mesmo `wamid` — os dois handlers do webhook são independentes. Lead criado pela campanha não dispara workflow NEW_LEAD, rodízio nem IA (spec 0052, D-2); a resposta do contato segue o pipeline inbound normal.
+
+## Disparo de email (spec 0107) — 2026-10-15
+
+- **Modelos:** Campanhas → "Modelos de email" (`/campanhas/email-templates`). Corpo no editor TipTap, com as variáveis `{{primeiro_nome}}`, `{{nome}}`, `{{email}}` e `{{empresa}}`, e "Enviar teste para mim".
+- **Disparo:** em Contatos, selecione os contatos e clique em "Disparar email". O envio (`campanhas.email.createCampaign`) roda no Inngest `campanhas-email-send`, em lotes de 100 pelo Resend (`resend.batch.send`):
+  - **Remetente:** nome da empresa \<`RESEND_FROM_EMAIL`\>.
+  - **Responder para:** quem disparou.
+- **Descadastro:** é obrigatório. O link vai assinado e também no header `List-Unsubscribe`, e cai na página `/email/descadastrar`. Quem se descadastra entra em `EmailUnsubscribe` e nunca mais recebe disparo da empresa.
+- **Depois do envio:** cada contato que recebeu ganha a tag `Email: <campanha>` e o evento `email_sent` na Jornada, sem disparar fluxo.

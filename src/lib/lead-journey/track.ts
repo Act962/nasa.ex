@@ -21,7 +21,12 @@ export type LeadJourneyEventKind =
   | "voice_call"
   /** Aceite ou recusa dos termos pedidos por um fluxo (spec 0099). O texto apresentado fica no `metadata`. */
   | "consent_accepted"
-  | "consent_refused";
+  | "consent_refused"
+  /** Compra e cadastro vindos da carteira do ERP (spec 0106), com a data real. */
+  | "erp_purchase"
+  | "erp_customer_since"
+  /** Recebeu uma campanha de email (spec 0107). */
+  | "email_sent";
 
 export interface TrackLeadEventInput {
   leadId: string;

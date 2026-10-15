@@ -20,6 +20,7 @@ import { listContacts } from "./list-contacts";
 import { contactFilterOptions } from "./contact-filter-options";
 import { addRecipientsFromContacts } from "./add-recipients-from-contacts";
 import { analytics } from "./analytics";
+import { campanhasEmailRouter } from "./email";
 import { quoteFee, checkoutFee, confirmFee, getFeeSettings, updateFeeSettings } from "./self-service/fee";
 import { numberOffer, listNumbers, buyNumber, latestNumberCode, cancelNumber, numberPanel, numberCostSummary, numberCostEntries, notifyNumberPurchaseInterest } from "./self-service/numbers";
 import {
@@ -42,6 +43,8 @@ import {
  * Ver `docs/campanhas-overview.md`.
  */
 export const campanhasRouter = {
+  /** Spec 0107: disparo de email e modelos de email. */
+  email: campanhasEmailRouter,
   listSendingNumbers,
   create,
   list,

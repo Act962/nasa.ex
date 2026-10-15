@@ -86,7 +86,7 @@ export function ProposalsAndBudgetsPanel({
   const { data: leadProducts } = useLeadProducts(leadId);
   const pendingCatalogOrder = useMemo<PendingCatalogOrder | null>(() => {
     const order = leadProducts?.catalogOrders.find(
-      (catalogOrder) => catalogOrder.canSendQuote,
+      (catalogOrder) => catalogOrder.canSendQuote || catalogOrder.canConfirmPayment,
     );
     if (!order) return null;
     return {
@@ -96,6 +96,8 @@ export function ProposalsAndBudgetsPanel({
       discount: order.discount,
       items: order.items,
       isTeamApproval: order.isTeamApproval,
+      total: order.total,
+      canConfirmPayment: order.canConfirmPayment,
     };
   }, [leadProducts]);
 

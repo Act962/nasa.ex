@@ -5,6 +5,50 @@ import type { GuideDef } from "../types";
 
 export const INTEGRATIONS_GUIDES: GuideDef[] = [
   {
+    key: "nerp.erp-carteira.import",
+    app: "nerp",
+    title: "Importar a carteira de clientes do Winthor",
+    summary: "Traga os clientes que já compraram, com dívida, filial e histórico, como leads com tags.",
+    topicPattern: /\b(import\w*|traz\w*|puxa\w*|sincroniz\w*)\b.*\b(carteira|clientes?)\b.*\b(winthor|erp|n ?erp)\b/,
+    steps: [
+      {
+        anchor: "erpCarteiraImportButton",
+        route: "/integrations/nerp",
+        title: "Escolha o funil e clique em Importar carteira",
+        message: "Cada cliente vira lead com as tags de filial, Inadimplente ou Em dia e interesses. Nenhuma mensagem é enviada.",
+        position: "top",
+        advanceOn: "click",
+        missingMessage: "Só administrador vê o card, e ele aparece com o NERP conectado e o Winthor ligado lá.",
+      },
+    ],
+    finish: {
+      title: "Carteira a caminho! 📇",
+      message: "A importação roda em segundo plano e depois se atualiza sozinha todo dia.",
+    },
+  },
+  {
+    key: "nerp.confirm-payment",
+    app: "nerp",
+    title: "Confirmar o pagamento de um pedido do catálogo",
+    summary: "Loja sem Asaas: confirme que o PIX caiu para o pedido seguir para a separação.",
+    topicPattern: /\b(confirm\w*|baix\w*|marc\w*)\b.*\b(pagamento|pago|pix)\b.*\b(pedido|catalogo)\b/,
+    steps: [
+      {
+        anchor: "catalogOrderConfirmPayment",
+        title: "Clique em Confirmar pagamento recebido",
+        message: "Confira antes na conta da loja que o valor entrou. O cliente recebe a confirmação no WhatsApp.",
+        position: "left",
+        advanceOn: "click",
+        missingMessage:
+          "Abra a conversa do cliente, vá na aba Pedido. O botão aparece quando o cliente já aprovou o valor e o pedido não tem cobrança no Asaas.",
+      },
+    ],
+    finish: {
+      title: "Pagamento confirmado! ✅",
+      message: "O pedido segue para a conferência do financeiro e da logística.",
+    },
+  },
+  {
     key: "nerp.send-quote",
     app: "nerp",
     title: "Enviar o valor de um pedido do catálogo",

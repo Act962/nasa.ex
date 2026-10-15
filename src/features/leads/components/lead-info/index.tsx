@@ -19,6 +19,7 @@ import { FieldResponsible } from "./fields/field-responsible";
 import { FieldTags } from "./fields/field-tags";
 import { LeadAddressFields } from "./lead-address-fields";
 import { LeadAuditSection } from "../lead-audit/lead-audit-section";
+import { LeadErpProfileCard } from "@/features/erp-carteira/components/lead-erp-profile-card";
 import { InfoItem } from "./Info-item";
 import { ListHistoric } from "../list-historic";
 import { WhatsappIcon } from "@/components/whatsapp";
@@ -248,6 +249,10 @@ export function LeadInfo({ initialData, className, ...rest }: LeadInfoProps) {
 
           <div className="px-4 pb-4">
             <LeadAuditSection leadId={lead.id} metrics={lead.metrics} />
+          </div>
+
+          <div className="px-4 pb-4 empty:hidden">
+            <LeadErpProfileCard leadId={lead.id} />
           </div>
 
           {/* Details Tabs - Scrollable content inside */}

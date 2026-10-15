@@ -25,6 +25,22 @@ export function EventMetadataPreview({
     );
   }
 
+  if (kind === "erp_purchase") {
+    const amount = Number(metadata.amount ?? 0);
+    const branchName = typeof metadata.branchName === "string" ? metadata.branchName : null;
+    return (
+      <div className="text-xs mt-1 text-muted-foreground">
+        Pedido {String(metadata.orderNumber ?? "")} ·{" "}
+        {amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+        {branchName ? ` · ${branchName}` : ""}
+      </div>
+    );
+  }
+
+  if (kind === "email_sent" && typeof metadata.campaignName === "string") {
+    return <div className="text-xs mt-1 text-muted-foreground">Campanha: {metadata.campaignName}</div>;
+  }
+
   if (kind === "voice_call") {
     const durationSec = Number(metadata.durationSec ?? 0);
     const summary = typeof metadata.summary === "string" ? metadata.summary : "";

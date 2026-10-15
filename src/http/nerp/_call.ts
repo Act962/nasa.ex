@@ -14,6 +14,7 @@ export type CallNerpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export type CallNerpOptions = {
   method?: CallNerpMethod;
+  timeoutMs?: number;
 };
 
 // oRPC's RPCHandler honra o método configurado em `.route({ method })` no nerp.
@@ -52,6 +53,7 @@ export async function callNerpProcedure<TOut, TIn = unknown>(
     method,
     path,
     body: hasInput ? { json: input } : undefined,
+    timeoutMs: options?.timeoutMs,
   });
   return raw.json;
 }

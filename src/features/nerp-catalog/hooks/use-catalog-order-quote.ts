@@ -11,3 +11,14 @@ export function useSendCatalogOrderQuote() {
     }),
   );
 }
+
+export function useConfirmCatalogOrderPayment() {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.nerp.catalogOrders.confirmPayment.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: orpc.leads.listProducts.key() });
+      },
+    }),
+  );
+}

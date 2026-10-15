@@ -74,6 +74,8 @@ import { snapshotMetaDailySpendCron } from "@/inngest/functions/campanhas/snapsh
 import { formSendWhatsappNotification } from "@/inngest/functions/form/send-whatsapp-notification";
 import { chatAiWhatsappAgent, chatAiWhatsappButtonClick } from "@/inngest/functions/chat-ai/whatsapp-agent";
 import { syncCatalogOrderToNerp } from "@/inngest/functions/nerp-catalog/sync-order-to-nerp";
+import { importErpCarteira } from "@/inngest/functions/erp-carteira/import-erp-carteira";
+import { sendEmailCampaign } from "@/inngest/functions/campanhas/send-email-campaign";
 import { awaitReplyTagCheck } from "@/inngest/functions/org-defaults/await-reply-tag";
 import { astroBotInactivityNotice } from "@/inngest/functions/astro-bot/inactivity-notice";
 import { seedSampleContent } from "@/inngest/functions/org-defaults/seed-sample-content";
@@ -194,6 +196,8 @@ export const { GET, POST, PUT } = serve({
     // ── Catálogo online NERP → Órbita: pagamento e confirmação da venda ──
     watchCatalogOrderPayment,
     syncCatalogOrderToNerp,
+    importErpCarteira,
+    sendEmailCampaign,
     awaitReplyTagCheck,
     astroBotInactivityNotice,
     seedSampleContent,

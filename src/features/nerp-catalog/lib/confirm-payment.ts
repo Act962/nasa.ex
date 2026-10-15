@@ -21,6 +21,8 @@ export type ConfirmedPayment = {
   amount: number;
   billingType: string;
   paidAt: string | null;
+  /** "manual": a equipe confirmou na aba Pedido que o PIX/transferência caiu (loja sem Asaas). */
+  source?: "asaas" | "manual";
 };
 
 export async function resendNerpSyncIfPending(orderId: string) {
@@ -93,7 +95,10 @@ export async function confirmCatalogOrderPayment(orderId: string, payment: Confi
         dueDate: paidAt,
         paidAt,
         documentNumber: payment.asaasPaymentId,
-        notes: `Pago via Asaas (${payment.billingType})`,
+        notes:
+          payment.source === "manual"
+            ? "Pagamento confirmado pela equipe na aba Pedido"
+            : `Pago via Asaas (${payment.billingType})`,
         trackingId: order.lead.trackingId,
         leadId: order.lead.id,
       },

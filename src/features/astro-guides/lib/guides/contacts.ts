@@ -5,6 +5,28 @@ const LEAD_PAGE_PATH = "^/contatos/[^/]+";
 
 export const CONTACTS_GUIDES: GuideDef[] = [
   {
+    key: "contacts.email.send",
+    app: "contacts",
+    title: "Disparar email para contatos",
+    summary: "Marque os contatos e envie um modelo de email montado nas Campanhas.",
+    topicPattern: /\b(dispar\w*|envi\w*|mand\w*)\b.*\b(e-?mails?)\b/,
+    steps: [
+      {
+        anchor: "contactsSendEmailButton",
+        route: "/contatos",
+        title: "Marque os contatos e clique em Disparar email",
+        message: "Escolha o modelo e dê um nome à campanha. Quem não tem email ou pediu para sair fica de fora.",
+        position: "top",
+        advanceOn: "click",
+        missingMessage: "Marque pelo menos um contato na lista: a barra com Disparar email aparece embaixo.",
+      },
+    ],
+    finish: {
+      title: "Emails a caminho! ✉️",
+      message: "Cada contato que recebeu ganha a tag da campanha. Os envios aparecem em Campanhas → Modelos de email.",
+    },
+  },
+  {
     key: "contacts.member.create",
     app: "contacts",
     title: "Cadastrar um vinculado do lead",
