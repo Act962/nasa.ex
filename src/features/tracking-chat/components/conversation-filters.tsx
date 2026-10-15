@@ -10,6 +10,11 @@
 
 import { Button } from "@/components/ui/button";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -24,6 +29,7 @@ import {
   ChevronDownIcon,
   EllipsisIcon,
   ListFilterIcon,
+  SearchIcon,
   ShoppingBasket,
 } from "lucide-react";
 import { useUnansweredCounts } from "../hooks/use-unanswered-counts";
@@ -85,6 +91,13 @@ export function ConversationFilters({
   });
 
   const tags = data?.tags ?? [];
+  const [tagSearch, setTagSearch] = useState("");
+  const normalizedTagSearch = normalizeSearchText(tagSearch.trim());
+  const filteredTags = normalizedTagSearch
+    ? tags.filter((tag) =>
+        normalizeSearchText(tag.name).includes(normalizedTagSearch),
+      )
+    : tags;
 
   const toggleTag = (tagId: string) => {
     onSelectedTagIdsChange(
@@ -139,7 +152,11 @@ export function ConversationFilters({
           onClick={() => onArchivedOnlyChange(!archivedOnly)}
         />
 
-        <DropdownMenu>
+        <DropdownMenu
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setTagSearch("");
+          }}
+        >
           <DropdownMenuTrigger asChild>
             <Button
               variant={hasTagSelection ? "default" : "outline"}
@@ -153,6 +170,25 @@ export function ConversationFilters({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-64">
             <DropdownMenuLabel>Filtrar por etiquetas</DropdownMenuLabel>
+            {trackingId && tags.length > 0 && (
+              <InputGroup className="mb-1 h-8">
+                <InputGroupAddon>
+                  <SearchIcon />
+                </InputGroupAddon>
+                <InputGroupInput
+                  autoFocus
+                  value={tagSearch}
+                  onChange={(event) => setTagSearch(event.target.value)}
+                  // O menu do Radix usa as teclas para navegar/typeahead; só o Esc fecha.
+                  onKeyDown={(event) => {
+                    if (event.key !== "Escape") event.stopPropagation();
+                  }}
+                  placeholder="Buscar etiqueta..."
+                  aria-label="Buscar etiqueta"
+                  className="text-xs"
+                />
+              </InputGroup>
+            )}
             <DropdownMenuSeparator />
             {!trackingId ? (
               <div className="px-2 py-3 text-xs text-muted-foreground">
@@ -166,20 +202,26 @@ export function ConversationFilters({
               <div className="px-2 py-3 text-xs text-muted-foreground">
                 Nenhuma etiqueta encontrada.
               </div>
+            ) : filteredTags.length === 0 ? (
+              <div className="px-2 py-3 text-xs text-muted-foreground">
+                Nenhuma etiqueta para &quot;{tagSearch.trim()}&quot;.
+              </div>
             ) : (
-              tags.map((tag) => (
-                <DropdownMenuCheckboxItem
-                  key={tag.id}
-                  checked={selectedTagIds.includes(tag.id)}
-                  onCheckedChange={() => toggleTag(tag.id)}
-                >
-                  <span
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: tag.color ?? "currentColor" }}
-                  />
-                  <span className="truncate">{tag.name}</span>
-                </DropdownMenuCheckboxItem>
-              ))
+              <div className="max-h-64 overflow-y-auto">
+                {filteredTags.map((tag) => (
+                  <DropdownMenuCheckboxItem
+                    key={tag.id}
+                    checked={selectedTagIds.includes(tag.id)}
+                    onCheckedChange={() => toggleTag(tag.id)}
+                  >
+                    <span
+                      className="size-2 rounded-full"
+                      style={{ backgroundColor: tag.color ?? "currentColor" }}
+                    />
+                    <span className="truncate">{tag.name}</span>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </div>
             )}
             {hasTagSelection && (
               <>
@@ -424,6 +466,13 @@ export function ConversationChannelCircles({
       </Link>
     </div>
   );
+}
+
+function normalizeSearchText(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
 }
 
 function QuickFilterButton({
