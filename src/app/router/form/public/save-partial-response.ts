@@ -61,7 +61,7 @@ export const savePartialResponse = base
   )
   .handler(async ({ input, errors }) => {
     try {
-      // Passo 7d do plano de migração: com a flag ligada, roda pelo módulo `form`.
+      // Roda pelo módulo `form`; o caminho abaixo só com FORM_SUBMIT_USE_MODULE=false.
       if (isFormSubmitModuleOn()) {
         try {
           return await savePublicFormDraft({

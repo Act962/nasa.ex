@@ -20,7 +20,7 @@ não altera comportamento.
 | b. Ports e adapters | Escrever em `ports/` o que o fluxo precisa do mundo: um repositório para o que roda **dentro** da transação e uma interface de efeitos para o que roda **depois**. Em `infra/`, implementar copiando as queries e os `try/catch` do handler, sem reescrever | Nada consome ainda; tipos e lint limpos |
 | c. Caso de uso | `application/<verbo>.ts` recebe os ports por parâmetro. Duas fases: gravar dentro da transação e devolver o que falta; executar os efeitos na ordem original | Teste unitário com ports falsos cobrindo cada ramo, sem banco |
 | d. Flag | No handler, um desvio no começo: flag ligada chama o módulo, desligada segue o código antigo, que fica intacto. Um arquivo de teste liga a flag e importa as caracterizações existentes | A mesma suíte passa nos dois caminhos |
-| e. Remoção | Depois de um período em produção com a flag ligada, apagar o caminho antigo, a flag e as reexportações sem consumidor | Handler abaixo de 80 linhas |
+| e. Remoção | Depois de um período em produção com o módulo ativo (no `form`, o módulo virou o padrão já no deploy e a flag ficou só como saída de emergência, `=false`), apagar o caminho antigo, a flag e as reexportações sem consumidor | Handler abaixo de 80 linhas |
 
 ## Regras que o piloto confirmou
 

@@ -354,6 +354,7 @@ testes não há o que mutar).
 
 | Data | O quê |
 | --- | --- |
+| 2026-10-15 | Módulo `form` passou a ser o caminho padrão: as caracterizações do envio rodam pelo módulo sem variável, e `submit-through-module.test.ts` virou `submit-through-legacy-path.test.ts`, que liga `FORM_SUBMIT_USE_MODULE=false` e confere a leitura da variável. Conferido quebrando o módulo de propósito: os 15 casos do salvamento parcial falham no caminho padrão e passam no antigo. |
 | 2026-10-14 | `tests/integration/tenancy/tenancy-guard-batch-1.test.ts`: as cinco procedures do lote 1 com a trava aplicada e só registrando, incluindo vínculos legítimos (várias empresas, participante, membro de workspace). Conferido que os casos entre empresas falham com a trava desligada. O job `arch` ganhou a catraca S5. |
 | 2026-10-14 | Caso de uso do salvamento parcial testado com ports falsos (`save-form-draft.test.ts`). A suíte da flag passa a exercitar também o salvamento parcial pelo módulo. Suíte: 321 unitários, 175 de integração. |
 | 2026-10-13 | **Testes do módulo `form`** (etapa 7). Unitários: matriz da política de edição da spec 0005 (`response-edit-policy.test.ts`, citando os `CB-n`), leitura de tags, identidade do lead e o caso de uso do envio com ports falsos (`submit-form-response.test.ts`). Integração: `tests/integration/form/submit-through-module.test.ts` liga `FORM_SUBMIT_USE_MODULE` e importa as três caracterizações do envio, que assim rodam uma vez por caminho. Suíte: 310 unitários, 175 de integração. |

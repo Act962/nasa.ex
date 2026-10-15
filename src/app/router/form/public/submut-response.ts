@@ -68,8 +68,8 @@ export const submitResponse = base
   )
   .handler(async ({ input, errors }) => {
     try {
-      // Passo 7d do plano de migração: com a flag ligada, o envio roda pelo
-      // módulo `form`. O caminho abaixo fica intacto até a flag ser removida.
+      // O envio roda pelo módulo `form`. O caminho abaixo só roda com
+      // FORM_SUBMIT_USE_MODULE=false (emergência) e sai no passo 7e.
       if (isFormSubmitModuleOn()) {
         try {
           return await submitPublicFormResponse({

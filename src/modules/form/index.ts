@@ -36,9 +36,9 @@ export function savePublicFormDraft(input: SaveFormDraftInput): Promise<SaveForm
 }
 
 /**
- * Liga o envio e o salvamento parcial pelo módulo no lugar do handler de origem (passo 7d do plano de
- * migração). Lida em tempo de execução: desligar não exige novo build.
+ * O envio e o salvamento parcial rodam pelo módulo por padrão. `FORM_SUBMIT_USE_MODULE=false` volta ao
+ * handler de origem, como saída de emergência até o passo 7e. Lida em tempo de execução: não exige novo build.
  */
 export function isFormSubmitModuleOn(): boolean {
-  return process.env.FORM_SUBMIT_USE_MODULE === "true";
+  return process.env.FORM_SUBMIT_USE_MODULE !== "false";
 }
