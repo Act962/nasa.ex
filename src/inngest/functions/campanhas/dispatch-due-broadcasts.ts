@@ -1,8 +1,8 @@
 import { hasStarsCredit } from "@/features/stars/lib/stars-credit";
-import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { beginBroadcastDispatch } from "@/features/campanhas/server/lib/begin-broadcast-dispatch";
 import { notifyBroadcastDeferredWithoutCredit } from "@/features/campanhas/server/lib/notify-broadcast-deferred";
+import type { InlineStep } from "@/inngest/inline-step";
 
 /**
  * Rede de segurança do disparo agendado (Fase 4).
@@ -19,38 +19,34 @@ import { notifyBroadcastDeferredWithoutCredit } from "@/features/campanhas/serve
  * Disparo duplo não é risco: `beginBroadcastDispatch` reivindica a campanha
  * atomicamente, então quem chegar depois não faz nada.
  */
-export const dispatchDueBroadcasts = inngest.createFunction(
-  { id: "campanhas-dispatch-due-broadcasts", retries: 1 },
-  { cron: "*/15 * * * *" },
-  async ({ step }) => {
-    const dueBroadcasts = await step.run("fetch-due-broadcasts", async () => {
-      return prisma.broadcast.findMany({
-        where: { status: "SCHEDULED", scheduledAt: { lte: new Date() } },
-        select: { id: true, organizationId: true },
-        take: 100,
+export async function runDispatchDueBroadcasts(step: InlineStep) {
+  const dueBroadcasts = await step.run("fetch-due-broadcasts", async () => {
+    return prisma.broadcast.findMany({
+      where: { status: "SCHEDULED", scheduledAt: { lte: new Date() } },
+      select: { id: true, organizationId: true },
+      take: 100,
+    });
+  });
+
+  if (dueBroadcasts.length === 0) return { dispatched: 0 };
+
+  let dispatched = 0;
+  for (const broadcast of dueBroadcasts) {
+    const claimed = await step.run(`dispatch-${broadcast.id}`, async () => {
+      // Sem crédito na hora marcada, a campanha fica agendada e sai quando houver recarga (spec 0087, Parte F).
+      if (!(await hasStarsCredit(broadcast.organizationId))) {
+        console.warn(`[campanhas] disparo agendado ${broadcast.id} adiado: empresa sem crédito`);
+        await notifyBroadcastDeferredWithoutCredit(broadcast.id);
+        return false;
+      }
+      return beginBroadcastDispatch({
+        broadcastId: broadcast.id,
+        organizationId: broadcast.organizationId,
+        fromStatuses: ["SCHEDULED"],
       });
     });
+    if (claimed) dispatched++;
+  }
 
-    if (dueBroadcasts.length === 0) return { dispatched: 0 };
-
-    let dispatched = 0;
-    for (const broadcast of dueBroadcasts) {
-      const claimed = await step.run(`dispatch-${broadcast.id}`, async () => {
-        // Sem crédito na hora marcada, a campanha fica agendada e sai quando houver recarga (spec 0087, Parte F).
-        if (!(await hasStarsCredit(broadcast.organizationId))) {
-          console.warn(`[campanhas] disparo agendado ${broadcast.id} adiado: empresa sem crédito`);
-          await notifyBroadcastDeferredWithoutCredit(broadcast.id);
-          return false;
-        }
-        return beginBroadcastDispatch({
-          broadcastId: broadcast.id,
-          organizationId: broadcast.organizationId,
-          fromStatuses: ["SCHEDULED"],
-        });
-      });
-      if (claimed) dispatched++;
-    }
-
-    return { dispatched };
-  },
-);
+  return { dispatched };
+}
