@@ -24,6 +24,7 @@ import { UnifiedHistoryView } from "./unified-history-view";
 import { CreateProposalView } from "../forge-panel";
 import { useLeadProducts } from "@/features/leads/hooks/use-lead-products";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { pickChatCatalogOrders } from "@/features/nerp-catalog/lib/chat-order-actions";
 import {
   CatalogOrderQuoteView,
   type PendingCatalogOrder,
@@ -84,24 +85,28 @@ export function ProposalsAndBudgetsPanel({
   );
 
   const { data: leadProducts } = useLeadProducts(leadId);
-  const pendingCatalogOrder = useMemo<PendingCatalogOrder | null>(() => {
-    const order = leadProducts?.catalogOrders.find(
-      (catalogOrder) => catalogOrder.canSendQuote || catalogOrder.canConfirmPayment,
-    );
-    if (!order) return null;
-    return {
-      id: order.id,
-      saleNumber: order.saleNumber,
-      shipping: order.shipping,
-      discount: order.discount,
-      items: order.items,
-      isTeamApproval: order.isTeamApproval,
-      total: order.total,
-      canConfirmPayment: order.canConfirmPayment,
-    };
-  }, [leadProducts]);
+  const pendingCatalogOrders = useMemo<PendingCatalogOrder[]>(
+    () =>
+      pickChatCatalogOrders(leadProducts?.catalogOrders ?? []).map((order) => ({
+        id: order.id,
+        saleNumber: order.saleNumber,
+        shipping: order.shipping,
+        discount: order.discount,
+        items: order.items,
+        isTeamApproval: order.isTeamApproval,
+        total: order.total,
+        isPaid: order.isPaid,
+        isAwaitingDeliveryChange: order.isAwaitingDeliveryChange,
+        canSendQuote: order.canSendQuote,
+        canConfirmPayment: order.canConfirmPayment,
+      })),
+    [leadProducts],
+  );
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const pendingCatalogOrder =
+    pendingCatalogOrders.find((order) => order.id === selectedOrderId) ?? pendingCatalogOrders[0] ?? null;
 
-  // Pedido do catálogo aguardando valor abre direto na aba "Pedido".
+  // Pedido do catálogo aguardando valor, pagamento ou aprovação dos setores abre direto na aba "Pedido".
   const tab: TabId =
     selectedTab === "pedido" && !pendingCatalogOrder
       ? "rapido"
@@ -180,7 +185,22 @@ export function ProposalsAndBudgetsPanel({
 
           {pendingCatalogOrder && (
             <TabsContent value="pedido" className="m-0 border-none outline-none">
+              {pendingCatalogOrders.length > 1 && (
+                <div className="flex flex-wrap gap-1.5 px-5 pt-3">
+                  {pendingCatalogOrders.map((order) => (
+                    <Button
+                      key={order.id}
+                      size="sm"
+                      variant={order.id === pendingCatalogOrder.id ? "default" : "outline"}
+                      onClick={() => setSelectedOrderId(order.id)}
+                    >
+                      Pedido #{order.saleNumber}
+                    </Button>
+                  ))}
+                </div>
+              )}
               <CatalogOrderQuoteView
+                key={pendingCatalogOrder.id}
                 order={pendingCatalogOrder}
                 onSent={onClose}
               />

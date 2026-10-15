@@ -6,6 +6,7 @@ import { catalogOrderItemSchema } from "@/features/nerp-catalog/schemas/order-pa
 import { isTeamApprovalFlowReady } from "@/features/nerp-catalog/lib/order-quote-actions";
 import { resolveQuoteState } from "@/features/nerp-catalog/lib/order-quote";
 import { canConfirmManualPayment } from "@/features/nerp-catalog/lib/manual-payment";
+import { hasOpenTeamApprovals, isAwaitingDeliveryChange } from "@/features/nerp-catalog/lib/chat-order-actions";
 import type {
   CatalogOrderStatus,
   ForgeContractStatus,
@@ -97,6 +98,9 @@ export const listLeadProducts = base
           internalApprovalStartedAt: true,
           internalApprovedAt: true,
           asaasPaymentId: true,
+          pendingDeliveryChangeAt: true,
+          postPaymentApprovedAt: true,
+          _count: { select: { approvals: { where: { status: "PENDING" } } } },
         },
       }),
       prisma.forgeProposal.findMany({
@@ -153,6 +157,8 @@ export const listLeadProducts = base
         isTeamApproval: canSendQuote && isTeamApproval,
         // Loja sem Asaas: cliente aprovou o valor e o pagamento chega por fora; a equipe confirma na aba Pedido.
         canConfirmPayment: canConfirmManualPayment(order),
+        hasOpenApprovals: hasOpenTeamApprovals({ ...order, pendingApprovalCount: order._count.approvals }),
+        isAwaitingDeliveryChange: isAwaitingDeliveryChange(order),
         items: parsedItems.success
           ? parsedItems.data.map((item) => ({
               name: item.name,
