@@ -13,6 +13,7 @@ import {
   toTemplateParameter,
 } from "../src/features/nerp-catalog/lib/approvals/approval-rules";
 import { buildCustomerQuoteMessage, buildPointsSentence, formatDeliveryDate } from "../src/features/nerp-catalog/lib/approvals/approval-messages";
+import { hasOpenTeamApprovals, isAwaitingDeliveryChange, pickChatCatalogOrders } from "../src/features/nerp-catalog/lib/chat-order-actions";
 import { extractOrderCode } from "../src/features/nerp-catalog/utils/format-order";
 import { extractDocument, isAffirmativeWithoutName, matchConsultants } from "../src/features/workflows/lib/catalog-sales-matching";
 
@@ -134,6 +135,21 @@ check("0104 CB-11 sem código não inventa pedido", extractOrderCode("oi, quero 
 check("0104 CA-2 botão Tenho sim pede o nome", isAffirmativeWithoutName("Tenho sim") && isAffirmativeWithoutName("sim, tenho"));
 check("0104 CA-2 Não tenho e nome não pedem o nome de novo", !isAffirmativeWithoutName("Não tenho") && !isAffirmativeWithoutName("tenho, é o Marcos"));
 check("0104 CB-8 nome completo desempata", matchConsultants("joão lima", consultants).length === 1);
+
+// ── Aba Pedido do chat: quais pedidos aparecem (0104 RF-10)
+const paidOrder = { status: "PAID", pendingApprovalCount: 2, pendingDeliveryChangeAt: null, postPaymentApprovedAt: null };
+check("0104 RF-10 pago com setor pendente aparece", hasOpenTeamApprovals(paidOrder));
+check("0104 RF-10 cancelado com setor pendente não aparece", !hasOpenTeamApprovals({ ...paidOrder, status: "CANCELED" }));
+const adjustedOrder = { status: "PAID", pendingApprovalCount: 0, pendingDeliveryChangeAt: friday, postPaymentApprovedAt: null };
+check("0104 RF-10 prazo ajustado esperando o cliente continua aparecendo", hasOpenTeamApprovals(adjustedOrder) && isAwaitingDeliveryChange(adjustedOrder));
+check("0104 RF-10 prazo aceito pelo cliente sai da aba", !hasOpenTeamApprovals({ ...adjustedOrder, postPaymentApprovedAt: thursday }));
+check("0104 RF-10 conferência concluída sai da aba", !hasOpenTeamApprovals({ ...paidOrder, pendingApprovalCount: 0, postPaymentApprovedAt: thursday }));
+const chatOrders = pickChatCatalogOrders([
+  { saleNumber: 6, canSendQuote: true, canConfirmPayment: false, hasOpenApprovals: false },
+  { saleNumber: 5, canSendQuote: false, canConfirmPayment: false, hasOpenApprovals: true },
+  { saleNumber: 4, canSendQuote: false, canConfirmPayment: false, hasOpenApprovals: false },
+]);
+check("0104 RF-10 pedido novo não esconde a conferência do anterior", chatOrders.map((order) => order.saleNumber).join(",") === "6,5");
 
 console.log(failureCount === 0 ? "\nTudo certo." : `\n${failureCount} falha(s).`);
 process.exit(failureCount === 0 ? 0 : 1);

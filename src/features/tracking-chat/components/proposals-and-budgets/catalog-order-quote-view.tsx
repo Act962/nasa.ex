@@ -12,6 +12,9 @@ export type PendingCatalogOrder = {
   items: QuoteFormItem[];
   isTeamApproval: boolean;
   total: number;
+  isPaid: boolean;
+  /** Um setor mudou o prazo depois do pagamento e o cliente ainda não aceitou. */
+  isAwaitingDeliveryChange: boolean;
   canSendQuote: boolean;
   /** Cliente aprovou o valor e o pagamento chega por fora (loja sem Asaas). */
   canConfirmPayment: boolean;
@@ -22,6 +25,15 @@ interface CatalogOrderQuoteViewProps {
   onSent: () => void;
 }
 
+function describeOrderStep(order: PendingCatalogOrder): string {
+  if (order.canSendQuote || order.canConfirmPayment) {
+    return "Os preços vêm da tabela do NERP (unidade e caixa). Ajuste o valor que vai ofertar; o cliente aprova no WhatsApp e o Astro gera o PIX ou o link.";
+  }
+  if (!order.isPaid) return "Aguardando a aprovação dos setores abaixo.";
+  if (order.isAwaitingDeliveryChange) return "Pagamento recebido. Aguardando o cliente aceitar o novo prazo de entrega.";
+  return "Pagamento recebido. Falta a conferência dos setores abaixo para o cliente receber o acompanhamento com o prazo.";
+}
+
 // Spec 0103, RF-12: o valor do pedido do catálogo negociado sem sair da conversa.
 export function CatalogOrderQuoteView({ order, onSent }: CatalogOrderQuoteViewProps) {
   return (
@@ -29,9 +41,7 @@ export function CatalogOrderQuoteView({ order, onSent }: CatalogOrderQuoteViewPr
       <div>
         <p className="text-sm font-semibold">Pedido #{order.saleNumber} — Catálogo online</p>
         <p className="text-xs text-muted-foreground">
-          {order.canSendQuote || order.canConfirmPayment
-            ? "Os preços vêm da tabela do NERP (unidade e caixa). Ajuste o valor que vai ofertar; o cliente aprova no WhatsApp e o Astro gera o PIX ou o link."
-            : "Pagamento recebido. Falta a conferência dos setores abaixo para o cliente receber o acompanhamento com o prazo."}
+          {describeOrderStep(order)}
         </p>
       </div>
       {order.canConfirmPayment ? (
