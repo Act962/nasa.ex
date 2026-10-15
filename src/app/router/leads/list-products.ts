@@ -3,6 +3,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { requireAppPermission } from "@/app/middlewares/app-permission";
 import { base } from "@/app/middlewares/base";
 import { catalogOrderItemSchema } from "@/features/nerp-catalog/schemas/order-payload";
+import { isTeamApprovalFlowReady } from "@/features/nerp-catalog/lib/order-quote-actions";
 import { resolveQuoteState } from "@/features/nerp-catalog/lib/order-quote";
 import type {
   CatalogOrderStatus,
@@ -75,7 +76,7 @@ export const listLeadProducts = base
     });
     if (!lead) throw errors.NOT_FOUND({ message: "Lead não encontrado" });
 
-    const [catalogOrderRows, forgeProposalRows] = await Promise.all([
+    const [catalogOrderRows, forgeProposalRows, isTeamApproval] = await Promise.all([
       prisma.catalogOrder.findMany({
         where: { leadId: lead.id, organizationId: context.org.id },
         orderBy: { createdAt: "desc" },
@@ -128,9 +129,11 @@ export const listLeadProducts = base
           },
         },
       }),
+      isTeamApprovalFlowReady(context.org.id).catch(() => false),
     ]);
 
     const catalogOrders = catalogOrderRows.map((order) => {
+      const canSendQuote = order.status === "RECEIVED" || order.status === "NEGOTIATING";
       const parsedItems = catalogOrderItemsSchema.safeParse(order.items);
       return {
         id: order.id,
@@ -143,7 +146,9 @@ export const listLeadProducts = base
         shipping: order.shipping.toNumber(),
         discount: order.discount.toNumber(),
         quoteState: resolveQuoteState({ ...order, total: order.total.toNumber() }),
-        canSendQuote: order.status === "RECEIVED" || order.status === "NEGOTIATING",
+        canSendQuote,
+        // Venda guiada (spec 0104): o botão diz "Enviar para aprovação" quando o valor passa pela equipe antes.
+        isTeamApproval: canSendQuote && isTeamApproval,
         items: parsedItems.success
           ? parsedItems.data.map((item) => ({
               name: item.name,

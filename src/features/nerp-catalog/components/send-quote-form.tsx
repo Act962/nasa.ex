@@ -24,6 +24,8 @@ interface SendQuoteFormProps {
   discount: number;
   onSent?: () => void;
   onCancel?: () => void;
+  /** Venda guiada: o valor passa pela equipe antes de ir ao cliente (spec 0104). */
+  isTeamApproval?: boolean;
 }
 
 function parseMoney(text: string): number {
@@ -64,7 +66,7 @@ function toUnitPrice(typedValue: number, mode: PriceMode, boxSize: number | null
 }
 
 // Spec 0103, RF-3/RF-11: o consultor parte do preço do NERP e envia o valor negociado.
-export function SendQuoteForm({ orderId, items, shipping, discount, onSent, onCancel }: SendQuoteFormProps) {
+export function SendQuoteForm({ orderId, items, shipping, discount, isTeamApproval = false, onSent, onCancel }: SendQuoteFormProps) {
   const [priceModes, setPriceModes] = useState<PriceMode[]>(() => items.map(() => "unit"));
   const [priceTexts, setPriceTexts] = useState(() => items.map((item) => toMoneyText(toInitialUnitPrice(item))));
   const [shippingText, setShippingText] = useState(() => toMoneyText(shipping));
@@ -185,10 +187,13 @@ export function SendQuoteForm({ orderId, items, shipping, discount, onSent, onCa
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor={`quote-note-${orderId}`} className="text-xs">Recado ao cliente (opcional)</Label>
-          <Textarea id={`quote-note-${orderId}`} rows={2} maxLength={500} placeholder="Ex.: entrega amanhã pela manhã" value={note} onChange={(event) => setNote(event.target.value)} />
-        </div>
+        {/* Na aprovação da equipe a mensagem ao cliente é a do fluxo: o recado não chegaria. */}
+        {!isTeamApproval && (
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`quote-note-${orderId}`} className="text-xs">Recado ao cliente (opcional)</Label>
+            <Textarea id={`quote-note-${orderId}`} rows={2} maxLength={500} placeholder="Ex.: entrega amanhã pela manhã" value={note} onChange={(event) => setNote(event.target.value)} />
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
@@ -202,7 +207,7 @@ export function SendQuoteForm({ orderId, items, shipping, discount, onSent, onCa
       <div className="flex justify-end gap-2">
         {onCancel && <Button variant="ghost" onClick={onCancel}>Cancelar</Button>}
         <Button onClick={handleSubmit} disabled={!quotePreview.totals || sendQuote.isPending}>
-          {sendQuote.isPending ? "Enviando…" : "Enviar ao cliente"}
+          {sendQuote.isPending ? "Enviando…" : isTeamApproval ? "Enviar para aprovação" : "Enviar ao cliente"}
         </Button>
       </div>
     </div>

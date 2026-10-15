@@ -63,6 +63,11 @@ async function hasActiveTagFlow(organizationId: string, key: CatalogIntentTagKey
   });
 }
 
+/** O valor vai para a aprovação da equipe (e não direto ao cliente)? Mesma regra do `sendOrderQuote` e do botão da tela. */
+export async function isTeamApprovalFlowReady(organizationId: string): Promise<boolean> {
+  return (await hasActiveSalesApprovers(organizationId, "PRE_PAYMENT")) && (await hasActiveTagFlow(organizationId, "quoteInReview"));
+}
+
 // Spec 0103, RF-2: avisa a equipe sem pausar a IA (D-2).
 export async function requestOrderQuote(params: { orderId: string; conversationId: string }) {
   const order = await prisma.catalogOrder.findUniqueOrThrow({
@@ -158,9 +163,7 @@ export async function sendOrderQuote(params: {
 
   // Spec 0104, D-5: com aprovadores, o valor vai para a aprovação da equipe pelo fluxo dos Gatilhos
   // (gatilho "Lead com tag" na tag abaixo); o cliente só recebe depois de aprovado.
-  const isApprovalFlowReady =
-    (await hasActiveSalesApprovers(params.organizationId, "PRE_PAYMENT")) && (await hasActiveTagFlow(params.organizationId, "quoteInReview"));
-  if (isApprovalFlowReady) {
+  if (await isTeamApprovalFlowReady(params.organizationId)) {
     await prisma.catalogOrder.update({ where: { id: order.id }, data: { internalApprovalStartedAt: quotedAt, internalApprovedAt: null } });
     await applyCatalogIntentTag({ organizationId: params.organizationId, leadId: order.leadId, key: "quoteInReview", shouldRetrigger: true });
     return { total: totals.total, isDelivered: false, isAwaitingInternalApproval: true };

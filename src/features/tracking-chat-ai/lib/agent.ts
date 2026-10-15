@@ -34,7 +34,7 @@ import { joinAsSingleMessage, splitForWhatsapp } from "./split-message";
 import { persistOutboundMessage } from "./persist";
 import { buildAgentTools } from "../server/tools";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
-import { buildCatalogOrderPrompt } from "@/features/nerp-catalog/lib/order-context";
+import { buildCatalogOrderPrompt, PRODUCT_CHECK_PROMPT } from "@/features/nerp-catalog/lib/order-context";
 import { deliverTextToLead } from "@/features/nerp-catalog/lib/order-channel";
 
 const RECENT_CLIENT_MESSAGES = 3;
@@ -341,9 +341,10 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     }),
   );
   const baseWithKnowledge = knowledgeBlock ? `${baseSystem}\n\n${knowledgeBlock}` : baseSystem;
-  const baseWithOrder = ctx.catalogOrder
+  const baseWithCatalog = ctx.catalogOrder
     ? `${baseWithKnowledge}\n\n${buildCatalogOrderPrompt(ctx.catalogOrder)}`
     : baseWithKnowledge;
+  const baseWithOrder = ctx.hasProductCheck ? `${baseWithCatalog}\n\n${PRODUCT_CHECK_PROMPT}` : baseWithCatalog;
   const systemPrompt =
     ctx.trigger === "idle-reopen-with-instruction"
       ? `${baseWithOrder}\n\n# Reabertura automática\n\nO lead está ocioso${

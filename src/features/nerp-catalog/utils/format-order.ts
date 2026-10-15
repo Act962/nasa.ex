@@ -49,6 +49,11 @@ export function buildOrderWhatsappUrl(input: {
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
 
+/** Nome com o código logo depois: a equipe acha o produto no ERP sem procurar pelo nome. */
+function itemLabel(item: CatalogOrderItem): string {
+  return item.sku ? `${item.name} (cód. ${item.sku})` : item.name;
+}
+
 export function buildOrderSummaryText(input: {
   saleNumber: number;
   items: CatalogOrderItem[];
@@ -58,15 +63,21 @@ export function buildOrderSummaryText(input: {
   total: number;
   delivery: CatalogOrderDelivery;
 }): string {
-  const itemLines = input.items.map(
-    (item) => `• ${item.quantity}x ${item.name} — ${formatBrl(item.total)}`,
+  // Pedido de orçamento (catálogo sem preço) chega zerado: R$ 0,00 em cada linha só confunde.
+  const isQuoteRequest = input.total <= 0;
+  const itemLines = input.items.map((item) =>
+    isQuoteRequest
+      ? `• ${item.quantity}x ${itemLabel(item)}`
+      : `• ${item.quantity}x ${itemLabel(item)} — ${formatBrl(item.total)}`,
   );
-  const totalLines = [
-    `Subtotal: ${formatBrl(input.subtotal)}`,
-    ...(input.shipping > 0 ? [`Frete: ${formatBrl(input.shipping)}`] : []),
-    ...(input.discount > 0 ? [`Desconto: -${formatBrl(input.discount)}`] : []),
-    `*Total: ${formatBrl(input.total)}*`,
-  ];
+  const totalLines = isQuoteRequest
+    ? ["Valor: a equipe vai enviar"]
+    : [
+        `Subtotal: ${formatBrl(input.subtotal)}`,
+        ...(input.shipping > 0 ? [`Frete: ${formatBrl(input.shipping)}`] : []),
+        ...(input.discount > 0 ? [`Desconto: -${formatBrl(input.discount)}`] : []),
+        `*Total: ${formatBrl(input.total)}*`,
+      ];
   const deliveryLines = [
     ...(input.delivery.method ? [`Entrega: ${input.delivery.method}`] : []),
     ...(input.delivery.address ? [`Endereço: ${input.delivery.address}`] : []),
@@ -93,7 +104,7 @@ export function buildQuoteMessageText(input: {
   note?: string;
 }): string {
   const itemLines = input.items.map(
-    (item) => `• ${item.quantity}x ${item.name} — ${formatBrl(item.total)}`,
+    (item) => `• ${item.quantity}x ${itemLabel(item)} — ${formatBrl(item.total)}`,
   );
   const totalLines = [
     ...(input.shipping > 0 ? [`Frete: ${formatBrl(input.shipping)}`] : []),

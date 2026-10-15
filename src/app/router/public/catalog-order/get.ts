@@ -11,10 +11,15 @@ import type {
 import prisma from "@/lib/prisma";
 import { isCatalogStageKey } from "@/features/nerp-catalog/lib/catalog-stages";
 import { getChargeBlockReason, resolveQuoteState } from "@/features/nerp-catalog/lib/order-quote";
+import { guidedTimelineHint, resolveGuidedTimelineStep } from "@/features/nerp-catalog/lib/guided-timeline";
+import { hasActiveSalesApprovers } from "@/features/nerp-catalog/lib/approvals/order-approvals";
+import { formatDeliveryDate } from "@/features/nerp-catalog/lib/approvals/approval-messages";
 import {
   buildOrderWhatsappUrl,
   toOrderCode,
 } from "@/features/nerp-catalog/utils/format-order";
+
+const VALUE_HIDDEN_STATES = new Set(["no_price", "awaiting_quote", "awaiting_internal_approval"]);
 
 // Público: o token (144 bits aleatórios) é a autorização do cliente.
 // Link do portal pode ser repassado: telefone sai mascarado, só com os 4 últimos dígitos.
@@ -33,15 +38,30 @@ export const getPublicCatalogOrder = base
     const order = await findOrderByPublicToken(input.token);
     if (!order) throw errors.NOT_FOUND({ message: "Pedido não encontrado" });
 
-    const [logisticsStage, integration] = await Promise.all([
+    const [logisticsStage, integration, isGuidedSale] = await Promise.all([
       resolveLogisticsStageName(order),
       prisma.nerpCatalogIntegration.findUnique({
         where: { organizationId: order.organizationId },
         select: { whatsappNumber: true, asaasApiKey: true },
       }),
+      hasActiveSalesApprovers(order.organizationId).catch(() => false),
     ]);
     const isAwaitingPayment = order.status === "AWAITING_PAYMENT";
     const leadStageKey = order.lead.status.systemKey;
+    const stageKey = isCatalogStageKey(leadStageKey) ? leadStageKey : null;
+    const quoteState = resolveQuoteState({ ...order, total: Number(order.total) });
+    // Valor digitado pelo consultor só aparece depois de aprovado pela equipe (spec 0104, Segurança de dados).
+    const isValueHidden = VALUE_HIDDEN_STATES.has(quoteState);
+    const toVisibleMoney = (value: number) => (isValueHidden ? 0 : value);
+    // Venda guiada: a linha do tempo segue o WhatsApp (spec 0104, RF-22), não a coluna do lead.
+    const guidedStep = isGuidedSale
+      ? resolveGuidedTimelineStep({
+          status: order.status,
+          quoteState,
+          stageKey,
+          isPostPaymentApproved: Boolean(order.postPaymentApprovedAt),
+        })
+      : null;
 
     return {
       code: toOrderCode(order.publicToken),
@@ -49,21 +69,31 @@ export const getPublicCatalogOrder = base
       status: order.status,
       logisticsStage,
       // Etapa padrão do pedido (spec 0044); null = tracking sem as colunas padrão, linha do tempo antiga.
-      stageKey: isCatalogStageKey(leadStageKey) ? leadStageKey : null,
+      stageKey,
+      guidedTimeline:
+        guidedStep === null
+          ? null
+          : {
+              step: guidedStep,
+              hint: guidedTimelineHint(
+                guidedStep,
+                order.deliveryPromiseAt ? formatDeliveryDate(order.deliveryPromiseAt) : null,
+              ),
+            },
       store: { name: order.organization.name, logo: order.organization.logo },
       customer: toPortalCustomer(order.customer),
       items: (order.items as CatalogOrderItem[]).map((item) => ({
         name: item.name,
         quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        total: item.total,
+        unitPrice: toVisibleMoney(item.unitPrice),
+        total: toVisibleMoney(item.total),
         imageUrl: item.imageUrl,
       })),
       delivery: order.delivery as CatalogOrderDelivery,
-      subtotal: Number(order.subtotal),
-      shipping: Number(order.shipping),
-      discount: Number(order.discount),
-      total: Number(order.total),
+      subtotal: toVisibleMoney(Number(order.subtotal)),
+      shipping: toVisibleMoney(Number(order.shipping)),
+      discount: toVisibleMoney(Number(order.discount)),
+      total: toVisibleMoney(Number(order.total)),
       catalogUrl: order.catalogUrl,
       whatsappUrl: buildOrderWhatsappUrl({
         whatsappNumber: integration?.whatsappNumber ?? null,
@@ -83,7 +113,7 @@ export const getPublicCatalogOrder = base
           Boolean(integration?.asaasApiKey) &&
           getChargeBlockReason({ ...order, total: Number(order.total) }) === null,
       },
-      quoteState: resolveQuoteState({ ...order, total: Number(order.total) }),
+      quoteState,
       createdAt: order.createdAt,
     };
   });

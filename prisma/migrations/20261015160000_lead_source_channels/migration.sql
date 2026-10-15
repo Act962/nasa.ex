@@ -1,0 +1,4 @@
+-- Spec 0105: canais de origem que antes caíam em OTHER/INSTAGRAM. Só acrescenta valores.
+ALTER TYPE "LeadSource" ADD VALUE IF NOT EXISTS 'FACEBOOK';
+ALTER TYPE "LeadSource" ADD VALUE IF NOT EXISTS 'LINNKER';
+ALTER TYPE "LeadSource" ADD VALUE IF NOT EXISTS 'INSTAGRAM_COMMENT';

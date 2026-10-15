@@ -65,6 +65,10 @@ const GUIDED_SALE_PROMPT = `## Venda guiada (fluxos dos Gatilhos cuidam das etap
 - Se o cliente aprovar o valor ("sim", "fechado", "Fechar pedido"), use \`approve_catalog_order_quote\` e pergunte se prefere PIX ou cartão/boleto.
 - Depois do pagamento, quem avisa a conferência e a entrega é o fluxo: não prometa prazo por conta própria.`;
 
+// Spec 0104, RF-20: vale com ou sem pedido aberto, sempre que a loja tem coordenador no Comercial.
+export const PRODUCT_CHECK_PROMPT = `## Preço e estoque de produto
+Quando o cliente perguntar preço, estoque ou se tem um produto (por texto ou foto) que ainda não tem valor enviado pela equipe, use \`request_product_check\` e responda só: "Tranquilo. Já te mando o valor aqui, só conferindo estoque e preço." Nunca invente preço nem estoque, nem diga que vai "passar para a equipe".`;
+
 export function buildCatalogOrderPrompt(order: ActiveCatalogOrder): string {
   const itemLines = order.items
     .map((item) => `- ${item.quantity}x ${item.name} (${formatBrl(item.unitPrice)} un.) = ${formatBrl(item.total)}`)

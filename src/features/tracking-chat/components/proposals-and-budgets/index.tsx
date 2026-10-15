@@ -95,6 +95,7 @@ export function ProposalsAndBudgetsPanel({
       shipping: order.shipping,
       discount: order.discount,
       items: order.items,
+      isTeamApproval: order.isTeamApproval,
     };
   }, [leadProducts]);
 

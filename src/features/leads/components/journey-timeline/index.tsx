@@ -23,6 +23,7 @@ import {
   type GapSeverity,
 } from "@/features/leads/lib/journey/journey-gaps";
 import { JourneyEventIcon } from "./event-icon";
+import { LEAD_CHANNELS, type LeadChannelKey } from "@/features/leads/lib/lead-channel";
 import { EventMetadataPreview, deriveKindLabel } from "./event-details";
 
 // Jornada do lead como linha do tempo: de onde veio até hoje, com o tempo
@@ -172,6 +173,7 @@ type JourneyLead = {
   metaCampaignId: string | null;
   metaAdId: string | null;
   metaHeadline: string | null;
+  channel: LeadChannelKey;
 };
 
 function OriginCard({ lead }: { lead: JourneyLead }) {
@@ -181,14 +183,20 @@ function OriginCard({ lead }: { lead: JourneyLead }) {
     lead.utmSource && `utm_source ${lead.utmSource}`,
     lead.utmCampaign && `utm_campaign ${lead.utmCampaign}`,
   ].filter(Boolean);
+  const channel = LEAD_CHANNELS[lead.channel];
+  const ChannelIcon = channel.icon;
   return (
     <div className="flex items-start gap-3 rounded-2xl border bg-gradient-to-br from-success/10 to-transparent p-3 animate-in fade-in duration-500">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
-        <Megaphone className="size-4" />
+      <span
+        className="flex size-8 shrink-0 items-center justify-center rounded-full"
+        style={{ backgroundColor: `${channel.color}1f`, color: channel.color }}
+        title={channel.label}
+      >
+        <ChannelIcon className="size-4" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold">
-          Entrou em {dayjs(lead.createdAt).format("DD/MM/YYYY")} · origem {lead.source.toLowerCase().replaceAll("_", " ")}
+          Entrou em {dayjs(lead.createdAt).format("DD/MM/YYYY")} · via {channel.label}
         </p>
         <p className="text-xs text-muted-foreground">
           Há {dayjs(lead.createdAt).fromNow(true)} na jornada{details.length ? ` · ${details.join(" · ")}` : ""}

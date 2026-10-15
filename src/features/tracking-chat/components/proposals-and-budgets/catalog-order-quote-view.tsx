@@ -9,6 +9,7 @@ export type PendingCatalogOrder = {
   shipping: number;
   discount: number;
   items: QuoteFormItem[];
+  isTeamApproval: boolean;
 };
 
 interface CatalogOrderQuoteViewProps {
@@ -33,6 +34,7 @@ export function CatalogOrderQuoteView({ order, onSent }: CatalogOrderQuoteViewPr
         items={order.items}
         shipping={order.shipping}
         discount={order.discount}
+        isTeamApproval={order.isTeamApproval}
         onSent={onSent}
       />
       <OrderApprovalsPanel orderId={order.id} />

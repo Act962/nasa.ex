@@ -68,7 +68,7 @@ export const captureLinnkerLead = base
           phone,
           trackingId,
           statusId: tracking.status[0].id,
-          source: LeadSource.OTHER,
+          source: LeadSource.LINNKER,
           ...trackingToLeadData(t),
         },
       });

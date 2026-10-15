@@ -75,14 +75,14 @@ function buildArrivalFlow(): Blueprint {
       id: "handoff-message",
       type: NodeType.SEND_MESSAGE,
       position: { x: STEP_X * 2, y: -160 },
-      data: textMessage("Show! Já passei seu pedido pro {{vars.consultor.nome}}, ele te chama aqui já já 😉"),
+      data: textMessage("Show! Já passei pro {{vars.consultor.nome}}, ele te chama aqui rapidinho."),
       name: "Avisa que passou ao consultor",
     },
     {
       id: "team-message",
       type: NodeType.SEND_MESSAGE,
       position: { x: STEP_X * 2, y: 160 },
-      data: textMessage("Tranquilo! Já passei seu pedido pra nossa equipe. Em instantes te mando o valor por aqui 😉"),
+      data: textMessage("Tranquilo. Já te mando o valor aqui, só conferindo estoque e preço."),
       name: "Avisa que a equipe vai mandar o valor",
     },
     { id: "credit", type: NodeType.CHECK_CREDIT, position: { x: STEP_X * 3, y: 160 }, data: {}, name: "Crédito (em silêncio)" },
@@ -112,17 +112,12 @@ function buildArrivalFlow(): Blueprint {
 
 function buildQuoteApprovalFlow(templates: ApprovalTemplateNames): Blueprint {
   const quoteText = [
-    "Oi, {{vars.pedido.cliente}}! O valor do seu pedido #{{vars.pedido.numero}} está pronto 😊",
+    "Prontinho, {{vars.pedido.cliente}}! Seu pedido fica {{vars.pedido.total}} 😊",
     "",
-    "- Itens: {{vars.pedido.itens}}",
+    "{{vars.pedido.itens}}",
+    "Entrega: {{vars.pedido.entrega}}",
     "",
-    "- Total: {{vars.pedido.total}}",
-    "",
-    "- Entrega: {{vars.pedido.entrega}}",
-    "",
-    "{{vars.pedido.pontos}}",
-    "",
-    "Podemos fechar?",
+    "{{vars.pedido.pontos}}Fechamos?",
   ].join("\n");
   const nodes: BlueprintNode[] = [
     { id: "trigger", type: NodeType.LEAD_TAGGED, position: { x: 0, y: 0 }, data: tagTrigger("valor-em-aprovacao"), name: "Consultor enviou o valor" },
@@ -137,7 +132,7 @@ function buildQuoteApprovalFlow(templates: ApprovalTemplateNames): Blueprint {
       id: "document",
       type: NodeType.FIND_CUSTOMER_BY_DOCUMENT,
       position: { x: STEP_X * 2, y: -160 },
-      data: { source: "text", question: "Tá quase! Pra eu fechar seu pedido, me passa seu CPF ou CNPJ?", timeoutMinutes: 720, timeoutMode: "customer_window" },
+      data: { source: "text", question: "Tá quase! Me passa seu CPF ou CNPJ pra eu fechar aqui?", timeoutMinutes: 720, timeoutMode: "customer_window" },
       name: "CPF/CNPJ",
     },
     {
@@ -147,7 +142,7 @@ function buildQuoteApprovalFlow(templates: ApprovalTemplateNames): Blueprint {
       data: textMessage(quoteText, {
         templateName: templates.quoteToCustomer,
         languageCode: TEMPLATE_LANGUAGE,
-        bodyParameters: ["{{vars.pedido.cliente}}", "{{vars.pedido.numero}}", "{{vars.pedido.total}}", "{{vars.pedido.entrega}}", "{{vars.pedido.pontos}}"],
+        bodyParameters: ["{{vars.pedido.cliente}}", "{{vars.pedido.numero}}", "{{vars.pedido.total}}", "{{vars.pedido.entrega}}", "{{vars.pedido.pontosTemplate}}"],
       }),
       name: "Valor, prazo e pontos ao cliente",
     },
@@ -206,7 +201,7 @@ function buildPaymentFlow(params: { templates: ApprovalTemplateNames; organizati
       type: NodeType.SEND_MESSAGE,
       position: { x: STEP_X * 3, y: 0 },
       data: textMessage(
-        "Oi, {{vars.pedido.cliente}}! Recebemos o pagamento do pedido #{{vars.pedido.numero}} ({{vars.pedido.total}}) ✅\n\nEstamos conferindo o pedido e já te confirmo a entrega 😉",
+        "Recebi seu pagamento de {{vars.pedido.total}} ✅ Só conferindo o pedido aqui e já te confirmo a entrega.",
         { templateName: templates.paymentInReview, languageCode: TEMPLATE_LANGUAGE, bodyParameters: ["{{vars.pedido.cliente}}", "{{vars.pedido.numero}}", "{{vars.pedido.total}}"] },
       ),
       name: "Estamos conferindo",
@@ -229,7 +224,7 @@ function buildPaymentFlow(params: { templates: ApprovalTemplateNames; organizati
       id: "ask-change",
       type: NodeType.SEND_MESSAGE,
       position: { x: STEP_X * 6, y: -160 },
-      data: textMessage("Oi, {{vars.pedido.cliente}}! A entrega do pedido #{{vars.pedido.numero}} precisou mudar.\n\n- Nova previsão: {{vars.pedido.entrega}}\n\nPode ser assim?", {
+      data: textMessage("{{vars.pedido.cliente}}, a entrega vai ficar pra {{vars.pedido.entrega}}. Pode ser assim?", {
         templateName: templates.deliveryChanged,
         languageCode: TEMPLATE_LANGUAGE,
         bodyParameters: ["{{vars.pedido.cliente}}", "{{vars.pedido.numero}}", "{{vars.pedido.entrega}}"],
@@ -272,7 +267,7 @@ function buildPaymentFlow(params: { templates: ApprovalTemplateNames; organizati
       type: NodeType.SEND_MESSAGE,
       position: { x: STEP_X * 10, y: 0 },
       data: textMessage(
-        "Tudo certo com o pedido #{{vars.pedido.numero}} 🎉\n\n- Entrega prevista: {{vars.pedido.entrega}}\n\nAcompanhe por aqui: {{vars.pedido.link}}",
+        "Tudo certo com seu pedido 🎉 Entrega {{vars.pedido.entrega}}.\n\nAcompanha por aqui: {{vars.pedido.link}}",
         releasedTemplate,
       ),
       name: "Pedido liberado",
