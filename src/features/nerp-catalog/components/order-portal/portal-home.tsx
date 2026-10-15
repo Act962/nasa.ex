@@ -81,10 +81,15 @@ export function PortalHome({
               </p>
             </div>
             <span className="font-semibold whitespace-nowrap">
-              {order.quoteState === "no_price" || order.quoteState === "awaiting_quote" ? "A combinar" : formatBrl(order.total)}
+              {order.quoteState === "no_price" || order.quoteState === "awaiting_quote" || order.quoteState === "awaiting_internal_approval" ? "A combinar" : formatBrl(order.total)}
             </span>
           </div>
-          <OrderStatusTimeline status={order.status} logisticsStage={order.logisticsStage} stageKey={order.stageKey} />
+          <OrderStatusTimeline
+            status={order.status}
+            logisticsStage={order.logisticsStage}
+            stageKey={order.stageKey}
+            guidedTimeline={order.guidedTimeline}
+          />
           {isAwaitingPayment && <OrderPaymentCard payment={order.payment} />}
           {order.payment.canPayWithPix && <OrderPixStartCard token={token} />}
           {PORTAL_QUOTE_NOTICE[order.quoteState] && order.status !== "AWAITING_PAYMENT" && (

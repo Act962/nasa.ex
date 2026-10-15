@@ -62,6 +62,8 @@ async function findOrCreateLead(input: {
   profilePicUrl: string | null;
   firstMessageText: string;
   firstMessageId: string;
+  /** Spec 0105: comentário de post nasce como "Instagram post"; mensagem direta, "Instagram Direct". */
+  source: LeadSource;
 }) {
   const remoteJid = `${input.igScopedUserId}@instagram`;
   const displayName = input.username ? `@${input.username}` : "Instagram";
@@ -93,7 +95,7 @@ async function findOrCreateLead(input: {
       statusId: status.id,
       phone: input.igScopedUserId,
       trackingId: input.trackingId,
-      source: LeadSource.INSTAGRAM,
+      source: input.source,
       order: firstLead ? Number(firstLead.order) - 1 : 0,
       lastInboundAt: new Date(),
       conversation: {
@@ -157,6 +159,7 @@ export const ingestInstagramEventToChat: ChannelEventObserver = async ({ channel
     profilePicUrl: profile?.profile_pic ?? null,
     firstMessageText: event.text,
     firstMessageId: event.externalEventId,
+    source: isComment ? LeadSource.INSTAGRAM_COMMENT : LeadSource.INSTAGRAM,
   });
   if (!lead) return;
 

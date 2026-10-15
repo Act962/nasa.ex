@@ -27,6 +27,7 @@ export const DEFAULT_APPROVAL_TEMPLATES = {
   orderReleased: "pedido_liberado",
   orderReceived: "pedido_recebido",
   orderAwaitingCustomer: "pedido_aguardando_envio",
+  productCheck: "consulta_produto",
   orderSeparated: "pedido_separado",
   readyForPickup: "pedido_pronto_retirada",
   onRoute: "pedido_em_rota",

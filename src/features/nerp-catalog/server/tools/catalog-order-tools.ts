@@ -11,6 +11,7 @@ import {
 } from "../../lib/order-payments";
 import { CatalogPaymentNotConfiguredError } from "../../lib/integration-config";
 import { deliverTextToLead } from "../../lib/order-channel";
+import { signalLeadAwaitingHuman } from "@/features/tracking-chat-ai/lib/awaiting-human";
 import { formatBrl } from "../../utils/format-order";
 import { resolveQuoteState } from "../../lib/order-quote";
 import { applyCatalogIntentTag, approveOrderQuote, CatalogQuoteError, requestOrderQuote } from "../../lib/order-quote-actions";
@@ -22,14 +23,6 @@ type CatalogOrderToolContext = {
 };
 
 function toToolError(error: unknown) {
-  // Configuração da loja não é assunto do cliente: o Astro passa para um humano mandar o pagamento.
-  if (error instanceof CatalogPaymentNotConfiguredError) {
-    return {
-      ok: false,
-      error:
-        "A cobrança automática não está disponível nesta loja. NÃO explique o motivo ao cliente: diga que um atendente vai te mandar o pagamento já já e use `transfer_to_human`.",
-    };
-  }
   if (error instanceof CatalogOrderPaymentError || error instanceof CatalogQuoteError) {
     return { ok: false, error: error.message };
   }
@@ -42,7 +35,23 @@ const documentField = z
   .optional()
   .describe("CPF (11 dígitos) ou CNPJ (14 dígitos) do cliente, se ele acabou de informar");
 
+// Configuração da loja não é assunto do cliente. A equipe é avisada e o Astro segue atendendo:
+// pausá-lo deixava sem resposta a próxima pergunta do cliente.
+const MANUAL_PAYMENT_INSTRUCTION =
+  "A cobrança automática não está disponível nesta loja e a equipe já foi avisada para mandar o pagamento. NÃO explique o motivo e NÃO use `transfer_to_human`: diga que um atendente vai mandar o pagamento já já e continue atendendo o cliente normalmente.";
+
 export function makeCatalogOrderTools(ctx: CatalogOrderToolContext): ToolSet {
+  async function toPaymentToolError(error: unknown) {
+    if (!(error instanceof CatalogPaymentNotConfiguredError)) return toToolError(error);
+    await signalLeadAwaitingHuman({
+      organizationId: ctx.order.organizationId,
+      leadId: ctx.order.leadId,
+      conversationId: ctx.conversationId,
+      reason: "manual_payment",
+    });
+    return { ok: false, error: MANUAL_PAYMENT_INSTRUCTION };
+  }
+
   const tagWantsToPay = () =>
     applyCatalogIntentTag({ organizationId: ctx.order.organizationId, leadId: ctx.order.leadId, key: "wantsToPay" });
 
@@ -161,7 +170,7 @@ export function makeCatalogOrderTools(ctx: CatalogOrderToolContext): ToolSet {
           });
           return { ok: true, sentToCustomer: true, total: pix.total, expiresAt: pix.expiresAt };
         } catch (error) {
-          return toToolError(error);
+          return toPaymentToolError(error);
         }
       },
     }),
@@ -182,7 +191,7 @@ export function makeCatalogOrderTools(ctx: CatalogOrderToolContext): ToolSet {
           });
           return { ok: true, sentToCustomer: true, total: link.total };
         } catch (error) {
-          return toToolError(error);
+          return toPaymentToolError(error);
         }
       },
     }),

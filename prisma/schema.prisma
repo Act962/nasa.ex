@@ -1008,6 +1008,11 @@ enum LeadSource {
   ASTRO_CHAT
   // Pedido vindo do Catálogo online do NERP (integração NERP → Órbita).
   NERP_CATALOG
+  // Spec 0105: canais que antes caíam em OTHER/INSTAGRAM.
+  FACEBOOK
+  LINNKER
+  // Comentário em post do Instagram (o Direct segue como INSTAGRAM).
+  INSTAGRAM_COMMENT
   OTHER
 }
 

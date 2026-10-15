@@ -132,6 +132,7 @@ async function buildOrderVars(orderId: string) {
   });
   const total = Number(order.total);
   const points = await previewPurchaseStars(order.organizationId, total).catch(() => null);
+  const pointsSentence = buildPointsSentence(points);
   const customerDocument = (order.customer as CatalogOrderCustomer).document;
   const previousPurchases = await prisma.catalogOrder.count({
     where: {
@@ -149,7 +150,9 @@ async function buildOrderVars(orderId: string) {
     total: formatBrl(total),
     entrega: formatDeliveryDate(order.pendingDeliveryChangeAt ?? order.deliveryPromiseAt),
     prazoMudou: order.pendingDeliveryChangeAt ? "sim" : "nao",
-    pontos: buildPointsSentence(points) ?? POINTS_TEMPLATE_FALLBACK,
+    // No texto some quando não há pontos; o template não aceita variável vazia, por isso a versão própria.
+    pontos: pointsSentence ? `${pointsSentence}\n\n` : "",
+    pontosTemplate: pointsSentence ?? POINTS_TEMPLATE_FALLBACK,
     link: buildOrderPortalUrl(nerpPublicOrigin(), order.publicToken),
     codigo: order.publicToken,
     observacao: order.deliveryNote ?? "",
@@ -382,7 +385,13 @@ export const findCustomerByDocumentExecutor: NodeExecutor = async ({ nodeId, dat
   const document = reply.kind === "answer" ? extractDocument(reply.text) : null;
   if (!document) {
     if (reply.kind === "answer" && reply.attempt < MAX_ASK_ATTEMPTS && readString(data, "question")) {
-      return askCustomer({ nodeId, scope, text: readString(data, "retryQuestion") ?? "Não consegui ler o número 😅 Me manda só os números do CPF ou CNPJ?", attempt: reply.attempt + 1, data, context });
+      const typedDigits = reply.text.replace(/\D/g, "").length;
+      // Número com cara de CPF/CNPJ que não fecha os dígitos: o cliente digitou errado, não é que não leu.
+      const retryText =
+        typedDigits === 11 || typedDigits === 14
+          ? "Hmm, esse número não bateu 🤔 Confere pra mim o CPF ou CNPJ?"
+          : "Não peguei o número 😅 Me manda só os números do CPF ou CNPJ?";
+      return askCustomer({ nodeId, scope, text: readString(data, "retryQuestion") ?? retryText, attempt: reply.attempt + 1, data, context });
     }
     return { output: { isWaitingCustomer: false, vars: { cliente: { documento: "" } } }, chosenOutput: "no_document" };
   }
@@ -434,7 +443,7 @@ export const routeToConsultantExecutor: NodeExecutor = async ({ nodeId, data, co
 
   // Tocou "Tenho sim" (ou escreveu só isso): pergunta o nome uma vez, já dentro da janela.
   if (reply.kind === "answer" && isAffirmativeWithoutName(reply.text) && reply.attempt < MAX_ASK_ATTEMPTS) {
-    return askCustomer({ nodeId, scope, text: readString(data, "nameQuestion") ?? "Show! Qual o nome dele? 😊", attempt: reply.attempt + 1, data, context });
+    return askCustomer({ nodeId, scope, text: readString(data, "nameQuestion") ?? "Show! Qual o nome dele?", attempt: reply.attempt + 1, data, context });
   }
 
   const consultants = await prisma.trackingConsultant.findMany({

@@ -3,6 +3,7 @@ import { decryptSecret } from "@/lib/crypto";
 import type { ModelMessage } from "ai";
 import type { AiModelConfig } from "./model";
 import { loadActiveCatalogOrder } from "@/features/nerp-catalog/lib/order-context";
+import { hasProductCheckCoordinator } from "@/features/nerp-catalog/lib/approvals/product-check";
 import { getActiveProgram } from "@/features/star-friends/lib/program";
 import { parseAiCapabilities } from "./capabilities";
 import { isAudioTooLong, readAudioTranscription } from "./audio-metadata";
@@ -38,6 +39,7 @@ export async function loadAgentContext(data: AgentEventData) {
     availableButtonPresets,
     catalogOrder,
     starFriendsProgram,
+    hasProductCheck,
   ] = await Promise.all([
     prisma.lead.findUniqueOrThrow({
       where: { id: data.leadId },
@@ -121,6 +123,7 @@ export async function loadAgentContext(data: AgentEventData) {
     }),
     loadActiveCatalogOrder(data.leadId),
     getActiveProgram(data.organizationId),
+    hasProductCheckCoordinator(data.organizationId).catch(() => false),
   ]);
 
   const capabilities = parseAiCapabilities(settings?.capabilities);
@@ -190,6 +193,8 @@ export async function loadAgentContext(data: AgentEventData) {
     idleMinutes: data.idleMinutes,
     modelConfig,
     catalogOrder,
+    // Venda guiada com coordenador no Comercial: "quanto custa esse?" vira consulta a ele (spec 0104, RF-20).
+    hasProductCheck,
     starFriendsProgramName: starFriendsProgram?.name ?? null,
     capabilities,
     availableAgendas,
