@@ -76,3 +76,4 @@ Selecionar contatos em /contatos, clicar em "Disparar email", escolher um modelo
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-15 | Claude | Criada e implementada a pedido do Weydson ("inclua em /contatos o modo Disparar email e crie a parte de montar os modelos"). |
+| 2026-10-15 | Claude | Email montado sem React (o `@tiptap/react` e o React Email não rodam na camada de servidor do Next). Testes: `scripts/erp-carteira-email-qa-check.ts` e `scripts/erp-carteira-email-qa-db.ts` (envio real pelo Resend para delivered@resend.dev, descadastro, inválido, retry sem reenvio; CA-3 e CA-4 passando). |

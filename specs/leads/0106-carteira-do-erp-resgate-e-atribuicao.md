@@ -235,3 +235,4 @@ A equipe faz campanhas de resgate em que cada contato ganha tag, e quem não res
 | --- | --- | --- |
 | 2026-10-15 | Claude | Criada a partir do pedido do Weydson (resgate, inadimplência, comissão compartilhada, só atribuição). |
 | 2026-10-15 | Claude | Aprovada a fase 1 pelo Weydson; escopo `customer:rw`, colunas conferidas no Oracle, CB-2 simplificado, notas de implementação. |
+| 2026-10-15 | Claude | Testes: `scripts/erp-carteira-email-qa-check.ts` (regras puras) e `scripts/erp-carteira-email-qa-db.ts` (importa, reimporta e muda a carteira num funil temporário do banco de desenvolvimento; CA-1 a CA-5 passando). |
