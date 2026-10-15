@@ -2,6 +2,7 @@
 import {
   Bot,
   CalendarDays,
+  Database,
   Facebook,
   FileText,
   Globe,
@@ -35,6 +36,7 @@ export type LeadChannelKey =
   | "LINKEDIN"
   | "GMAIL"
   | "GOOGLE_MAPS"
+  | "ERP"
   | "DEFAULT"
   | "OTHER";
 
@@ -54,6 +56,7 @@ export const LEAD_CHANNELS: Record<LeadChannelKey, { label: string; icon: Lucide
   LINKEDIN: { label: "LinkedIn", icon: Linkedin, color: "#0077B5" },
   GMAIL: { label: "Gmail", icon: Mail, color: "#EA4335" },
   GOOGLE_MAPS: { label: "Google Maps", icon: MapPin, color: "#4285F4" },
+  ERP: { label: "Carteira do ERP", icon: Database, color: "#0ea5e9" },
   DEFAULT: { label: "Cadastro manual", icon: UserPlus, color: "#95a5a6" },
   OTHER: { label: "Outro", icon: Bot, color: "#9b59b6" },
 };

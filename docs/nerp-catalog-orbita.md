@@ -176,3 +176,13 @@ Na matriz de Configurações → Permissões há duas linhas para este módulo:
 - **2026-09-29** — Spec 0044: tracking único com etapas padrão (Novo Pedido → Confirmado → Pagamento confirmado → Separado → Entregue), tags de etapa, avisos animados no portal + WhatsApp, linha do tempo de 5 etapas e botão "Aplicar padrão do sistema". Lead reaproveitado na logística passa a levar o valor do pedido atual; hora do pagamento não vira mais meia-noite UTC.
 - **2026-09-29** — Cliente gera o próprio PIX pela página do pedido (`payWithPix`), sem depender do Astro ligado no tracking. Webhook do Asaas pode apontar para um túnel via `ASAAS_WEBHOOK_PUBLIC_ORIGIN` (teste de PIX real em localhost). Removido o log `[rpc-debug]` que gravava o corpo das mutations `/api/rpc/nerp/*` (vazava a API key do Asaas).
 - **2026-09-28** — Teste ponta a ponta local (NERP `main` + Órbita): `Lead.amount` passa a ser gravado em centavos; configuração recusa tracking sem etapas; atendente responde pelo portal sem WhatsApp; chat e portal renderizam `*negrito*`; o popup de escolha do WhatsApp não aparece em funil que já tem conversas; link de acompanhamento enviado pelo WhatsApp (Uazapi) assim que o pedido chega; contador próprio no botão do canal Catálogo online. No NERP (branch `feat/catalogo-orbita-ajustes-20260928`): sem a fila do Inngest, o checkout entrega o pedido direto ao Órbita.
+
+## Carteira do ERP (spec 0106, fase 1) — 2026-10-15
+
+- **O que faz:** em Integrações → NERP, o card "Carteira de clientes do Winthor" (só admin) importa os clientes que já compraram como leads no funil e etapa escolhidos.
+- **Como:** o Inngest `erp-carteira-import` chama o NERP `erpCarteira.listar` (escopo `customer:rw`) em páginas de 200 e grava, sem disparar fluxo:
+  - `LeadErpProfile`: dívida, última compra, total, filial, consultor e produtos;
+  - tags do grupo "Carteira ERP": Winthor, Filial, Inadimplente/Em dia, Inativo 90d/180d, Interesse;
+  - eventos `erp_purchase` na Jornada.
+- **Atualização diária:** o NERP chama `POST /api/integrations/nerp/erp-carteira` ao fim do sync das 03h, e o Órbita reimporta só quem mudou.
+- **Na ficha do lead:** o bloco "Carteira ERP" mostra o valor da dívida só a admin e financeiro.

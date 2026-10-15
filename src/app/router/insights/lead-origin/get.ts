@@ -104,6 +104,7 @@ export const getLeadOrigin = base
       AGENDA: "Agenda",
       INSTAGRAM: "Instagram Direct",
       INSTAGRAM_COMMENT: "Instagram post",
+      ERP: "Carteira do ERP",
       FACEBOOK: "Facebook",
       LINNKER: "Linnker",
       NERP_CATALOG: "Catálogo online",

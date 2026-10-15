@@ -10,6 +10,8 @@ export type NerpFetchOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
+  /** Sobrescreve o padrão (10 s) para chamadas pesadas, como a carteira do ERP. */
+  timeoutMs?: number;
 };
 
 function resolveBaseUrl(cfg: NerpOrgConfig): string {
@@ -48,7 +50,8 @@ export async function nerpFetch<T>(opts: NerpFetchOptions): Promise<T> {
     secret: opts.cfg.secret,
   });
 
-  const timeoutSignal = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
   const signal = opts.signal
     ? AbortSignal.any([opts.signal, timeoutSignal])
     : timeoutSignal;
@@ -72,7 +75,7 @@ export async function nerpFetch<T>(opts: NerpFetchOptions): Promise<T> {
     if (err instanceof Error && err.name === "TimeoutError") {
       throw new NerpHttpError({
         status: 0,
-        message: `nerp request timed out after ${DEFAULT_TIMEOUT_MS}ms`,
+        message: `nerp request timed out after ${timeoutMs}ms`,
         code: "NERP_TIMEOUT",
       });
     }

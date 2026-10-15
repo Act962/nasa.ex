@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, X } from "lucide-react";
+import { Mail, MessageCircle, X } from "lucide-react";
+import { EmailDispatchDialog } from "@/features/campanhas/components/email/email-dispatch-dialog";
 
 /**
  * Barra que aparece quando há linhas marcadas.
@@ -20,6 +22,7 @@ export function SelectionBar({
   onClear: () => void;
 }) {
   const router = useRouter();
+  const [isEmailOpen, setIsEmailOpen] = useState(false);
   if (count === 0) return null;
 
   const dispatch = () => {
@@ -38,6 +41,10 @@ export function SelectionBar({
           <MessageCircle className="size-4" />
           Disparar mensagens
         </Button>
+        <Button size="sm" variant="outline" onClick={() => setIsEmailOpen(true)}>
+          <Mail className="size-4" />
+          Disparar email
+        </Button>
         <Button
           size="icon-sm"
           variant="ghost"
@@ -47,6 +54,12 @@ export function SelectionBar({
           <X className="size-4" />
         </Button>
       </div>
+      <EmailDispatchDialog
+        open={isEmailOpen}
+        onOpenChange={setIsEmailOpen}
+        leadIds={leadIds}
+        onSent={onClear}
+      />
     </div>
   );
 }

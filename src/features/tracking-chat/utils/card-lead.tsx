@@ -29,4 +29,5 @@ export const LeadSourceColors: Record<
   [LeadSource.FACEBOOK]:    { color: "#1877F2", label: "Facebook" },
   [LeadSource.LINNKER]:     { color: "#0ea5e9", label: "Linnker" },
   [LeadSource.INSTAGRAM_COMMENT]: { color: "#E1306C", label: "Instagram post" },
+  [LeadSource.ERP]: { color: "#0ea5e9", label: "Carteira do ERP" },
 };
