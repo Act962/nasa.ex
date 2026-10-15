@@ -6,10 +6,7 @@ const RUNNING_REFRESH_MS = 5_000;
 export function useErpCarteiraStatus() {
   return useQuery({
     ...orpc.nerp.erpCarteira.status.queryOptions({ input: {} }),
-    refetchInterval: (query) => {
-      const status = query.state.data?.record?.status;
-      return status === "running" || status === "queued" ? RUNNING_REFRESH_MS : false;
-    },
+    refetchInterval: (query) => (query.state.data?.isInProgress ? RUNNING_REFRESH_MS : false),
   });
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { toast } from "sonner";
 import { Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -62,8 +63,9 @@ export function ErpCarteiraCard() {
   if (!statusQuery.data?.canImport) return null;
 
   const report = (record?.report ?? null) as ImportReport | null;
-  const isBusy = record?.status === "running" || record?.status === "queued";
-  const isResuming = record?.status === "failed" && record.mode === "full";
+  const isBusy = !!statusQuery.data?.isInProgress;
+  // Carga completa que parou no meio (falhou ou travou): o botão continua de onde parou.
+  const isResuming = !isBusy && record?.mode === "full" && record.status !== "done" && record.status !== "idle";
 
   const handleImport = () => {
     startImport.mutate(
@@ -86,7 +88,7 @@ export function ErpCarteiraCard() {
           </CardTitle>
           {record && (
             <Badge variant={record.status === "failed" ? "destructive" : "secondary"}>
-              {STATUS_LABEL[record.status] ?? record.status}
+              {isResuming && record.status !== "failed" ? "Parou no meio" : (STATUS_LABEL[record.status] ?? record.status)}
             </Badge>
           )}
         </div>
@@ -166,6 +168,7 @@ export function ErpCarteiraCard() {
             {formatDateTime(record?.lastRefreshAt)}
           </p>
           <Button
+            data-guide={GUIDE_ANCHORS.erpCarteiraImportButton.id}
             onClick={handleImport}
             disabled={!trackingId || !statusId || isBusy || startImport.isPending}
           >

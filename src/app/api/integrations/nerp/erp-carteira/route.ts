@@ -4,6 +4,7 @@ import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import {
   ERP_CARTEIRA_IMPORT_EVENT,
+  isImportInProgress,
   type ErpCarteiraImportEvent,
 } from "@/features/erp-carteira/server/run-import";
 
@@ -18,9 +19,9 @@ export async function POST(request: Request) {
 
   const record = await prisma.erpCarteiraImport.findUnique({
     where: { organizationId },
-    select: { status: true, lastFullAt: true },
+    select: { status: true, lastFullAt: true, updatedAt: true },
   });
-  if (!record?.lastFullAt || record.status === "running") {
+  if (!record?.lastFullAt || isImportInProgress(record)) {
     return NextResponse.json({ queued: false });
   }
 

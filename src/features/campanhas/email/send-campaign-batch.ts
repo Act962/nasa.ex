@@ -95,15 +95,17 @@ export async function sendNextEmailBatch(campaignId: string): Promise<{ hasMore:
   );
   const skipped = recipients.filter((recipient) => !sendable.includes(recipient));
   if (skipped.length > 0) {
-    for (const recipient of skipped) {
-      await prisma.emailCampaignRecipient.update({
-        where: { id: recipient.id },
-        data: {
-          status: "skipped",
-          error: unsubscribedEmails.has(recipient.email) ? "Pediu para não receber" : "Email inválido",
-        },
-      });
-    }
+    await prisma.$transaction(
+      skipped.map((recipient) =>
+        prisma.emailCampaignRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            status: "skipped",
+            error: unsubscribedEmails.has(recipient.email) ? "Pediu para não receber" : "Email inválido",
+          },
+        }),
+      ),
+    );
   }
 
   if (sendable.length > 0) {
@@ -134,18 +136,24 @@ export async function sendNextEmailBatch(campaignId: string): Promise<{ hasMore:
       };
     });
 
-    const result = await resend.batch.send(emails);
+    // Chave por lote: se a gravação abaixo falhar e o step repetir, o Resend devolve o envio já feito em vez
+    // de mandar o mesmo email de novo.
+    const result = await resend.batch.send(emails, {
+      idempotencyKey: `email-campaign-${campaign.id}-${sendable[0]?.id}`,
+    });
     if (result.error) {
       throw new Error(`Resend recusou o lote: ${result.error.message}`);
     }
     const providerIds = result.data?.data ?? [];
     const sentAt = new Date();
-    for (const [index, recipient] of sendable.entries()) {
-      await prisma.emailCampaignRecipient.update({
-        where: { id: recipient.id },
-        data: { status: "sent", sentAt, providerId: providerIds[index]?.id ?? null },
-      });
-    }
+    await prisma.$transaction(
+      sendable.map((recipient, index) =>
+        prisma.emailCampaignRecipient.update({
+          where: { id: recipient.id },
+          data: { status: "sent", sentAt, providerId: providerIds[index]?.id ?? null },
+        }),
+      ),
+    );
     await markLeadsReached(
       campaign.organizationId,
       campaign,

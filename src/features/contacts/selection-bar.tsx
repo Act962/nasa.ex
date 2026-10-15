@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Mail, MessageCircle, X } from "lucide-react";
@@ -41,7 +42,12 @@ export function SelectionBar({
           <MessageCircle className="size-4" />
           Disparar mensagens
         </Button>
-        <Button size="sm" variant="outline" onClick={() => setIsEmailOpen(true)}>
+        <Button
+          size="sm"
+          variant="outline"
+          data-guide={GUIDE_ANCHORS.contactsSendEmailButton.id}
+          onClick={() => setIsEmailOpen(true)}
+        >
           <Mail className="size-4" />
           Disparar email
         </Button>

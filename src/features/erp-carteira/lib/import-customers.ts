@@ -120,28 +120,108 @@ async function syncManagedTags(leadId: string, groupId: string, tagIds: string[]
   }
 }
 
-async function findExistingLead(organizationId: string, customer: ErpCustomer, phone: string | null) {
-  const byCode = await prisma.leadErpProfile.findFirst({
-    where: { organizationId, customerCodes: { has: customer.codigo } },
-    select: { leadId: true },
+type ExistingLead = { id: string; email: string | null; document: string | null };
+
+/**
+ * Tudo o que a página precisa ler, numa leva só (antes eram ~8 consultas por cliente): perfis já importados,
+ * leads por telefone e por documento e as compras que já estão na Jornada.
+ */
+type PageLookup = {
+  leadIdByCode: Map<string, string>;
+  codesByLeadId: Map<string, string[]>;
+  leadByPhone: Map<string, ExistingLead>;
+  leadByDocument: Map<string, ExistingLead>;
+  leadById: Map<string, ExistingLead>;
+  knownOrdersByLeadId: Map<string, Set<string>>;
+  leadsWithCustomerSince: Set<string>;
+};
+
+const LEAD_FIELDS = { id: true, email: true, document: true } as const;
+
+async function loadPageLookup(organizationId: string, customers: ErpCustomer[]): Promise<PageLookup> {
+  const codes = customers.map((customer) => customer.codigo);
+  const phoneVariants = customers.flatMap((customer) => {
+    const phone = pickPhone(customer);
+    return phone ? waIdLookupVariants(phone) : [];
   });
-  if (byCode) return byCode.leadId;
+  const documents = customers.flatMap((customer) => (customer.documento ? [customer.documento] : []));
+
+  const [profiles, leadsByPhone, leadsByDocument] = await Promise.all([
+    prisma.leadErpProfile.findMany({
+      where: { organizationId, customerCodes: { hasSome: codes } },
+      select: { leadId: true, customerCodes: true, lead: { select: LEAD_FIELDS } },
+    }),
+    phoneVariants.length > 0
+      ? prisma.lead.findMany({
+          where: { tracking: { organizationId }, phone: { in: phoneVariants } },
+          orderBy: { createdAt: "asc" },
+          select: { ...LEAD_FIELDS, phone: true },
+        })
+      : [],
+    documents.length > 0
+      ? prisma.lead.findMany({
+          where: { tracking: { organizationId }, document: { in: documents } },
+          orderBy: { createdAt: "asc" },
+          select: LEAD_FIELDS,
+        })
+      : [],
+  ]);
+
+  const lookup: PageLookup = {
+    leadIdByCode: new Map(),
+    codesByLeadId: new Map(),
+    leadByPhone: new Map(),
+    leadByDocument: new Map(),
+    leadById: new Map(),
+    knownOrdersByLeadId: new Map(),
+    leadsWithCustomerSince: new Set(),
+  };
+  for (const profile of profiles) {
+    lookup.codesByLeadId.set(profile.leadId, profile.customerCodes);
+    lookup.leadById.set(profile.leadId, profile.lead);
+    for (const code of profile.customerCodes) lookup.leadIdByCode.set(code, profile.leadId);
+  }
+  // `orderBy createdAt asc`: o primeiro lead visto para um telefone/documento é o mais antigo, e ele vence.
+  for (const lead of leadsByPhone) {
+    if (lead.phone && !lookup.leadByPhone.has(lead.phone)) lookup.leadByPhone.set(lead.phone, lead);
+    lookup.leadById.set(lead.id, lead);
+  }
+  for (const lead of leadsByDocument) {
+    if (lead.document && !lookup.leadByDocument.has(lead.document)) lookup.leadByDocument.set(lead.document, lead);
+    lookup.leadById.set(lead.id, lead);
+  }
+
+  const existingLeadIds = [...lookup.leadById.keys()];
+  if (existingLeadIds.length > 0) {
+    const events = await prisma.leadJourneyEvent.findMany({
+      where: { leadId: { in: existingLeadIds }, kind: { in: [ERP_PURCHASE_EVENT, ERP_CUSTOMER_SINCE_EVENT] } },
+      select: { leadId: true, kind: true, metadata: true },
+    });
+    for (const event of events) {
+      if (event.kind === ERP_CUSTOMER_SINCE_EVENT) {
+        lookup.leadsWithCustomerSince.add(event.leadId);
+        continue;
+      }
+      const orderNumber = (event.metadata as { orderNumber?: unknown } | null)?.orderNumber;
+      if (typeof orderNumber !== "string") continue;
+      const known = lookup.knownOrdersByLeadId.get(event.leadId) ?? new Set<string>();
+      known.add(orderNumber);
+      lookup.knownOrdersByLeadId.set(event.leadId, known);
+    }
+  }
+  return lookup;
+}
+
+function findExistingLead(lookup: PageLookup, customer: ErpCustomer, phone: string | null): ExistingLead | null {
+  const byCode = lookup.leadIdByCode.get(customer.codigo);
+  if (byCode) return lookup.leadById.get(byCode) ?? { id: byCode, email: null, document: null };
   if (phone) {
-    const byPhone = await prisma.lead.findFirst({
-      where: { tracking: { organizationId }, phone: { in: waIdLookupVariants(phone) } },
-      orderBy: { createdAt: "asc" },
-      select: { id: true },
-    });
-    if (byPhone) return byPhone.id;
+    for (const variant of waIdLookupVariants(phone)) {
+      const lead = lookup.leadByPhone.get(variant);
+      if (lead) return lead;
+    }
   }
-  if (customer.documento) {
-    const byDocument = await prisma.lead.findFirst({
-      where: { tracking: { organizationId }, document: customer.documento },
-      orderBy: { createdAt: "asc" },
-      select: { id: true },
-    });
-    if (byDocument) return byDocument.id;
-  }
+  if (customer.documento) return lookup.leadByDocument.get(customer.documento) ?? null;
   return null;
 }
 
@@ -158,16 +238,14 @@ function toDate(value: string | null): Date | null {
   return value ? new Date(value) : null;
 }
 
-async function upsertProfile(
-  organizationId: string,
-  leadId: string,
-  customer: ErpCustomer,
-  syncedAt: Date,
-) {
-  const current = await prisma.leadErpProfile.findUnique({
-    where: { leadId },
-    select: { customerCodes: true },
-  });
+async function upsertProfile(params: {
+  organizationId: string;
+  leadId: string;
+  customer: ErpCustomer;
+  syncedAt: Date;
+  currentCodes: string[];
+}) {
+  const { customer } = params;
   const profileData = {
     branchCode: customer.filial?.codigo ?? null,
     branchName: customer.filial?.nome ?? null,
@@ -184,38 +262,27 @@ async function upsertProfile(
     oldestOverdueAt: toDate(customer.divida?.vencimentoMaisAntigo ?? null),
     interests: customer.interesses,
     lastProducts: customer.ultimosProdutos,
-    syncedAt,
+    syncedAt: params.syncedAt,
   };
   await prisma.leadErpProfile.upsert({
-    where: { leadId },
-    create: { leadId, organizationId, customerCodes: [customer.codigo], ...profileData },
+    where: { leadId: params.leadId },
+    create: { leadId: params.leadId, organizationId: params.organizationId, customerCodes: [customer.codigo], ...profileData },
     update: {
-      customerCodes: [...new Set([...(current?.customerCodes ?? []), customer.codigo])],
+      customerCodes: [...new Set([...params.currentCodes, customer.codigo])],
       ...profileData,
     },
   });
 }
 
 /** Compras novas viram eventos da Jornada na data real; a chave é o número do pedido no ERP. */
-async function addPurchaseEvents(leadId: string, customer: ErpCustomer): Promise<number> {
-  const existing = await prisma.leadJourneyEvent.findMany({
-    where: { leadId, kind: { in: [ERP_PURCHASE_EVENT, ERP_CUSTOMER_SINCE_EVENT] } },
-    select: { kind: true, metadata: true },
-  });
-  const knownOrders = new Set(
-    existing.flatMap((event) => {
-      const metadata = event.metadata as { orderNumber?: unknown } | null;
-      return event.kind === ERP_PURCHASE_EVENT && typeof metadata?.orderNumber === "string"
-        ? [metadata.orderNumber]
-        : [];
-    }),
-  );
-  const hasCustomerSince = existing.some((event) => event.kind === ERP_CUSTOMER_SINCE_EVENT);
-
-  const branchNameByCode = new Map(
-    customer.filial ? [[customer.filial.codigo, customer.filial.nome]] : [],
-  );
-  const newEvents: Prisma.LeadJourneyEventCreateManyInput[] = customer.pedidos
+function buildPurchaseEvents(
+  leadId: string,
+  customer: ErpCustomer,
+  lookup: PageLookup,
+): Prisma.LeadJourneyEventCreateManyInput[] {
+  const knownOrders = lookup.knownOrdersByLeadId.get(leadId) ?? new Set<string>();
+  const branchNameByCode = new Map(customer.filial ? [[customer.filial.codigo, customer.filial.nome]] : []);
+  const events: Prisma.LeadJourneyEventCreateManyInput[] = customer.pedidos
     .filter((order) => !knownOrders.has(order.numero))
     .map((order) => ({
       leadId,
@@ -229,18 +296,19 @@ async function addPurchaseEvents(leadId: string, customer: ErpCustomer): Promise
         branchName: order.filial ? (branchNameByCode.get(order.filial) ?? null) : null,
       },
     }));
-  if (!hasCustomerSince && customer.clienteDesde) {
-    newEvents.push({
+  // Dois códigos do ERP no mesmo lead (CB-2): o segundo não repete pedido nem o "cliente desde".
+  for (const order of customer.pedidos) knownOrders.add(order.numero);
+  lookup.knownOrdersByLeadId.set(leadId, knownOrders);
+  if (!lookup.leadsWithCustomerSince.has(leadId) && customer.clienteDesde) {
+    events.push({
       leadId,
       kind: ERP_CUSTOMER_SINCE_EVENT,
       occurredAt: new Date(customer.clienteDesde),
       metadata: { source: "erp", customerCode: customer.codigo },
     });
+    lookup.leadsWithCustomerSince.add(leadId);
   }
-  if (newEvents.length > 0) {
-    await prisma.leadJourneyEvent.createMany({ data: newEvents });
-  }
-  return newEvents.filter((event) => event.kind === ERP_PURCHASE_EVENT).length;
+  return events;
 }
 
 export async function importErpCustomersPage(input: {
@@ -254,28 +322,31 @@ export async function importErpCustomersPage(input: {
   const report: ImportPageReport = { ...EMPTY_IMPORT_REPORT, read: input.customers.length };
   if (input.customers.length === 0) return report;
 
-  const tagCache = await loadTagCache(input.organizationId);
+  const [tagCache, lookup] = await Promise.all([
+    loadTagCache(input.organizationId),
+    loadPageLookup(input.organizationId, input.customers),
+  ]);
   let nextOrder = await nextOrderInStatus(input.statusId);
   const now = input.now ?? new Date();
+  const journeyEvents: Prisma.LeadJourneyEventCreateManyInput[] = [];
 
   for (const customer of input.customers) {
     try {
       const phone = pickPhone(customer);
-      let leadId = await findExistingLead(input.organizationId, customer, phone);
+      const existing = findExistingLead(lookup, customer, phone);
+      let leadId: string;
 
-      if (leadId) {
-        const lead = await prisma.lead.findUnique({
-          where: { id: leadId },
-          select: { email: true, document: true },
-        });
+      if (existing) {
+        leadId = existing.id;
         // Lead que já existe só ganha o que falta: etapa, responsável e origem ficam (CB-3).
-        await prisma.lead.update({
-          where: { id: leadId },
-          data: {
-            ...(!lead?.email && customer.email ? { email: customer.email } : {}),
-            ...(!lead?.document && customer.documento ? { document: customer.documento } : {}),
-          },
-        });
+        const missing = {
+          ...(!existing.email && customer.email ? { email: customer.email } : {}),
+          ...(!existing.document && customer.documento ? { document: customer.documento } : {}),
+        };
+        if (Object.keys(missing).length > 0) {
+          await prisma.lead.update({ where: { id: leadId }, data: missing });
+          Object.assign(existing, missing);
+        }
         report.updated += 1;
       } else {
         if (!phone && !customer.documento) {
@@ -296,25 +367,35 @@ export async function importErpCustomersPage(input: {
             isActive: true,
             createdAt: toDate(customer.clienteDesde) ?? now,
           },
-          select: { id: true },
+          select: LEAD_FIELDS,
         });
         nextOrder = nextOrder.plus(1);
         leadId = created.id;
+        // Outro código do ERP com o mesmo telefone/documento na página cai neste lead, não num novo.
+        lookup.leadById.set(created.id, created);
+        if (phone) lookup.leadByPhone.set(phone, created);
+        if (customer.documento) lookup.leadByDocument.set(customer.documento, created);
         report.created += 1;
       }
 
-      await upsertProfile(input.organizationId, leadId, customer, input.syncedAt);
-      const tagIds = await ensureTagIds(
-        input.organizationId,
-        tagCache,
-        buildCustomerTags(customer, now),
-      );
+      const currentCodes = lookup.codesByLeadId.get(leadId) ?? [];
+      await upsertProfile({ organizationId: input.organizationId, leadId, customer, syncedAt: input.syncedAt, currentCodes });
+      lookup.codesByLeadId.set(leadId, [...new Set([...currentCodes, customer.codigo])]);
+      lookup.leadIdByCode.set(customer.codigo, leadId);
+
+      const tagIds = await ensureTagIds(input.organizationId, tagCache, buildCustomerTags(customer, now));
       await syncManagedTags(leadId, tagCache.groupId, tagIds);
-      report.purchasesAdded += await addPurchaseEvents(leadId, customer);
+      const events = buildPurchaseEvents(leadId, customer, lookup);
+      journeyEvents.push(...events);
+      report.purchasesAdded += events.filter((event) => event.kind === ERP_PURCHASE_EVENT).length;
     } catch (error) {
       report.failed += 1;
       console.error("[erp-carteira] falha ao importar cliente", customer.codigo, error);
     }
+  }
+
+  if (journeyEvents.length > 0) {
+    await prisma.leadJourneyEvent.createMany({ data: journeyEvents });
   }
   return report;
 }

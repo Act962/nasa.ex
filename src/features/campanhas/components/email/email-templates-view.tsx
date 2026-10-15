@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { toast } from "sonner";
 import { Archive, Mail, Plus, Save, Send } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
@@ -240,7 +241,12 @@ export function EmailTemplatesView() {
               {sendTest.isPending ? <OrbitaSpinner className="size-4" /> : <Send className="size-4" />}
               Enviar teste para mim
             </Button>
-            <Button onClick={handleSave} disabled={!canSubmit || saveTemplate.isPending} className="gap-1.5">
+            <Button
+              data-guide={GUIDE_ANCHORS.emailTemplateSaveButton.id}
+              onClick={handleSave}
+              disabled={!canSubmit || saveTemplate.isPending}
+              className="gap-1.5"
+            >
               {saveTemplate.isPending ? <OrbitaSpinner className="size-4" /> : <Save className="size-4" />}
               Salvar modelo
             </Button>

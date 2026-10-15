@@ -53,15 +53,15 @@ const SINGLE_MESSAGE_MAX_LEN = 700;
  * A resposta inteira numa mensagem só (opção "Responder em uma mensagem só" do funil). Linhas em branco
  * viram quebra simples, para uma lista de horários continuar legível sem virar várias mensagens.
  */
-export function joinAsSingleMessage(text: string): string[] {
+export function joinAsSingleMessage(text: string, maxLength = SINGLE_MESSAGE_MAX_LEN): string[] {
   const joined = text
     .trim()
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{2,}/g, "\n");
   if (!joined) return [];
-  if (joined.length <= SINGLE_MESSAGE_MAX_LEN) return [joined];
+  if (joined.length <= maxLength) return [joined];
   // Corta no fim de uma frase, para não mandar a mensagem pela metade de uma palavra.
-  const cut = joined.slice(0, SINGLE_MESSAGE_MAX_LEN);
+  const cut = joined.slice(0, maxLength);
   const lastSentenceEnd = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("? "), cut.lastIndexOf("! "), cut.lastIndexOf("\n"));
-  return [lastSentenceEnd > SINGLE_MESSAGE_MAX_LEN / 2 ? cut.slice(0, lastSentenceEnd + 1).trim() : cut.trim()];
+  return [lastSentenceEnd > maxLength / 2 ? cut.slice(0, lastSentenceEnd + 1).trim() : cut.trim()];
 }

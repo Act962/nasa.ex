@@ -17,6 +17,16 @@ export type ErpCarteiraImportEvent = { organizationId: string; mode: ErpCarteira
 
 const PAGE_SIZE = 200;
 const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Cada página grava o cursor (e o `updatedAt`). Parada há mais que isto é importação que morreu sem limpar o
+ * status (deploy, Inngest sem resync): sem o corte, o botão e a atualização diária ficariam travados para sempre.
+ */
+const STUCK_AFTER_MS = 20 * 60 * 1000;
+
+export function isImportInProgress(record: { status: string; updatedAt: Date }, now = new Date()): boolean {
+  const isBusyStatus = record.status === "running" || record.status === "queued";
+  return isBusyStatus && now.getTime() - new Date(record.updatedAt).getTime() < STUCK_AFTER_MS;
+}
 
 export type ImportRunSetup = {
   trackingId: string;
@@ -41,7 +51,8 @@ export async function startImportRun(
   const lastPassAt = record.lastRefreshAt ?? record.lastFullAt;
   const mode: ErpCarteiraImportMode =
     requestedMode === "refresh" && lastPassAt ? "refresh" : "full";
-  const isResumingFull = mode === "full" && record.status === "failed" && record.mode === "full";
+  // Carga completa que parou no meio (falhou ou travou) retoma do cursor; a que terminou limpa o cursor.
+  const isResumingFull = mode === "full" && record.mode === "full" && !!record.cursor && record.status !== "done";
   const cursor = isResumingFull ? record.cursor : null;
   const desde =
     mode === "refresh" && lastPassAt ? new Date(lastPassAt.getTime() - DAY_MS).toISOString() : null;

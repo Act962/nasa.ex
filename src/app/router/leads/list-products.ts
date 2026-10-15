@@ -96,6 +96,7 @@ export const listLeadProducts = base
           quoteApprovedAt: true,
           internalApprovalStartedAt: true,
           internalApprovedAt: true,
+          asaasPaymentId: true,
         },
       }),
       prisma.forgeProposal.findMany({

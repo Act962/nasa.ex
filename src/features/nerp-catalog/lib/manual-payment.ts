@@ -8,8 +8,20 @@ export class ManualPaymentError extends Error {}
 
 const AWAITING_PAYMENT_STATUSES = ["NEGOTIATING", "AWAITING_PAYMENT"] as const;
 
-export function canConfirmManualPayment(order: { status: string; quoteApprovedAt: Date | null }): boolean {
-  return !!order.quoteApprovedAt && (AWAITING_PAYMENT_STATUSES as readonly string[]).includes(order.status);
+/**
+ * Pedido com cobrança no Asaas fica de fora: o Asaas confirma sozinho, e confirmar à mão deixaria aquele PIX
+ * aberto para o cliente pagar de novo.
+ */
+export function canConfirmManualPayment(order: {
+  status: string;
+  quoteApprovedAt: Date | null;
+  asaasPaymentId: string | null;
+}): boolean {
+  return (
+    !!order.quoteApprovedAt &&
+    !order.asaasPaymentId &&
+    (AWAITING_PAYMENT_STATUSES as readonly string[]).includes(order.status)
+  );
 }
 
 export async function confirmManualCatalogOrderPayment(params: {
@@ -22,12 +34,13 @@ export async function confirmManualCatalogOrderPayment(params: {
   });
   if (!order) throw new ManualPaymentError("Pedido não encontrado.");
   if (!canConfirmManualPayment(order)) {
-    throw new ManualPaymentError("O pedido ainda não tem valor aprovado pelo cliente, ou já foi pago.");
+    throw new ManualPaymentError(
+      "Este pedido não pode ser confirmado à mão: ainda sem valor aprovado, já pago ou com cobrança no Asaas.",
+    );
   }
 
   const result = await confirmCatalogOrderPayment(order.id, {
-    // Cobrança do Asaas já criada: quita a mesma conta a receber. Sem ela, uma referência própria e única.
-    asaasPaymentId: order.asaasPaymentId ?? `manual-${order.id}`,
+    asaasPaymentId: `manual-${order.id}`,
     amount: order.total.toNumber(),
     billingType: "MANUAL",
     paidAt: new Date().toISOString(),

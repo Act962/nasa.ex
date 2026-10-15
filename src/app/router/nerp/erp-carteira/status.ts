@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { isImportInProgress } from "@/features/erp-carteira/server/run-import";
 import { isOrgAdmin } from "../_access";
 
 // Spec 0106: situação da importação da carteira do ERP (card na integração NERP).
@@ -25,9 +26,10 @@ export const getErpCarteiraStatus = base
           finishedAt: true,
           lastFullAt: true,
           lastRefreshAt: true,
+          updatedAt: true,
         },
       }),
       isOrgAdmin(context.org.id, context.user.id),
     ]);
-    return { canImport, record };
+    return { canImport, record, isInProgress: record ? isImportInProgress(record) : false };
   });

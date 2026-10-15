@@ -101,8 +101,9 @@ export function personalizeEmail(input: {
   return {
     subject: applyEmailVariables(input.subject, input.context, { isHtml: false }),
     html: input.layoutHtml
-      .replace(BODY_MARKER, body)
-      .replace(UNSUBSCRIBE_MARKER, escapeHtml(input.unsubscribeUrl)),
+      // Função como substituto: com string, "$&", "$'" e "$1" no texto do email seriam interpretados.
+      .replace(BODY_MARKER, () => body)
+      .replace(UNSUBSCRIBE_MARKER, () => escapeHtml(input.unsubscribeUrl)),
   };
 }
 

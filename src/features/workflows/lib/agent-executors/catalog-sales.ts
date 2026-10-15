@@ -379,18 +379,29 @@ async function askCustomer(params: {
 
 /**
  * O evento da mensagem pode chegar segundos depois dela (o atendimento junta mensagens seguidas antes de
- * avisar). Se a última mensagem do cliente é anterior à pergunta, ela não é a resposta: ex. "Quero finalizar
- * meu pedido #5", que abre a venda guiada e acordava a pergunta do consultor como se fosse "não tenho".
+ * avisar), então o texto do evento pode ser de antes da pergunta: "Quero finalizar meu pedido #5" acordava a
+ * pergunta do consultor como se fosse "não tenho". A resposta é a última mensagem do cliente DEPOIS da
+ * pergunta; sem nenhuma, o evento não é resposta e o passo segue esperando (`null`).
  */
-async function isReplyOlderThanQuestion(scope: LeadScope, nodeId: string, context: WorkflowContext): Promise<boolean> {
+async function readAnswerAfterQuestion(
+  scope: LeadScope,
+  nodeId: string,
+  context: WorkflowContext,
+  reply: Extract<CustomerReply, { kind: "answer" }>,
+): Promise<Extract<CustomerReply, { kind: "answer" }> | null> {
   const previous = context.nodeOutputs?.[nodeId] as { askedAt?: unknown } | undefined;
-  if (typeof previous?.askedAt !== "string") return false;
-  const lastIncoming = await prisma.message.findFirst({
-    where: { conversation: { leadId: scope.leadId, trackingId: scope.trackingId }, fromMe: false },
+  if (typeof previous?.askedAt !== "string") return reply;
+  const answer = await prisma.message.findFirst({
+    where: {
+      conversation: { leadId: scope.leadId, trackingId: scope.trackingId },
+      fromMe: false,
+      createdAt: { gte: new Date(previous.askedAt) },
+    },
     orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
+    select: { body: true },
   });
-  return !lastIncoming || lastIncoming.createdAt.getTime() < new Date(previous.askedAt).getTime();
+  if (!answer) return null;
+  return { ...reply, text: answer.body?.trim() || reply.text };
 }
 
 // "Buscar cliente por CPF/CNPJ".
@@ -400,11 +411,13 @@ export const findCustomerByDocumentExecutor: NodeExecutor = async ({ nodeId, dat
   if (!scope) return failed("Fluxo sem lead para buscar o cliente.");
 
   const lead = context.lead as Record<string, unknown> | undefined;
-  const reply: CustomerReply =
+  let reply: CustomerReply =
     data.source === "lead" ? { kind: "answer", text: readString(lead, "document") ?? "", attempt: MAX_ASK_ATTEMPTS } : readCustomerReply(nodeId, data, context);
   if (reply.kind === "not_for_me") return keepWaiting(nodeId, context);
-  if (reply.kind === "answer" && data.source !== "lead" && (await isReplyOlderThanQuestion(scope, nodeId, context))) {
-    return keepWaiting(nodeId, context);
+  if (reply.kind === "answer" && data.source !== "lead") {
+    const answer = await readAnswerAfterQuestion(scope, nodeId, context, reply);
+    if (!answer) return keepWaiting(nodeId, context);
+    reply = answer;
   }
   if (reply.kind === "ask") {
     return askCustomer({ nodeId, scope, text: readString(data, "question") ?? "", attempt: reply.attempt, isRetryOfPending: reply.isRetryOfPending, data, context });
@@ -448,7 +461,7 @@ export const findCustomerByDocumentExecutor: NodeExecutor = async ({ nodeId, dat
 export const routeToConsultantExecutor: NodeExecutor = async ({ nodeId, data, context, dryRun }) => {
   const scope = await resolveLeadScope(context);
   if (!scope) return failed("Fluxo sem lead para encaminhar.");
-  const reply = readCustomerReply(nodeId, data, context);
+  let reply = readCustomerReply(nodeId, data, context);
   if (reply.kind === "ask") {
     if (dryRun) return { output: { simulated: true }, chosenOutput: "not_found" };
     return askCustomer({
@@ -462,8 +475,10 @@ export const routeToConsultantExecutor: NodeExecutor = async ({ nodeId, data, co
     });
   }
   if (reply.kind === "not_for_me") return keepWaiting(nodeId, context);
-  if (reply.kind === "answer" && (await isReplyOlderThanQuestion(scope, nodeId, context))) {
-    return keepWaiting(nodeId, context);
+  if (reply.kind === "answer") {
+    const answer = await readAnswerAfterQuestion(scope, nodeId, context, reply);
+    if (!answer) return keepWaiting(nodeId, context);
+    reply = answer;
   }
   // Sem resposta no prazo, ou o cliente já está respondendo outra pergunta: encerra calado (saída sem ligação),
   // para o "já passei pra equipe" não aparecer fora de hora.

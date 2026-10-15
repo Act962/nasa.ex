@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { CheckCircle2 } from "lucide-react";
 import {
   AlertDialog,
@@ -59,7 +60,11 @@ export function ConfirmPaymentCard({
       {canPay ? (
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button className="gap-1.5" disabled={confirmPayment.isPending}>
+            <Button
+              className="gap-1.5"
+              data-guide={GUIDE_ANCHORS.catalogOrderConfirmPayment.id}
+              disabled={confirmPayment.isPending}
+            >
               <CheckCircle2 className="size-4" />
               Confirmar pagamento recebido
             </Button>

@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import {
   ERP_CARTEIRA_IMPORT_EVENT,
+  isImportInProgress,
   type ErpCarteiraImportEvent,
 } from "@/features/erp-carteira/server/run-import";
 import { getNerpConfig } from "../_helpers";
@@ -32,9 +33,9 @@ export const startErpCarteiraImport = base
 
     const current = await prisma.erpCarteiraImport.findUnique({
       where: { organizationId },
-      select: { status: true },
+      select: { status: true, updatedAt: true },
     });
-    if (current?.status === "running") {
+    if (current && isImportInProgress(current)) {
       throw new ORPCError("CONFLICT", { message: "A importação já está em andamento." });
     }
 
@@ -51,7 +52,7 @@ export const startErpCarteiraImport = base
         trackingId: input.trackingId,
         statusId: input.statusId,
         createdById: context.user.id,
-        status: current?.status === "failed" ? "failed" : "queued",
+        status: "queued",
       },
     });
 
