@@ -86,7 +86,8 @@ export function ProposalsAndBudgetsPanel({
   const { data: leadProducts } = useLeadProducts(leadId);
   const pendingCatalogOrder = useMemo<PendingCatalogOrder | null>(() => {
     const order = leadProducts?.catalogOrders.find(
-      (catalogOrder) => catalogOrder.canSendQuote || catalogOrder.canConfirmPayment,
+      (catalogOrder) =>
+        catalogOrder.canSendQuote || catalogOrder.canConfirmPayment || catalogOrder.hasPendingApprovals,
     );
     if (!order) return null;
     return {
@@ -97,11 +98,12 @@ export function ProposalsAndBudgetsPanel({
       items: order.items,
       isTeamApproval: order.isTeamApproval,
       total: order.total,
+      canSendQuote: order.canSendQuote,
       canConfirmPayment: order.canConfirmPayment,
     };
   }, [leadProducts]);
 
-  // Pedido do catálogo aguardando valor abre direto na aba "Pedido".
+  // Pedido do catálogo aguardando valor, pagamento ou aprovação dos setores abre direto na aba "Pedido".
   const tab: TabId =
     selectedTab === "pedido" && !pendingCatalogOrder
       ? "rapido"

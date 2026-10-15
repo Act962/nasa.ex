@@ -97,6 +97,7 @@ export const listLeadProducts = base
           internalApprovalStartedAt: true,
           internalApprovedAt: true,
           asaasPaymentId: true,
+          _count: { select: { approvals: { where: { status: "PENDING" } } } },
         },
       }),
       prisma.forgeProposal.findMany({
@@ -153,6 +154,7 @@ export const listLeadProducts = base
         isTeamApproval: canSendQuote && isTeamApproval,
         // Loja sem Asaas: cliente aprovou o valor e o pagamento chega por fora; a equipe confirma na aba Pedido.
         canConfirmPayment: canConfirmManualPayment(order),
+        hasPendingApprovals: order._count.approvals > 0,
         items: parsedItems.success
           ? parsedItems.data.map((item) => ({
               name: item.name,

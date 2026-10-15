@@ -12,6 +12,7 @@ export type PendingCatalogOrder = {
   items: QuoteFormItem[];
   isTeamApproval: boolean;
   total: number;
+  canSendQuote: boolean;
   /** Cliente aprovou o valor e o pagamento chega por fora (loja sem Asaas). */
   canConfirmPayment: boolean;
 };
@@ -28,13 +29,14 @@ export function CatalogOrderQuoteView({ order, onSent }: CatalogOrderQuoteViewPr
       <div>
         <p className="text-sm font-semibold">Pedido #{order.saleNumber} — Catálogo online</p>
         <p className="text-xs text-muted-foreground">
-          Os preços vêm da tabela do NERP (unidade e caixa). Ajuste o valor que vai ofertar; o cliente aprova no
-          WhatsApp e o Astro gera o PIX ou o link.
+          {order.canSendQuote || order.canConfirmPayment
+            ? "Os preços vêm da tabela do NERP (unidade e caixa). Ajuste o valor que vai ofertar; o cliente aprova no WhatsApp e o Astro gera o PIX ou o link."
+            : "Pagamento recebido. Falta a conferência dos setores abaixo para o cliente receber o acompanhamento com o prazo."}
         </p>
       </div>
       {order.canConfirmPayment ? (
         <ConfirmPaymentCard orderId={order.id} saleNumber={order.saleNumber} total={order.total} onConfirmed={onSent} />
-      ) : (
+      ) : order.canSendQuote ? (
         <SendQuoteForm
           key={order.id}
           orderId={order.id}
@@ -44,7 +46,7 @@ export function CatalogOrderQuoteView({ order, onSent }: CatalogOrderQuoteViewPr
           isTeamApproval={order.isTeamApproval}
           onSent={onSent}
         />
-      )}
+      ) : null}
       <OrderApprovalsPanel orderId={order.id} />
     </div>
   );
