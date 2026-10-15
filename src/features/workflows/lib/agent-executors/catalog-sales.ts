@@ -365,8 +365,32 @@ async function askCustomer(params: {
   await markAwaitingReply({ leadId: params.scope.leadId, trackingId: params.scope.trackingId, nodeId: params.nodeId, timeoutMinutes });
   return {
     status: "WAITING",
-    output: { isWaitingCustomer: true, isQuestionPending, attempt: params.attempt, resumeSameNode: true, eventNames: ["message-incoming"], timeoutMinutes },
+    output: {
+      isWaitingCustomer: true,
+      isQuestionPending,
+      attempt: params.attempt,
+      resumeSameNode: true,
+      eventNames: ["message-incoming"],
+      timeoutMinutes,
+      askedAt: new Date().toISOString(),
+    },
   };
+}
+
+/**
+ * O evento da mensagem pode chegar segundos depois dela (o atendimento junta mensagens seguidas antes de
+ * avisar). Se a última mensagem do cliente é anterior à pergunta, ela não é a resposta: ex. "Quero finalizar
+ * meu pedido #5", que abre a venda guiada e acordava a pergunta do consultor como se fosse "não tenho".
+ */
+async function isReplyOlderThanQuestion(scope: LeadScope, nodeId: string, context: WorkflowContext): Promise<boolean> {
+  const previous = context.nodeOutputs?.[nodeId] as { askedAt?: unknown } | undefined;
+  if (typeof previous?.askedAt !== "string") return false;
+  const lastIncoming = await prisma.message.findFirst({
+    where: { conversation: { leadId: scope.leadId, trackingId: scope.trackingId }, fromMe: false },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  return !lastIncoming || lastIncoming.createdAt.getTime() < new Date(previous.askedAt).getTime();
 }
 
 // "Buscar cliente por CPF/CNPJ".
@@ -379,6 +403,9 @@ export const findCustomerByDocumentExecutor: NodeExecutor = async ({ nodeId, dat
   const reply: CustomerReply =
     data.source === "lead" ? { kind: "answer", text: readString(lead, "document") ?? "", attempt: MAX_ASK_ATTEMPTS } : readCustomerReply(nodeId, data, context);
   if (reply.kind === "not_for_me") return keepWaiting(nodeId, context);
+  if (reply.kind === "answer" && data.source !== "lead" && (await isReplyOlderThanQuestion(scope, nodeId, context))) {
+    return keepWaiting(nodeId, context);
+  }
   if (reply.kind === "ask") {
     return askCustomer({ nodeId, scope, text: readString(data, "question") ?? "", attempt: reply.attempt, isRetryOfPending: reply.isRetryOfPending, data, context });
   }
@@ -435,6 +462,9 @@ export const routeToConsultantExecutor: NodeExecutor = async ({ nodeId, data, co
     });
   }
   if (reply.kind === "not_for_me") return keepWaiting(nodeId, context);
+  if (reply.kind === "answer" && (await isReplyOlderThanQuestion(scope, nodeId, context))) {
+    return keepWaiting(nodeId, context);
+  }
   // Sem resposta no prazo, ou o cliente já está respondendo outra pergunta: encerra calado (saída sem ligação),
   // para o "já passei pra equipe" não aparecer fora de hora.
   if (reply.kind === "timeout" || (await isQuestionSuperseded(scope, nodeId))) {
