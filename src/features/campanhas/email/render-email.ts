@@ -1,19 +1,6 @@
 // Spec 0107: corpo do modelo (TipTap) → HTML do email, com variáveis por destinatário e rodapé de descadastro.
 import "server-only";
-import {
-  Body,
-  Container,
-  Head,
-  Hr,
-  Html,
-  Link,
-  Preview,
-  Section,
-  Tailwind,
-  Text,
-  render,
-} from "@react-email/components";
-import { convertJsonToHtml } from "@/lib/json-to-html";
+import { tiptapJsonToEmailHtml } from "./tiptap-to-html";
 import { EMAIL_TEMPLATE_VARIABLES, type EmailVariableKey } from "./variables";
 
 export type EmailRecipientContext = { name: string; email: string; orgName: string };
@@ -57,37 +44,41 @@ export function applyEmailVariables(
   });
 }
 
-function CampaignEmailLayout({ previewText, orgName }: { previewText: string; orgName: string }) {
-  return (
-    <Html>
-      <Head />
-      <Preview>{previewText}</Preview>
-      <Tailwind>
-        <Body className="bg-[#fafafa] my-auto mx-auto font-sans px-2">
-          <Container className="border border-solid border-[#e5e5e5] rounded-lg my-10 mx-auto p-8 max-w-[560px] bg-white">
-            <Section className="text-[#0a0a0a] text-[15px] leading-[26px]">{BODY_MARKER}</Section>
-            <Hr className="border border-solid border-[#e5e5e5] my-6 mx-0 w-full" />
-            <Text className="text-[#737373] text-[12px] leading-[20px] text-center">
-              Você recebeu este email de <strong>{orgName}</strong>.{" "}
-              <Link href={UNSUBSCRIBE_MARKER} className="text-[#737373] underline">
-                Não quero mais receber
-              </Link>
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
-  );
-}
-
 /** HTML do corpo do modelo, ainda com as variáveis `{{...}}` (o que fica congelado na campanha). */
 export function templateBodyToHtml(bodyJson: unknown): string {
-  return convertJsonToHtml(bodyJson as Parameters<typeof convertJsonToHtml>[0]);
+  return tiptapJsonToEmailHtml(bodyJson);
 }
 
-/** Layout renderizado uma vez por campanha; `personalizeEmail` preenche cada destinatário. */
-export async function renderCampaignLayout(input: { previewText: string; orgName: string }) {
-  return render(<CampaignEmailLayout previewText={input.previewText} orgName={input.orgName} />);
+/**
+ * Layout renderizado uma vez por campanha; `personalizeEmail` preenche cada destinatário. HTML puro com estilo
+ * inline (o que os clientes de email entendem) e sem React: o `react-dom/server` do React Email não roda na
+ * camada de servidor do Next, onde o disparo e o "enviar teste" executam.
+ */
+export async function renderCampaignLayout(input: { previewText: string; orgName: string }): Promise<string> {
+  const preview = escapeHtml(input.previewText);
+  const orgName = escapeHtml(input.orgName);
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${preview}</title>
+</head>
+<body style="margin:0;padding:0;background:#fafafa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<div style="display:none;max-height:0;overflow:hidden;">${preview}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;">
+<tr><td align="center" style="padding:40px 8px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e5e5;border-radius:8px;">
+<tr><td style="padding:32px;color:#0a0a0a;font-size:15px;line-height:26px;">${BODY_MARKER}</td></tr>
+<tr><td style="padding:0 32px;"><hr style="border:none;border-top:1px solid #e5e5e5;margin:0;"></td></tr>
+<tr><td style="padding:20px 32px 28px;color:#737373;font-size:12px;line-height:20px;text-align:center;">
+Você recebeu este email de <strong>${orgName}</strong>. <a href="${UNSUBSCRIBE_MARKER}" style="color:#737373;text-decoration:underline;">Não quero mais receber</a>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
 }
 
 export function personalizeEmail(input: {
