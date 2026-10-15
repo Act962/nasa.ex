@@ -456,7 +456,9 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
           voiceName: ctx.capabilities.voiceName,
         });
       }
-      const parts = ctx.capabilities.singleMessageReply ? joinAsSingleMessage(aiResult.text) : splitForWhatsapp(aiResult.text);
+      // Pedido do catálogo em andamento: uma mensagem só, sempre. Picotada, a venda guiada vira rajada de mensagens.
+      const isSingleMessage = ctx.capabilities.singleMessageReply || !!ctx.catalogOrder;
+      const parts = isSingleMessage ? joinAsSingleMessage(aiResult.text) : splitForWhatsapp(aiResult.text);
       for (let i = 0; i < parts.length; i++) {
         const chunk = parts[i];
         if (ctx.catalogOrder) {

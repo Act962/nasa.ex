@@ -29,6 +29,27 @@ function toBrasiliaNowText(now: Date): string {
   }).format(now);
 }
 
+const CALENDAR_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * "quinta-feira 15/10/2026, sexta-feira 16/10/2026, …". Sem a lista o modelo calculava o dia da semana
+ * sozinho e errava ("segunda às 10" numa quinta virou sábado).
+ */
+export function buildCalendarText(now: Date): string {
+  const formatter = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  return Array.from({ length: CALENDAR_DAYS }, (_, index) => {
+    const label = formatter.format(new Date(now.getTime() + index * DAY_MS));
+    return index === 0 ? `${label} (hoje)` : index === 1 ? `${label} (amanhã)` : label;
+  }).join("\n");
+}
+
 export async function extractDeliveryDate(params: {
   organizationId: string;
   text: string;
@@ -44,6 +65,11 @@ export async function extractDeliveryDate(params: {
         prompt: `Agora é ${toBrasiliaNowText(now)} (horário de Brasília).
 Uma pessoa da equipe da loja escreveu sobre a entrega de um pedido. Diga quando a entrega acontece.
 Não invente: se o texto não fala de data ou prazo, responda hasDeliveryDate=false.
+Dia da semana citado ("segunda", "sexta") é o próximo com esse nome na lista abaixo, a partir de amanhã.
+Use SEMPRE a data da lista; não calcule o dia da semana por conta própria.
+
+Próximos dias:
+${buildCalendarText(now)}
 
 Texto: """${params.text.slice(0, 500)}"""`,
         maxOutputTokens: 200,
