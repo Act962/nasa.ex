@@ -5,7 +5,7 @@ dominio: workflows
 status: rascunho
 autor: Weydson
 criada: 2026-10-08
-atualizada: 2026-10-08
+atualizada: 2026-10-09
 branch: feature/W-orbita-correcoes-api-oficial-e-gatilhos-20261008
 pr: # preenchido no /ship
 peso: completa
@@ -67,6 +67,42 @@ usa "Decisão da IA" a cada mensagem recebida porque o modo rápido não tem con
 
 Nenhum desses furos foi reproduzido em produção: são leitura de código. O primeiro passo da
 implementação é reproduzir cada um (seção 8).
+
+### 1.4 Achados em produção (09/10/2026)
+
+Depois do merge da fatia F-1 (PR 450), o fluxo foi ligado em produção no tracking API OFICIAL
+da Pleno Car e observado com mensagens reais. Diferente da seção 1.3, tudo aqui foi **visto em
+runtime**, no histórico de execuções.
+
+**Validação de F-1 (CA-1)**: às 19:49 um lead novo ("LH Envelopamento", origem WhatsApp) mandou
+"Fiquei interessado no curso" e o workflow `m348am3jqrfg0krgkscclykv` rodou os cinco passos com
+sucesso em instância `META_CLOUD`: `MESSAGE_INCOMING → IF_CONDITION → SEND_MESSAGE → TAG →
+SEND_MESSAGE`. O envio de texto livre pela API Oficial, com janela aberta, funciona.
+
+| # | Achado | Evidência |
+| --- | --- | --- |
+| F-6 | E-mail de automação não sai em produção | Workflow "Notificação Novo Lead Pleno Car" (`NEW_LEAD → SEND_EMAIL`), execução de 19:49: passo `SEND_EMAIL` falhou com `This API key is not authorized to send emails from nasaagents.com`. O remetente vem de `RESEND_FROM_EMAIL ?? "noreply@nasaagents.com"` (`src/features/workflows/lib/agent-executors/email.ts`). É configuração do Resend/ambiente (domínio não verificado para a chave em uso, ou `RESEND_FROM_EMAIL` ausente), não do workflow |
+| F-7 | Passo "Enviar e-mail" não tem campo de destinatário em tela nenhuma | No modo rápido, `quick-step-fields.tsx` (caso `SEND_EMAIL`) só mostra assunto e texto; `toEmail` fica no padrão `{{lead.email}}` do `quick-catalog.ts`. No editor em canvas o nó aparece como um retângulo branco, sem rótulo e sem diálogo de configuração. O executor já aceita `action.toEmail` fixo — só a montagem por descrição consegue gravá-lo |
+| F-8 | Montagem por descrição cria `IF_CONDITION` sem condição utilizável na tela | Pedindo "se a mensagem contém X", o rascunho gravou `data.condition = { op: "contains", left: "vars.lastIncomingMessage", right: "…" }`, mas o diálogo do nó lê `data.conditions[]` e abriu **vazio**. Foi preciso adicionar à mão `trigger.messageText contém …`. Hoje o nó guarda os dois formatos; falta confirmar qual o executor avalia e unificar |
+| F-9 | Execução aparece como `SUCCESS` com passo `FAILED` | Execução de 19:47 (lead "Weydson Lima"): `SEND_MESSAGE` falhou com `Lead is not active`, os passos seguintes não rodaram, e a execução ficou com `status: SUCCESS`, `nodesExecuted: 3`. Quem olha a lista de execuções não vê que o lead ficou sem resposta |
+| F-10 | "IA desativada" no lead bloqueia toda automação, sem aviso | `Lead.isActive = false` (chave "Ativar IA" do chat, ou `api/chat/ia/deactive`) faz `send-text-message`, `send-link-to-lead`, `send-buttons-to-lead` e `send-template-to-lead` lançarem `Lead is not active`. Pode ser intencional (atendimento humano assumiu), mas a tela não diz que desligar a IA também desliga os gatilhos, e a tag e os demais passos não-WhatsApp deixam de rodar junto |
+
+Observação sem diagnóstico: o mesmo lead inativo recebeu "Bom dia! Como posso ajudá-lo hoje?"
+às 19:47 (era noite). Não veio dos workflows criados para o curso nem do workflow "Sem título"
+(`PRIMEIRA INTERAÇÃO DO DIA → MENU DE BOTÕES`), que não registrou execução. Origem a investigar
+— se for a IA do chat, ela respondeu a um lead com `isActive = false`.
+
+Estado de produção em 09/10, além da seção 1.2:
+
+- Reel publicado às 18h; automação do Comments ativa, responde a **qualquer** comentário com
+  DM + botão "Falar no WhatsApp" (`wa.me/558695434656`, o número como a Meta registra).
+- Workflow "Resposta a Interesse no Curso" (`m348am3jqrfg0krgkscclykv`) **ativo**: condição
+  `trigger.messageText contém "interessado no curso"` → saudação → tag "Interesse no Curso" →
+  link do curso.
+- Workflow "Notificação Novo Lead Pleno Car" **ativo**, falhando por F-6.
+- Sobraram inativos, para apagar: "Aviso de novo lead por e-mail" (`y697qhn8bbqiumo59a831yio`,
+  destinatário errado) e "Responder Interesse no Curso" (`i1j2mq083olbttkn3clp5l6b`, com
+  Decisão da IA).
 
 ## 2. Objetivo
 
@@ -289,3 +325,4 @@ a "Decisão da IA" pelo filtro) e fazer um teste real ponta a ponta com o númer
 | 2026-10-08 | João | Fatia 1 (F-1) implementada: executores de envio pela porta de provedores. Template deixou de ser não-objetivo (RF-11, CA-13–15, D-9); janela conferida antes do envio (RF-12, D-8). F-5 e fatias 2–3 seguem pendentes. **Não validado em runtime** — CA-1, CA-2, CA-3 e CA-13–15 ainda precisam de teste manual |
 | 2026-10-08 | João | RF-13: demais envios automáticos (inatividade, agenda, formulário, lembretes, IA do chat, Astro, workspace, notificação administrativa) pela porta de provedores (CA-16, CA-17, CB-21–23). **Não validado em runtime** |
 | 2026-10-08 | João | Decisões do João: template reserva (RF-14), template no modo rápido (RF-15), avisos internos sem template global (RF-16): o passo de workspace ganhou seletor de template do cliente; lembrete e notificações não são enviados na API Oficial e ficam pendentes; botões/listas ficam para depois. CA-18–20, CB-24–26, D-11. **Não validado em runtime** |
+| 2026-10-09 | Weydson | Seção 1.4: achados em produção. F-1 validado em runtime (CA-1) com lead real; novos furos F-6 (remetente de e-mail não autorizado), F-7 (e-mail sem campo de destinatário), F-8 (condição vazia na montagem por descrição), F-9 (execução SUCCESS com passo FAILED), F-10 (IA desativada bloqueia gatilhos sem aviso). Ainda sem requisitos nem critérios de aceite — a priorizar |
