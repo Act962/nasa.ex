@@ -137,3 +137,4 @@ Todo post programado ou "publicar agora" sai na conta escolhida, no horário (�
 | --- | --- | --- |
 | 2026-10-04 | Weydson | Criada |
 | 2026-10-04 | Weydson | Aprovada e implementada (Fase 1). Programar não cancela por evento: a troca de `scheduleVersion` impede a execução antiga de publicar. |
+| 2026-10-14 | Weydson | Carrossel com vídeo: os itens são criados num passo próprio e o carrossel só é montado depois que todos os vídeos ficam prontos na Meta (antes, falhava com "mídia não está pronta" nas 3 tentativas). |
