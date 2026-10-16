@@ -197,7 +197,7 @@ O time já suspeitava: existem `scripts/diag-cross-org.ts` e `scripts/seed-cross
 
 | | |
 | --- | --- |
-| **Status** | ⬜ |
+| **Status** | ✅ 2026-10-16 ([spec 0112](../specs/security/0112-importacao-com-login-e-entrada-de-leads-mapeada.md)). Não era integração de terceiros: o único chamador é a tela Configurações → Integração. As duas procedures exigem login e usam o e-mail da sessão, sem receber e-mail na entrada. Limite de chamadas dispensado: só o próprio usuário logado importa a própria conta. Pendente: restringir por papel no servidor (hoje só a tela restringe a Master, Adm e Moderador) |
 | **Arquivos** | `src/app/router/integrations/new-nasa-partial.ts:56` · `new-nasa-total.ts:72` (492 L) |
 | **Impacto** | DoS de escrita; criação de orgs em massa; vinculação indevida de membro por e-mail |
 
@@ -206,10 +206,10 @@ criando **Organization + Member + Trackings + Status + Tags**. Sem rate limit.
 
 **Correção:**
 
-- [ ] Autenticação ou token de integração dedicado
+- [x] Autenticação ou token de integração dedicado (sessão; e-mail vem dela)
 - [ ] Rate limit persistente por IP e por e-mail
-- [ ] Validação Zod do input
-- [ ] Testes: sem credencial rejeita · acima do rate limit rejeita
+- [x] Validação Zod do input (não há mais input)
+- [x] Testes: sem credencial rejeita (`tests/integration/security/external-entry-points.test.ts`); rate limit dispensado, ver status
 
 ---
 
@@ -217,7 +217,7 @@ criando **Organization + Member + Trackings + Status + Tags**. Sem rate limit.
 
 | | |
 | --- | --- |
-| **Status** | ⬜ Autenticação pendente de decisão. Em 2026-10-13 só o `console.log(json)` foi removido (dados pessoais fora do log) |
+| **Status** | 🚧 Em 2026-10-13 o `console.log(json)` foi removido. Em 2026-10-16 ([spec 0112](../specs/security/0112-importacao-com-login-e-entrada-de-leads-mapeada.md)): corpo validado, coluna precisa ser do tracking e cada lead recebido registra quem chamou (`callerOrigin`, `callerUserAgent` em `lead.arrived`). A porta segue sem credencial: a chave por empresa será decidida com a lista de sites em mãos, para não parar quem manda lead hoje |
 | **Arquivo** | `src/app/api/external/new-lead/route.ts` |
 | **Impacto** | Injeção de leads em qualquer org; poluição de funil; **PII em log de produção** |
 
@@ -228,10 +228,10 @@ nome, telefone e e-mail em stdout.
 **Correção:**
 
 - [ ] API key por organização (o `trackingId` deve ser derivado da chave, nunca aceito do body cru)
-- [ ] Validação Zod do payload
+- [x] Validação Zod do payload
 - [ ] Rate limit
-- [ ] **Remover `console.log(json)`**
-- [ ] Testes: sem chave rejeita · chave de outra org não injeta no tracking alheio · payload inválido rejeita
+- [x] **Remover `console.log(json)`**
+- [ ] Testes: sem chave rejeita · chave de outra org não injeta no tracking alheio · payload inválido rejeita (este último feito, junto com coluna de outro tracking)
 
 ---
 
@@ -438,6 +438,7 @@ Registrados para não serem re-auditados sem motivo:
 | 2026-08-18 | Registro inicial. 8 críticos, 6 altos, 5 médios, a partir da auditoria de `f67796d2`. Todos os itens 🔴 confirmados por leitura direta do código. Nenhuma correção aplicada. |
 | 2026-09-29 | S8 corrigido: bloco de debug removido depois de gravar em log a API key do Asaas de uma loja durante teste de PIX real. Pendentes: logging com redação e rotação das chaves expostas. |
 | 2026-09-26 | M6 adicionado e corrigido (vazamento do Financeiro pelo ASTRO para membro sem acesso), achado pela bateria de testes do ASTRO. |
+| 2026-10-16 | S6 fechado: importação do N.A.S.A antigo exige login e usa o e-mail da sessão. S7: corpo validado, coluna conferida contra o tracking e origem da chamada registrada para mapear os sites antes da chave por empresa ([spec 0112](../specs/security/0112-importacao-com-login-e-entrada-de-leads-mapeada.md)). |
 | 2026-10-15 | S5: lote 1 passa a negar por padrão, sem fase de registro (decisão do time). Saída de emergência `TENANCY_GUARD_LOG_ONLY_BATCHES`; recusas registradas no log. |
 | 2026-10-14 | S5: trava `requireTenantResource` e lote 1 (`status/create`, `leads/deleteFile`, `conversation/get`, `status/listSimple`, `column/getMany`), só registrando até ser aplicado por variável; tags de outra empresa barradas no formulário público; catraca S5 no job `arch` ([spec 0111](../specs/security/0111-trava-de-isolamento-entre-empresas.md)). |
 | 2026-10-13 | A1 concluído: os 101 `throw errors.X;` restantes invocados (zero no código). S5: `form/delete` corrigido com teste entre empresas ([spec 0109](../specs/form/0109-correcoes-achadas-na-caracterizacao.md)); demais procedures seguem abertas. |

@@ -2,12 +2,49 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { normalizePhone } from "@/utils/format-phone";
 import { NextRequest } from "next/server";
+import z from "zod";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import { extractTracking } from "@/lib/tracking/extract-tracking.server";
 import { getPostHogClient } from "@/lib/posthog-server";
 
+const optionalText = (maxLength: number) => z.string().max(maxLength).optional();
+
+const externalLeadSchema = z.object({
+  trackingId: z.string().min(1).max(64),
+  statusId: z.string().min(1).max(64),
+  name: z.string().trim().min(1).max(200),
+  phone: z.union([z.string().max(40), z.number()]).transform(String).optional(),
+  email: optionalText(254),
+  description: optionalText(5000),
+  utm_source: optionalText(500),
+  utm_medium: optionalText(500),
+  utm_campaign: optionalText(500),
+  utm_content: optionalText(500),
+  utm_term: optionalText(500),
+  referrer: optionalText(2000),
+  landingPage: optionalText(2000),
+  device: optionalText(100),
+});
+
+/** Quem chama a porta (spec 0112, RF-4): serve para mapear os sites antes de exigir chave. */
+function readCallerOrigin(request: NextRequest): string | null {
+  const origin = request.headers.get("origin");
+  if (origin) return origin;
+  const referer = request.headers.get("referer");
+  if (!referer) return null;
+  try {
+    return new URL(referer).origin;
+  } catch {
+    return null;
+  }
+}
+
+const rejectPayload = (error: string) => Response.json({ success: false, error }, { status: 400 });
+
 export async function POST(request: NextRequest) {
-  const json = await request.json();
+  const parsedPayload = externalLeadSchema.safeParse(await request.json().catch(() => null));
+  if (!parsedPayload.success) return rejectPayload("Dados do lead inválidos");
+
   const {
     trackingId,
     statusId,
@@ -24,7 +61,13 @@ export async function POST(request: NextRequest) {
     referrer,
     landingPage,
     device,
-  } = json;
+  } = parsedPayload.data;
+
+  const targetStatus = await prisma.status.findFirst({
+    where: { id: statusId, trackingId },
+    select: { tracking: { select: { name: true, organizationId: true } } },
+  });
+  if (!targetStatus) return rejectPayload("A coluna não pertence ao tracking");
 
   const phoneNormalized = normalizePhone(phone);
 
@@ -75,26 +118,26 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    try {
-      const tracking = await prisma.tracking.findUnique({
-        where: { id: trackingId },
-        select: { name: true, organizationId: true },
-      });
-      if (tracking) {
-        await logActivity({
-          organizationId: tracking.organizationId,
-          userId: "system",
-          userName: "Sistema",
-          userEmail: "sistema@nasa",
-          appSlug: "tracking",
-          action: "lead.arrived",
-          actionLabel: `Um lead chegou no tracking "${tracking.name}" via formulário (${name ?? phone})`,
-          resource: name ?? phone,
-          resourceId: lead.id,
-          metadata: { phone: phoneNormalized, email, trackingName: tracking.name, source: "FORM" },
-        });
-      }
-    } catch {}
+    const targetTracking = targetStatus.tracking;
+    await logActivity({
+      organizationId: targetTracking.organizationId,
+      userId: "system",
+      userName: "Sistema",
+      userEmail: "sistema@nasa",
+      appSlug: "tracking",
+      action: "lead.arrived",
+      actionLabel: `Um lead chegou no tracking "${targetTracking.name}" via formulário (${name})`,
+      resource: name,
+      resourceId: lead.id,
+      metadata: {
+        phone: phoneNormalized,
+        email,
+        trackingName: targetTracking.name,
+        source: "FORM",
+        callerOrigin: readCallerOrigin(request),
+        callerUserAgent: request.headers.get("user-agent")?.slice(0, 200) ?? null,
+      },
+    });
 
     const posthog = getPostHogClient();
     posthog.capture({

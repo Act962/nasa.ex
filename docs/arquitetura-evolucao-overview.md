@@ -724,6 +724,7 @@ acrescentar itens à Fase 0**.
 
 | Data | O quê |
 | --- | --- |
+| 2026-10-16 | **Etapa 3: S6 fechado e S7 mapeado** ([spec 0112](../specs/security/0112-importacao-com-login-e-entrada-de-leads-mapeada.md)). A importação do N.A.S.A antigo exige login; a entrada externa de leads valida o corpo, confere a coluna e registra quem chama, para decidir a chave por empresa sem parar nenhum site. |
 | 2026-10-15 | Merge da `main`: baseline de fronteiras regravada com cinco ciclos que vieram de lá (`campanhas`↔`contacts`, `leads`↔`nerp-catalog`, `nerp-catalog`↔`tracking-chat`, `nerp-catalog`↔`workflows`, `star-friends`↔`workflows`); 80 ciclos, maior grupo com 61 features. As rotas novas da `main` passaram na catraca S5 (segue 173). A `main` também recebeu as specs 0103 a 0107, e as deste PR foram renumeradas: 0103→0108, 0104→0109, 0105→0110, 0106→0111. |
 | 2026-10-15 | **Etapa 8: lote 1 nega por padrão** (decisão do time, [spec 0111](../specs/security/0111-trava-de-isolamento-entre-empresas.md)). `TENANCY_GUARD_ENFORCED_BATCHES` deu lugar a `TENANCY_GUARD_LOG_ONLY_BATCHES`, saída de emergência que volta um lote a só registrar. Toda recusa vai para o log. |
 | 2026-10-15 | **Piloto `form`: módulo ativo por padrão** (decisão do time). O envio e o salvamento parcial rodam pelo módulo sem configurar nada; `FORM_SUBMIT_USE_MODULE=false` vira saída de emergência até o passo 7e. A suíte que exercita o caminho antigo passou a ser `tests/integration/form/submit-through-legacy-path.test.ts`. |

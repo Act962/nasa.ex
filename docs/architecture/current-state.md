@@ -209,8 +209,8 @@ Reverificado por leitura dos arquivos em `7ead1bb6`. Detalhes e checklist em
 | S3 `POST /api/upload-local` | Aberto. Aceita SVG por MIME e por extensão. **Em uso** por 9 arquivos |
 | S4 webhooks Meta e domínio | Facebook: aberto. `domain-providers`: aberto, muda status de compra e dispara Inngest sem credencial. Instagram: a assinatura é repassada só ao ramo de comentários; o ramo de mensagens diretas processa sem conferir |
 | S5 isolamento entre empresas | Aberto. As seis procedures citadas seguem só com `requiredAuthMiddleware` |
-| S6 `new-nasa-partial` / `new-nasa-total` | Aberto. Ainda em `base`, sem autenticação |
-| S7 `external/new-lead` | Aberto. `console.log(json)` continua na linha 11 |
+| S6 `new-nasa-partial` / `new-nasa-total` | Fechado em 2026-10-16 (spec 0112): exige login e usa o e-mail da sessão |
+| S7 `external/new-lead` | Parcial em 2026-10-16 (spec 0112): sem `console.log`, corpo validado, coluna conferida, origem registrada. Ainda sem credencial |
 | A1 `throw errors.X;` | Piorou: 272 |
 | A2 headers de segurança | Aberto. `src/proxy.ts` existe e não define nenhum |
 | A3 uploads S3 | Aberto |
