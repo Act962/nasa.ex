@@ -60,7 +60,7 @@ export const quickDraftWorkflow = base
   .route({ method: "POST", path: "/workflow/quick/draft", summary: "Monta os passos de um gatilho a partir de uma frase" })
   .input(z.object({ trackingId: z.string(), prompt: z.string().trim().min(8).max(1000), leadId: z.string().optional() }))
   .handler(async ({ input, context, errors }) => {
-    if (!(await findTrackingInOrg(input.trackingId, context.org.id))) throw errors.NOT_FOUND;
+    if (!(await findTrackingInOrg(input.trackingId, context.org.id))) throw errors.NOT_FOUND();
     const lead = input.leadId ? await findLeadInTracking(input.leadId, input.trackingId) : null;
 
     const resolvedAi = await resolveAiFor({ resourceId: "workflows.quick-builder", organizationId: context.org.id, provider: "openai", modelId: "gpt-4o" });
@@ -109,7 +109,7 @@ export const quickCheckDuplicates = base
   .route({ method: "POST", path: "/workflow/quick/duplicates", summary: "Gatilhos ativos com a mesma lógica" })
   .input(z.object({ trackingId: z.string(), leadId: z.string().optional(), steps: z.array(stepSchema).min(1) }))
   .handler(async ({ input, context, errors }) => {
-    if (!(await findTrackingInOrg(input.trackingId, context.org.id))) throw errors.NOT_FOUND;
+    if (!(await findTrackingInOrg(input.trackingId, context.org.id))) throw errors.NOT_FOUND();
     const [trigger, ...actions] = input.steps as QuickStep[];
     if (!QUICK_TRIGGER_TYPES.has(trigger.type)) return { duplicates: [] };
     const candidateKey = triggerKey(trigger);
@@ -168,13 +168,13 @@ export const quickCreateWorkflow = base
     }),
   )
   .handler(async ({ input, context, errors }) => {
-    if (!(await findTrackingInOrg(input.trackingId, context.org.id))) throw errors.NOT_FOUND;
+    if (!(await findTrackingInOrg(input.trackingId, context.org.id))) throw errors.NOT_FOUND();
 
     // Criar fluxo pede a permissão de criar Automações do papel da pessoa (spec 0092).
     if ((await checkTrackingAutomationsAccess(input.trackingId, context.user.id, "canCreate")) !== "allowed") {
       throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canCreate });
     }
-    if (input.leadId && !(await findLeadInTracking(input.leadId, input.trackingId))) throw errors.NOT_FOUND;
+    if (input.leadId && !(await findLeadInTracking(input.leadId, input.trackingId))) throw errors.NOT_FOUND();
     if (!QUICK_TRIGGER_TYPES.has(input.steps[0].type)) {
       throw errors.BAD_REQUEST({ message: "O primeiro passo precisa ser um gatilho (\"Quando\")." });
     }

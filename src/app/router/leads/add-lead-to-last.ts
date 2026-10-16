@@ -40,7 +40,7 @@ export const addLeadLast = base
         },
       });
 
-      if (!lead) throw errors.NOT_FOUND;
+      if (!lead) throw errors.NOT_FOUND();
 
       const isChangingColumn = lead.statusId !== statusId;
 

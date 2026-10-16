@@ -1,0 +1,19 @@
+[
+  {
+    "type": "dependency",
+    "from": "src/app/router/comments/automations.ts",
+    "to": "src/modules/social/infra/schemas.ts",
+    "unresolvedTo": "@/modules/social/infra/schemas",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "r4-infra-so-pela-raiz-do-modulo"
+    }
+  }
+]

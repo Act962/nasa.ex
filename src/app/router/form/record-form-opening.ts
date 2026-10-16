@@ -111,6 +111,6 @@ export const recordFormOpening = base
         throw err;
       }
       console.error("[form/recordFormOpening]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

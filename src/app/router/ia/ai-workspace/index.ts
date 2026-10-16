@@ -183,6 +183,6 @@ export const createActionWithAi = base
       yield* streamToEventIterator(result.toUIMessageStream());
     } catch (error) {
       console.error(error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

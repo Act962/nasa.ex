@@ -28,13 +28,13 @@ export const listAllAttachments = base
         where: { id: input.leadId },
         select: { id: true },
       });
-      if (!lead) throw errors.NOT_FOUND;
+      if (!lead) throw errors.NOT_FOUND();
 
       const items = await resolveLeadAttachments(input.leadId, 250);
       return { items };
     } catch (err: any) {
       if (err?.code === "NOT_FOUND") throw err;
       console.error("[lead.listAllAttachments]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

@@ -29,7 +29,7 @@ export const getLeadMetrics = base
   .route({ method: "GET", path: "/leads/:leadId/metrics", summary: "Lead audit metrics", tags: ["Leads"] })
   .input(leadInput)
   .handler(async ({ input, context, errors }) => {
-    if (!(await assertLeadInOrg(input.leadId, context.org.id))) throw errors.NOT_FOUND;
+    if (!(await assertLeadInOrg(input.leadId, context.org.id))) throw errors.NOT_FOUND();
     const metrics = await prisma.leadMetrics.findUnique({ where: { leadId: input.leadId } });
     return { metrics };
   });
@@ -41,10 +41,10 @@ export const auditLead = base
   .input(leadInput)
   .handler(async ({ input, context, errors }) => {
     const organizationId = context.org.id;
-    if (!(await assertLeadInOrg(input.leadId, organizationId))) throw errors.NOT_FOUND;
+    if (!(await assertLeadInOrg(input.leadId, organizationId))) throw errors.NOT_FOUND();
 
     const computed = await computeLeadMetrics(input.leadId);
-    if (!computed) throw errors.NOT_FOUND;
+    if (!computed) throw errors.NOT_FOUND();
 
     let aiAudit = null;
     let notice: string | null = null;

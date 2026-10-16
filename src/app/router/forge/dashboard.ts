@@ -121,6 +121,6 @@ export const getForgeDashboard = base
       };
     } catch (err) {
       console.error("[forge/dashboard]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

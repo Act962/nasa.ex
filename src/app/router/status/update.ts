@@ -35,7 +35,7 @@ export const updateStatus = base
     });
 
     if (!statusExists) {
-      throw errors.NOT_FOUND;
+      throw errors.NOT_FOUND();
     }
 
     // Spread condicional pra cada campo — `undefined` não sobrescreve. Isso

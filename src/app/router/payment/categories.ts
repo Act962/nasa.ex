@@ -38,7 +38,7 @@ export const listPaymentCategories = base
       return { categories };
     } catch (err) {
       console.error("[payment/categories/listPaymentCategories]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -63,7 +63,7 @@ export const createPaymentCategory = base
       return { category };
     } catch (err) {
       console.error("[payment/categories/createPaymentCategory]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -93,7 +93,7 @@ export const updatePaymentCategory = base
       return { category };
     } catch (err) {
       console.error("[payment/categories/update]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -119,6 +119,6 @@ export const deletePaymentCategory = base
       return { ok: true };
     } catch (err) {
       console.error("[payment/categories/delete]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

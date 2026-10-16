@@ -156,7 +156,7 @@ export const listForgeSimulations = base
         })),
       };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -173,11 +173,11 @@ export const getForgeSimulation = base
         where: { id: input.id, organizationId: context.org.id },
         include: { lineItems: { orderBy: { order: "asc" } }, bidItems: { orderBy: { order: "asc" } } },
       });
-      if (!simulation) throw errors.NOT_FOUND;
+      if (!simulation) throw errors.NOT_FOUND();
       return { simulation };
     } catch (err) {
       if (err && typeof err === "object" && "code" in err) throw err;
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -355,7 +355,7 @@ export const createForgeSimulation = base
       return await persistSimulation(input, context.org.id, context.user.id);
     } catch (err) {
       console.error("[forge/simulations create]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -373,7 +373,7 @@ export const updateForgeSimulation = base
       return await persistSimulation(payload, context.org.id, context.user.id, id);
     } catch (err) {
       console.error("[forge/simulations update]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -389,7 +389,7 @@ export const deleteForgeSimulation = base
       await prisma.forgeSimulation.delete({ where: { id: input.id, organizationId: context.org.id } });
       return { ok: true };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -417,7 +417,7 @@ export const convertSimulationToProposal = base
       where: { id: input.simulationId, organizationId: context.org.id },
       include: { bidItems: true },
     });
-    if (!simulation) throw errors.NOT_FOUND;
+    if (!simulation) throw errors.NOT_FOUND();
 
     try {
       const orgId = context.org.id;
@@ -568,6 +568,6 @@ export const convertSimulationToProposal = base
       return { proposalId: result.id, number: result.number };
     } catch (err) {
       console.error("[forge/simulations convert]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

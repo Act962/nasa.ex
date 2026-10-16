@@ -92,6 +92,6 @@ export const listLead = base
       };
     } catch (error) {
       console.log(error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

@@ -44,26 +44,26 @@ export const detectMergeConflicts = base
       where: { id: { in: input.leadIds } },
       select: { ...LEAD_PREVIEW_SELECT, tracking: { select: { organizationId: true } } },
     });
-    if (sourceLeads.length === 0) throw errors.NOT_FOUND;
+    if (sourceLeads.length === 0) throw errors.NOT_FOUND();
 
     const targetTracking = await prisma.tracking.findUnique({
       where: { id: input.targetTrackingId },
       select: { organizationId: true },
     });
-    if (!targetTracking) throw errors.NOT_FOUND;
+    if (!targetTracking) throw errors.NOT_FOUND();
 
     // Todos os leads + o destino têm que ser da mesma org do caller.
     const organizationId = targetTracking.organizationId;
     const sameOrg = sourceLeads.every(
       (lead) => lead.tracking.organizationId === organizationId,
     );
-    if (!sameOrg) throw errors.FORBIDDEN;
+    if (!sameOrg) throw errors.FORBIDDEN();
 
     const isMember = await prisma.member.findFirst({
       where: { userId: context.user.id, organizationId },
       select: { id: true },
     });
-    if (!isMember) throw errors.FORBIDDEN;
+    if (!isMember) throw errors.FORBIDDEN();
 
     // Telefones dos leads selecionados que NÃO estão já no tracking de destino.
     const candidatePhones = sourceLeads

@@ -42,7 +42,7 @@ export const updateManyStatusLead = base
       });
 
       if (leadExists.length === 0) {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND();
       }
 
       const result = await prisma.$transaction(async (tx) => {
@@ -280,6 +280,6 @@ export const updateManyStatusLead = base
         });
       }
       console.error(err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

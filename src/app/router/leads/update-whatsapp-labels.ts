@@ -46,7 +46,7 @@ export const updateWhatsappTagsLead = base
       });
 
       if (!leadExists) {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND();
       }
 
       // Validar quais tagIds realmente existem no banco de dados para evitar erro de Foreign Key
@@ -136,7 +136,7 @@ export const updateWhatsappTagsLead = base
       });
 
       if (!WhatsAppInstance || !WhatsAppInstance.isBusiness) {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND();
       }
 
       const whatsappTags = await prisma.tag.findMany({
@@ -184,6 +184,6 @@ export const updateWhatsappTagsLead = base
       return { lead };
     } catch (err) {
       console.error(err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

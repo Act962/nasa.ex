@@ -58,6 +58,6 @@ export const deleteAppTemplate = base
       return { success: true };
     } catch (error) {
       console.error("[deleteAppTemplate] Error:", error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

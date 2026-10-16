@@ -33,7 +33,7 @@ export const nerpLoginAs = base
       where: { id: input.userId },
       select: { id: true, name: true, email: true },
     });
-    if (!target) throw errors.NOT_FOUND;
+    if (!target) throw errors.NOT_FOUND();
 
     const token = buildCrossLoginToken(target.id);
     const url = `${getNerpBaseUrl()}/api/auth/cross-login?token=${encodeURIComponent(token)}`;

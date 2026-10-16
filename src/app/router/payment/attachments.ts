@@ -114,7 +114,7 @@ export const listPaymentAttachments = base
       return { attachments, total };
     } catch (err) {
       console.error("[payment/attachments list]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -163,7 +163,7 @@ export const updatePaymentAttachment = base
       return { attachment };
     } catch (err) {
       console.error("[payment/attachments update]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -185,7 +185,7 @@ export const deletePaymentAttachment = base
       await prisma.paymentAttachment.delete({ where: { id: attachment.id } });
     } catch (err) {
       console.error("[payment/attachments delete]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
 
     // Lançamento parcelado grava um registro por parcela apontando pra mesma
@@ -238,6 +238,6 @@ export const linkPaymentAttachments = base
     } catch (err) {
       if (err && typeof err === "object" && "code" in err) throw err;
       console.error("[payment/attachments link]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

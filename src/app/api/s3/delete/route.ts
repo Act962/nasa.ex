@@ -1,47 +1,41 @@
-import { S3 } from "@/lib/s3-client";
-import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { deleteStoredObject } from "@/lib/s3-client";
+import {
+  getUploadTokenSecret,
+  isUploadDeleteTokenValid,
+} from "@/lib/security/upload-delete-token";
 
+const MAX_KEY_LENGTH = 512;
+
+/**
+ * Apaga um arquivo do bucket. Exige sessão ou o token de exclusão devolvido
+ * no upload daquele arquivo (visitante de formulário público não tem sessão).
+ */
 export async function DELETE(request: Request) {
-  try {
-    const body = await request.json();
+  const body = (await request.json().catch(() => null)) as {
+    key?: unknown;
+    deleteToken?: unknown;
+  } | null;
+  const objectKey = body?.key;
 
-    const key = body.key;
-
-    if (!key) {
-      return NextResponse.json(
-        {
-          error: "Missing or invalid object key",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    const command = new DeleteObjectCommand({
-      Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES,
-      Key: key,
-    });
-
-    await S3.send(command);
-
-    return NextResponse.json(
-      {
-        message: "File deleted successfully",
-      },
-      {
-        status: 200,
-      },
-    );
-  } catch {
-    return NextResponse.json(
-      {
-        error: "Missing or invalid object key",
-      },
-      {
-        status: 400,
-      },
-    );
+  if (typeof objectKey !== "string" || !objectKey || objectKey.length > MAX_KEY_LENGTH) {
+    return NextResponse.json({ error: "Missing or invalid object key" }, { status: 400 });
   }
+
+  const deleteToken = typeof body?.deleteToken === "string" ? body.deleteToken : null;
+  const hasValidDeleteToken = isUploadDeleteTokenValid(objectKey, deleteToken, getUploadTokenSecret());
+  if (!hasValidDeleteToken) {
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session?.user) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+  }
+
+  const isDeleted = await deleteStoredObject(objectKey);
+  if (!isDeleted) {
+    return NextResponse.json({ error: "Falha ao apagar o arquivo" }, { status: 502 });
+  }
+
+  return NextResponse.json({ message: "File deleted successfully" }, { status: 200 });
 }

@@ -249,7 +249,7 @@ export const listConversation = base
       // Antes o catch engolia a causa inteira, o que tornava impossível
       // diagnosticar erro de filtro/cursor sem repro local.
       console.error("[conversation.list] failed", error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 

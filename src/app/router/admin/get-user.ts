@@ -38,7 +38,7 @@ export const getUser = base
         },
       },
     });
-    if (!user) throw errors.NOT_FOUND;
+    if (!user) throw errors.NOT_FOUND();
 
     return {
       id:            user.id,

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { applyInboundAutoTags, loadAwaitingState } from "@/features/org-defaults/lib/auto-tags"
 import { pusherServer } from "@/lib/pusher"
 import prisma from "@/lib/prisma"
+import { checkMetaWebhookSignature } from "@/lib/security/meta-webhook-signature"
 import { LeadSource, IntegrationPlatform } from "@/generated/prisma/enums"
 import { S3 } from "@/lib/s3-client"
 import { PutObjectCommand } from "@aws-sdk/client-s3"
@@ -44,7 +45,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const rawBody = await request.text()
+    const signatureCheck = checkMetaWebhookSignature({
+      rawBody,
+      signatureHeader: request.headers.get("x-hub-signature-256"),
+      appSecret: process.env.META_APP_SECRET,
+      configuredMode: process.env.META_MESSAGING_WEBHOOK_AUTH_MODE,
+    })
+    if (!signatureCheck.isSignatureValid) {
+      console.warn(
+        `[facebook-webhook] assinatura da Meta inválida (header ${request.headers.has("x-hub-signature-256") ? "presente" : "ausente"}, modo ${signatureCheck.authMode})`,
+      )
+    }
+    if (signatureCheck.shouldReject) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const body = JSON.parse(rawBody)
 
     if (body.object !== "page") {
       return NextResponse.json({ success: true }, { status: 200 })

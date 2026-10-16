@@ -55,7 +55,7 @@ export const listForgeProducts = base
       });
       return { products: products.map((p) => ({ ...p, value: p.value.toString() })) };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -93,7 +93,7 @@ export const createForgeProduct = base
       return { product: { ...product, value: product.value.toString() } };
     } catch (err) {
       console.error("[forge/products create]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -132,7 +132,7 @@ export const updateForgeProduct = base
       });
       return { product: { ...product, value: product.value.toString() } };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -149,6 +149,6 @@ export const deleteForgeProduct = base
       });
       return { ok: true };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

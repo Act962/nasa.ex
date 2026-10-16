@@ -16,7 +16,7 @@ export const updateMemberCargo = base
       where: { id: input.memberId },
       select: { id: true },
     });
-    if (!member) throw errors.NOT_FOUND;
+    if (!member) throw errors.NOT_FOUND();
 
     await prisma.member.update({
       where: { id: input.memberId },

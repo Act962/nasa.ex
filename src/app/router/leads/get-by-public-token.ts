@@ -37,7 +37,7 @@ export const getLeadByPublicToken = base
         },
       });
 
-      if (!lead) throw errors.NOT_FOUND;
+      if (!lead) throw errors.NOT_FOUND();
 
       const leadData = lead as unknown as {
         id: string;
@@ -87,6 +87,6 @@ export const getLeadByPublicToken = base
       };
     } catch (err) {
       console.error(err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

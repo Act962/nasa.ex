@@ -167,6 +167,6 @@ export const getWhatsAppAnalytics = base
         });
       }
       console.error(error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

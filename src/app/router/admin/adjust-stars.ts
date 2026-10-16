@@ -21,7 +21,7 @@ export const adjustStars = base
       select: { id: true, name: true, starsBalance: true },
     });
 
-    if (!org) throw errors.NOT_FOUND;
+    if (!org) throw errors.NOT_FOUND();
 
     const newBalance = Math.max(0, org.starsBalance + amount);
 

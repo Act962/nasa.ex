@@ -5,8 +5,12 @@
 > **Regra de manutenção:** ao adicionar um tipo de teste, mudar a configuração do runner, alterar o
 > pipeline ou promover/remover um quality gate, **atualize este arquivo na mesma sessão**.
 
-**Estado atual:** 0 testes, 0 frameworks de teste. **CI existe desde 2026-09-30** (§8.0) — só build e
-checagem de tipos, ainda sem testes. Na auditoria original: Confirmado por quatro
+**Estado atual (2026-10-13):** Vitest 5 com dois projetos. `unit`: 321 testes em 24 arquivos, sem
+banco (`pnpm test:unit`). `integration`: 175 testes contra Postgres real (`pnpm test:db:up` e
+`pnpm test:integration`). Jobs `unit`, `integration` e `arch` no `ci.yml`. Ainda sem E2E. Detalhes e achados em [`architecture/testing-strategy.md`](architecture/testing-strategy.md) §6.
+
+**Estado na auditoria original:** 0 testes, 0 frameworks de teste. **CI existe desde 2026-09-30** (§8.0) — só build e
+checagem de tipos. Confirmado por quatro
 verificações independentes (arquivos `*.test.*`/`*.spec.*`, diretórios `__tests__`/`e2e`/`cypress`,
 configs de runner, dependências do `package.json`). Não existe `.github/`, `.husky/`, nem hook em
 `.git/hooks/`. 375 PRs foram revisados só por humano.
@@ -208,6 +212,9 @@ tudo. Vira gate na Fase 3, e só em `src/modules/**`.
 | --- | --- | --- |
 | `ci.yml` → `next-build` | todo PR | `pnpm install` (cache do store) + `prisma generate` + `next build` direto no runner: checagem de tipos, coleta de páginas, bundling. `.next/cache` por PR via `actions/cache`. |
 | `ci.yml` → `docker-image` | PR que mexe em `Dockerfile`, `docker/`, dependências, `next.config.ts`, Prisma, workflows | Builda a imagem (sem push, sem checagem de tipos) lendo o cache `buildcache` do GHCR. |
+| `ci.yml` → `unit` | todo PR (desde 2026-10-13) | `pnpm install` + `prisma generate` + `pnpm test:unit`: regras puras, sem banco nem rede. Paralelo ao `next-build`. |
+| `ci.yml` → `integration` | todo PR (desde 2026-10-13) | Service container `pgvector/pgvector:pg17`, `prisma migrate deploy` no início da suíte, `pnpm test:integration`: rotas de segurança, isolamento entre empresas e os scripts de QA das specs. |
+| `ci.yml` → `arch` | todo PR (desde 2026-10-13) | `pnpm arch`: dependency-cruiser (R1–R7 em `src/modules`, ~1 min) + baseline entre features (R8, R9, R11). Sem banco, sem `prisma generate`. |
 | `deploy-image.yml` | push na `main` | Builda a imagem (sem checagem de tipos — o PR é o portão), publica no GHCR, grava o cache `buildcache`, avisa o Coolify. |
 | `typecheck-diagnostics.yml` | manual | Mede memória/tempo/instanciações do `tsc` e lista os arquivos mais caros. |
 
@@ -347,4 +354,16 @@ testes não há o que mutar).
 
 | Data | O quê |
 | --- | --- |
+| 2026-10-16 | `tests/integration/security/external-entry-points.test.ts` (spec 0112): importação sem sessão recusa e não chama o sistema antigo; com sessão usa o e-mail dela; entrada de leads recusa corpo inválido e coluna de outro tracking e registra a origem. Conferido tirando a trava e a conferência: 3 casos falham. |
+| 2026-10-15 | `tenancy-guard-batch-1.test.ts`: a trava sem variável nega (CA-1, incluindo a linha de log da recusa); o modo só registrando passou a ser ligado por `TENANCY_GUARD_LOG_ONLY_BATCHES` (CA-6). Conferido tirando a trava: 6 casos falham. |
+| 2026-10-15 | Módulo `form` passou a ser o caminho padrão: as caracterizações do envio rodam pelo módulo sem variável, e `submit-through-module.test.ts` virou `submit-through-legacy-path.test.ts`, que liga `FORM_SUBMIT_USE_MODULE=false` e confere a leitura da variável. Conferido quebrando o módulo de propósito: os 15 casos do salvamento parcial falham no caminho padrão e passam no antigo. |
+| 2026-10-14 | `tests/integration/tenancy/tenancy-guard-batch-1.test.ts`: as cinco procedures do lote 1 com a trava aplicada e só registrando, incluindo vínculos legítimos (várias empresas, participante, membro de workspace). Conferido que os casos entre empresas falham com a trava desligada. O job `arch` ganhou a catraca S5. |
+| 2026-10-14 | Caso de uso do salvamento parcial testado com ports falsos (`save-form-draft.test.ts`). A suíte da flag passa a exercitar também o salvamento parcial pelo módulo. Suíte: 321 unitários, 175 de integração. |
+| 2026-10-13 | **Testes do módulo `form`** (etapa 7). Unitários: matriz da política de edição da spec 0005 (`response-edit-policy.test.ts`, citando os `CB-n`), leitura de tags, identidade do lead e o caso de uso do envio com ports falsos (`submit-form-response.test.ts`). Integração: `tests/integration/form/submit-through-module.test.ts` liga `FORM_SUBMIT_USE_MODULE` e importa as três caracterizações do envio, que assim rodam uma vez por caminho. Suíte: 310 unitários, 175 de integração. |
+| 2026-10-13 | Testes de caracterização que registravam defeito passaram a afirmar o comportamento corrigido, citando o `CA-n` da [spec 0109](../specs/form/0109-correcoes-achadas-na-caracterizacao.md). O `it.fails` de `form/delete` virou teste comum. Novo `tests/integration/errors/` confere o código de erro de negócio em três domínios. Suíte de integração em 112 testes, sem falha esperada. |
+| 2026-10-13 | **Testes de caracterização do envio de formulário** (§4 deste documento, na prática): `tests/integration/form/` e `tests/integration/leads/`. Em vez de arquivo de golden master, asserções explícitas sobre retorno, estado do banco e efeitos (fila, realtime, chamadas de rede tentadas), com ids trocados por nomes. Suíte de integração em 107 testes. |
+| 2026-10-13 | **Testes de integração com Postgres real** (etapa 4). `docker-compose.test.yml` (porta 5433, dados em memória), projeto `integration`, suporte em `tests/integration/support/`: trava que só deixa rodar em banco terminado em `_test`, truncate entre casos, builders, sessão definida por teste. Dublês: sessão (`@/lib/auth`), fila (Inngest), realtime (Pusher) e `fetch` bloqueado; storage só onde o efeito é a asserção. Os 8 scripts `scripts/*-qa-check.ts` passam a rodar no CI por `tests/integration/qa-scripts.test.ts`, cada um como processo. `campanhas-qa-check-pure-libs.ts` virou teste unitário e foi removido. `it.fails` documenta a falha aberta de `form/delete` (S5). |
+| 2026-10-13 | **Job `arch`** no CI: regras de fronteira com baseline decrescente (etapa 2 do plano). A lógica da baseline entre features tem testes próprios em `scripts/arch/feature-boundaries.test.ts`, incluídos no projeto `unit`. Suíte em 191 testes. |
+| 2026-10-13 | **Primeiro runner e primeira suíte.** Vitest 5 (`vitest.config.mts`, projeto `unit`, alias `@`), scripts `test`/`test:unit`/`test:watch`, job `unit` no `ci.yml`. 166 testes de caracterização sobre 7 arquivos de regra pura e o domínio de `modules/social`, com os ids da spec 0024 no nome onde o código os cita. Nenhum arquivo de produção alterado. Quatro comportamentos suspeitos registrados sem correção (lembrete mensal pula meses curtos, entre eles). O job ainda não é exigido para merge. |
+| 2026-10-13 | Reaferição (antes da suíte acima): seguia sem runner e sem testes; 5 scripts `scripts/*-qa-check.ts` fazem o papel de testes de integração manuais. Ordem de implantação revista, primeira suíte unitária com arquivos verificados como puros e configuração exigida pelo projeto em [`architecture/testing-strategy.md`](architecture/testing-strategy.md) — **pendente de aprovação**. `can-edit-response.ts` (§2) importa o Prisma e não serve como teste unitário sem separar a política do carregamento. |
 | 2026-08-18 | Documento inicial. Pirâmide, metas de cobertura por área, 12 cenários E2E priorizados, pipeline de PR e main, quality gates faseados. Nenhuma ferramenta instalada ainda. |

@@ -16,11 +16,11 @@ export const updateOrgPlan = base
       where: { id: input.orgId },
       select: { id: true, name: true, planId: true },
     });
-    if (!org) throw errors.NOT_FOUND;
+    if (!org) throw errors.NOT_FOUND();
 
     if (input.planId) {
       const plan = await prisma.plan.findUnique({ where: { id: input.planId }, select: { id: true } });
-      if (!plan) throw errors.NOT_FOUND;
+      if (!plan) throw errors.NOT_FOUND();
     }
 
     await prisma.organization.update({
