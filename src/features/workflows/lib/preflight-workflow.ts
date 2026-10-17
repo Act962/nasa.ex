@@ -133,6 +133,7 @@ export async function preflightWorkflow(args: {
               id: true,
               status: true,
               isActive: true,
+              provider: true,
             },
           },
         },
@@ -193,7 +194,11 @@ export async function preflightWorkflow(args: {
             "Nenhuma instância WhatsApp conectada ao tracking. Configure uma em Tracking → WhatsApp.",
         });
       }
-    } else if (instance.status === "DISCONNECTED" || !instance.isActive) {
+    } else if (
+      // A API oficial envia só com as credenciais da Meta; status e "ativo" são da conexão por QR code.
+      instance.provider !== "META_CLOUD" &&
+      (instance.status === "DISCONNECTED" || !instance.isActive)
+    ) {
       for (const n of messagingNodes) {
         checks.push({
           nodeId: n.id,
