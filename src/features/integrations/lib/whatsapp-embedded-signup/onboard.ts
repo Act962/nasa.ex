@@ -9,7 +9,7 @@ import {
   getPhoneNumbers,
   getWaba,
 } from "@/http/whats-oficial";
-import { WhatsAppProvider } from "@/generated/prisma/enums";
+import { WhatsAppInstanceStatus, WhatsAppProvider } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { invalidateOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
 import { encryptMetaCredentialsInput } from "@/features/tracking-chat/lib/providers/meta-credentials";
@@ -285,6 +285,8 @@ export async function onboardWhatsAppEmbeddedSignup(
     where: { id: instance.id },
     data: {
       provider: WhatsAppProvider.META_CLOUD,
+      // Na API oficial o número definido já é a conexão: conta como conectado nas telas (spec 0112).
+      status: WhatsAppInstanceStatus.CONNECTED,
       ...credentials,
       // Portfólio da Meta: monta os links de cartão e fatura (spec 0040).
       ...(input.businessId ? { metaBusinessId: input.businessId } : {}),

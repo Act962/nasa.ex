@@ -250,7 +250,8 @@ async function sendWhatsAppNotification({
 }) {
   // Get org's active WhatsApp instance
   const instance = await prisma.whatsAppInstance.findFirst({
-    where: { organizationId, isActive: true, status: "CONNECTED" },
+    // Aviso fora da janela de 24h só sai pelo QR code; número da API oficial não serve aqui.
+    where: { organizationId, isActive: true, status: "CONNECTED", provider: "UAZAPI" },
     select: { trackingId: true },
   });
   if (!instance) return;

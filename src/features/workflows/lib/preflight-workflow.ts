@@ -127,6 +127,7 @@ export async function preflightWorkflow(args: {
       tracking: {
         select: {
           id: true,
+          name: true,
           isArchived: true,
           whatsappInstance: {
             select: {
@@ -204,8 +205,7 @@ export async function preflightWorkflow(args: {
           nodeId: n.id,
           severity: "error",
           code: "WHATSAPP_DISCONNECTED",
-          message:
-            "Instância WhatsApp do tracking está DESCONECTADA. Reconecte antes de rodar — mensagens vão falhar.",
+          message: `O WhatsApp do tracking ${workflow.tracking?.name ?? ""} está desconectado.`,
         });
       }
     }
