@@ -206,6 +206,8 @@ export async function sendTemplateToLead(params: {
   leadId: string;
   trackingId: string;
   template: WorkflowTemplateContent;
+  /** Envia mesmo com a IA pausada no lead, como o "Enviar Mensagem" do modo normal. */
+  allowAiPausedLead?: boolean;
 }): Promise<{ messageId: string }> {
   const lead = await prisma.lead.findUnique({
     where: { id: params.leadId },
@@ -217,7 +219,7 @@ export async function sendTemplateToLead(params: {
     },
   });
   if (!lead) throw new NonRetriableError("Lead not found");
-  if (!lead.isActive) throw new NonRetriableError("Lead is not active");
+  if (!lead.isActive && !params.allowAiPausedLead) throw new NonRetriableError("Lead is not active");
   if (!lead.phone) throw new NonRetriableError("Lead phone is missing");
 
   const resolved = await resolveWorkflowProvider(params.trackingId);

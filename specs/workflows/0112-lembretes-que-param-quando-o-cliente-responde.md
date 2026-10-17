@@ -1,6 +1,6 @@
 ---
 id: 0112
-titulo: Lembretes que param quando o cliente responde (filtro no Modo Agente)
+titulo: Lembretes que param quando o cliente responde e paridade do Modo Agente com o modo normal
 dominio: workflows
 status: em-revisao
 autor: Weydson (com Claude)
@@ -43,8 +43,9 @@ recomeça a contagem a partir da nova mensagem dele.
 
 - Horário de silêncio (não mandar de madrugada). Fica para outra spec, se pedido.
 - Converter automaticamente os fluxos clássicos com "Mensagem Recebida" para Modo Agente.
-- Executores de Temperatura, Responsável e Ganho/Perda no Modo Agente (mesma lacuna do item 2;
-  registrada à parte).
+- Fazer fluxo do modo normal com gatilho exclusivo do Modo Agente ("Mensagem Recebida",
+  "Pagamento Recebido") passar a rodar sozinho: fluxos assim que nunca rodaram começariam a
+  mandar mensagem de surpresa, em qualquer empresa. A conversão é feita fluxo a fluxo.
 
 ## 3. Requisitos
 
@@ -56,6 +57,8 @@ recomeça a contagem a partir da nova mensagem dele.
 | RF-2 | Filtro não satisfeito no Modo Agente encerra aquele caminho sem marcar erro (saída `filtered`, sem ligação). |
 | RF-3 | Nova condição **Resposta do lead**: "não escreveu desde o início" / "escreveu desde o início", comparando a mensagem mais recente do cliente na conversa com a mensagem que disparou o fluxo. Vale nos dois motores. |
 | RF-4 | No Modo Agente, "Mensagem Recebida" passa a alimentar as condições de mensagem (texto e id) do filtro. |
+| RF-6 | **Paridade**: todo passo que o motor clássico executa roda no Modo Agente com o mesmo `data` gravado pela janela do editor. Passo clássico sem versão própria no Modo Agente (Temperatura, Responsável, Ganho/Perda, Requisição HTTP, Enviar Formulário/Agenda/Linnker/N-Box/Route, Abrir Formulário) roda pelo próprio executor clássico; passo novo do modo normal entra automaticamente. |
+| RF-7 | Passos com versão própria no Modo Agente fazem no mínimo o que o modo normal faz: **Enviar Mensagem** aceita as variáveis da janela (`{{nome}}`, `{{status}}`, `{{sei_*}}`…), envia imagem, documento e para outro número (pelo envio do modo normal), barra texto de exemplo, confere a janela de 24 h e cobra Stars também nos botões, e envia com a IA pausada no lead; **Tag** ignora etiqueta arquivada ou apagada e atualiza o quadro; **Mover Lead** devolve o lead na coluna nova aos passos seguintes; **Proposta** e **Contrato** usam o que a janela do editor gravou (antes valia o `action` antigo, e o Contrato podia pegar um modelo qualquer). |
 | RF-5 | "Esperar" no Modo Agente aceita o formato da janela do editor (maiúsculo): minutos e horas como duração; dias, semanas e meses com a hora do dia escolhida (fuso de São Paulo), igual ao motor clássico. O formato minúsculo dos modelos prontos e do ASTRO segue como duração pura. |
 
 ### Não-funcionais
@@ -73,6 +76,12 @@ recomeça a contagem a partir da nova mensagem dele.
 - [ ] **CA-5** — "Esperar 3 horas" feito na janela do editor, em Modo Agente, suspende o fluxo por 180 min (antes seguia direto).
 - [ ] **CA-6** — "Esperar 1 dia às 10:00" (editor) no Modo Agente segue no dia seguinte às 10:00 de São Paulo.
 - [ ] **CA-7** — Fluxos clássicos com "Filtrar Leads" continuam com o mesmo resultado de antes (mesma avaliação, agora compartilhada).
+- [ ] **CA-8** — Fluxo em Modo Agente com "Temperatura → Quente", "Responsável" e "Ganho/Perda" aplica no lead o mesmo que o modo normal (antes: "Sem executor registrado").
+- [ ] **CA-9** — "Requisição HTTP" no Modo Agente deixa a resposta em `{{vars.httpResponse...}}` para os passos seguintes.
+- [ ] **CA-10** — "Enviar Mensagem" com `{{nome}}` e `{{status}}` no Modo Agente sai com nome e coluna do lead (antes saía em branco).
+- [ ] **CA-11** — "Enviar Mensagem" do tipo Imagem ou Documento no Modo Agente envia o arquivo (antes falhava com `empty_message`).
+- [ ] **CA-12** — "Enviar Contrato" sem modelo escolhido para com "Escolha o modelo de contrato no passo", nos dois modos.
+- [ ] **CA-13** — "Mover Lead" seguido de "Enviar Mensagem" com `{{status}}` mostra a coluna nova.
 
 ## 5. Casos de borda
 
@@ -98,6 +107,8 @@ recomeça a contagem a partir da nova mensagem dele.
   na primeira resposta, em "SAIR" e na compra.
 - **Segurança de dados**: o filtro só lê lead e mensagens do próprio lead, no fluxo da empresa
   dona do funil. Nada novo sai para o cliente além do texto que a empresa escreveu.
+- **Cobrança**: botões no Modo Agente passam a cobrar Stars por envio, como o modo normal sempre cobrou.
+- **IA pausada**: no Modo Agente, "Enviar Mensagem" passa a enviar para lead com a IA pausada (atendimento humano), como o modo normal. Os passos de app (Proposta, Contrato, Formulário…) seguem exigindo a IA ativa, nos dois modos.
 - **Rollback**: reverter o PR. Sem migration.
 
 ## 10. Changelog da spec
@@ -105,3 +116,5 @@ recomeça a contagem a partir da nova mensagem dele.
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-16 | Weydson (com Claude) | Criada |
+| 2026-10-17 | Weydson (com Claude) | RF-6: paridade de todos os passos do modo normal no Modo Agente; simulador não acusa "desconectado" na API oficial |
+| 2026-10-17 | Weydson (com Claude) | RF-7: diferenças dos passos que existem nos dois motores (auditoria) |

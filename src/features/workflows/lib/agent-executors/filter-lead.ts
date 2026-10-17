@@ -1,45 +1,11 @@
 import "server-only";
 import type { FilterLeadFormValues } from "@/features/tracking-executions/components/filter-lead/dialog";
 import { evaluateLeadFilter } from "@/features/tracking-executions/lib/filter-conditions";
-import {
-  truncateLeadMessageText,
-  type WorkflowLeadMessage,
-} from "@/features/tracking-executions/lib/lead-message";
 import type { NodeExecutor } from "../run-workflow";
+import { leadMessageFromTrigger } from "./trigger-lead-message";
 
 // "Filtrar Leads" no Modo Agente (spec 0112). Sem ligação nessa saída, o caminho termina ali.
 const FILTERED_OUTPUT = "filtered";
-
-function isWorkflowLeadMessage(value: unknown): value is WorkflowLeadMessage {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as { text?: unknown }).text === "string"
-  );
-}
-
-/**
- * Os gatilhos do motor clássico mandam `leadMessage` pronto; o "Mensagem Recebida" do Modo
- * Agente manda `messageText` e `messageId` soltos no payload.
- */
-function leadMessageFromTrigger(
-  trigger: Record<string, unknown> | undefined,
-): WorkflowLeadMessage | undefined {
-  if (!trigger) return undefined;
-  if (isWorkflowLeadMessage(trigger.leadMessage)) return trigger.leadMessage;
-
-  const messageText =
-    typeof trigger.messageText === "string" ? trigger.messageText : null;
-  const messageId =
-    typeof trigger.messageId === "string" ? trigger.messageId : undefined;
-  if (messageText === null && !messageId) return undefined;
-
-  return {
-    text: truncateLeadMessageText(messageText ?? ""),
-    messageId,
-    source: "TRIGGER_EVENT",
-  };
-}
 
 export const filterLeadAgentExecutor: NodeExecutor = async ({
   data,

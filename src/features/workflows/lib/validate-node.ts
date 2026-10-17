@@ -60,6 +60,31 @@ function unwrap(
   return d;
 }
 
+// Janelas que gravam na raiz: o `action` de um fluxo gerado (ASTRO, modelo) fica para trás depois
+// da edição, e a raiz vence — igual ao que o motor executa (spec 0112).
+const ROOT_SAVED_NODE_TYPES = new Set([
+  "MOVE_LEAD",
+  "SEND_PROPOSAL",
+  "SEND_CONTRACT",
+  "SEND_FORM",
+  "SEND_AGENDA",
+  "SEND_LINNKER",
+  "SEND_NBOX",
+  "SEND_NASA_ROUTE",
+  "OPEN_FORM",
+]);
+
+function nodeConfig(
+  type: string,
+  data: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  if (!ROOT_SAVED_NODE_TYPES.has(type)) return unwrap(data);
+  const rootFields = Object.fromEntries(
+    Object.entries(data ?? {}).filter(([, value]) => value !== undefined),
+  );
+  return { ...unwrap(data), ...rootFields };
+}
+
 /**
  * Verifica se um data tem ALGUMA chave significativa (não-vazia). Workflows
  * preexistentes criados via dialog sempre têm pelo menos uma chave — o user
@@ -98,7 +123,7 @@ export function validateNode(
   type: string,
   data: Record<string, unknown> | null | undefined,
 ): NodeValidation {
-  const d = unwrap(data);
+  const d = nodeConfig(type, data);
   const errs: string[] = [];
 
   // ── Modo conservador (anti-falso-positivo em produção) ──────────────
