@@ -45,6 +45,8 @@ export interface SendLinkToLeadParams {
   trackingId: string;
   /** Mensagem completa (já com variáveis substituídas e URL incluída). */
   body: string;
+  /** Envia mesmo com a IA pausada no lead, como o "Enviar Mensagem" do modo normal. */
+  allowAiPausedLead?: boolean;
 }
 
 export async function sendLinkToLead(
@@ -64,7 +66,7 @@ export async function sendLinkToLead(
   if (!lead) {
     throw new NonRetriableError("Lead not found");
   }
-  if (!lead.isActive) {
+  if (!lead.isActive && !params.allowAiPausedLead) {
     throw new NonRetriableError("Lead is not active");
   }
   if (!lead.phone) {

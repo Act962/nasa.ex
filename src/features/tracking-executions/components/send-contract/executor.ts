@@ -72,6 +72,11 @@ export const sendContractExecutor: NodeExecutor<SendContractData> = async ({
         );
       }
 
+      // Sem modelo escolhido, o `findFirst` com id indefinido pegaria um modelo qualquer da empresa.
+      if (!data.templateContractId) {
+        throw new NonRetriableError("Escolha o modelo de contrato no passo");
+      }
+
       // 1. Valida template + ownership
       const template = await prisma.forgeContractTemplate.findFirst({
         where: {

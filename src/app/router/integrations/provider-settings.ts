@@ -2,7 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
-import { WhatsAppProvider } from "@/generated/prisma/enums";
+import { WhatsAppInstanceStatus, WhatsAppProvider } from "@/generated/prisma/enums";
 import { canToggleInChatManual } from "@/features/tracking-chat/lib/can-toggle-in-chat-manual";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import {
@@ -164,15 +164,15 @@ export const setProviderSettings = base
     // claro (não é silent failure). Instâncias Fase 4 que ainda tenham
     // appSecret/verifyToken próprios continuam tendo prioridade no
     // webhook (coluna > env).
-    if (input.provider === "META_CLOUD") {
-      const willHaveAccessToken =
-        Boolean(input.meta?.accessToken) ||
-        (input.meta?.accessToken !== null && Boolean(instance.metaAccessToken));
-      const willHavePhoneNumberId =
-        Boolean(input.meta?.phoneNumberId) ||
-        (input.meta?.phoneNumberId !== null &&
-          Boolean(instance.metaPhoneNumberId));
+    const willHaveAccessToken =
+      Boolean(input.meta?.accessToken) ||
+      (input.meta?.accessToken !== null && Boolean(instance.metaAccessToken));
+    const willHavePhoneNumberId =
+      Boolean(input.meta?.phoneNumberId) ||
+      (input.meta?.phoneNumberId !== null &&
+        Boolean(instance.metaPhoneNumberId));
 
+    if (input.provider === "META_CLOUD") {
       const missing: string[] = [];
       if (!willHaveAccessToken) missing.push("accessToken");
       if (!willHavePhoneNumberId) missing.push("phoneNumberId");
@@ -186,6 +186,7 @@ export const setProviderSettings = base
 
     const updateData: {
       provider?: WhatsAppProvider;
+      status?: WhatsAppInstanceStatus;
       apiKey?: string | null;
       baseUrl?: string | null;
       instanceId?: string | null;
@@ -294,6 +295,18 @@ export const setProviderSettings = base
       updateData.apiKey = null;
       updateData.baseUrl = null;
       updateData.instanceId = null;
+    }
+
+    // Na API oficial, token e número salvos são a conexão (spec 0112); o status por QR code não
+    // vale. Voltando para QR code, fica desconectado até ler o QR.
+    const resultingProvider = updateData.provider ?? instance.provider;
+    if (resultingProvider === WhatsAppProvider.META_CLOUD && (input.provider || input.meta)) {
+      updateData.status =
+        willHaveAccessToken && willHavePhoneNumberId
+          ? WhatsAppInstanceStatus.CONNECTED
+          : WhatsAppInstanceStatus.DISCONNECTED;
+    } else if (input.provider === "UAZAPI" && instance.provider !== WhatsAppProvider.UAZAPI) {
+      updateData.status = WhatsAppInstanceStatus.DISCONNECTED;
     }
 
     if (Object.keys(updateData).length === 0) {

@@ -29,6 +29,7 @@ import {
   type WorkflowContext,
 } from "./workflow-context";
 import { MAX_EXECUTIONS_PER_RUN } from "./cycle-detector";
+import { resolveWaitMinutes } from "./wait-duration";
 
 // ─── Types ─────────────────────────────────────────
 
@@ -613,7 +614,6 @@ async function executeNode(params: {
 
     case "WAIT": {
       // Nó "Esperar" do tracking (não confundir com WAIT_FOR_EVENT).
-      // data.action.{type: minutes|hours|days|weeks, [unit]: N}
       // Usa o mesmo mecanismo do WAIT_FOR_EVENT: retorna WAITING + nome
       // de evento que ninguém publica → o caller (Inngest) dorme via
       // step.waitForEvent com timeout = N minutos e segue após.
@@ -621,15 +621,7 @@ async function executeNode(params: {
         (node.data.action && typeof node.data.action === "object"
           ? (node.data.action as Record<string, unknown>)
           : node.data) ?? {};
-      const unit = String(action.type ?? action.unit ?? "minutes");
-      const minutes =
-        unit === "weeks"
-          ? Number(action.weeks ?? 0) * 60 * 24 * 7
-          : unit === "days"
-            ? Number(action.days ?? 0) * 60 * 24
-            : unit === "hours"
-              ? Number(action.hours ?? 0) * 60
-              : Number(action.minutes ?? 0);
+      const minutes = resolveWaitMinutes(action);
       if (dryRun) {
         return { output: { dryRun: true, willWaitMinutes: minutes } };
       }

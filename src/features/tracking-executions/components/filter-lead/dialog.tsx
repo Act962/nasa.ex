@@ -75,6 +75,12 @@ const filterConditionSchema = z.discriminatedUnion("field", [
     operator: z.enum(["contains", "not_contains", "equals"]),
     value: z.string().min(1, "Informe o texto a comparar"),
   }),
+  // Cliente escreveu depois da mensagem que iniciou o fluxo (spec 0112).
+  z.object({
+    field: z.literal("leadReply"),
+    operator: z.enum(["none_since_trigger", "since_trigger"]),
+    value: z.string().optional(),
+  }),
   // Interesse da Visão do Lead (spec 0085): Baixo, Médio ou Alto.
   z.object({
     field: z.literal("interest"),
@@ -105,6 +111,7 @@ const FIELD_OPTIONS: { value: FilterCondition["field"]; label: string }[] = [
   { value: "email", label: "E-mail" },
   { value: "leadMessage", label: "Mensagem do lead" },
   { value: "interest", label: "Interesse do lead" },
+  { value: "leadReply", label: "Resposta do lead" },
 ];
 
 const INTEREST_OPTIONS = [
@@ -140,6 +147,10 @@ const OPERATOR_OPTIONS: Record<
     { value: "at_least", label: "é pelo menos" },
     { value: "is", label: "é exatamente" },
   ],
+  leadReply: [
+    { value: "none_since_trigger", label: "não escreveu desde o início" },
+    { value: "since_trigger", label: "escreveu desde o início" },
+  ],
 };
 
 const PLACEHOLDER_BY_FIELD: Record<FilterCondition["field"], string> = {
@@ -150,6 +161,7 @@ const PLACEHOLDER_BY_FIELD: Record<FilterCondition["field"], string> = {
   email: "Valor...",
   leadMessage: "ex: intrevistador",
   interest: "Interesse...",
+  leadReply: "",
 };
 
 const DEFAULT_CONDITION: FilterCondition = {
@@ -200,6 +212,9 @@ export const FilterNodeDialog = ({
   const watchedConditions = form.watch("conditions");
   const hasLeadMessageCondition = (watchedConditions ?? []).some(
     (condition) => condition?.field === "leadMessage",
+  );
+  const hasLeadReplyCondition = (watchedConditions ?? []).some(
+    (condition) => condition?.field === "leadReply",
   );
 
   const handleSubmit = (values: FilterLeadFormValues) => {
@@ -453,6 +468,10 @@ export const FilterNodeDialog = ({
                                 </Command>
                               </PopoverContent>
                             </Popover>
+                          ) : currentField === "leadReply" ? (
+                            <span className="flex min-h-10 items-center text-xs text-muted-foreground">
+                              comparado à mensagem que iniciou o fluxo
+                            </span>
                           ) : currentField === "interest" ? (
                             <Select
                               onValueChange={field.onChange}
@@ -519,13 +538,25 @@ export const FilterNodeDialog = ({
               {hasLeadMessageCondition && (
                 <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
                   A comparação ignora acentos e maiúsculas. Só os gatilhos{" "}
-                  <strong>Novo Lead</strong>, <strong>Primeira Interação no
-                  Chat</strong>, <strong>Primeira Interação do Dia</strong>,{" "}
+                  <strong>Mensagem Recebida</strong>, <strong>Novo Lead</strong>,{" "}
+                  <strong>Primeira Interação no Chat</strong>, <strong>Primeira Interação do Dia</strong>,{" "}
                   <strong>Lead com Tag</strong> e{" "}
                   <strong>IA Finalizou o Atendimento</strong> trazem a mensagem
                   do lead. Em qualquer outro gatilho — ou quando o lead ainda
                   não escreveu nada — a condição não é satisfeita e o fluxo
                   para.
+                </p>
+              )}
+
+              {hasLeadReplyCondition && (
+                <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+                  Use depois de um <strong>Esperar</strong> para montar
+                  lembretes: o fluxo só segue se o cliente não mandou nada
+                  depois da mensagem que o iniciou. Quando ele responde, essa
+                  mensagem inicia o fluxo de novo e a contagem recomeça. Só
+                  funciona com gatilhos que trazem a mensagem do cliente (ex.:{" "}
+                  <strong>Mensagem Recebida</strong>); nos demais a condição não
+                  é satisfeita.
                 </p>
               )}
 
