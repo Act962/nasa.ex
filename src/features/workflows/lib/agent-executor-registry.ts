@@ -11,7 +11,7 @@
  *
  * Executors externos (este arquivo wireia):
  *   IA → AI_DECISION, AI_GENERATE_TEXT, AI_VISION, READ_PDF
- *   Controle → WAIT_FOR_EVENT, CALL_WORKFLOW
+ *   Controle → WAIT_FOR_EVENT, CALL_WORKFLOW, FILTER_LEAD
  *   Apps → CHECK_PAYMENT, SEND_VOICE, SEND_MEDIA
  *
  * NÃO incluímos os executors antigos do tracking (SEND_MESSAGE, MOVE_LEAD,
@@ -46,6 +46,7 @@ import { webSearchExecutor } from "./agent-executors/web-search";
 import { sendEmailExecutor } from "./agent-executors/email";
 import { seiActionAgentExecutor } from "./agent-executors/sei";
 import { notifyTeamExecutor } from "./agent-executors/notify-team";
+import { filterLeadAgentExecutor } from "./agent-executors/filter-lead";
 import {
   catalogOrderActionExecutor,
   checkCreditExecutor,
@@ -77,6 +78,7 @@ export function getAgentExecutorRegistry(): Map<string, NodeExecutor> {
     // Controle
     ["WAIT_FOR_EVENT", waitForEventExecutor],
     ["CALL_WORKFLOW", callWorkflowExecutor],
+    ["FILTER_LEAD", filterLeadAgentExecutor],
     // Apps NASA
     ["CHECK_PAYMENT", checkPaymentExecutor],
     ["SEND_VOICE", sendVoiceExecutor],
