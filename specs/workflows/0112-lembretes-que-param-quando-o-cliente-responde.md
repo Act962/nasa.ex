@@ -118,3 +118,4 @@ recomeça a contagem a partir da nova mensagem dele.
 | 2026-10-16 | Weydson (com Claude) | Criada |
 | 2026-10-17 | Weydson (com Claude) | RF-6: paridade de todos os passos do modo normal no Modo Agente; simulador não acusa "desconectado" na API oficial |
 | 2026-10-17 | Weydson (com Claude) | RF-7: diferenças dos passos que existem nos dois motores (auditoria) |
+| 2026-10-17 | Weydson (com Claude) | Número da API oficial com token e número salvos grava status CONNECTED (formulário e Embedded Signup); simulador diz "O WhatsApp do tracking X está desconectado." Registros antigos se corrigem ao salvar as credenciais de novo |
