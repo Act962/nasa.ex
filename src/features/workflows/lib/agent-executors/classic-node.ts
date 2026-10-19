@@ -71,6 +71,7 @@ export function runClassicNodeInAgentMode(
       lead: context.lead,
       leadMessage: leadMessageFromTrigger(context.trigger),
       realTime: false,
+      workflowId: context.workflowId,
     };
 
     try {
@@ -91,6 +92,7 @@ export function runClassicNodeInAgentMode(
             key !== "lead" &&
             key !== "leadMessage" &&
             key !== "realTime" &&
+            key !== "workflowId" &&
             value !== classicContext[key],
         ),
       );

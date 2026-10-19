@@ -32,6 +32,7 @@ import { normalizePhone } from "@/utils/format-phone";
 import { countries } from "@/types/some";
 import dayjs from "dayjs";
 import { applyVariables, firstNameOf } from "../../lib/interpolate-message";
+import { flowOriginMetadata, flowOriginOf } from "@/features/workflows/lib/flow-origin";
 import {
   colorsByTemperature,
   LeadSourceColors,
@@ -49,6 +50,8 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
   publish,
 }) => {
   console.log("Contexto", context);
+  // Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20).
+  const flowOrigin = flowOriginOf(context, nodeId);
   const result = await step.run("send-message", async () => {
     const leadContext = context.lead as LeadContext;
     const realTime = context.realTime as boolean;
@@ -238,6 +241,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
           conversationId,
           toPhone: phone,
           template: templateToSend,
+          origin: flowOrigin,
         });
       } else {
       // Só sem template reserva: com ele, o template já foi enviado no lugar do conteúdo livre.
@@ -264,6 +268,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             conversationId,
             leadPhone: phone,
             provider: resolved.provider,
+            origin: flowOrigin,
           });
 
           break;
@@ -280,6 +285,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             leadPhone: phone,
             provider: resolved.provider,
             mediaUrl: data.action?.payload.imageUrl || "",
+            origin: flowOrigin,
           });
           break;
         case "DOCUMENT":
@@ -296,6 +302,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             provider: resolved.provider,
             mediaUrl: data.action?.payload.documentUrl || "",
             fileName: data.action?.payload.fileName || "",
+            origin: flowOrigin,
           });
           break;
         case "BUTTONS": {
@@ -456,8 +463,14 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
               fromMe: true,
               status: MessageStatusEnum.SENT,
               quotedMessageId: null,
-              ...(hasTagMap || isSentAsNumberedText
-                ? { metadata: { ...(hasTagMap ? { buttonTagMap } : {}), ...(isSentAsNumberedText ? numberedMenuMetadata(numberedOptions) : {}) } }
+              ...(hasTagMap || isSentAsNumberedText || flowOrigin
+                ? {
+                    metadata: {
+                      ...(hasTagMap ? { buttonTagMap } : {}),
+                      ...(isSentAsNumberedText ? numberedMenuMetadata(numberedOptions) : {}),
+                      ...flowOriginMetadata(flowOrigin),
+                    },
+                  }
                 : {}),
             },
             include: {

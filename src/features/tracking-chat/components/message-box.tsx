@@ -10,6 +10,7 @@ import { useConstructUrl } from "@/hooks/use-construct-url";
 import { FileMessageBox } from "./file-message-box";
 import { AudioMessageBox } from "./audio-message-box";
 import { readAudioTranscription } from "@/features/tracking-chat-ai/lib/audio-metadata";
+import { FlowOriginLink } from "./flow-origin-link";
 import { VideoMessageBox } from "./video-message-box";
 import { LocationMessageBox } from "./location-message-box";
 import { ContactMessageBox } from "./contact-message-box";
@@ -459,6 +460,12 @@ export function MessageBox({
                         <InstagramMessageButtons metadata={message.metadata} />
                       </div>
                     )}
+                  </div>
+                )}
+
+                {isOwn && !isDeleted && (
+                  <div className={cn(isFile && "px-1.5")}>
+                    <FlowOriginLink metadata={message.metadata} trackingId={trackingId} />
                   </div>
                 )}
 

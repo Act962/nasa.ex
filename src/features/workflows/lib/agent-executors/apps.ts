@@ -49,6 +49,7 @@ import type { NodeExecutor } from "../run-workflow";
 import { runClassicNodeInAgentMode } from "./classic-node";
 import type { NodeExecutor as ClassicNodeExecutor } from "@/features/tracking-executions/types";
 import { createMessageFiller } from "./message-variables";
+import { flowOriginOf, type FlowMessageOrigin } from "../flow-origin";
 
 const PLACEHOLDER_NOT_SENT_MESSAGE =
   'Mensagem com texto de exemplo ("[Escreva aqui…]") não foi enviada. Troque o texto no passo.';
@@ -401,6 +402,7 @@ async function sendTemplateStep(params: {
   leadId: string;
   trackingId: string;
   template: WorkflowTemplateContent;
+  origin?: FlowMessageOrigin | null;
 }) {
   try {
     const result = await sendTemplateToLead(params);
@@ -469,6 +471,8 @@ export const sendMessageExecutor: NodeExecutor = async ({
       errorMessage: "lead_or_tracking_missing",
     };
   }
+  // Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20).
+  const origin = flowOriginOf(context, nodeId);
 
   // ─── BUTTONS branch ───────────────────────────────────────────────
   // Passos de conversa (spec 0099): pedem algo ao cliente e esperam a resposta dele.
@@ -597,7 +601,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
     const fallbackTemplate = toTemplateContent(action.fallbackTemplate, fillText);
     try {
       if (await isFreeFormWindowClosedForLead({ leadId, trackingId })) {
-        if (fallbackTemplate) return sendTemplateStep({ leadId, trackingId, template: fallbackTemplate });
+        if (fallbackTemplate) return sendTemplateStep({ leadId, trackingId, template: fallbackTemplate, origin });
         return { output: { error: WINDOW_CLOSED_MESSAGE }, status: "FAILED", errorMessage: WINDOW_CLOSED_MESSAGE };
       }
     } catch (err) {
@@ -618,6 +622,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
         menuFormat,
         listButton,
         chargeStars: true,
+        origin,
       });
       // Espera o clique e segue um caminho por resposta (spec 0090, seção F). Só com o interruptor
       // ligado e marcado no quadro; sem isso o menu segue pela saída única de sempre.
@@ -679,7 +684,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
         },
       };
     }
-    return sendTemplateStep({ leadId, trackingId, template });
+    return sendTemplateStep({ leadId, trackingId, template, origin });
   }
 
   // ─── TEXT branch (default) ────────────────────────────────────────
@@ -717,6 +722,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
           leadId,
           trackingId,
           template: fallbackTemplate,
+          origin,
         });
       }
     } catch (err) {
@@ -734,6 +740,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
       leadId,
       trackingId,
       body: text,
+      origin,
     });
     return {
       output: {

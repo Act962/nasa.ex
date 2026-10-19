@@ -31,6 +31,7 @@ import {
 } from "./workflow-outbound";
 import { OFFICIAL_MENU_LIMITS, isMetaInteractiveOn } from "@/features/workflows/lib/button-reply-flow";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
+import { flowOriginMetadata, type FlowMessageOrigin } from "@/features/workflows/lib/flow-origin";
 
 export interface SendButtonsToLeadParams {
   leadId: string;
@@ -46,6 +47,8 @@ export interface SendButtonsToLeadParams {
   listButton?: string;
   /** Cobra o envio como o modo normal cobra (1 envio = `message_send`). */
   chargeStars?: boolean;
+  /** Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20). */
+  origin?: FlowMessageOrigin | null;
 }
 
 export async function sendButtonsToLead(
@@ -197,8 +200,14 @@ export async function sendButtonsToLead(
       status: MessageStatus.SENT,
       quotedMessageId: null,
       viaInChat: skipUazapi,
-      ...(hasTagMap || isSentAsNumberedText
-        ? { metadata: { ...(hasTagMap ? { buttonTagMap } : {}), ...(isSentAsNumberedText ? numberedMenuMetadata(numberedOptions) : {}) } }
+      ...(hasTagMap || isSentAsNumberedText || params.origin
+        ? {
+            metadata: {
+              ...(hasTagMap ? { buttonTagMap } : {}),
+              ...(isSentAsNumberedText ? numberedMenuMetadata(numberedOptions) : {}),
+              ...flowOriginMetadata(params.origin),
+            },
+          }
         : {}),
     },
     include: {

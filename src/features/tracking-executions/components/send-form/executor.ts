@@ -8,6 +8,7 @@ import {
   buildLeadVariables,
 } from "../../lib/interpolate-message";
 import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
+import { flowOriginOf } from "@/features/workflows/lib/flow-origin";
 
 /**
  * SEND_FORM — cria uma `FormResponses` vinculada ao lead e envia o link
@@ -113,6 +114,7 @@ export const sendFormExecutor: NodeExecutor<SendFormData> = async ({
         leadId: lead.id,
         trackingId: lead.trackingId,
         body,
+        origin: flowOriginOf(context, nodeId),
       });
 
       if (realTime) {

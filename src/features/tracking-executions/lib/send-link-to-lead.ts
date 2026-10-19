@@ -39,12 +39,15 @@ import {
   toStoredMessageId,
   WORKFLOW_TYPING_DELAY_MS,
 } from "./workflow-outbound";
+import { flowOriginMetadata, type FlowMessageOrigin } from "@/features/workflows/lib/flow-origin";
 
 export interface SendLinkToLeadParams {
   leadId: string;
   trackingId: string;
   /** Mensagem completa (já com variáveis substituídas e URL incluída). */
   body: string;
+  /** Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20). */
+  origin?: FlowMessageOrigin | null;
 }
 
 export async function sendLinkToLead(
@@ -129,6 +132,7 @@ export async function sendLinkToLead(
       status: MessageStatus.SENT,
       quotedMessageId: null,
       viaInChat: skipUazapi,
+      ...(params.origin ? { metadata: flowOriginMetadata(params.origin) } : {}),
     },
     include: {
       conversation: { include: { lead: true } },

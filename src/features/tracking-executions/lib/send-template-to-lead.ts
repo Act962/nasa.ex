@@ -23,6 +23,7 @@ import {
   sendWithWorkflowErrors,
   toWorkflowSendError,
 } from "./workflow-outbound";
+import { flowOriginMetadata, type FlowMessageOrigin } from "@/features/workflows/lib/flow-origin";
 
 /** Template com as variáveis `{{n}}` já resolvidas para o lead. */
 export interface WorkflowTemplateContent {
@@ -153,6 +154,8 @@ export async function sendTemplateMessage(params: {
   conversationId: string;
   toPhone: string;
   template: WorkflowTemplateContent;
+  /** Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20). */
+  origin?: FlowMessageOrigin | null;
 }): Promise<{ messageId: string }> {
   const { resolved, template } = params;
   assertTemplateSendable(resolved, template);
@@ -183,7 +186,7 @@ export async function sendTemplateMessage(params: {
       fromMe: true,
       status: MessageStatus.SENT,
       quotedMessageId: null,
-      metadata: { source: "workflow", templateName: template.templateName },
+      metadata: { source: "workflow", templateName: template.templateName, ...flowOriginMetadata(params.origin) },
     },
     include: { conversation: { include: { lead: true } } },
   });
@@ -206,6 +209,7 @@ export async function sendTemplateToLead(params: {
   leadId: string;
   trackingId: string;
   template: WorkflowTemplateContent;
+  origin?: FlowMessageOrigin | null;
 }): Promise<{ messageId: string }> {
   const lead = await prisma.lead.findUnique({
     where: { id: params.leadId },
@@ -245,5 +249,6 @@ export async function sendTemplateToLead(params: {
     conversationId,
     toPhone: lead.phone,
     template: params.template,
+    origin: params.origin,
   });
 }

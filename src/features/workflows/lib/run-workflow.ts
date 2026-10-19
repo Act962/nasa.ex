@@ -300,6 +300,7 @@ export async function runWorkflow(
           : undefined,
         trigger: triggerPayload,
         initialVars: attendanceSummary ? { resumoAtendimento: attendanceSummary, ...initialVars } : initialVars,
+        workflowId,
       });
   let executions = isResume ? resumeExecutions ?? 0 : 0;
   let totalStars = isResume ? resumeStars ?? 0 : 0;

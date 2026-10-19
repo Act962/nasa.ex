@@ -39,6 +39,7 @@ import {
   editorReadOnlyAtom,
   connectionHoverAtom,
   insertOnEdgeIdAtom,
+  nodeToOpenAtom,
 } from "../store/atoms";
 import { NodeType } from "@/generated/prisma/enums";
 import { ExecuteWorkflowButton } from "./execute-workflow-button";
@@ -415,6 +416,26 @@ export function Editor({ workflowId }: { workflowId: string }) {
       "Nó adicionado — clique nele pra configurar e depois salve o workflow.",
     );
   }, [searchParams, pathname, router]);
+
+  // "Editar gatilho" no chat (spec 0113, RF-20): `?node=<id>` centraliza o passo e abre a configuração dele.
+  const flowEditor = useAtomValue(editorAtom);
+  const setNodeToOpen = useSetAtom(nodeToOpenAtom);
+  const nodeParamApplied = useRef(false);
+  useEffect(() => {
+    if (nodeParamApplied.current || !flowEditor) return;
+    const requestedNodeId = searchParams.get("node");
+    if (!requestedNodeId) return;
+    nodeParamApplied.current = true;
+    if (!nodes.some((node) => node.id === requestedNodeId)) {
+      toast.error("Esse passo não existe mais neste fluxo.");
+      return;
+    }
+    // Um instante para o React Flow medir os quadros; sem medida o enquadramento não acontece.
+    window.setTimeout(() => {
+      flowEditor.fitView({ nodes: [{ id: requestedNodeId }], padding: 0.8, duration: 600, maxZoom: 1.2 });
+      setNodeToOpen(requestedNodeId);
+    }, 150);
+  }, [flowEditor, nodes, searchParams, setNodeToOpen]);
 
   // Provider envolve tudo — qualquer NodeSelector renderizado embaixo
   // (botão "+" no canvas, no node inicial, no fim de cada execution/trigger

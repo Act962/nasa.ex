@@ -31,6 +31,7 @@ import {
 import { listChatFields, lookupValueOf, optionButtonsFor, questionFor, readAnswer, summaryOf, type ChatField, type FieldValue } from "../form-chat";
 import type { NodeExecutionResult } from "../run-workflow";
 import type { WorkflowContext } from "../workflow-context";
+import { flowOriginOf } from "../flow-origin";
 
 // Passos de conversa (spec 0099): "Pedir aceite" e "Preencher formulário pela conversa". O passo
 // envia uma pergunta, o motor suspende a execução e volta ao MESMO passo quando o cliente responde
@@ -104,9 +105,15 @@ async function ask(params: StepParams, question: { text: string; options?: { key
       buttons: question.options.map((option) => ({ id: stepReplyId(params.nodeId, option.key), text: option.title })),
       menuFormat: question.options.length > 3 ? "LIST" : "BUTTON",
       listButton: "Ver opções",
+      origin: flowOriginOf(params.context, params.nodeId),
     });
   } else {
-    await sendLinkToLead({ leadId: params.leadId, trackingId: params.trackingId, body: question.text });
+    await sendLinkToLead({
+      leadId: params.leadId,
+      trackingId: params.trackingId,
+      body: question.text,
+      origin: flowOriginOf(params.context, params.nodeId),
+    });
   }
   await markAwaitingReply({ leadId: params.leadId, trackingId: params.trackingId, nodeId: params.nodeId, timeoutMinutes: replyTimeoutMinutesOf(params.payload) });
 }
@@ -349,11 +356,21 @@ export async function runFormChatStep(params: StepParams): Promise<NodeExecution
 
     const retryOrGiveUp = async (message: string, again: () => Promise<void>): Promise<NodeExecutionResult> => {
       if (state.attempts + 1 >= MAX_ANSWER_ATTEMPTS) {
-        await sendLinkToLead({ leadId: params.leadId, trackingId: params.trackingId, body: GAVE_UP_MESSAGE });
+        await sendLinkToLead({
+          leadId: params.leadId,
+          trackingId: params.trackingId,
+          body: GAVE_UP_MESSAGE,
+          origin: flowOriginOf(params.context, params.nodeId),
+        });
         return finish(FORM_CHAT_OUTPUTS.gaveUp, { reason: "attempts", responseId: state.responseId });
       }
       state = { ...state, attempts: state.attempts + 1 };
-      await sendLinkToLead({ leadId: params.leadId, trackingId: params.trackingId, body: message });
+      await sendLinkToLead({
+        leadId: params.leadId,
+        trackingId: params.trackingId,
+        body: message,
+        origin: flowOriginOf(params.context, params.nodeId),
+      });
       await again();
       return waitFor(params, state);
     };
@@ -406,7 +423,12 @@ export async function runFormChatStep(params: StepParams): Promise<NodeExecution
     }
     if (answer.reason === "not_in_list") {
       if (state.attempts + 1 >= MAX_ANSWER_ATTEMPTS) {
-        await sendLinkToLead({ leadId: params.leadId, trackingId: params.trackingId, body: GAVE_UP_MESSAGE });
+        await sendLinkToLead({
+          leadId: params.leadId,
+          trackingId: params.trackingId,
+          body: GAVE_UP_MESSAGE,
+          origin: flowOriginOf(params.context, params.nodeId),
+        });
         return finish(FORM_CHAT_OUTPUTS.gaveUp, { reason: "attempts", responseId: state.responseId });
       }
       const fallbackOption = payload.fallbackOptionByField[field.id];

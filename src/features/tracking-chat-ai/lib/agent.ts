@@ -452,6 +452,8 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     : null;
   const systemPromptWithNotes = [
     systemPrompt,
+    // Tom de toda resposta no estado de atendimento (spec 0113, RF-21); nas entradas pelo atendimento já vai acima.
+    sectionNotesPlan && !attendanceInstruction ? ATTENDANCE_TONE : "",
     sectionNotesPlan?.contextBlock,
     sectionNotesPlan?.shouldWriteNotes ? NOTES_INSTRUCTION : "",
   ]

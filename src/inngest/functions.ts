@@ -242,7 +242,8 @@ export const executeWorkflow = inngest.createFunction(
       return topologicalSort(workflow.nodes, workflow.connections);
     });
 
-    let context = event.data.initialData || {};
+    // `workflowId` no contexto: a mensagem enviada pelo passo guarda de onde veio (spec 0113, RF-20).
+    let context = { ...(event.data.initialData || {}), workflowId };
 
     for (const node of sortedNodes) {
       const executor = getExecutor(node.type as NodeType);
