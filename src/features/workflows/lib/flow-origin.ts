@@ -25,5 +25,5 @@ export function readFlowOrigin(metadata: unknown): FlowMessageOrigin | null {
   const origin = (metadata as { flowOrigin?: unknown }).flowOrigin;
   if (!origin || typeof origin !== "object") return null;
   const { workflowId, nodeId } = origin as Partial<FlowMessageOrigin>;
-  return typeof workflowId === "string" && typeof nodeId === "string" ? { workflowId, nodeId } : null;
+  return typeof workflowId === "string" && workflowId && typeof nodeId === "string" && nodeId ? { workflowId, nodeId } : null;
 }

@@ -8,11 +8,12 @@ import {
 import { persistOutboundMessage } from "@/features/tracking-chat-ai/lib/persist";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { applyVariables, buildLeadVariables } from "@/features/tracking-executions/lib/interpolate-message";
+import type { ATTENDANCE_FIXED_MESSAGE_KINDS } from "./labels";
 
 // Mensagem fixa do atendimento, sem IA (spec 0113, RF-8 e RF-11): "já respondemos" e "assim que um
 // consultor desocupar". Marcada no metadata para não contar como troca de verdade nem entrar no resumo.
 
-export type FixedMessageKind = "attendance_holding" | "attendance_handoff";
+export type FixedMessageKind = (typeof ATTENDANCE_FIXED_MESSAGE_KINDS)[number];
 
 export type FixedMessageResult =
   | { isSent: true; messageId: string | null }

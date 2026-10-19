@@ -50,8 +50,11 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
   publish,
 }) => {
   console.log("Contexto", context);
-  // Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20).
-  const flowOrigin = flowOriginOf(context, nodeId);
+  // Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20). Envio para outro número
+  // não é mensagem do lead: fica sem o link.
+  const isCustomTargetStep =
+    (data.action as { target?: { sendMode?: unknown } } | undefined)?.target?.sendMode === "CUSTOM";
+  const flowOrigin = isCustomTargetStep ? null : flowOriginOf(context, nodeId);
   const result = await step.run("send-message", async () => {
     const leadContext = context.lead as LeadContext;
     const realTime = context.realTime as boolean;

@@ -24,3 +24,6 @@ export const APPOINTMENT_CHECK_ANSWER_LABEL: Record<string, string> = {
   unanswered: "Sem confirmação da equipe",
   rescheduled: "Horário remarcado",
 };
+
+/** Mensagens fixas do atendimento (sem IA): não contam como fala da empresa e abrem a configuração no chat. */
+export const ATTENDANCE_FIXED_MESSAGE_KINDS = ["attendance_holding", "attendance_handoff"] as const;

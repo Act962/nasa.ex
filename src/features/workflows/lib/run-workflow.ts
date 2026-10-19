@@ -292,8 +292,9 @@ export async function runWorkflow(
   );
 
   // 7. Executa caminhos. Resume reidrata estado; nova execução inicia do trigger.
+  // Execução retomada de antes do deploy não tinha `workflowId`: a origem das mensagens vem dele (spec 0113).
   let ctx: WorkflowContext = isResume
-    ? resumeContext!
+    ? { ...resumeContext!, workflowId }
     : createInitialContext({
         lead: lead
           ? (sanitizeForJson(lead) as Record<string, unknown>)

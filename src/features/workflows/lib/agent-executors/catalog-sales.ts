@@ -36,6 +36,7 @@ import { markAwaitingReply } from "./conversation-steps";
 import { AWAITING_REPLY_KEY } from "../conversation-steps";
 import type { NodeExecutionResult, NodeExecutor } from "../run-workflow";
 import { interpolate, type WorkflowContext } from "../workflow-context";
+import { flowOriginMetadata, flowOriginOf } from "../flow-origin";
 
 export const SALES_APPROVAL_OUTPUTS = ["approved", "rejected", "timeout"] as const;
 export const CHECK_CREDIT_OUTPUTS = ["eligible", "overdue"] as const;
@@ -354,6 +355,8 @@ async function askCustomer(params: {
     // Re-pergunta com a janela ainda fechada não repete a cópia no chat.
     shouldPersistWhenUnsent: !params.isRetryOfPending,
     template: params.template,
+    // Passo de fluxo que perguntou: o chat mostra "Editar gatilho" (spec 0113, RF-20).
+    metadata: flowOriginMetadata(flowOriginOf(params.context, params.nodeId)),
   }).catch((error: unknown) => ({ isSent: false as const, reason: error instanceof Error ? error.message : "whatsapp_send_failed" }));
   if (!delivery.isSent && UNREACHABLE_REASONS.has(delivery.reason)) {
     return failed(`Não foi possível perguntar ao cliente (${delivery.reason}).`);
