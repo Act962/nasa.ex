@@ -137,6 +137,7 @@ export const createContactMessage = base
           mediaType: "contact",
           fileName: input.contactPhone,
           senderName: context.user.name,
+          senderId: context.user.id,
           viaInChat: inChatMode,
         },
         select: {

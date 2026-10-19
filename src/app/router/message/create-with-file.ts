@@ -141,6 +141,7 @@ export const createMessageWithFile = base
           status: MessageStatus.SENT,
           quotedMessageId: input.id,
           senderName: context.user.name,
+          senderId: context.user.id,
           viaInChat: inChatMode,
         },
         select: {

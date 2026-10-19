@@ -44,8 +44,6 @@ export interface SendButtonsToLeadParams {
   // botões. `listButton` é o rótulo que abre a lista (default "Ver opções").
   menuFormat?: "BUTTON" | "LIST";
   listButton?: string;
-  /** Envia mesmo com a IA pausada no lead, como o "Enviar Mensagem" do modo normal. */
-  allowAiPausedLead?: boolean;
   /** Cobra o envio como o modo normal cobra (1 envio = `message_send`). */
   chargeStars?: boolean;
 }
@@ -70,12 +68,10 @@ export async function sendButtonsToLead(
       id: true,
       phone: true,
       trackingId: true,
-      isActive: true,
       tracking: { select: { organizationId: true } },
     },
   });
   if (!lead) throw new NonRetriableError("Lead not found");
-  if (!lead.isActive && !params.allowAiPausedLead) throw new NonRetriableError("Lead is not active");
   if (!lead.phone) throw new NonRetriableError("Lead phone is missing");
 
   // 2. Conversation

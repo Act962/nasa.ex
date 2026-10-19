@@ -4,6 +4,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { NodeType } from "@/generated/prisma/enums";
 import { dispatchFirstChatInteraction } from "@/inngest/utils";
 import { getLastLeadMessage } from "@/features/tracking-executions/lib/lead-message";
+import { removeAwaitingTagOnReply } from "@/features/org-defaults/lib/auto-tags";
 
 /**
  * Atualiza `Conversation.lastMessage` + `lastMessageAt` pra refletir a
@@ -58,7 +59,8 @@ export async function attendLeadIfWaiting(leadId: string, userId: string) {
 // Disparado em toda mensagem outbound do atendente humano: pausa a IA
 // (isActive=false, mesmo mecanismo do tool transfer_to_human) e atribui o
 // atendente como responsável do lead. Sobrescreve responsável existente:
-// último que respondeu vira o dono. Fast-path quando já está nesse estado.
+// último que respondeu vira o dono. A resposta humana sempre conta (spec 0113,
+// RF-4): grava `lastOutboundAt` e tira o "Aguard. atendimento".
 export async function claimLeadForAttendant(leadId: string, userId: string) {
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
@@ -67,21 +69,27 @@ export async function claimLeadForAttendant(leadId: string, userId: string) {
       isActive: true,
       responsibleId: true,
       trackingId: true,
+      tracking: { select: { organizationId: true } },
     },
   });
 
   if (!lead) return;
 
-  if (!lead.isActive && lead.responsibleId === userId) return;
-
+  const isAlreadyClaimed = !lead.isActive && lead.responsibleId === userId;
   await prisma.lead.update({
     where: { id: lead.id },
     data: {
-      isActive: false,
-      responsibleId: userId,
+      lastOutboundAt: new Date(),
+      ...(isAlreadyClaimed ? {} : { isActive: false, responsibleId: userId }),
     },
   });
 
+  await removeAwaitingTagOnReply({
+    organizationId: lead.tracking.organizationId,
+    leadId: lead.id,
+  }).catch((error: unknown) => console.warn("[claimLeadForAttendant] remove awaiting tag failed", error));
+
+  if (isAlreadyClaimed) return;
   await pusherServer.trigger(lead.trackingId, "lead:updated", {
     leadId: lead.id,
   });

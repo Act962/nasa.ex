@@ -256,17 +256,17 @@ async function sendWhatsAppNotification({
   });
   if (!instance) return;
 
-  // Get user's phone from a lead they are responsible for in this org
-  const lead = await prisma.lead.findFirst({
-    where: {
-      tracking: { organizationId },
-      responsibleId: userId,
-      phone: { not: null },
-    },
-    select: { phone: true },
-  });
+  // Só o número do próprio membro: o liberado no Astro desta empresa ou o do perfil. Antes saía para o
+  // telefone de um lead do qual ele era responsável, mandando aviso interno a cliente (spec 0113, RF-5).
+  const [binding, user] = await Promise.all([
+    prisma.userWhatsappBinding.findFirst({
+      where: { userId, organizationId, isActive: true },
+      select: { phoneE164: true },
+    }),
+    prisma.user.findUnique({ where: { id: userId }, select: { phone: true } }),
+  ]);
 
-  const phone = lead?.phone;
+  const phone = (binding?.phoneE164 ?? user?.phone ?? "").replace(/\D/g, "");
   if (!phone) return;
 
   const text = `*${title}*\n\n${body}\n\n_NASA.ex Platform_`;

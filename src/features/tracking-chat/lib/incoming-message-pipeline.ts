@@ -220,10 +220,11 @@ export async function firePostInboundAutomations(
     }
   }
 
-  // ── 4. Inngest IA (só inbound + IA ativa + lead ativo) ───────────────
+  // ── 4. Inngest IA (só inbound + IA do funil conectada) ───────────────
+  // Com a IA pausada no lead, o agente ainda roda as regras de Gatilho e campanha (menus que disparam
+  // ramo de fluxo, cupom) e para antes do modelo (spec 0113, RF-3).
   if (
     !params.fromMe &&
-    params.lead.isActive &&
     params.globalAiActive &&
     params.lead.conversation?.id
   ) {

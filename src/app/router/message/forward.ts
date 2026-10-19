@@ -33,6 +33,7 @@ function toForwardFailure(conversationId: string, reason: unknown) {
 }
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { claimLeadForAttendant } from "./utils";
 
 type ForwardKind = z.infer<typeof forwardPayloadSchema>["kind"];
 
@@ -80,7 +81,7 @@ export const forwardMessageHandler = base
             remoteJid: true,
             channel: true,
             trackingId: true,
-            lead: { select: { phone: true } },
+            lead: { select: { id: true, phone: true } },
             tracking: { select: { organizationId: true } },
           },
         });
@@ -116,9 +117,12 @@ export const forwardMessageHandler = base
           number,
           provider: resolved.provider,
           senderName: context.user.name,
+          senderId: context.user.id,
         };
 
         const message = await dispatchForward(input.payload, ctx);
+        // Encaminhar também é resposta humana (spec 0113, RF-4).
+        await claimLeadForAttendant(conversation.lead.id, context.user.id);
 
         return {
           conversationId,

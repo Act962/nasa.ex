@@ -9,7 +9,7 @@ import { pusherServer } from "@/lib/pusher";
 import { ORPCError } from "@orpc/server";
 import z from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { triggerFirstChatInteractionIfFirst } from "./utils";
+import { attendLeadIfWaiting, claimLeadForAttendant, triggerFirstChatInteractionIfFirst } from "./utils";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 import { MessageChannel, WhatsAppProvider } from "@/generated/prisma/enums";
 import {
@@ -247,6 +247,7 @@ export const createButtonsMessage = base
         fromMe: true,
         status: MessageStatus.SENT,
         senderName: context.user.name,
+        senderId: context.user.id,
         ...(hasTagMap ? { metadata: { buttonTagMap } } : {}),
       },
       select: {
@@ -283,6 +284,10 @@ export const createButtonsMessage = base
     };
 
     await pusherServer.trigger(message.conversationId, "message:created", messageCreated);
+
+    // Menu enviado à mão também é resposta humana (spec 0113, RF-4).
+    await attendLeadIfWaiting(message.conversation.lead.id, context.user.id);
+    await claimLeadForAttendant(message.conversation.lead.id, context.user.id);
 
     await triggerFirstChatInteractionIfFirst({
       conversationId: input.conversationId,

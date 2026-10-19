@@ -63,7 +63,8 @@ export const updateLead = base
         responsibleId: z.string().optional(),
         tagIds: z.array(z.string()).optional(),
         isConversation: z.boolean().optional().default(false),
-        active: z.boolean().optional().default(false),
+        // Sem padrão: só quem manda `active` mexe na IA (spec 0113, RF-1).
+        active: z.boolean().optional(),
         statusFlow: z.enum(["WAITING", "ACTIVE", "FINISHED"]).optional(),
         amount: z.number().optional(),
         trackingId: z.string().optional(),
@@ -108,6 +109,7 @@ export const updateLead = base
           trackingId: true,
           responsibleId: true,
           isActive: true,
+          leadTags: { select: { tagId: true } },
         },
       });
 
@@ -363,13 +365,19 @@ export const updateLead = base
           },
         });
       }
-      if (input.tagIds && input.tagIds.length > 0) {
-        await trackLeadEvent({
-          leadId: result.lead.id,
-          kind: "tag_added",
-          actorId: context.user.id,
-          metadata: { tagIds: input.tagIds },
-        });
+      // Um evento por etiqueta que de fato entrou ou saiu, com `tagId` no singular: é o formato que o
+      // histórico de etiquetas do Insights lê (`tag-snapshot.ts`).
+      if (input.tagIds) {
+        const previousTagIds = new Set(leadExists.leadTags.map((leadTag) => leadTag.tagId));
+        const nextTagIds = new Set(input.tagIds);
+        const addedTagIds = input.tagIds.filter((tagId) => !previousTagIds.has(tagId));
+        const removedTagIds = [...previousTagIds].filter((tagId) => !nextTagIds.has(tagId));
+        for (const tagId of addedTagIds) {
+          await trackLeadEvent({ leadId: result.lead.id, kind: "tag_added", actorId: context.user.id, metadata: { tagId } });
+        }
+        for (const tagId of removedTagIds) {
+          await trackLeadEvent({ leadId: result.lead.id, kind: "tag_removed", actorId: context.user.id, metadata: { tagId } });
+        }
       }
 
       // Canal interno sempre — `recordLeadEvent` cobre status/tracking/
@@ -404,8 +412,10 @@ export const updateLead = base
           featureKey = "lead.field.updated";
           changedFields.push("email");
         } else if (input.active !== undefined && input.active !== leadExists.isActive) {
-          actionLabel = input.active ? `Ativou o lead "${result.lead.name}"` : `Arquivou o lead "${result.lead.name}"`;
-          featureKey = input.active ? "lead.activated" : "lead.archived";
+          // `active` é a IA do lead, não arquivamento: "lead.archived" é do arquivar de verdade.
+          actionLabel = input.active ? `Ligou a IA do lead "${result.lead.name}"` : `Desligou a IA do lead "${result.lead.name}"`;
+          featureKey = "lead.field.updated";
+          changedFields.push("isActive");
         } else if (input.amount !== undefined) {
           actionLabel = `Atualizou o valor do lead "${result.lead.name}"`;
           featureKey = "lead.field.updated";

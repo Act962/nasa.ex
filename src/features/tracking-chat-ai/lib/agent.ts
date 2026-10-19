@@ -136,17 +136,25 @@ async function sendAgentNotice(
 }
 
 export async function runWhatsappAgent({ step, data }: RunArgs) {
+  // Com a IA pausada no lead, a função ainda roda para as regras de Gatilho e campanha (spec 0113,
+  // RF-3), mas sem transcrever áudio nem chamar o modelo.
+  const isLeadAiActive = await step.run("check-lead-ai", async () => {
+    const lead = await prisma.lead.findUnique({ where: { id: data.leadId }, select: { isActive: true } });
+    return lead?.isActive ?? false;
+  });
   // Não envolvemos load-context em step.run: o serializador do Inngest
   // converte o retorno em JsonifyObject, o que quebra o tipo de ModelMessage[]
   // (e o AgentContext que é passado pras tools). Re-executar em retry é barato.
   // Áudio do cliente vira texto antes de montar o histórico (spec 0084, RF-1).
-  await step.run("transcribe-lead-audio", () =>
-    transcribePendingLeadAudio({
-      trackingId: data.trackingId,
-      conversationId: data.conversationId,
-      organizationId: data.organizationId,
-    }),
-  );
+  if (isLeadAiActive) {
+    await step.run("transcribe-lead-audio", () =>
+      transcribePendingLeadAudio({
+        trackingId: data.trackingId,
+        conversationId: data.conversationId,
+        organizationId: data.organizationId,
+      }),
+    );
+  }
   const ctx = await loadAgentContext(data);
 
   // Pedido do catálogo NERP roda também só no portal (/pedido/<token>), sem
@@ -165,7 +173,6 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
       where: { leadId: ctx.lead.id, trackingId: ctx.trackingId, createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
     }),
   }));
-  if (!leadGate.isActive) return { skipped: true, reason: "lead_inactive" };
   if (leadGate.statusFlow === "FINISHED")
     return { skipped: true, reason: "lead_finished" };
   if (!ctx.lead.phone) return { skipped: true, reason: "lead_no_phone" };
@@ -196,6 +203,24 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const campaign = await step.run("star-friends-campaign", () => handleCampaign(ctx, data.messageId));
     if (campaign.handled) return { skipped: true, reason: "star_friends_campaign" };
+  }
+
+  // Com a IA pausada (atendente na conversa) só o clique num menu segue: ele dispara ramo de fluxo
+  // (spec 0098) e Gatilho não para com a IA (spec 0113, RF-3). Saudação e resposta de texto ficam
+  // com a assistente ativa, para não cortar a conversa do atendente.
+  const isPausedMenuClick =
+    !leadGate.isActive && data.messageId && (ctx.trigger ?? "inbound") === "inbound"
+      ? await step.run("paused-menu-click", async () => {
+          const inbound = await prisma.message.findFirst({
+            where: { id: data.messageId, conversationId: ctx.conversation.id, fromMe: false },
+            select: { metadata: true },
+          });
+          return typeof (inbound?.metadata as { interactiveReplyId?: unknown } | null)?.interactiveReplyId === "string";
+        })
+      : false;
+  if (!leadGate.isActive && !isPausedMenuClick) return { skipped: true, reason: "lead_inactive" };
+
+  if (leadGate.isActive && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const storeInfo = await step.run("store-info", () => handleStoreInfo(ctx, data.messageId));
     if (storeInfo.handled) return { skipped: true, reason: "store_info" };
   }
@@ -218,6 +243,10 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     const scriptMenu = await step.run("script-menu", () => handleScriptMenu(ctx, data.messageId));
     if (scriptMenu.handled) return { skipped: true, reason: "script_menu" };
   }
+
+  // Daqui para baixo é a assistente respondendo: só com a IA ativa no lead. As regras acima são de
+  // Gatilho e campanha e valem com a IA pausada (spec 0113, RF-3).
+  if (!leadGate.isActive) return { skipped: true, reason: "lead_inactive" };
 
   // Limite por cliente (spec 0084, RS-9): protege o número e o saldo da empresa de uso abusivo.
   // No limite, avisa uma vez e passa para a equipe; acima dele, fica em silêncio.

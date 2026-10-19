@@ -403,8 +403,7 @@ async function sendTemplateStep(params: {
   template: WorkflowTemplateContent;
 }) {
   try {
-    // Como o "Enviar Mensagem" do modo normal, envia mesmo com a IA pausada no lead.
-    const result = await sendTemplateToLead({ ...params, allowAiPausedLead: true });
+    const result = await sendTemplateToLead(params);
     return {
       output: {
         sent: true,
@@ -618,7 +617,6 @@ export const sendMessageExecutor: NodeExecutor = async ({
         buttons,
         menuFormat,
         listButton,
-        allowAiPausedLead: true,
         chargeStars: true,
       });
       // Espera o clique e segue um caminho por resposta (spec 0090, seção F). Só com o interruptor
@@ -736,7 +734,6 @@ export const sendMessageExecutor: NodeExecutor = async ({
       leadId,
       trackingId,
       body: text,
-      allowAiPausedLead: true,
     });
     return {
       output: {
