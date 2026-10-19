@@ -24,7 +24,7 @@ const ACTIVE_APPOINTMENT_STATUSES: AppointmentStatus[] = ["PENDING", "CONFIRMED"
 const MINUTE_MS = 60_000;
 
 export type AppointmentChange = "scheduled" | "rescheduled" | "cancelled" | "deleted" | "done";
-export type AppointmentCheckStatus = "pending" | "not_yet" | "attended" | "cancelled" | "unanswered";
+export type AppointmentCheckStatus = "pending" | "not_yet" | "attended" | "cancelled" | "unanswered" | "rescheduled";
 export type AppointmentCheckAnswer = "attended" | "not_yet" | "cancelled";
 
 export interface AppointmentWatchEventData {
@@ -105,9 +105,10 @@ async function releaseScheduledTag(params: {
   await removeHistoryTag({ ...params, key: "scheduled" });
 }
 
-async function findChecks(appointmentId: string) {
+async function findChecks(appointmentId: string, leadId: string) {
+  // `leadId` primeiro: usa o índice (leadId, occurredAt) em vez de varrer todas as conferências.
   const events = await prisma.leadJourneyEvent.findMany({
-    where: { kind: "appointment_check", metadata: { path: ["appointmentId"], equals: appointmentId } },
+    where: { leadId, kind: "appointment_check", metadata: { path: ["appointmentId"], equals: appointmentId } },
     orderBy: { occurredAt: "desc" },
     select: { id: true, leadId: true, metadata: true },
   });
@@ -126,6 +127,21 @@ async function transitionCheck(
     WHERE id = ${checkId} AND kind = 'appointment_check' AND metadata->>'status' = ANY(${fromStatuses})
   `;
   return updatedRows > 0;
+}
+
+async function settleOpenChecks(params: {
+  appointmentId: string;
+  leadId: string;
+  status: AppointmentCheckStatus;
+  actorId: string | null;
+}): Promise<void> {
+  for (const check of await findChecks(params.appointmentId, params.leadId)) {
+    await transitionCheck(check.id, ["pending", "not_yet", "unanswered"], {
+      status: params.status,
+      answeredBy: params.actorId,
+      answeredAt: new Date().toISOString(),
+    });
+  }
 }
 
 async function refreshLeadInChat(leadId: string): Promise<void> {
@@ -191,6 +207,10 @@ export async function recordAppointmentChange(params: {
     });
     // Voltou a agendar depois de cancelar: a recuperação deu certo.
     await removeHistoryTag({ organizationId, leadId, key: "cancelled", reason: "booked", appointmentId: appointment.id });
+    // Remarcou: a conferência do horário antigo se encerra (responder nela fecharia o agendamento novo).
+    if (params.change === "rescheduled") {
+      await settleOpenChecks({ appointmentId: appointment.id, leadId, status: "rescheduled", actorId });
+    }
     const watch: AppointmentWatchEventData = {
       appointmentId: appointment.id,
       organizationId,
@@ -204,13 +224,7 @@ export async function recordAppointmentChange(params: {
 
   const isDone = params.change === "done";
   await releaseScheduledTag({ organizationId, leadId, appointmentId: appointment.id, reason: isDone ? "finished" : "cancelled" });
-  for (const check of await findChecks(appointment.id)) {
-    await transitionCheck(check.id, ["pending", "not_yet"], {
-      status: isDone ? "attended" : "cancelled",
-      answeredBy: actorId,
-      answeredAt: new Date().toISOString(),
-    });
-  }
+  await settleOpenChecks({ appointmentId: appointment.id, leadId, status: isDone ? "attended" : "cancelled", actorId });
   // Só quando o cliente cancelou: cancelamento da equipe (engano, duplicado) não dispara recuperação.
   if (params.change === "cancelled" && appointment.cancelledBy === "CLIENT") {
     await addHistoryTag({ organizationId, leadId, key: "cancelled", reason: "cancelled", appointmentId: appointment.id });
@@ -262,7 +276,7 @@ export async function openAppointmentCheck(data: AppointmentWatchEventData): Pro
   if (!isActiveAppointment(appointment)) return { action: "not_active" };
   if (!isAttendanceStateEnabled(appointment.organizationId)) return { action: "disabled" };
 
-  const alreadyOpened = (await findChecks(appointment.id)).some((check) => check.state.startsAt === data.startsAt);
+  const alreadyOpened = (await findChecks(appointment.id, appointment.leadId)).some((check) => check.state.startsAt === data.startsAt);
   if (alreadyOpened) return { action: "already_open" };
 
   const now = new Date();
@@ -300,7 +314,7 @@ export async function recheckAppointment(data: AppointmentWatchEventData): Promi
   const appointment = await loadAppointmentSnapshot(data.appointmentId);
   if (!appointment?.leadId) return { action: "no_lead" };
   if (!isSameSchedule(appointment, data) || !isActiveAppointment(appointment)) return { action: "stale" };
-  const check = (await findChecks(appointment.id)).find((candidate) => candidate.id === data.checkId);
+  const check = (await findChecks(appointment.id, appointment.leadId)).find((candidate) => candidate.id === data.checkId);
   if (!check || check.state.status !== "not_yet") return { action: "answered" };
 
   const askNumber = check.state.askCount + 1;
@@ -351,6 +365,12 @@ export async function answerAppointmentCheck(params: {
   if (!appointment) return { status: "already_answered" };
   const answeredAt = new Date().toISOString();
   const leadId = event.leadId;
+  // Cartão de um horário que mudou ou de agendamento já encerrado: fecha a conferência sem mexer no agendamento.
+  if (state.startsAt !== appointment.startsAt.toISOString() || !isActiveAppointment(appointment)) {
+    await transitionCheck(event.id, ["pending", "not_yet", "unanswered"], { status: "rescheduled", answeredBy: params.userId, answeredAt });
+    await refreshLeadInChat(leadId);
+    return { status: "rescheduled" };
+  }
 
   if (params.answer === "not_yet") {
     const isLastAsk = state.askCount >= MAX_APPOINTMENT_CHECK_ASKS;

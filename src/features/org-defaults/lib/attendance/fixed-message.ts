@@ -16,7 +16,7 @@ export type FixedMessageKind = "attendance_holding" | "attendance_handoff";
 
 export type FixedMessageResult =
   | { isSent: true; messageId: string | null }
-  | { isSent: false; reason: "lead_not_found" | "window_closed" | "no_provider" | "no_balance" | "empty_text" };
+  | { isSent: false; reason: "lead_not_found" | "window_closed" | "no_provider" | "no_balance" | "empty_text" | "send_failed" };
 
 export async function sendAttendanceFixedMessage(params: {
   organizationId: string;
@@ -54,7 +54,12 @@ export async function sendAttendanceFixedMessage(params: {
   });
   if (!charge.success) return { isSent: false, reason: "no_balance" };
 
-  const sent = await resolved.provider.sendText({ kind: "text", to: lead.phone, body, typingDelayMs: 0 });
+  // Falha no envio não lança: o passo do Inngest repetiria e cobraria as Stars de novo.
+  const sent = await resolved.provider.sendText({ kind: "text", to: lead.phone, body, typingDelayMs: 0 }).catch((error: unknown) => {
+    console.warn("[attendance] envio da mensagem fixa falhou", error);
+    return null;
+  });
+  if (!sent) return { isSent: false, reason: "send_failed" };
   // Já saiu para o cliente: falha ao gravar no chat não pode fazer o Inngest repetir o envio.
   const message = await persistOutboundMessage({
     conversationId: params.conversationId,

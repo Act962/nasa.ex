@@ -21,6 +21,8 @@
  * derruba o caller (tracking.create).
  */
 import "server-only";
+import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
+import { ensureSystemTagId } from "@/features/org-defaults/lib/attendance/tags";
 import type { AppPrismaClient } from "@/lib/prisma";
 import {
   buildAgendamentoBlueprint,
@@ -68,8 +70,10 @@ interface PresetSpec {
   slug: PresetSlug;
   builder: BlueprintBuilder;
   logName: string;
-  /** Etiquetas da empresa usadas pelo modelo, por slug. Só procura; não cria. */
-  tagSlugs?: string[];
+  /** Só para empresas no estado de atendimento (spec 0113); fora dele, o modelo não teria gatilho. */
+  requiresAttendanceState?: boolean;
+  /** Etiquetas usadas pelo modelo, por slug (`{{TAG:slug}}`). */
+  resolveTagMap?: (organizationId: string) => Promise<Record<string, string>>;
 }
 
 const DEFAULT_PRESETS: PresetSpec[] = [
@@ -102,22 +106,13 @@ const DEFAULT_PRESETS: PresetSpec[] = [
     slug: "recuperacao-cancelou",
     builder: buildRecuperacaoCancelouBlueprint,
     logName: "Recuperar quem cancelou",
-    tagSlugs: [RECOVERY_TRIGGER_TAG_SLUG],
+    requiresAttendanceState: true,
+    resolveTagMap: async (organizationId) => {
+      const cancelledTagId = await ensureSystemTagId(organizationId, "cancelled");
+      return cancelledTagId ? { [RECOVERY_TRIGGER_TAG_SLUG]: cancelledTagId } : {};
+    },
   },
 ];
-
-async function findOrganizationTagMap(
-  prisma: AppPrismaClient,
-  organizationId: string,
-  tagSlugs: string[] | undefined,
-): Promise<Record<string, string>> {
-  if (!tagSlugs?.length) return {};
-  const tags = await prisma.tag.findMany({
-    where: { organizationId, trackingId: null, slug: { in: tagSlugs }, type: "SYSTEM", archivedAt: null },
-    select: { id: true, slug: true },
-  });
-  return Object.fromEntries(tags.map((tag) => [tag.slug, tag.id]));
-}
 
 interface ApplyParams {
   prisma: AppPrismaClient;
@@ -143,12 +138,13 @@ export async function applyDefaultAgentPresets({
   userId,
   slug,
 }: ApplyParams): Promise<Array<{ workflowId: string; name: string }>> {
-  const targets = slug
-    ? DEFAULT_PRESETS.filter((p) => p.slug === slug)
-    : DEFAULT_PRESETS;
+  const isAttendanceManaged = isAttendanceStateEnabled(organizationId);
+  const targets = (slug ? DEFAULT_PRESETS.filter((preset) => preset.slug === slug) : DEFAULT_PRESETS).filter(
+    (preset) => !preset.requiresAttendanceState || isAttendanceManaged,
+  );
 
   if (slug && targets.length === 0) {
-    console.warn(`[apply-default-presets] slug "${slug}" não encontrado`);
+    console.warn(`[apply-default-presets] slug "${slug}" não encontrado ou fora do estado de atendimento`);
     return [];
   }
 
@@ -157,7 +153,7 @@ export async function applyDefaultAgentPresets({
   for (const preset of targets) {
     try {
       const blueprint = preset.builder({ organizationId, trackingId });
-      const tagMap = await findOrganizationTagMap(prisma, organizationId, preset.tagSlugs);
+      const tagMap = (await preset.resolveTagMap?.(organizationId)) ?? {};
 
       const result = await prisma.$transaction(async (tx) => {
         const r = await createWorkflowFromBlueprint(tx, {

@@ -22,4 +22,5 @@ export const APPOINTMENT_CHECK_ANSWER_LABEL: Record<string, string> = {
   attended: "Cliente veio",
   cancelled: "Cliente cancelou ou não veio",
   unanswered: "Sem confirmação da equipe",
+  rescheduled: "Horário remarcado",
 };

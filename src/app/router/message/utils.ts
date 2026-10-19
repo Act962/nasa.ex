@@ -5,7 +5,7 @@ import { NodeType } from "@/generated/prisma/enums";
 import { dispatchFirstChatInteraction } from "@/inngest/utils";
 import { getLastLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 import { removeAwaitingTagOnReply } from "@/features/org-defaults/lib/auto-tags";
-import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
+import { isAttendanceManagedChannel } from "@/features/org-defaults/lib/attendance/flag";
 import { applyHumanReplyAttendance } from "@/features/org-defaults/lib/attendance/state";
 
 /**
@@ -47,12 +47,17 @@ export async function updateConversationLastMessage(
 export async function attendLeadIfWaiting(leadId: string, userId: string) {
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
-    select: { id: true, statusFlow: true, tracking: { select: { organizationId: true } } },
+    select: {
+      id: true,
+      statusFlow: true,
+      tracking: { select: { organizationId: true } },
+      conversation: { select: { channel: true } },
+    },
   });
 
   if (!lead || lead.statusFlow === "ACTIVE" || lead.statusFlow === "FINISHED") return;
   // Com o estado de atendimento, "Em atendimento" só vem na troca de verdade (spec 0113, RF-9).
-  if (isAttendanceStateEnabled(lead.tracking.organizationId)) return;
+  if (isAttendanceManagedChannel(lead.tracking.organizationId, lead.conversation?.channel)) return;
 
   await prisma.lead.update({
     where: { id: lead.id },
@@ -74,6 +79,7 @@ export async function claimLeadForAttendant(leadId: string, userId: string) {
       responsibleId: true,
       trackingId: true,
       tracking: { select: { organizationId: true } },
+      conversation: { select: { channel: true } },
     },
   });
 
@@ -88,7 +94,7 @@ export async function claimLeadForAttendant(leadId: string, userId: string) {
     },
   });
 
-  if (isAttendanceStateEnabled(lead.tracking.organizationId)) {
+  if (isAttendanceManagedChannel(lead.tracking.organizationId, lead.conversation?.channel)) {
     // Estado de atendimento (spec 0113): marca a fala humana, cala a IA e cuida das etiquetas.
     await applyHumanReplyAttendance({ leadId: lead.id, userId, at: new Date() }).catch((error: unknown) =>
       console.warn("[claimLeadForAttendant] attendance state failed", error),
@@ -115,10 +121,10 @@ export async function recordHumanReply(leadId: string, options: { userId: string
   const lead = await prisma.lead.update({
     where: { id: leadId },
     data: { lastOutboundAt: new Date() },
-    select: { id: true, tracking: { select: { organizationId: true } } },
+    select: { id: true, tracking: { select: { organizationId: true } }, conversation: { select: { channel: true } } },
   });
   const { organizationId } = lead.tracking;
-  if (isAttendanceStateEnabled(organizationId)) {
+  if (isAttendanceManagedChannel(organizationId, lead.conversation?.channel)) {
     // Encaminhar não é conversa: com o estado de atendimento, só a resposta na conversa mexe no estado.
     if (options.isConversationReply) {
       await applyHumanReplyAttendance({ leadId: lead.id, userId: options.userId, at: new Date() }).catch((error: unknown) =>

@@ -5,8 +5,7 @@ import prisma from "@/lib/prisma";
 import { canAccessTracking } from "@/features/workflows/server/workflow-access";
 import { ORPCError } from "@orpc/server";
 import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
-import { assignedStatusFlowPatch, rodizioQueueWhere } from "@/features/org-defaults/lib/attendance/rodizio";
-import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
+import { assignedStatusFlowPatch, consultantLoadFilter, rodizioQueueWhere } from "@/features/org-defaults/lib/attendance/rodizio";
 import { applyFinishedAttendance } from "@/features/org-defaults/lib/attendance/state";
 
 export const finishLead = base
@@ -79,9 +78,7 @@ export const finishLead = base
           user: {
             include: {
               responsibleOnLeads: {
-                where: isAttendanceStateEnabled(organizationId)
-                  ? { trackingId, statusFlow: { not: "FINISHED" }, currentAction: "ACTIVE", isArchived: false }
-                  : { trackingId, statusFlow: "ACTIVE", isActive: true },
+                where: consultantLoadFilter({ organizationId, trackingId }),
               },
             },
           },

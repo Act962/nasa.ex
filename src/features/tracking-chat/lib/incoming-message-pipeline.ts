@@ -24,7 +24,7 @@
  */
 
 import { applyInboundAutoTags, loadAwaitingState, removeAwaitingTagOnReply } from "@/features/org-defaults/lib/auto-tags";
-import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
+import { isAttendanceManagedChannel } from "@/features/org-defaults/lib/attendance/flag";
 import { applyClientMessageAttendance, applyHumanReplyAttendance } from "@/features/org-defaults/lib/attendance/state";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
@@ -144,7 +144,7 @@ export async function firePostInboundAutomations(
 
   // ── 1b. Tags automáticas da empresa (spec 0042) e estado de atendimento (spec 0113) ──
   // Roda antes de acionar a IA: com o estado de atendimento, é aqui que se decide se ela responde agora.
-  const isAttendanceStateManaged = isAttendanceStateEnabled(params.organizationId);
+  const isAttendanceStateManaged = isAttendanceManagedChannel(params.organizationId, params.channel);
   try {
     const messageAt = params.messageAt ?? now;
     if (params.fromMe) {

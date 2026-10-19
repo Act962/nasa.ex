@@ -32,6 +32,7 @@ import { MAX_EXECUTIONS_PER_RUN } from "./cycle-detector";
 import { resolveWaitMinutes } from "./wait-duration";
 import { isWindowWait, minutesUntilWindowDeadline } from "./window-wait";
 import { findLatestSectionSummary } from "@/features/org-defaults/lib/attendance/section";
+import { isAttendanceStateConfigured } from "@/features/org-defaults/lib/attendance/flag";
 
 // ─── Types ─────────────────────────────────────────
 
@@ -196,9 +197,10 @@ export async function runWorkflow(
     ? await prisma.lead.findUnique({ where: { id: leadId } })
     : null;
   // Texto da IA nos fluxos parte do resumo do atendimento (spec 0113, RF-19). Só lê quando o fluxo tem IA escrevendo.
-  const hasAiTextNode = workflow.nodes.some((node) => node.type === "AI_GENERATE_TEXT");
+  const shouldLoadAttendanceSummary =
+    isAttendanceStateConfigured() && !isResume && workflow.nodes.some((node) => node.type === "AI_GENERATE_TEXT");
   const attendanceSummary =
-    lead && hasAiTextNode && !isResume ? await findLatestSectionSummary(lead.id).catch(() => null) : null;
+    lead && shouldLoadAttendanceSummary ? await findLatestSectionSummary(lead.id).catch(() => null) : null;
 
   // 4. Cria WorkflowRun (ou reusa o anterior se for resume)
   const run = dryRun

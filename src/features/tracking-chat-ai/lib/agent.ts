@@ -202,6 +202,12 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     );
   }
   const ctx = await loadAgentContext(data);
+  // Resposta pronta (menu, campanha, informações da loja) também é a empresa respondendo: a seção registra,
+  // para o cliente não seguir "Aguard. atendimento" enquanto o robô conversa (spec 0113, RF-9).
+  const markCodedReply = async () => {
+    if (!isAttendanceStateEnabled(ctx.organizationId)) return;
+    await step.run("mark-coded-reply", () => markAiReplied({ leadId: ctx.lead.id, at: new Date() }));
+  };
 
   // Pedido do catálogo NERP roda também só no portal (/pedido/<token>), sem
   // instância de WhatsApp no tracking.
@@ -248,33 +254,48 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // menus porque a foto do cupom e o número digitado são respostas a uma pergunta da campanha.
   if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const campaign = await step.run("star-friends-campaign", () => handleCampaign(ctx, data.messageId));
-    if (campaign.handled) return { skipped: true, reason: "star_friends_campaign" };
+    if (campaign.handled) {
+      await markCodedReply();
+      return { skipped: true, reason: "star_friends_campaign" };
+    }
   }
   // IA pausada e sem clique: só a campanha valia. Menus e assistente ficam para quando a IA pode falar.
   if (!leadGate.isActive && !entryGate.isMenuClick) return { skipped: true, reason: "lead_inactive" };
 
   if (leadGate.isActive && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const storeInfo = await step.run("store-info", () => handleStoreInfo(ctx, data.messageId));
-    if (storeInfo.handled) return { skipped: true, reason: "store_info" };
+    if (storeInfo.handled) {
+      await markCodedReply();
+      return { skipped: true, reason: "store_info" };
+    }
   }
 
   // Menu de botões (spec 0089): saudação e cliques do menu são resolvidos em código, sem modelo,
   // sem cobrar resposta de IA e sem contar no limite abaixo. O resto segue para a assistente.
   if (ctx.capabilities.guidedMenu && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const guided = await step.run("guided-menu", () => handleGuidedMenu(ctx, data.messageId));
-    if (guided.handled) return { skipped: true, reason: "guided_menu" };
+    if (guided.handled) {
+      await markCodedReply();
+      return { skipped: true, reason: "guided_menu" };
+    }
   }
 
   // Pergunta do menu de um assunto (spec 0096): a resposta do roteiro sai pelo código, sem modelo.
   if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const topicMenu = await step.run("topic-menu", () => handleTopicMenu(ctx, data.messageId));
-    if (topicMenu.handled) return { skipped: true, reason: "topic_menu" };
+    if (topicMenu.handled) {
+      await markCodedReply();
+      return { skipped: true, reason: "topic_menu" };
+    }
   }
 
   // Menu inicial do roteiro (spec 0091): no começo da conversa, saudação e menu saem pelo código.
   if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const scriptMenu = await step.run("script-menu", () => handleScriptMenu(ctx, data.messageId));
-    if (scriptMenu.handled) return { skipped: true, reason: "script_menu" };
+    if (scriptMenu.handled) {
+      await markCodedReply();
+      return { skipped: true, reason: "script_menu" };
+    }
   }
 
   // Daqui para baixo é a assistente respondendo: só com a IA ativa no lead. As regras acima são de

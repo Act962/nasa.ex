@@ -3,6 +3,7 @@
 import { CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { useAnswerAppointmentCheck } from "@/features/tracking-chat/hooks/use-appointment-check";
 
 // Conferência do agendamento (spec 0113, RF-18): só a equipe vê; nada sai para o cliente.
@@ -15,10 +16,14 @@ export interface PendingAppointmentCheck {
 
 type CheckAnswer = "attended" | "not_yet" | "cancelled";
 
-const ANSWER_TOAST: Record<CheckAnswer, string> = {
+// Pelo resultado do servidor: o terceiro "Não" avisa o dono em vez de perguntar de novo.
+const RESULT_TOAST: Record<string, string> = {
   attended: "Atendimento finalizado.",
   not_yet: "Perguntamos de novo em 10 minutos.",
+  unanswered: "O dono foi avisado de que o cliente não chegou.",
   cancelled: "Marcado como cancelado. A recuperação começa pelos Gatilhos.",
+  rescheduled: "Esse horário mudou. A conferência foi encerrada.",
+  already_answered: "Alguém da equipe já respondeu.",
 };
 
 export function AppointmentCheckCard({ check }: { check: PendingAppointmentCheck }) {
@@ -33,15 +38,17 @@ export function AppointmentCheckCard({ check }: { check: PendingAppointmentCheck
     answerCheck.mutate(
       { checkId: check.id, answer: choice },
       {
-        onSuccess: (result) =>
-          toast.success(result.status === "already_answered" ? "Alguém da equipe já respondeu." : ANSWER_TOAST[choice]),
+        onSuccess: (result) => toast.success(RESULT_TOAST[result.status] ?? "Resposta salva."),
         onError: () => toast.error("Não foi possível salvar a resposta."),
       },
     );
 
   return (
-    <div className="mx-3 mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-sky-500/40 bg-sky-500/5 px-3 py-2 text-sm">
-      <CalendarClock className="size-4 shrink-0 text-sky-600 dark:text-sky-400" />
+    <div
+      data-guide={GUIDE_ANCHORS.appointmentCheckCard.id}
+      className="mx-3 mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm"
+    >
+      <CalendarClock className="size-4 shrink-0 text-primary" />
       <p className="min-w-0 flex-1">
         <span className="font-medium">Horário das {time}.</span> O cliente veio?
         {check.askCount > 1 && <span className="text-muted-foreground"> ({check.askCount}ª conferência)</span>}

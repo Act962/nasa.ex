@@ -118,7 +118,7 @@ export const listLeadsByStatus = base
     } = input;
 
     const trackingOwner = await prisma.tracking.findUnique({ where: { id: trackingId }, select: { organizationId: true } });
-    const isAttendanceManaged = isAttendanceStateEnabled(trackingOwner?.organizationId);
+    const isOrganizationAttendanceManaged = isAttendanceStateEnabled(trackingOwner?.organizationId);
 
     const leads = await prisma.lead.findMany({
       where: {
@@ -200,7 +200,7 @@ export const listLeadsByStatus = base
         // Conversation do lead — usado pelo ícone WhatsApp do card pra
         // direcionar pro chat (substituiu o ícone "Em atendimento").
         conversation: {
-          select: { id: true },
+          select: { id: true, channel: true },
         },
         // Form responses do lead — usados pra renderizar os ícones de
         // estado do formulário no card. Carregamos jsonResponse +
@@ -448,7 +448,8 @@ export const listLeadsByStatus = base
           : null;
         return {
           ...rest,
-          isAttendanceManaged,
+          // Instagram e Facebook seguem com o botão da IA (spec 0113, só WhatsApp entra no estado).
+          isAttendanceManaged: isOrganizationAttendanceManaged && (lead.conversation?.channel ?? "WHATSAPP") === "WHATSAPP",
           order: lead.order.toString(),
           amount: lead.amount.toString(),
           forms: responses,

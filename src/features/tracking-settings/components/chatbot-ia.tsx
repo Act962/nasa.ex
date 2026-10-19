@@ -15,6 +15,7 @@ import { ChatBotIaButtonsTab } from "./chatbot-ia-buttons-tab";
 import { AiStatusBadge } from "@/features/ia/components/ai-status-badge";
 import { ChatBotIaModelTab } from "./chatbot-ia-model-tab";
 import { ChatBotIaUsageTab } from "./chatbot-ia-usage-tab";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export function ChatBotIa({ trackingId }: { trackingId: string }) {
   const [iaTab, setIaTab] = useQueryState(
@@ -44,7 +45,9 @@ export function ChatBotIa({ trackingId }: { trackingId: string }) {
         <TabsList>
           <TabsTrigger value="general">Geral</TabsTrigger>
           <TabsTrigger value="buttons">Botões</TabsTrigger>
-          <TabsTrigger value="capabilities">O que o Astro pode fazer</TabsTrigger>
+          <TabsTrigger value="capabilities" data-guide={GUIDE_ANCHORS.chatbotIaCapabilitiesTab.id}>
+            O que o Astro pode fazer
+          </TabsTrigger>
           <TabsTrigger value="model">Modelo</TabsTrigger>
           {canSeeUsage && <TabsTrigger value="usage">Uso</TabsTrigger>}
         </TabsList>

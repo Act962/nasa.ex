@@ -19,24 +19,39 @@ const STATUS_FLOW_TAG: Record<AttendanceStatusFlow, AutoTagKey | null> = {
 const STATE_TAG_KEYS: AutoTagKey[] = ["awaitingReply", "inService", "finished"];
 
 /**
- * Id da etiqueta de sistema; `null` quando a empresa arquivou. Só etiqueta `SYSTEM`: uma etiqueta da empresa
- * com o mesmo nome continua sendo dela, sem entrar e sair sozinha nem disparar os fluxos dela.
+ * Etiquetas da empresa que fazem o papel de cada chave: a `SYSTEM` primeiro; sem ela, a da empresa com o mesmo
+ * slug (contas antigas), para não criar uma segunda etiqueta com o mesmo nome. Inclui as arquivadas.
  */
-export async function ensureSystemTagId(organizationId: string, key: AutoTagKey): Promise<string | null> {
-  const template = [...DEFAULT_TAGS, ...ATTENDANCE_TAGS].find((tag) => tag.key === key);
-  const slug = AUTO_TAG_SLUGS[key];
-  const existing = await prisma.tag.findFirst({
-    where: { organizationId, trackingId: null, slug, type: "SYSTEM" },
-    orderBy: { archivedAt: { sort: "desc", nulls: "first" } },
-    select: { id: true, archivedAt: true },
+async function findStateTags(organizationId: string, keys: AutoTagKey[]): Promise<Map<AutoTagKey, { id: string; isArchived: boolean }>> {
+  const slugs = keys.map((key) => AUTO_TAG_SLUGS[key]);
+  const tags = await prisma.tag.findMany({
+    where: { organizationId, trackingId: null, slug: { in: slugs } },
+    select: { id: true, slug: true, type: true, archivedAt: true },
   });
-  if (existing) return existing.archivedAt ? null : existing.id;
+  const tagByKey = new Map<AutoTagKey, { id: string; isArchived: boolean }>();
+  for (const key of keys) {
+    const candidates = tags.filter((tag) => tag.slug === AUTO_TAG_SLUGS[key]);
+    const chosen =
+      candidates.find((tag) => tag.type === "SYSTEM" && !tag.archivedAt) ??
+      candidates.find((tag) => tag.type === "SYSTEM") ??
+      candidates.find((tag) => !tag.archivedAt) ??
+      candidates[0];
+    if (chosen) tagByKey.set(key, { id: chosen.id, isArchived: Boolean(chosen.archivedAt) });
+  }
+  return tagByKey;
+}
+
+/** Id da etiqueta do atendimento, criada na hora se a empresa não tem; `null` quando a empresa arquivou. */
+export async function ensureSystemTagId(organizationId: string, key: AutoTagKey): Promise<string | null> {
+  const existing = (await findStateTags(organizationId, [key])).get(key);
+  if (existing) return existing.isArchived ? null : existing.id;
+  const template = [...DEFAULT_TAGS, ...ATTENDANCE_TAGS].find((tag) => tag.key === key);
   if (!template) return null;
   const created = await prisma.tag
     .create({
       data: {
         name: template.name,
-        slug,
+        slug: AUTO_TAG_SLUGS[key],
         color: template.color,
         description: template.description,
         type: "SYSTEM",
@@ -47,11 +62,8 @@ export async function ensureSystemTagId(organizationId: string, key: AutoTagKey)
     .catch(() => null);
   if (created) return created.id;
   // Corrida com outra mensagem do mesmo lead: a outra criou primeiro.
-  const createdMeanwhile = await prisma.tag.findFirst({
-    where: { organizationId, trackingId: null, slug, type: "SYSTEM", archivedAt: null },
-    select: { id: true },
-  });
-  return createdMeanwhile?.id ?? null;
+  const createdMeanwhile = (await findStateTags(organizationId, [key])).get(key);
+  return createdMeanwhile && !createdMeanwhile.isArchived ? createdMeanwhile.id : null;
 }
 
 async function publishTagChange(leadId: string) {
@@ -69,13 +81,12 @@ export async function mirrorStatusFlowTags(params: {
   statusFlow: AttendanceStatusFlow;
 }): Promise<void> {
   const currentKey = STATUS_FLOW_TAG[params.statusFlow];
-  const otherSlugs = STATE_TAG_KEYS.filter((key) => key !== currentKey).map((key) => AUTO_TAG_SLUGS[key]);
-  const removed = await prisma.leadTag.deleteMany({
-    where: {
-      leadId: params.leadId,
-      tag: { organizationId: params.organizationId, trackingId: null, slug: { in: otherSlugs }, type: "SYSTEM" },
-    },
-  });
+  const otherKeys = STATE_TAG_KEYS.filter((key) => key !== currentKey);
+  const otherTagIds = [...(await findStateTags(params.organizationId, otherKeys)).values()].map((tag) => tag.id);
+  const removed =
+    otherTagIds.length > 0
+      ? await prisma.leadTag.deleteMany({ where: { leadId: params.leadId, tagId: { in: otherTagIds } } })
+      : { count: 0 };
 
   const currentTagId = currentKey ? await ensureSystemTagId(params.organizationId, currentKey) : null;
   const isAlreadyTagged = currentTagId
@@ -118,10 +129,7 @@ export async function removeHistoryTag(params: {
   appointmentId?: string;
   sectionId?: string;
 }): Promise<boolean> {
-  const tag = await prisma.tag.findFirst({
-    where: { organizationId: params.organizationId, trackingId: null, slug: AUTO_TAG_SLUGS[params.key], type: "SYSTEM" },
-    select: { id: true },
-  });
+  const tag = (await findStateTags(params.organizationId, [params.key])).get(params.key);
   if (!tag) return false;
   const removed = await prisma.leadTag.deleteMany({ where: { leadId: params.leadId, tagId: tag.id } });
   if (removed.count === 0) return false;

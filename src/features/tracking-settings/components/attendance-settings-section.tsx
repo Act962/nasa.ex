@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import type { AttendanceSettings } from "@/features/tracking-chat-ai/lib/capabilities";
 
 // Estado de atendimento por funil (spec 0113, RF-7): quem responde primeiro, tempos e textos fixos.
@@ -36,7 +37,7 @@ export function AttendanceSettingsSection({ value, onChange }: AttendanceSetting
     onChange({ ...value, [key]: fieldValue });
 
   return (
-    <section>
+    <section data-guide={GUIDE_ANCHORS.attendanceSettingsSection.id}>
       <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Atendimento</h3>
       <div className="mt-2 grid gap-3 rounded-lg border p-3">
         <div className="grid gap-2 sm:grid-cols-2">
@@ -67,8 +68,10 @@ export function AttendanceSettingsSection({ value, onChange }: AttendanceSetting
                 value={value[field.key]}
                 onChange={(event) => {
                   const minutes = Number(event.target.value);
-                  if (Number.isFinite(minutes)) update(field.key, Math.min(field.max, Math.max(field.min, Math.round(minutes))));
+                  if (Number.isFinite(minutes)) update(field.key, Math.round(minutes));
                 }}
+                // Limita ao sair do campo: limitar a cada tecla impedia digitar "15" quando o mínimo é 2.
+                onBlur={() => update(field.key, Math.min(field.max, Math.max(field.min, value[field.key])))}
               />
             </label>
           ))}

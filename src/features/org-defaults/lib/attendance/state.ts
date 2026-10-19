@@ -4,7 +4,7 @@ import { inngest } from "@/inngest/client";
 import { broadcastAgentWorkflowEvent, dispatchAiFinished } from "@/inngest/utils";
 import { getLastLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 import { parseAiCapabilities, type AttendanceSettings } from "@/features/tracking-chat-ai/lib/capabilities";
-import { isAttendanceStateConfigured, isAttendanceStateEnabled } from "./flag";
+import { isAttendanceManagedChannel, isAttendanceStateConfigured, isAttendanceStateEnabled } from "./flag";
 import { mirrorStatusFlowTags, type AttendanceStatusFlow } from "./tags";
 import {
   ensureOpenSection,
@@ -42,6 +42,8 @@ export interface AttendanceCheckEventData {
   noticeNumber?: number;
   /** Na espera da transferência a mensagem fixa é a de "consultor", e a IA volta pelo `handoff_resume`. */
   isHandoffWait?: boolean;
+  /** Entrada da IA pedida pela reclamação: não pode cair no id do `ai_step_in` que a mensagem fixa já agendou. */
+  isComplaint?: boolean;
 }
 
 /** O que a checagem faz depois de travar a seção, cada parte num passo do Inngest. */
@@ -129,6 +131,7 @@ async function scheduleCheck(data: AttendanceCheckEventData): Promise<void> {
     data.anchorAt,
     data.noticeNumber ?? 0,
     data.isHandoffWait ? "handoff" : "wait",
+    data.isComplaint ? "complaint" : "timer",
   ].join(":");
   await inngest.send({ id: eventId, name: ATTENDANCE_CHECK_EVENT, data });
 }
@@ -255,7 +258,13 @@ async function scheduleTeamFirstWait(input: {
     const isFirstComplaint = await patchSectionIf(sectionId, { complaintAt: params.at.toISOString() }, { complaintAt: null });
     if (isFirstComplaint) {
       await recordAttendanceScore({ leadId: params.leadId, reason: "client_complained", sectionId });
-      await scheduleCheck({ ...checkBase, stage: "ai_step_in", anchorAt: awaitingSince, dueAt: params.at.toISOString() });
+      await scheduleCheck({
+        ...checkBase,
+        stage: "ai_step_in",
+        anchorAt: awaitingSince,
+        dueAt: params.at.toISOString(),
+        isComplaint: true,
+      });
     }
     return;
   }
@@ -279,7 +288,9 @@ export async function applyHumanReplyAttendance(params: { leadId: string; userId
 
   const { section } = await ensureOpenSection(params.leadId, "company_reopened", params.at);
   const { awaitingSince, openReason } = section.state;
-  if (awaitingSince) {
+  // Pontua quem atende cliente que esperava atendimento ("Aguard."), não cada resposta de uma conversa em curso.
+  const wasClientWaiting = Boolean(awaitingSince) && context.statusFlow === "WAITING";
+  if (wasClientWaiting && awaitingSince) {
     await recordAttendanceScore({
       leadId: params.leadId,
       reason: "human_answered_waiting_client",
@@ -561,7 +572,7 @@ export async function applyCheckEffects(data: AttendanceCheckEventData, effects:
   return { action: "applied" };
 }
 
-/** Entrada por canais que não passam pelo pipeline do chat (Instagram, Facebook): etiquetas + estado. */
+/** Entrada por canais que não passam pelo pipeline do chat (Instagram, Facebook): etiquetas e, se for o caso, estado. */
 export async function applyInboundAttendanceOutsidePipeline(params: {
   organizationId: string;
   leadId: string;
@@ -570,7 +581,7 @@ export async function applyInboundAttendanceOutsidePipeline(params: {
   messageId: string;
   messageText: string | null;
 }): Promise<void> {
-  const isAttendanceStateManaged = isAttendanceStateEnabled(params.organizationId);
+  const isAttendanceStateManaged = isAttendanceManagedChannel(params.organizationId, params.channel);
   await applyInboundAutoTags({
     organizationId: params.organizationId,
     leadId: params.leadId,

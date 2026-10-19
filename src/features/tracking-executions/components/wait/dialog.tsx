@@ -119,7 +119,16 @@ export const WaitDialog = ({
               render={({ field }) => (
                 <Field>
                   <FieldLabel>Tipo de espera</FieldLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value}
+                    onValueChange={(nextType) => {
+                      field.onChange(nextType);
+                      // O campo mostra 60; sem gravar o valor, o salvar recusava por "minutos" vazio.
+                      if (nextType === "BEFORE_WINDOW_CLOSES" && form.getValues("minutesBefore") === undefined) {
+                        form.setValue("minutesBefore", 60);
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo de espera" />
                     </SelectTrigger>
@@ -165,7 +174,7 @@ export const WaitDialog = ({
                   <Field>
                     <FieldLabel>Minutos antes de a janela fechar</FieldLabel>
                     <Input
-                      value={field.value ?? 60}
+                      value={field.value}
                       onChange={(e) => field.onChange(Number(e.target.value))}
                       type="number"
                       min={5}

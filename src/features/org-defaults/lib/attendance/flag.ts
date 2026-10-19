@@ -17,3 +17,11 @@ export function isAttendanceStateEnabled(organizationId: string | null | undefin
 export function isAttendanceStateConfigured(): boolean {
   return Boolean(process.env.ATTENDANCE_STATE_ORGS?.trim());
 }
+
+/**
+ * Conversa que o estado de atendimento cuida: empresa no interruptor e canal WhatsApp (ou o portal In-Chat
+ * dele). Instagram, Facebook e chat do site seguem a regra antiga de etiquetas e o botão da IA.
+ */
+export function isAttendanceManagedChannel(organizationId: string | null | undefined, channel: string | null | undefined): boolean {
+  return isAttendanceStateEnabled(organizationId) && (channel === "WHATSAPP" || channel === "IN_CHAT");
+}
