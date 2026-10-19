@@ -539,6 +539,7 @@ async function createLeadFromInbound(
     firstMessageText:
       canonical.type === "text" ? canonical.body : canonical.type === "media" ? (canonical.caption ?? null) : null,
     metaAd: ctwa ? { headline: ctwa.ref.metaHeadline ?? null, adId: ctwa.ref.metaAdId } : null,
+    isOpenedByCompany: canonical.sender.fromMe,
   });
 
   // ── logActivity "lead.arrived" (best-effort) ────────────────────────────

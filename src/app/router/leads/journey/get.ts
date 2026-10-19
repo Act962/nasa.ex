@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import type { LeadJourneyEventKind } from "@/lib/lead-journey/track";
 import { resolveLeadChannel } from "@/features/leads/lib/lead-channel";
+import { canAccessTracking } from "@/features/workflows/server/workflow-access";
 
 /**
  * Timeline unificada da jornada de um lead. Faz UNION de várias fontes:
@@ -72,11 +73,12 @@ export const getLeadJourney = base
       limit: z.number().int().positive().max(500).optional().default(200),
     }),
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, errors, context }) => {
     const lead = await prisma.lead.findUnique({
       where: { id: input.leadId },
       select: {
         id: true,
+        trackingId: true,
         name: true,
         createdAt: true,
         source: true,
@@ -92,7 +94,8 @@ export const getLeadJourney = base
         _count: { select: { linnkerScans: true } },
       },
     });
-    if (!lead) throw errors.NOT_FOUND;
+    // Só quem é da empresa dona do funil lê a jornada (com origem, campanha e mensagens do cliente).
+    if (!lead || !(await canAccessTracking(lead.trackingId, context.user.id))) throw errors.NOT_FOUND;
     // Origem real (spec 0114): gravada uma vez, na criação. Lead antigo não tem e segue pela regra da 0105.
     const originEvent = await prisma.leadJourneyEvent.findFirst({
       where: { leadId: input.leadId, kind: "lead_origin" },

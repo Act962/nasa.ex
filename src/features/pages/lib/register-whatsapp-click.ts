@@ -2,8 +2,10 @@
 // primeira mensagem chega sem o código, a origem do lead sai pelo horário desse clique.
 const REGISTER_VISIT_ENDPOINT = "/api/rpc/pages/registerVisit";
 
-export function registerWhatsappClick(pageSlug: string): void {
-  const body = JSON.stringify({ json: { slug: pageSlug, event: "whatsapp_click", userAgent: navigator.userAgent } });
+export function registerWhatsappClick(page: { slug: string; id: string }): void {
+  const body = JSON.stringify({
+    json: { slug: page.slug, pageId: page.id, event: "whatsapp_click", userAgent: navigator.userAgent },
+  });
   // sendBeacon sobrevive à troca de aba que o link do WhatsApp provoca.
   if ("sendBeacon" in navigator && navigator.sendBeacon(REGISTER_VISIT_ENDPOINT, new Blob([body], { type: "application/json" }))) {
     return;

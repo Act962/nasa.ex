@@ -89,6 +89,9 @@ FNV-1a do id da página em base 32, 4 caracteres, com prefixo do produto. Colis�
 ### D-2 — Evento na Jornada, não campo no lead
 `lead_origin` guarda o detalhe sem mexer no `source` (que já move filtros, In-Chat e janela da Meta). Descartado: novos valores no enum (migration e efeito nos filtros).
 
+### D-4 — Janela de tempo pela chave primária
+`LinnkerScan` e `NasaPageVisit` não têm índice por data, e cada visita do Linnker gera uma linha. Os ids são cuid v1 (`c` + data em base 36), então "últimos 15 min" vira `id >= c<data>`: intervalo da chave primária, sem migration. Descartado agora: índice `(pageId, createdAt)` (exige migration; fica como melhoria se o custo aparecer).
+
 ### D-3 — Horário só com clique único
 Ligar por horário quando há mais de um clique viraria chute. "Provável" deixa claro para a equipe.
 
@@ -114,3 +117,4 @@ Ligar por horário quando há mais de um clique viraria chute. "Provável" deixa
 | --- | --- | --- |
 | 2026-10-19 | Weydson (com Claude) | Criada a partir da fase 4 do plano aprovado da 0113 e do levantamento de entradas de lead. |
 | 2026-10-19 | Claude | Implementação: `features/leads/lib/lead-origin/` (código, gravação e origem do WhatsApp). Código em `(cód. XXXXX)` no QR e no ícone/links de chat do Linnker e no botão flutuante das Pages; clique registrado como `LinnkerScan.scanKind = "whatsapp_link"` e visita `_evt:whatsapp_click`. Origem gravada no WhatsApp (oficial e Uazapi), formulário (envio e rascunho), Linnker, agenda pública, chat do site, In-Chat/catálogo, trafeGO, API, cadastro manual, campanha, Instagram e Facebook. Fora: importação de planilha e carteira do ERP (criam em lote; seguem pela regra da 0105). O cartão escreve "Origem: …" em vez de "Veio do …" (preposição muda por origem). |
+| 2026-10-19 | Claude | Revisão da fase 4: conversa aberta pela equipe pelo celular vira origem "cadastro manual" (não pega clique de visitante); formulário embutido lê as UTMs depois de montar (na hidratação o `src` do servidor ficava sem elas); liga ao lead exatamente o clique encontrado e só clique de WhatsApp (não a visita); clique do site já usado por um lead depois dele não rotula outro; clique do site enviado com o id da página (slug de subpágina repete entre empresas); colisão de código não chuta; links `wa.me` sem `https://`, `whatsapp://send` e ícone só com telefone ganham o código; rascunho e prévia sem código; clique do Linnker por `sendBeacon`; "Visitas" do Linnker não contam o clique no WhatsApp; Jornada exige ser da empresa dona do funil; "(provável)" junto do nome. Limite conhecido: o clique não diz para qual número/funil o cliente foi; na empresa com vários números, a regra de horário pode ligar ao funil errado (fica "provável"). |

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { loadNewAppsInsights } from "./load-new-apps-insights";
 import { loadKpiExtras } from "./load-kpi-extras";
 import { resolveInsightsOrganizationIds } from "./resolve-insights-organizations";
+import { LINNKER_VISIT_SCAN_WHERE } from "@/features/linnker/lib/visit-scans";
 
 export const getAppsInsights = base
   .use(requiredAuthMiddleware)
@@ -545,6 +546,7 @@ export const getAppsInsights = base
           page: { organizationId: { in: orgIds } },
           ...(dateFilter ? { createdAt: dateFilter } : {}),
           ...(tagWhereLead ? { lead: { is: tagWhereLead } } : {}),
+          ...LINNKER_VISIT_SCAN_WHERE,
         },
         select: { id: true, leadId: true, pageId: true },
       }),

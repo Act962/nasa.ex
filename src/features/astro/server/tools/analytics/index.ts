@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { resolveTargetOrgs } from "@/features/astro/server/tools/shared/resolve-target-orgs";
 import { assertPaymentToolAccess } from "@/features/astro/server/tools/finance/access";
+import { LINNKER_VISIT_SCAN_WHERE } from "@/features/linnker/lib/visit-scans";
 
 /**
  * Tools de ANALYTICS pro Astro responder perguntas sobre indicadores
@@ -1470,11 +1471,12 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           prisma.linnkerPage.count({
             where: { ...pageWhere, isPublished: true },
           }),
-          prisma.linnkerScan.count({ where: { page: pageWhere } }),
+          prisma.linnkerScan.count({ where: { page: pageWhere, ...LINNKER_VISIT_SCAN_WHERE } }),
           prisma.linnkerScan.count({
             where: {
               page: pageWhere,
               createdAt: { gte: from, lte: to },
+              ...LINNKER_VISIT_SCAN_WHERE,
             },
           }),
           prisma.linnkerScan.count({
@@ -1495,7 +1497,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
               title: true,
               slug: true,
               isPublished: true,
-              _count: { select: { scans: true } },
+              _count: { select: { scans: { where: LINNKER_VISIT_SCAN_WHERE } } },
             },
             orderBy: { scans: { _count: "desc" } },
             take: 5,

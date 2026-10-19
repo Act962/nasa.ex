@@ -40,28 +40,39 @@ export function appendOriginCode(text: string, code: string): string {
 }
 
 export function extractOriginCode(text: string | null | undefined): { product: OriginCodeProduct; code: string } | null {
-  const match = text?.match(ORIGIN_CODE_PATTERN);
+  // NFC: teclado que manda "o" + acento separado (NFD) também casa com "cód".
+  const match = text?.normalize("NFC").match(ORIGIN_CODE_PATTERN);
   if (!match?.[1]) return null;
   const code = match[1].toUpperCase();
   const product = PREFIX_PRODUCT[code[0]];
   return product ? { product, code } : null;
 }
 
-export function isWhatsappUrl(url: string): boolean {
+/** Aceita os formatos que o editor deixa digitar: com ou sem `https://`, e `whatsapp://send`. */
+function parseWhatsappUrl(url: string): URL | null {
+  const trimmedUrl = url.trim();
   try {
-    return WHATSAPP_HOSTS.includes(new URL(url).hostname.replace(/^www\./, ""));
+    const parsedUrl = new URL(/^[a-z][a-z0-9+.-]*:/i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`);
+    if (parsedUrl.protocol === "whatsapp:") return parsedUrl;
+    return WHATSAPP_HOSTS.includes(parsedUrl.hostname.replace(/^www\./, "")) ? parsedUrl : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
-/** Link `wa.me`/`api.whatsapp.com` com o código no fim da mensagem pronta; outros links voltam iguais. */
+export function isWhatsappUrl(url: string): boolean {
+  return parseWhatsappUrl(url) !== null;
+}
+
+/** Link de WhatsApp com o código no fim da mensagem pronta; outros links voltam iguais. */
 export function withOriginCodeInWhatsappUrl(url: string, code: string): string {
-  if (!isWhatsappUrl(url)) return url;
-  const parsedUrl = new URL(url);
+  const parsedUrl = parseWhatsappUrl(url);
+  if (!parsedUrl) return url;
   const textWithCode = appendOriginCode(parsedUrl.searchParams.get("text") ?? "", code);
   parsedUrl.searchParams.delete("text");
   const otherParams = parsedUrl.searchParams.toString();
+  // `whatsapp://send` não tem origem; o resto volta como `https://host/caminho`.
+  const base = parsedUrl.protocol === "whatsapp:" ? `whatsapp://${parsedUrl.host}${parsedUrl.pathname}` : `${parsedUrl.origin}${parsedUrl.pathname}`;
   // `%20`, não "+": o WhatsApp pode mostrar o "+" na mensagem.
-  return `${parsedUrl.origin}${parsedUrl.pathname}?${otherParams ? `${otherParams}&` : ""}text=${encodeURIComponent(textWithCode)}`;
+  return `${base}?${otherParams ? `${otherParams}&` : ""}text=${encodeURIComponent(textWithCode)}`;
 }

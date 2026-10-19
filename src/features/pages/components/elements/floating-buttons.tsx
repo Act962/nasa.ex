@@ -85,7 +85,7 @@ export function FloatingButtons({ element }: { element: ElementBase }) {
           href={whatsappUrl}
           target="_blank"
           rel="noreferrer"
-          onClick={pageId && pageSlug ? () => registerWhatsappClick(pageSlug) : undefined}
+          onClick={pageId && pageSlug ? () => registerWhatsappClick({ slug: pageSlug, id: pageId }) : undefined}
           aria-label="Falar pelo WhatsApp"
           className="grid size-14 place-items-center rounded-full text-white shadow-xl transition-transform hover:scale-105"
           style={{ background: WHATSAPP_GREEN }}

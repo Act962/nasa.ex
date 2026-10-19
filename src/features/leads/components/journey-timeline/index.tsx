@@ -192,10 +192,10 @@ type JourneyLead = {
 function describeOrigin(origin: JourneyOrigin): string {
   const originLabel = LEAD_ORIGIN_DISPLAY[origin.origin]?.label ?? origin.origin;
   const channelLabel = origin.channel && origin.channel in LEAD_CHANNELS ? LEAD_CHANNELS[origin.channel as LeadChannelKey].label : null;
+  const sourceLabel = origin.sourceName && origin.sourceName !== originLabel ? ` "${origin.sourceName}"` : "";
   return [
-    `Origem: ${originLabel}${origin.sourceName && origin.sourceName !== originLabel ? ` "${origin.sourceName}"` : ""}`,
+    `Origem: ${originLabel}${sourceLabel}${origin.isProbable ? " (provável)" : ""}`,
     channelLabel && channelLabel !== originLabel ? `conversou pelo ${channelLabel}` : null,
-    origin.isProbable ? "provável" : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -212,7 +212,8 @@ function OriginCard({ lead }: { lead: JourneyLead }) {
     utmMedium && `utm_medium ${utmMedium}`,
     utmCampaign && `utm_campaign ${utmCampaign}`,
     lead.origin?.note,
-    lead.landingPage && `entrou por ${lead.landingPage}`,
+    // Formulário embutido grava o caminho do iframe, que não diz nada a quem lê.
+    lead.landingPage && !lead.landingPage.includes("embed=1") && `entrou por ${lead.landingPage}`,
   ].filter(Boolean);
   // Lead com origem gravada mostra a origem; lead antigo segue com o canal (spec 0105).
   const channel = (lead.origin && LEAD_ORIGIN_DISPLAY[lead.origin.origin]) || LEAD_CHANNELS[lead.channel];

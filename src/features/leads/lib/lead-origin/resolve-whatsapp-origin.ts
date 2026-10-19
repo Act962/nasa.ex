@@ -18,16 +18,31 @@ interface WhatsappOriginInput {
   firstMessageText: string | null | undefined;
   /** Lead chegou por anúncio de clique para o WhatsApp (referência da Meta). */
   metaAd?: { headline?: string | null; adId?: string | null } | null;
+  /** A equipe abriu a conversa pelo celular (eco `fromMe`): não é visitante de página nenhuma. */
+  isOpenedByCompany?: boolean;
 }
 
-/** Liga a leitura mais recente da página, ainda sem lead, ao lead novo: ela aparece na Jornada dele. */
-async function linkRecentLinnkerScan(pageId: string, leadId: string, sinceMs: number): Promise<void> {
-  const scan = await prisma.linnkerScan.findFirst({
-    where: { pageId, leadId: null, createdAt: { gte: new Date(Date.now() - sinceMs) } },
+/**
+ * Menor id gerado a partir de `since`. O id dos cliques é cuid v1 (`c` + data em base 36), então a janela de
+ * tempo vira um intervalo da chave primária, sem varrer todas as visitas da página (não há índice por data).
+ */
+function minimumIdSince(since: Date): string {
+  return `c${since.getTime().toString(36)}`;
+}
+
+function recentWindow(windowMs: number) {
+  const since = new Date(Date.now() - windowMs);
+  return { id: { gte: minimumIdSince(since) }, createdAt: { gte: since } };
+}
+
+/** Liga ao lead o clique de WhatsApp mais recente da página que ainda não tem lead (o código já disse a página). */
+async function linkLatestLinnkerClick(pageId: string, leadId: string): Promise<void> {
+  const click = await prisma.linnkerScan.findFirst({
+    where: { pageId, leadId: null, scanKind: { in: WHATSAPP_CLICK_SCAN_KINDS }, ...recentWindow(CODE_LINK_WINDOW_MS) },
     orderBy: { createdAt: "desc" },
     select: { id: true },
   });
-  if (scan) await prisma.linnkerScan.update({ where: { id: scan.id }, data: { leadId } });
+  if (click) await prisma.linnkerScan.update({ where: { id: click.id }, data: { leadId } });
 }
 
 async function originFromCode(input: WhatsappOriginInput): Promise<LeadOriginDetails | null> {
@@ -38,51 +53,86 @@ async function originFromCode(input: WhatsappOriginInput): Promise<LeadOriginDet
       where: { organizationId: input.organizationId },
       select: { id: true, title: true },
     });
-    const page = pages.find((candidate) => originCodeOf("linnker", candidate.id) === originCode.code);
-    if (!page) return null;
-    await linkRecentLinnkerScan(page.id, input.leadId, CODE_LINK_WINDOW_MS);
+    const matchingPages = pages.filter((candidate) => originCodeOf("linnker", candidate.id) === originCode.code);
+    // Colisão de código (D-1): não chuta; cai na regra do horário.
+    if (matchingPages.length !== 1) return null;
+    const [page] = matchingPages;
+    await linkLatestLinnkerClick(page.id, input.leadId).catch((error: unknown) =>
+      console.warn("[lead-origin] ligar o clique do Linnker falhou", error),
+    );
     return { origin: "LINNKER", sourceName: page.title, sourceId: page.id, channel: "WHATSAPP", matchedBy: "code", confidence: "certain" };
   }
   const sitePages = await prisma.nasaPage.findMany({
     where: { organizationId: input.organizationId },
     select: { id: true, title: true },
   });
-  const sitePage = sitePages.find((candidate) => originCodeOf("pages", candidate.id) === originCode.code);
-  if (!sitePage) return null;
+  const matchingSitePages = sitePages.filter((candidate) => originCodeOf("pages", candidate.id) === originCode.code);
+  if (matchingSitePages.length !== 1) return null;
+  const [sitePage] = matchingSitePages;
   return { origin: "PAGES", sourceName: sitePage.title, sourceId: sitePage.id, channel: "WHATSAPP", matchedBy: "code", confidence: "certain" };
+}
+
+/**
+ * Clique de WhatsApp no site já usado por outro lead novo depois dele. A visita do site não guarda o lead (o
+ * Linnker guarda e sai da busca); sem esta conferência, um clique rotularia todos os leads da janela.
+ */
+async function isSiteClickAlreadyUsed(pageId: string, clickedAt: Date): Promise<boolean> {
+  const usedBy = await prisma.leadJourneyEvent.findFirst({
+    where: {
+      kind: "lead_origin",
+      // Intervalo da chave primária (cuid v1), como nos cliques: só os eventos gravados depois do clique.
+      id: { gte: minimumIdSince(clickedAt) },
+      occurredAt: { gte: clickedAt },
+      AND: [
+        { metadata: { path: ["sourceId"], equals: pageId } },
+        { metadata: { path: ["matchedBy"], equals: "click_time" } },
+      ],
+    },
+    select: { id: true },
+  });
+  return Boolean(usedBy);
 }
 
 /** Sem código: só liga quando uma única página teve clique de WhatsApp na janela; mais de uma seria chute. */
 async function originFromRecentClick(input: WhatsappOriginInput): Promise<LeadOriginDetails | null> {
-  const since = new Date(Date.now() - CLICK_MATCH_WINDOW_MS);
+  const clickWindow = recentWindow(CLICK_MATCH_WINDOW_MS);
   const [linnkerClicks, siteClicks] = await Promise.all([
     prisma.linnkerScan.findMany({
       where: {
         page: { organizationId: input.organizationId },
         scanKind: { in: WHATSAPP_CLICK_SCAN_KINDS },
         leadId: null,
-        createdAt: { gte: since },
+        ...clickWindow,
       },
       orderBy: { createdAt: "desc" },
       take: MAX_RECENT_CLICKS,
-      select: { pageId: true, page: { select: { title: true } } },
+      select: { id: true, pageId: true, page: { select: { title: true } } },
     }),
     prisma.nasaPageVisit.findMany({
       where: {
         page: { organizationId: input.organizationId },
         path: { startsWith: WHATSAPP_CLICK_VISIT_PATH },
-        createdAt: { gte: since },
+        ...clickWindow,
       },
       orderBy: { createdAt: "desc" },
       take: MAX_RECENT_CLICKS,
-      select: { pageId: true, page: { select: { title: true } } },
+      select: { pageId: true, createdAt: true, page: { select: { title: true } } },
     }),
   ]);
-  const clickedPageIds = new Set([...linnkerClicks.map((click) => click.pageId), ...siteClicks.map((click) => click.pageId)]);
+
+  const unusedSiteClicks = [];
+  for (const siteClick of siteClicks) {
+    if (!(await isSiteClickAlreadyUsed(siteClick.pageId, siteClick.createdAt))) unusedSiteClicks.push(siteClick);
+  }
+  const clickedPageIds = new Set([...linnkerClicks.map((click) => click.pageId), ...unusedSiteClicks.map((click) => click.pageId)]);
   if (clickedPageIds.size !== 1) return null;
-  const linnkerClick = linnkerClicks[0];
+
+  const [linnkerClick] = linnkerClicks;
   if (linnkerClick) {
-    await linkRecentLinnkerScan(linnkerClick.pageId, input.leadId, CLICK_MATCH_WINDOW_MS);
+    // Liga exatamente o clique encontrado: ele sai da busca do próximo lead.
+    await prisma.linnkerScan
+      .update({ where: { id: linnkerClick.id }, data: { leadId: input.leadId } })
+      .catch((error: unknown) => console.warn("[lead-origin] ligar o clique do Linnker falhou", error));
     return {
       origin: "LINNKER",
       sourceName: linnkerClick.page.title,
@@ -92,7 +142,7 @@ async function originFromRecentClick(input: WhatsappOriginInput): Promise<LeadOr
       confidence: "probable",
     };
   }
-  const siteClick = siteClicks[0];
+  const [siteClick] = unusedSiteClicks;
   return {
     origin: "PAGES",
     sourceName: siteClick.page.title,
@@ -105,6 +155,16 @@ async function originFromRecentClick(input: WhatsappOriginInput): Promise<LeadOr
 
 export async function recordWhatsappLeadOrigin(input: WhatsappOriginInput): Promise<void> {
   try {
+    if (input.isOpenedByCompany) {
+      await recordLeadOrigin(input.leadId, {
+        origin: "MANUAL",
+        channel: "WHATSAPP",
+        matchedBy: "entry",
+        confidence: "certain",
+        note: "conversa iniciada pela equipe",
+      });
+      return;
+    }
     if (input.metaAd) {
       await recordLeadOrigin(input.leadId, {
         origin: "META_ADS",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { ElementBase } from "../../types";
 import { usePageRenderContext } from "../public/page-context";
 
@@ -12,6 +12,26 @@ const UTM_KEY_PAIRS = [
   ["utmContent", "utm_content"],
   ["utmTerm", "utm_term"],
 ] as const;
+
+const subscribeToNothing = () => () => {};
+const readNoUtmQuery = () => "";
+
+/** UTMs da página: a URL atual primeiro; na primeira visita o PageAnalytics ainda não gravou o sessionStorage. */
+function readPageUtmQuery(): string {
+  const currentQuery = new URLSearchParams(window.location.search);
+  let storedUtm: Partial<Record<string, string>> = {};
+  try {
+    storedUtm = JSON.parse(sessionStorage.getItem("nasa_page_utm") ?? "{}") as Partial<Record<string, string>>;
+  } catch {
+    // sessionStorage bloqueado ou corrompido: fica só com a URL.
+  }
+  const utmQuery = new URLSearchParams();
+  for (const [storedKey, queryKey] of UTM_KEY_PAIRS) {
+    const utmValue = currentQuery.get(queryKey) ?? storedUtm[storedKey];
+    if (utmValue) utmQuery.set(queryKey, utmValue);
+  }
+  return utmQuery.toString();
+}
 
 /**
  * Embedded Form — renderiza um Formulário NASA existente dentro da
@@ -35,6 +55,9 @@ const UTM_KEY_PAIRS = [
  */
 export function EmbeddedForm({ element }: { element: ElementBase }) {
   const { appOrigin } = usePageRenderContext();
+  // Lido depois de montar: no servidor não há URL nem sessionStorage, e um `src` diferente na hidratação não
+  // seria corrigido (o iframe ficaria sem as UTMs justamente na primeira visita, vinda do anúncio).
+  const pageUtmQuery = useSyncExternalStore(subscribeToNothing, readPageUtmQuery, readNoUtmQuery);
   const formId = (element.formId as string) ?? "";
   const trackingId = (element.trackingId as string) ?? "";
   const bgColor = (element.bgColor as string) ?? "#ffffff";
@@ -57,21 +80,8 @@ export function EmbeddedForm({ element }: { element: ElementBase }) {
   const params = new URLSearchParams({ embed: "1" });
   if (trackingId) params.set("tracking_override", trackingId);
 
-  // Propaga as UTMs da página pro form no formato `utm_*`, o único que o formulário lê (spec 0114, RF-6).
-  // A URL atual vem primeiro: na primeira visita o PageAnalytics ainda não gravou o sessionStorage.
-  if (typeof window !== "undefined") {
-    const currentQuery = new URLSearchParams(window.location.search);
-    let storedUtm: Partial<Record<string, string>> = {};
-    try {
-      storedUtm = JSON.parse(sessionStorage.getItem("nasa_page_utm") ?? "{}") as Partial<Record<string, string>>;
-    } catch {
-      // sessionStorage bloqueado ou corrompido: fica só com a URL.
-    }
-    for (const [storedKey, queryKey] of UTM_KEY_PAIRS) {
-      const utmValue = currentQuery.get(queryKey) ?? storedUtm[storedKey];
-      if (utmValue) params.set(queryKey, utmValue);
-    }
-  }
+  // UTMs da página no formato `utm_*`, o único que o formulário lê (spec 0114, RF-6).
+  new URLSearchParams(pageUtmQuery).forEach((utmValue, utmKey) => params.set(utmKey, utmValue));
 
   // Endpoint público do form
   // Em domínio próprio a rota do formulário não existe: o iframe volta para o app.

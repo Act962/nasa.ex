@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { LINNKER_VISIT_SCAN_WHERE } from "@/features/linnker/lib/visit-scans";
 
 export const getLinnkerPage = base
   .use(requiredAuthMiddleware)
@@ -19,7 +20,7 @@ export const getLinnkerPage = base
       where: { id: input.id, organizationId },
       include: {
         links: { orderBy: { position: "asc" } },
-        _count: { select: { scans: true } },
+        _count: { select: { scans: { where: LINNKER_VISIT_SCAN_WHERE } } },
       },
     });
 
