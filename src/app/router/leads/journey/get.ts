@@ -289,7 +289,7 @@ export const getLeadJourney = base
           enriched.responsibleImage = newOne.image;
         }
       }
-      if (e.kind === "tag_added") {
+      if (e.kind === "tag_added" || e.kind === "tag_removed") {
         const tId = typeof m.tagId === "string" ? m.tagId : null;
         const tag = tagInfo(tId);
         if (tag) {

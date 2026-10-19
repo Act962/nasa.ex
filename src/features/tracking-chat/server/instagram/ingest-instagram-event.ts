@@ -6,7 +6,8 @@ import { MessageStatus } from "@/features/tracking-chat/types";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
-import { applyInboundAutoTags, loadAwaitingState } from "@/features/org-defaults/lib/auto-tags";
+import { loadAwaitingState } from "@/features/org-defaults/lib/auto-tags";
+import { applyInboundAttendanceOutsidePipeline } from "@/features/org-defaults/lib/attendance/state";
 import { AUTO_TAG_SLUGS, DEFAULT_TAGS } from "@/features/org-defaults/lib/default-org-template";
 import { applyTagsByAi } from "@/features/tracking-chat-ai/lib/apply-tags-by-ai";
 import { truncateLeadMessageText } from "@/features/tracking-executions/lib/lead-message";
@@ -189,11 +190,13 @@ export const ingestInstagramEventToChat: ChannelEventObserver = async ({ channel
     });
 
     await ensureInstagramTag(channel.organizationId, lead.leadId).catch((error) => console.error("[instagram-chat] tag_failed", error));
-    await applyInboundAutoTags({
+    await applyInboundAttendanceOutsidePipeline({
       organizationId: channel.organizationId,
       leadId: lead.leadId,
       channel: "INSTAGRAM",
       wasAwaitingReply: awaitingState?.isAwaitingReply ?? false,
+      messageId: inbound.id,
+      messageText: event.text ?? null,
     }).catch((error) => console.error("[instagram-chat] auto_tags_failed", error));
     await trackLeadEvent({ leadId: lead.leadId, kind: "message_in", metadata: { channel: "INSTAGRAM", messageId: event.externalEventId } }).catch(() => undefined);
 

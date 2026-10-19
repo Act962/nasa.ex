@@ -158,6 +158,7 @@ export default function Page() {
             leadId={data.conversation.lead.id}
             conversationId={conversationId}
             active={data.conversation.lead.isActive}
+            isAttendanceManaged={data.isAttendanceManaged}
             trackingId={data.conversation.trackingId}
             statusFlow={data.conversation.lead.statusFlow}
             channel={data.conversation.channel}

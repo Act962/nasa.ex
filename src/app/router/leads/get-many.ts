@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
+import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
 import { z } from "zod";
 import { deriveResponseState } from "@/features/form/lib/form-response-state";
 import { buildResponseSlug } from "@/features/form/lib/response-slug";
@@ -115,6 +116,9 @@ export const listLeadsByStatus = base
       projectsFilter,
       statusFlowFilter,
     } = input;
+
+    const trackingOwner = await prisma.tracking.findUnique({ where: { id: trackingId }, select: { organizationId: true } });
+    const isAttendanceManaged = isAttendanceStateEnabled(trackingOwner?.organizationId);
 
     const leads = await prisma.lead.findMany({
       where: {
@@ -444,6 +448,7 @@ export const listLeadsByStatus = base
           : null;
         return {
           ...rest,
+          isAttendanceManaged,
           order: lead.order.toString(),
           amount: lead.amount.toString(),
           forms: responses,

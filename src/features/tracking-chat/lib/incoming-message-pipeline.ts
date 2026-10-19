@@ -24,6 +24,8 @@
  */
 
 import { applyInboundAutoTags, loadAwaitingState, removeAwaitingTagOnReply } from "@/features/org-defaults/lib/auto-tags";
+import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
+import { applyClientMessageAttendance, applyHumanReplyAttendance } from "@/features/org-defaults/lib/attendance/state";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { inngest } from "@/inngest/client";
@@ -83,7 +85,7 @@ export interface FirePostInboundParams {
  *  2. trackLeadEvent (timeline da jornada)
  *  3. eventBus.publish "chat.message_received" (alert engine)
  *  4. Inngest "chat/ai.whatsapp-message-received" (IA — quando
- *     globalAiActive=true, lead ativo, fromMe=false)
+ *     globalAiActive=true, fromMe=false e a IA ativa no lead ou clique em menu)
  *     [NOTE] Mantemos o nome `whatsapp-message-received` por enquanto pra
  *     retro-compat com o listener existente. Em sprint futura renomear pra
  *     `chat/ai.message-received` (mais genérico) e adicionar canal no data.
@@ -135,17 +137,33 @@ export async function firePostInboundAutomations(
     console.error("[pipeline] update_timestamps_failed", err);
   }
 
-  // ── 1b. Tags automáticas da empresa (spec 0042) ─────────────────────
+  // ── 1b. Tags automáticas da empresa (spec 0042) e estado de atendimento (spec 0113) ──
+  // Roda antes de acionar a IA: com o estado de atendimento, é aqui que se decide se ela responde agora.
+  const isAttendanceStateManaged = isAttendanceStateEnabled(params.organizationId);
   try {
     if (params.fromMe) {
-      await removeAwaitingTagOnReply({ organizationId: params.organizationId, leadId: params.lead.id });
+      if (isAttendanceStateManaged) {
+        // Eco do celular: mensagem enviada à mão pelo atendente.
+        await applyHumanReplyAttendance({ leadId: params.lead.id, userId: null, at: now });
+      } else {
+        await removeAwaitingTagOnReply({ organizationId: params.organizationId, leadId: params.lead.id });
+      }
     } else {
       await applyInboundAutoTags({
         organizationId: params.organizationId,
         leadId: params.lead.id,
         channel: params.channel,
         wasAwaitingReply: awaitingState?.isAwaitingReply ?? false,
+        isAttendanceStateManaged,
       });
+      if (isAttendanceStateManaged) {
+        await applyClientMessageAttendance({
+          leadId: params.lead.id,
+          messageId: params.messageId,
+          messageText: params.leadMessage?.text ?? null,
+          at: now,
+        });
+      }
     }
   } catch (err) {
     console.error("[pipeline] auto_tags_failed", err);
@@ -221,11 +239,16 @@ export async function firePostInboundAutomations(
   }
 
   // ── 4. Inngest IA (só inbound + IA do funil conectada) ───────────────
-  // Com a IA pausada no lead, o agente ainda roda as regras de Gatilho e campanha (menus que disparam
-  // ramo de fluxo, cupom) e para antes do modelo (spec 0113, RF-3).
+  // IA pausada no lead: só o clique em menu aciona o agente, porque ele dispara ramo de fluxo (spec 0113,
+  // RF-3). Com o estado de atendimento, a pausa acabou de ser decidida no passo 1b: lê de novo.
+  const isLeadAiActiveNow =
+    isAttendanceStateManaged && !params.fromMe
+      ? ((await prisma.lead.findUnique({ where: { id: params.lead.id }, select: { isActive: true } }))?.isActive ?? false)
+      : params.lead.isActive;
   if (
     !params.fromMe &&
     params.globalAiActive &&
+    (isLeadAiActiveNow || params.isButtonClick) &&
     params.lead.conversation?.id
   ) {
     try {

@@ -25,7 +25,7 @@ const leadsByInterest: AstroQuery = {
     const interest = INTEREST_WORDS.find((word) => word.pattern.test(text)) ?? INTEREST_WORDS[0];
     const where = {
       tracking: { organizationId: ctx.organizationId },
-      isActive: true,
+      currentAction: "ACTIVE", isArchived: false,
       metrics: { interestLevel: interest.level },
     };
     const [leads, totalLeads, auditedLeads] = await Promise.all([

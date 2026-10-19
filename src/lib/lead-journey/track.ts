@@ -26,7 +26,15 @@ export type LeadJourneyEventKind =
   | "erp_purchase"
   | "erp_customer_since"
   /** Recebeu uma campanha de email (spec 0107). */
-  | "email_sent";
+  | "email_sent"
+  /** Seção de atendimento: uma oportunidade, com o resumo daquele período (spec 0113). */
+  | "attendance_section"
+  /** Lançamento do Score de atendimento: `{ points, reason, sectionId }` (spec 0113). */
+  | "attendance_score"
+  | "appointment_cancelled"
+  | "appointment_rescheduled"
+  /** De onde o lead veio de verdade, gravado uma vez na criação (spec 0114). */
+  | "lead_origin";
 
 export interface TrackLeadEventInput {
   leadId: string;

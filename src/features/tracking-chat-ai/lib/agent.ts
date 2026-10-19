@@ -17,7 +17,14 @@ import {
 import { inngest } from "@/inngest/client";
 import { recordUsageEvent } from "@/features/stars/lib/metering";
 import prisma from "@/lib/prisma";
-import { loadAgentContext, type AgentEventData } from "./context";
+import { loadAgentContext, type AgentEventData, type AgentTrigger } from "./context";
+import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
+import {
+  NOTES_INSTRUCTION,
+  planSectionNotes,
+  saveSectionNotes,
+  splitNotesFromReply,
+} from "@/features/org-defaults/lib/attendance/section-notes";
 import { resolveModel } from "./model";
 import { buildSystemPrompt } from "./system-prompt";
 import { loadAttendanceKnowledgeBlock } from "./attendance-knowledge";
@@ -102,6 +109,19 @@ interface RunArgs {
 
 const INTER_MESSAGE_DELAY_MS = 600;
 
+// Quando o estado de atendimento chama a IA (spec 0113): o motivo muda o tom da primeira resposta.
+const ATTENDANCE_TRIGGER_INSTRUCTIONS: Partial<Record<AgentTrigger, string>> = {
+  "attendance-step-in":
+    "O cliente esperou alguns minutos sem resposta da equipe. Peça desculpa pela demora numa frase curta e já ajude no que ele pediu. Se ele reclamou, reconheça sem se justificar.",
+  "attendance-in-service":
+    "Um atendente estava conversando com o cliente mas não respondeu a tempo. Continue a conversa de onde parou, como se fosse da mesma equipe, sem dizer que é outra pessoa.",
+  "attendance-handoff-resume":
+    "O cliente pediu um atendente e ninguém da equipe pôde assumir ainda. Diga que a equipe já foi avisada e ajude no que for possível enquanto isso.",
+};
+
+const ATTENDANCE_TONE =
+  "Responda curto, simples e natural, chamando o cliente pelo primeiro nome. Nada de explicações longas nem frases de robô.";
+
 /** A janela de 24h já foi conferida no início de `runWhatsappAgent`. */
 async function sendAgentText(
   trackingId: string,
@@ -136,12 +156,25 @@ async function sendAgentNotice(
 }
 
 export async function runWhatsappAgent({ step, data }: RunArgs) {
-  // Com a IA pausada no lead, a função ainda roda para as regras de Gatilho e campanha (spec 0113,
-  // RF-3), mas sem transcrever áudio nem chamar o modelo.
-  const isLeadAiActive = await step.run("check-lead-ai", async () => {
+  // Uma foto só do estado da IA no lead e de a mensagem ser clique em menu (spec 0113, RF-3). Com a IA
+  // pausada só o clique segue, porque ele dispara ramo de fluxo; o resto para aqui, antes de carregar
+  // contexto, transcrever áudio ou ler campanha.
+  const isInboundTrigger = (data.trigger ?? "inbound") === "inbound";
+  const entryGate = await step.run("check-lead-ai", async () => {
     const lead = await prisma.lead.findUnique({ where: { id: data.leadId }, select: { isActive: true } });
-    return lead?.isActive ?? false;
+    const isActive = lead?.isActive ?? false;
+    if (isActive || !data.messageId) return { isActive, isMenuClick: false };
+    const inbound = await prisma.message.findFirst({
+      where: { id: data.messageId, conversationId: data.conversationId, fromMe: false },
+      select: { metadata: true },
+    });
+    const replyId = (inbound?.metadata as { interactiveReplyId?: unknown } | null)?.interactiveReplyId;
+    return { isActive, isMenuClick: typeof replyId === "string" };
   });
+  if (!entryGate.isActive && !(entryGate.isMenuClick && isInboundTrigger)) {
+    return { skipped: true, reason: "lead_inactive" };
+  }
+  const isLeadAiActive = entryGate.isActive;
   // Não envolvemos load-context em step.run: o serializador do Inngest
   // converte o retorno em JsonifyObject, o que quebra o tipo de ModelMessage[]
   // (e o AgentContext que é passado pras tools). Re-executar em retry é barato.
@@ -167,7 +200,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // quando o próprio agente transferia para um atendente (lead inativo), a rodada seguinte
   // parava aqui e a mensagem de despedida nunca era enviada.
   const leadGate = await step.run("check-lead-gate", async () => ({
-    isActive: ctx.lead.isActive,
+    isActive: isLeadAiActive,
     statusFlow: ctx.lead.statusFlow as string,
     repliesLastHour: await prisma.aiChatRun.count({
       where: { leadId: ctx.lead.id, trackingId: ctx.trackingId, createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
@@ -193,7 +226,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   }
 
   // Passo de fluxo esperando a resposta do cliente (spec 0099): a mensagem é do fluxo, ninguém mais responde.
-  if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
+  if (leadGate.isActive && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const isForWaitingFlow = await step.run("flow-awaiting-reply", () => isReplyForWaitingFlow(ctx, data.messageId));
     if (isForWaitingFlow) return { skipped: true, reason: "flow_awaiting_reply" };
   }
@@ -204,21 +237,6 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     const campaign = await step.run("star-friends-campaign", () => handleCampaign(ctx, data.messageId));
     if (campaign.handled) return { skipped: true, reason: "star_friends_campaign" };
   }
-
-  // Com a IA pausada (atendente na conversa) só o clique num menu segue: ele dispara ramo de fluxo
-  // (spec 0098) e Gatilho não para com a IA (spec 0113, RF-3). Saudação e resposta de texto ficam
-  // com a assistente ativa, para não cortar a conversa do atendente.
-  const isPausedMenuClick =
-    !leadGate.isActive && data.messageId && (ctx.trigger ?? "inbound") === "inbound"
-      ? await step.run("paused-menu-click", async () => {
-          const inbound = await prisma.message.findFirst({
-            where: { id: data.messageId, conversationId: ctx.conversation.id, fromMe: false },
-            select: { metadata: true },
-          });
-          return typeof (inbound?.metadata as { interactiveReplyId?: unknown } | null)?.interactiveReplyId === "string";
-        })
-      : false;
-  if (!leadGate.isActive && !isPausedMenuClick) return { skipped: true, reason: "lead_inactive" };
 
   if (leadGate.isActive && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const storeInfo = await step.run("store-info", () => handleStoreInfo(ctx, data.messageId));
@@ -376,12 +394,33 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     ? `${baseWithKnowledge}\n\n${buildCatalogOrderPrompt(ctx.catalogOrder)}`
     : baseWithKnowledge;
   const baseWithOrder = ctx.hasProductCheck ? `${baseWithCatalog}\n\n${PRODUCT_CHECK_PROMPT}` : baseWithCatalog;
+  const attendanceInstruction = ctx.trigger ? ATTENDANCE_TRIGGER_INSTRUCTIONS[ctx.trigger] : undefined;
   const systemPrompt =
     ctx.trigger === "idle-reopen-with-instruction"
       ? `${baseWithOrder}\n\n# Reabertura automática\n\nO lead está ocioso${
           ctx.idleMinutes ? ` há cerca de ${ctx.idleMinutes} minutos` : ""
         } desde a última interação. Não chegou nenhuma nova mensagem do lead. Reabra a conversa de forma natural e curta pra reengajar — referência o contexto anterior se fizer sentido. Evite parecer automático.`
-      : baseWithOrder;
+      : attendanceInstruction
+        ? `${baseWithOrder}\n\n# Momento do atendimento\n\n${attendanceInstruction}\n\n${ATTENDANCE_TONE}`
+        : baseWithOrder;
+
+  // Anotações da seção (spec 0113, RF-14/15): contexto curto do atendimento e, quando é hora, o pedido de
+  // resumo no fim da própria resposta, sem chamada extra.
+  const sectionNotesPlan = isAttendanceStateEnabled(ctx.organizationId)
+    ? await step.run("plan-section-notes", () =>
+        planSectionNotes({
+          leadId: ctx.lead.id,
+          isAttendanceTrigger: Boolean(ctx.trigger && ATTENDANCE_TRIGGER_INSTRUCTIONS[ctx.trigger]),
+        }),
+      )
+    : null;
+  const systemPromptWithNotes = [
+    systemPrompt,
+    sectionNotesPlan?.contextBlock,
+    sectionNotesPlan?.shouldWriteNotes ? NOTES_INSTRUCTION : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   const resolved = resolveModel(ctx.modelConfig);
   console.log(
@@ -391,7 +430,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   const aiResult = await step.run("run-agent", async () => {
     const result = await generateText({
       model: resolved.model,
-      system: systemPrompt,
+      system: systemPromptWithNotes,
       tools: buildAgentTools(assistantCtx),
       messages: ctx.history,
       stopWhen: ({ steps }) => steps.length >= 6,
@@ -413,10 +452,13 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     const totalTokens =
       result.usage?.totalTokens ?? inputTokens + outputTokens;
     const calledToolNames = result.steps.flatMap((agentStep) => agentStep.toolCalls.map((call) => call.toolName));
+    // O bloco <notas> nunca vai ao cliente.
+    const { replyText, notes } = splitNotesFromReply(result.text);
     return {
+      sectionNotes: notes,
       // Transferiu e não escreveu nada: o cliente não pode ficar sem saber que alguém vai continuar.
       text:
-        result.text.trim() ||
+        replyText.trim() ||
         (calledToolNames.includes("transfer_to_human")
           ? "Vou passar seu atendimento para a nossa equipe, que continua por aqui."
           : ""),
@@ -524,6 +566,14 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
       }
       return { sent: parts.length };
     });
+  }
+
+  const sectionId = sectionNotesPlan?.sectionId;
+  const sectionNotes = aiResult.sectionNotes;
+  if (sectionId && sectionNotes) {
+    await step.run("save-section-notes", () =>
+      saveSectionNotes({ sectionId, notes: sectionNotes, summaryCount: sectionNotesPlan?.summaryCount ?? 0 }),
+    );
   }
 
   return {

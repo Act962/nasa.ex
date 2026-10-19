@@ -31,7 +31,7 @@ import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { normalizePhone } from "@/utils/format-phone";
 import { countries } from "@/types/some";
 import dayjs from "dayjs";
-import { applyVariables } from "../../lib/interpolate-message";
+import { applyVariables, firstNameOf } from "../../lib/interpolate-message";
 import {
   colorsByTemperature,
   LeadSourceColors,
@@ -76,6 +76,7 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
     const variables = {
       "{{name}}": lead.name,
       "{{nome}}": lead.name,
+      "{{primeiro_nome}}": firstNameOf(lead.name),
       "{{email}}": lead.email || "",
       "{{phone}}": lead.phone || "",
       "{{contato}}": lead.phone || "",

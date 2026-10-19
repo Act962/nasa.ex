@@ -7,6 +7,7 @@ import { LeadAction } from "@/generated/prisma/enums";
 import { recordLeadHistory } from "./utils/history";
 import { dispatchMoveLeadStatus, broadcastAgentWorkflowEvent } from "@/inngest/utils";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
+import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
 import {
   recordLeadEvent,
   notifyInternalLeadChannel,
@@ -110,6 +111,7 @@ export const updateLead = base
           responsibleId: true,
           isActive: true,
           leadTags: { select: { tagId: true } },
+          tracking: { select: { organizationId: true } },
         },
       });
 
@@ -167,7 +169,11 @@ export const updateLead = base
             ...(input.temperature ? { temperature: input.temperature } : {}),
             ...(isStatusChange ? { lastStatusChangeAt: now } : {}),
             ...(isResponsibleChange ? { assignedAt: now } : {}),
-            ...(input.statusFlow ? { statusFlow: input.statusFlow as any } : {}),
+            // Com o estado de atendimento ligado o `statusFlow` é automático (spec 0113): o navegador não
+            // sobrescreve (ex.: reabrir como ACTIVE depois que o servidor já reabriu como WAITING).
+            ...(input.statusFlow && !isAttendanceStateEnabled(leadExists.tracking.organizationId)
+              ? { statusFlow: input.statusFlow as any }
+              : {}),
             ...(slaPatch as any),
             leadTags: input.tagIds
               ? {

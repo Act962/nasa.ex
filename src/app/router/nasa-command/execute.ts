@@ -1211,7 +1211,7 @@ CTA: [chamada para ação]`;
 
         const leads = await prisma.lead.findMany({
           where: {
-            isActive: true,
+            currentAction: "ACTIVE", isArchived: false,
             tracking: trackingFilter
               ? { id: trackingFilter.id }
               : { organizationId: orgId },
@@ -1353,7 +1353,7 @@ CTA: [chamada para ação]`;
     if (isCount && hasLead) {
       try {
         const count = await prisma.lead.count({
-          where: { isActive: true, tracking: { organizationId: orgId } },
+          where: { currentAction: "ACTIVE", isArchived: false, tracking: { organizationId: orgId } },
         });
         return {
           type: "query_result" as const,
@@ -1379,7 +1379,7 @@ CTA: [chamada para ação]`;
     ) {
       try {
         const [leadCount, trackings] = await Promise.all([
-          prisma.lead.count({ where: { isActive: true, tracking: { organizationId: orgId } } }),
+          prisma.lead.count({ where: { currentAction: "ACTIVE", isArchived: false, tracking: { organizationId: orgId } } }),
           prisma.tracking.findMany({
             where: { organizationId: orgId },
             take: 5,
@@ -1431,7 +1431,7 @@ CTA: [chamada para ação]`;
         const [leads, users, trackings, products] = await Promise.all([
           prisma.lead.findMany({
             where: {
-              isActive: true,
+              currentAction: "ACTIVE", isArchived: false,
               tracking: { organizationId: orgId },
               OR: [
                 { name: { contains: termNorm, mode: "insensitive" } },

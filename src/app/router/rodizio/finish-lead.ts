@@ -3,6 +3,9 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
+import { assignedStatusFlowPatch, rodizioQueueWhere } from "@/features/org-defaults/lib/attendance/rodizio";
+import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
+import { applyFinishedAttendance } from "@/features/org-defaults/lib/attendance/state";
 
 export const finishLead = base
   .use(requiredAuthMiddleware)
@@ -35,18 +38,20 @@ export const finishLead = base
               id: true,
             },
           },
+          tracking: { select: { organizationId: true } },
         },
       });
+      const { organizationId } = leadFinished.tracking;
+      // Estado de atendimento (spec 0113): "Finalizado" na etiqueta e a seção da conversa fechada.
+      await applyFinishedAttendance({ leadId: input.leadId, outcome: "FINISHED" }).catch((error: unknown) =>
+        console.warn("[rodizio.finishLead] attendance state failed", error),
+      );
       // Encerrar muda a taxa de resolução do lead (spec 0035).
       await requestLeadMetricsRecompute(input.leadId);
 
       // 1. Pega o lead mais antigo na lista de espera (WAITING)
       const leadInQueue = await prisma.lead.findFirst({
-        where: {
-          trackingId,
-          statusFlow: "WAITING",
-          isActive: true,
-        },
+        where: rodizioQueueWhere({ organizationId, trackingId }),
 
         orderBy: {
           createdAt: "asc", // FIFO: o mais antigo primeiro
@@ -67,11 +72,9 @@ export const finishLead = base
           user: {
             include: {
               responsibleOnLeads: {
-                where: {
-                  trackingId,
-                  statusFlow: "ACTIVE",
-                  isActive: true,
-                },
+                where: isAttendanceStateEnabled(organizationId)
+                  ? { trackingId, statusFlow: { not: "FINISHED" }, currentAction: "ACTIVE", isArchived: false }
+                  : { trackingId, statusFlow: "ACTIVE", isActive: true },
               },
             },
           },
@@ -96,7 +99,7 @@ export const finishLead = base
         where: { id: leadInQueue.id },
         data: {
           responsibleId: availableConsultant.userId,
-          statusFlow: "ACTIVE",
+          ...assignedStatusFlowPatch(organizationId),
         },
         include: {
           conversation: { select: { id: true } },

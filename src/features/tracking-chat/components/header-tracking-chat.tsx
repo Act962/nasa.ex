@@ -31,6 +31,7 @@ import { SummerizeConversation } from "./summerize-conversation";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { withSearchParams } from "../utils/url";
 import { CheckIaLead } from "./check-ia-lead";
+import { AttendanceStateBadge } from "./attendance-state-badge";
 import { MessageChannel, StatusFlow } from "@/generated/prisma/enums";
 import { useMutationRodizio } from "../hooks/use-rodizio";
 import { SyncMessagesButton } from "./sync-messages-button";
@@ -54,6 +55,8 @@ interface HeaderProps {
   active: boolean;
   trackingId: string;
   statusFlow: StatusFlow;
+  /** Estado de atendimento automático (spec 0113): mostra o estado no lugar do botão da IA. */
+  isAttendanceManaged?: boolean;
   channel?: MessageChannel;
   /** Nome do tracking (ex: "2. Orçamento") — exibido como breadcrumb no
    *  header, ao lado do nome do lead. */
@@ -95,6 +98,7 @@ export function Header({
   leadId,
   conversationId,
   active: initialActive,
+  isAttendanceManaged = false,
   trackingId,
   statusFlow,
   channel,
@@ -274,12 +278,16 @@ export function Header({
             open={syncOpen}
             onOpenChange={setSyncOpen}
           />
-          <CheckIaLead
-            size={"default"}
-            active={initialActive}
-            leadId={leadId}
-            trackingId={trackingId}
-          />
+          {isAttendanceManaged ? (
+            <AttendanceStateBadge statusFlow={statusFlow} isAiAnswering={initialActive} />
+          ) : (
+            <CheckIaLead
+              size={"default"}
+              active={initialActive}
+              leadId={leadId}
+              trackingId={trackingId}
+            />
+          )}
           <Button
             onClick={handleFinishLead}
             variant={statusFlow === "FINISHED" ? "default" : "outline"}
@@ -361,14 +369,18 @@ export function Header({
               >
                 <span className="flex items-center gap-2">
                   <BotIcon className="size-4" />
-                  IA do lead
+                  {isAttendanceManaged ? "Atendimento" : "IA do lead"}
                 </span>
-                <CheckIaLead
-                  size="sm"
-                  active={initialActive}
-                  leadId={leadId}
-                  trackingId={trackingId}
-                />
+                {isAttendanceManaged ? (
+                  <AttendanceStateBadge statusFlow={statusFlow} isAiAnswering={initialActive} />
+                ) : (
+                  <CheckIaLead
+                    size="sm"
+                    active={initialActive}
+                    leadId={leadId}
+                    trackingId={trackingId}
+                  />
+                )}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleFinishLead}

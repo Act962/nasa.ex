@@ -13,7 +13,13 @@ const HISTORY_LIMIT = 20;
 export type AgentTrigger =
   | "inbound"
   | "idle-reopen"
-  | "idle-reopen-with-instruction";
+  | "idle-reopen-with-instruction"
+  /** Estado de atendimento (spec 0113): a IA entra porque o cliente esperou sem resposta da equipe. */
+  | "attendance-step-in"
+  /** O atendente está na conversa, mas não respondeu a tempo: a IA continua por ele. */
+  | "attendance-in-service"
+  /** Nenhum consultor assumiu depois da transferência: a IA volta a ajudar. */
+  | "attendance-handoff-resume";
 
 export interface AgentEventData {
   trackingId: string;

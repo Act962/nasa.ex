@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { applyInboundAutoTags, loadAwaitingState } from "@/features/org-defaults/lib/auto-tags"
+import { loadAwaitingState } from "@/features/org-defaults/lib/auto-tags"
+import { applyInboundAttendanceOutsidePipeline } from "@/features/org-defaults/lib/attendance/state"
 import { pusherServer } from "@/lib/pusher"
 import { isMetaLoginInstagramAccount, processMetaCommentsWebhookSafely } from "@/features/comments/server/meta-webhook"
 import prisma from "@/lib/prisma"
@@ -269,11 +270,13 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        await applyInboundAutoTags({
+        await applyInboundAttendanceOutsidePipeline({
           organizationId: integration.organizationId,
           leadId: lead!.id,
           channel: "INSTAGRAM",
           wasAwaitingReply: awaitingState?.isAwaitingReply ?? false,
+          messageId: messageData.id,
+          messageText: text ?? null,
         }).catch((error) => console.error("[instagram-webhook] auto_tags_failed", error))
 
         await trackLeadEvent({

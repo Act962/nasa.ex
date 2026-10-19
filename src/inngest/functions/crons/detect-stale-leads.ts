@@ -54,7 +54,6 @@ export async function runDetectStaleLeads(step: InlineStep) {
       prisma.lead.findMany({
         where: {
           currentAction: LeadAction.ACTIVE,
-          isActive: true,
           ...(rule.organizationId
             ? { tracking: { organizationId: rule.organizationId } }
             : {}),

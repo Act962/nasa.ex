@@ -3,6 +3,7 @@ export const variables = {
   "{{email}}": "Email",
   "{{phone}}": "Telefone",
   "{{nome}}": "Nome do Lead",
+  "{{primeiro_nome}}": "Primeiro nome do Lead",
   "{{contato}}": "Número de contato",
   "{{data}}": "Data de criação",
   "{{data-t}}": "Data e hora de criação",

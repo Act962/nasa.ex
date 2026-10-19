@@ -5,6 +5,8 @@ import { NodeType } from "@/generated/prisma/enums";
 import { dispatchFirstChatInteraction } from "@/inngest/utils";
 import { getLastLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 import { removeAwaitingTagOnReply } from "@/features/org-defaults/lib/auto-tags";
+import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
+import { applyHumanReplyAttendance } from "@/features/org-defaults/lib/attendance/state";
 
 /**
  * Atualiza `Conversation.lastMessage` + `lastMessageAt` pra refletir a
@@ -45,10 +47,12 @@ export async function updateConversationLastMessage(
 export async function attendLeadIfWaiting(leadId: string, userId: string) {
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
-    select: { id: true, statusFlow: true },
+    select: { id: true, statusFlow: true, tracking: { select: { organizationId: true } } },
   });
 
   if (!lead || lead.statusFlow === "ACTIVE" || lead.statusFlow === "FINISHED") return;
+  // Com o estado de atendimento, "Em atendimento" só vem na troca de verdade (spec 0113, RF-9).
+  if (isAttendanceStateEnabled(lead.tracking.organizationId)) return;
 
   await prisma.lead.update({
     where: { id: lead.id },
@@ -84,15 +88,45 @@ export async function claimLeadForAttendant(leadId: string, userId: string) {
     },
   });
 
-  await removeAwaitingTagOnReply({
-    organizationId: lead.tracking.organizationId,
-    leadId: lead.id,
-  }).catch((error: unknown) => console.warn("[claimLeadForAttendant] remove awaiting tag failed", error));
+  if (isAttendanceStateEnabled(lead.tracking.organizationId)) {
+    // Estado de atendimento (spec 0113): marca a fala humana, cala a IA e cuida das etiquetas.
+    await applyHumanReplyAttendance({ leadId: lead.id, userId, at: new Date() }).catch((error: unknown) =>
+      console.warn("[claimLeadForAttendant] attendance state failed", error),
+    );
+  } else {
+    await removeAwaitingTagOnReply({
+      organizationId: lead.tracking.organizationId,
+      leadId: lead.id,
+    }).catch((error: unknown) => console.warn("[claimLeadForAttendant] remove awaiting tag failed", error));
+  }
 
   if (isAlreadyClaimed) return;
-  await pusherServer.trigger(lead.trackingId, "lead:updated", {
-    leadId: lead.id,
+  // Best-effort: a mensagem já saiu; erro do Pusher não pode virar "falhou" e gerar reenvio cobrado.
+  await pusherServer
+    .trigger(lead.trackingId, "lead:updated", { leadId: lead.id })
+    .catch((error: unknown) => console.warn("[claimLeadForAttendant] pusher failed", error));
+}
+
+/**
+ * Resposta humana que não toma o lead nem pausa a IA dele (encaminhar, menu salvo): só registra que a empresa
+ * respondeu. Com o estado de atendimento, menu enviado na conversa conta como fala do atendente (spec 0113).
+ */
+export async function recordHumanReply(leadId: string, options: { userId: string; isConversationReply: boolean }) {
+  const lead = await prisma.lead.update({
+    where: { id: leadId },
+    data: { lastOutboundAt: new Date() },
+    select: { id: true, tracking: { select: { organizationId: true } } },
   });
+  const { organizationId } = lead.tracking;
+  if (options.isConversationReply && isAttendanceStateEnabled(organizationId)) {
+    await applyHumanReplyAttendance({ leadId: lead.id, userId: options.userId, at: new Date() }).catch((error: unknown) =>
+      console.warn("[recordHumanReply] attendance state failed", error),
+    );
+    return;
+  }
+  await removeAwaitingTagOnReply({ organizationId, leadId: lead.id }).catch((error: unknown) =>
+    console.warn("[recordHumanReply] remove awaiting tag failed", error),
+  );
 }
 
 const URL_REGEX = /https?:\/\/\S+/i;

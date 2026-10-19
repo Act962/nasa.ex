@@ -133,7 +133,7 @@ export const listDashboard = base
       by: ["statusId"],
       where: {
         trackingId: { in: ids },
-        isActive: true,
+        currentAction: "ACTIVE", isArchived: false,
       },
       _count: { _all: true },
     });

@@ -254,10 +254,10 @@ export function buildAnalyticsTools(ctx: AgentContext) {
               where: { ...leadWhere, currentAction: "LOST" },
             }),
             prisma.lead.count({
-              where: { ...leadWhere, currentAction: "ACTIVE", isActive: true },
+              where: { ...leadWhere, currentAction: "ACTIVE" },
             }),
             prisma.lead.findMany({
-              where: { ...leadWhere, currentAction: "ACTIVE", isActive: true },
+              where: { ...leadWhere, currentAction: "ACTIVE" },
               select: { amount: true },
             }),
           ]);
@@ -279,7 +279,6 @@ export function buildAnalyticsTools(ctx: AgentContext) {
                   ...leadWhere,
                   trackingId: t.id,
                   currentAction: "ACTIVE",
-                  isActive: true,
                 },
               }),
               prisma.lead.count({

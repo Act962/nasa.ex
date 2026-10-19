@@ -33,7 +33,7 @@ function toForwardFailure(conversationId: string, reason: unknown) {
 }
 import prisma from "@/lib/prisma";
 import z from "zod";
-import { claimLeadForAttendant } from "./utils";
+import { recordHumanReply } from "./utils";
 
 type ForwardKind = z.infer<typeof forwardPayloadSchema>["kind"];
 
@@ -121,8 +121,10 @@ export const forwardMessageHandler = base
         };
 
         const message = await dispatchForward(input.payload, ctx);
-        // Encaminhar também é resposta humana (spec 0113, RF-4).
-        await claimLeadForAttendant(conversation.lead.id, context.user.id);
+        // Encaminhar registra que a empresa falou, sem tomar o lead nem pausar a IA (spec 0113, RF-4).
+        await recordHumanReply(conversation.lead.id, { userId: context.user.id, isConversationReply: false }).catch(
+          (error: unknown) => console.warn("[forward] record human reply failed", error),
+        );
 
         return {
           conversationId,

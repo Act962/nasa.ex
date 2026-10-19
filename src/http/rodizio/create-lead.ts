@@ -1,4 +1,9 @@
 import type { Prisma } from "@/generated/prisma/client";
+import {
+  assignedStatusFlowPatch,
+  consultantLoadWhere,
+  queuedStatusFlowPatch,
+} from "@/features/org-defaults/lib/attendance/rodizio";
 
 type PrismaTx = Prisma.TransactionClient;
 
@@ -9,12 +14,14 @@ export async function assignLeadRoundRobin(prisma: PrismaTx, leadId: string) {
     select: {
       id: true,
       trackingId: true,
+      tracking: { select: { organizationId: true } },
     },
   });
 
   if (!lead) {
     throw new Error("Lead not found");
   }
+  const { organizationId } = lead.tracking;
 
   // 2. Buscar consultores
   const consultants = await prisma.trackingConsultant.findMany({
@@ -37,11 +44,7 @@ export async function assignLeadRoundRobin(prisma: PrismaTx, leadId: string) {
 
   for (const c of consultants) {
     const leadsCount = await prisma.lead.count({
-      where: {
-        responsibleId: c.userId,
-        trackingId: lead.trackingId,
-        isActive: true,
-      },
+      where: consultantLoadWhere({ organizationId, trackingId: lead.trackingId, responsibleId: c.userId }),
     });
 
     if (leadsCount < c.maxFlow) {
@@ -55,9 +58,7 @@ export async function assignLeadRoundRobin(prisma: PrismaTx, leadId: string) {
     console.log("no consultant available for lead", leadId);
     await prisma.lead.update({
       where: { id: leadId },
-      data: {
-        statusFlow: "WAITING",
-      },
+      data: queuedStatusFlowPatch(organizationId),
     });
 
     return { status: "no-consultant-available" };
@@ -74,7 +75,7 @@ export async function assignLeadRoundRobin(prisma: PrismaTx, leadId: string) {
     where: { id: leadId },
     data: {
       responsibleId: selectedConsultant.userId,
-      statusFlow: "ACTIVE",
+      ...assignedStatusFlowPatch(organizationId),
     },
   });
 

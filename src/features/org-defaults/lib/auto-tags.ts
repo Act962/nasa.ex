@@ -63,12 +63,36 @@ export async function loadAwaitingState(leadId: string) {
   return { isAwaitingReply };
 }
 
-/** Mensagem do cliente: canal + "Em atendimento"; nova mensagem sem resposta → "Aguard. atendimento". */
+const CHANNEL_TAG_SLUGS = [...new Set(Object.values(CHANNEL_TAG).filter((key): key is AutoTagKey => key !== null))].map(
+  (key) => AUTO_TAG_SLUGS[key],
+);
+
+/** Etiqueta de canal = canal da última mensagem: as dos outros canais saem (spec 0113). */
+async function removeOtherChannelTags(params: { organizationId: string; leadId: string; currentSlug: string }) {
+  const removed = await prisma.leadTag.deleteMany({
+    where: {
+      leadId: params.leadId,
+      tag: {
+        organizationId: params.organizationId,
+        trackingId: null,
+        slug: { in: CHANNEL_TAG_SLUGS.filter((slug) => slug !== params.currentSlug) },
+      },
+    },
+  });
+  return removed.count;
+}
+
+/**
+ * Mensagem do cliente: canal + "Em atendimento"; nova mensagem sem resposta → "Aguard. atendimento".
+ * Com o estado de atendimento ligado (spec 0113), "Em atendimento" e "Aguard." ficam com ele e a etiqueta de
+ * canal troca quando o cliente muda de canal.
+ */
 export async function applyInboundAutoTags(params: {
   organizationId: string;
   leadId: string;
   channel: InboundChannel;
   wasAwaitingReply: boolean;
+  isAttendanceStateManaged?: boolean;
 }) {
   const lead = await prisma.lead.findUnique({
     where: { id: params.leadId },
@@ -78,6 +102,22 @@ export async function applyInboundAutoTags(params: {
   // Origem (spec 0085): só na chegada do lead, para não remarcar cliente antigo a cada mensagem.
   const originKeys: AutoTagKey[] =
     lead && isNewLead(lead.createdAt) ? ["newLead", ...(cameFromPaidTraffic(lead) ? (["paidTraffic"] as const) : [])] : [];
+  if (params.isAttendanceStateManaged) {
+    const managedKeys: AutoTagKey[] = [...(channelKey ? [channelKey] : []), ...originKeys];
+    const managedTagIdBySlug = await findActiveAutoTags(params.organizationId, managedKeys);
+    const removedChannelTags =
+      channelKey && channelKey !== "catalog"
+        ? await removeOtherChannelTags({ organizationId: params.organizationId, leadId: params.leadId, currentSlug: AUTO_TAG_SLUGS[channelKey] })
+        : 0;
+    await addMissingTags(params.leadId, [...managedTagIdBySlug.values()]);
+    if (removedChannelTags > 0) {
+      const leadPlacement = await prisma.lead.findUnique({ where: { id: params.leadId }, select: { trackingId: true, statusId: true } });
+      if (leadPlacement) {
+        await publishLeadChanged({ leadId: params.leadId, trackingId: leadPlacement.trackingId, statusId: leadPlacement.statusId, fields: ["tag"] });
+      }
+    }
+    return;
+  }
   const keys: AutoTagKey[] = ["inService", "awaitingReply", ...(channelKey ? [channelKey] : []), ...originKeys];
   const tagIdBySlug = await findActiveAutoTags(params.organizationId, keys);
   if (tagIdBySlug.size === 0) return;

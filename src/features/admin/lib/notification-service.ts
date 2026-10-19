@@ -1,4 +1,5 @@
 import "server-only";
+import { resolveNoticeChannel } from "@/features/astro-bot/lib/member-notice-channel";
 
 import prisma from "@/lib/prisma";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
@@ -46,6 +47,8 @@ export const NOTIF_TYPES = {
   PLANNER_POST_APPROVED:     "PLANNER_POST_APPROVED",
   PLANNER_PUBLISH_FAILED:    "PLANNER_PUBLISH_FAILED",
   PLANNER_ACCOUNT_RECONNECT: "PLANNER_ACCOUNT_RECONNECT",
+  // ── Estado de atendimento (spec 0113) ─────────────────────────────────
+  LEAD_AWAITING_ATTENTION:   "LEAD_AWAITING_ATTENTION",
 } as const;
 
 export type NotifType = (typeof NOTIF_TYPES)[keyof typeof NOTIF_TYPES];
@@ -81,6 +84,7 @@ export const NOTIF_META: Record<NotifType, { label: string; appKey: string; desc
   PLANNER_CHANGES_REQUESTED: { label: "Ajustes pedidos no conteúdo",       appKey: "nasa-planner", description: "O revisor pediu ajustes em um post seu" },
   PLANNER_POST_APPROVED:     { label: "Conteúdo aprovado",                 appKey: "nasa-planner", description: "Um post seu foi aprovado" },
   PLANNER_PUBLISH_FAILED:    { label: "Publicação falhou",                 appKey: "nasa-planner", description: "Um post programado não foi publicado" },
+  LEAD_AWAITING_ATTENTION:   { label: "Cliente esperando atendimento",     appKey: "tracking",   description: "Um cliente está sem atendimento humano e a IA assumiu a conversa" },
   PLANNER_ACCOUNT_RECONNECT: { label: "Reconectar conta da Meta",          appKey: "nasa-planner", description: "A conexão de uma conta do Instagram/Facebook expirou" },
 };
 
@@ -233,10 +237,7 @@ export async function createNotification(opts: CreateNotificationOptions) {
 }
 
 
-/**
- * Sends a WhatsApp message using the org's connected WhatsApp instance.
- * Uses the user's phone from their tracking profile (if available).
- */
+/** Aviso por WhatsApp ao número liberado do próprio membro no Astro (nunca a um lead). */
 async function sendWhatsAppNotification({
   userId,
   organizationId,
@@ -248,33 +249,18 @@ async function sendWhatsAppNotification({
   title: string;
   body: string;
 }) {
-  // Get org's active WhatsApp instance
-  const instance = await prisma.whatsAppInstance.findFirst({
-    // Aviso fora da janela de 24h só sai pelo QR code; número da API oficial não serve aqui.
-    where: { organizationId, isActive: true, status: "CONNECTED", provider: "UAZAPI" },
-    select: { trackingId: true },
-  });
-  if (!instance) return;
-
-  // Só o número do próprio membro: o liberado no Astro desta empresa ou o do perfil. Antes saía para o
-  // telefone de um lead do qual ele era responsável, mandando aviso interno a cliente (spec 0113, RF-5).
-  const [binding, user] = await Promise.all([
-    prisma.userWhatsappBinding.findFirst({
-      where: { userId, organizationId, isActive: true },
-      select: { phoneE164: true },
-    }),
-    prisma.user.findUnique({ where: { id: userId }, select: { phone: true } }),
-  ]);
-
-  const phone = (binding?.phoneE164 ?? user?.phone ?? "").replace(/\D/g, "");
-  if (!phone) return;
+  // Só o número liberado do próprio membro no Astro, pelo funil habilitado para o Astro: assim a resposta
+  // dele cai no Astro e não vira lead, e o aviso nunca vai a cliente (spec 0113, RF-5). Sem número liberado,
+  // fica só no sino.
+  const channel = await resolveNoticeChannel({ userId, organizationId });
+  if (!channel) return;
 
   const text = `*${title}*\n\n${body}\n\n_NASA.ex Platform_`;
 
-  const resolved = await resolveOutboundProvider(instance.trackingId);
+  const resolved = await resolveOutboundProvider(channel.trackingId);
   // Na API Oficial só sairia por template do próprio cliente: não envia.
   if (resolved.providerId === "meta-cloud") return;
-  await resolved.provider.sendText({ kind: "text", to: phone, body: text });
+  await resolved.provider.sendText({ kind: "text", to: channel.phone, body: text });
 }
 
 /**

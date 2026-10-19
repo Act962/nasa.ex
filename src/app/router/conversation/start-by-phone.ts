@@ -1,4 +1,5 @@
 import { base } from "@/app/middlewares/base";
+import { applyCompanyOpenedConversation } from "@/features/org-defaults/lib/attendance/state";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { LeadAction, LeadSource } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
@@ -107,6 +108,10 @@ export const startConversationByPhone = base
       action: LeadAction.ACTIVE,
       notes: "Conversa iniciada a partir de contato",
     });
+    // A empresa abriu a conversa: "Aguard." até o cliente responder (spec 0113).
+    await applyCompanyOpenedConversation({ leadId: lead.id }).catch((error: unknown) =>
+      console.warn("[startByPhone] attendance state failed", error),
+    );
 
     return { conversationId: conversation.id, leadId: lead.id };
   });

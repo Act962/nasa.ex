@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import z from "zod";
 import { Conversation, Lead } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
+import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
 
 export const getConversation = base
   .use(requiredAuthMiddleware)
@@ -38,6 +39,7 @@ export const getConversation = base
             select: {
               id: true,
               name: true,
+              organizationId: true,
             },
           },
         },
@@ -49,6 +51,8 @@ export const getConversation = base
 
       return {
         conversation,
+        // Estado de atendimento automático (spec 0113): o cabeçalho mostra o estado no lugar do botão da IA.
+        isAttendanceManaged: isAttendanceStateEnabled(conversation.tracking.organizationId),
       };
     } catch (error) {
       console.error(error);
