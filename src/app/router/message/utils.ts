@@ -118,10 +118,13 @@ export async function recordHumanReply(leadId: string, options: { userId: string
     select: { id: true, tracking: { select: { organizationId: true } } },
   });
   const { organizationId } = lead.tracking;
-  if (options.isConversationReply && isAttendanceStateEnabled(organizationId)) {
-    await applyHumanReplyAttendance({ leadId: lead.id, userId: options.userId, at: new Date() }).catch((error: unknown) =>
-      console.warn("[recordHumanReply] attendance state failed", error),
-    );
+  if (isAttendanceStateEnabled(organizationId)) {
+    // Encaminhar não é conversa: com o estado de atendimento, só a resposta na conversa mexe no estado.
+    if (options.isConversationReply) {
+      await applyHumanReplyAttendance({ leadId: lead.id, userId: options.userId, at: new Date() }).catch((error: unknown) =>
+        console.warn("[recordHumanReply] attendance state failed", error),
+      );
+    }
     return;
   }
   await removeAwaitingTagOnReply({ organizationId, leadId: lead.id }).catch((error: unknown) =>

@@ -50,6 +50,7 @@ import {
   resolveReferralForOrg,
 } from "@/lib/lead-journey/ctwa";
 import prisma from "@/lib/prisma";
+import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
 import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { tryHandleApproverInbound } from "@/features/nerp-catalog/lib/approvals/order-approvals";
 import { tryStartGuidedOrderFromInbound } from "@/features/nerp-catalog/lib/guided-order-contact";
@@ -268,7 +269,8 @@ export async function persistCanonicalInbound(
       }
     }
 
-    if (!canonical.sender.fromMe && lead.statusFlow === "FINISHED") {
+    // Com o estado de atendimento, quem reabre é o módulo de atendimento, como "Aguard. atendimento" (spec 0113).
+    if (!canonical.sender.fromMe && lead.statusFlow === "FINISHED" && !isAttendanceStateEnabled(tracking.organizationId)) {
       lead = await prisma.lead.update({
         where: { id: lead.id },
         data: { statusFlow: "ACTIVE" },
@@ -297,6 +299,14 @@ export async function persistCanonicalInbound(
         select: { id: true, body: true, messageId: true },
       })
     : null;
+
+  // Eco do que a plataforma enviou: a mensagem já existe com o mesmo id externo (spec 0113).
+  const isPlatformEcho =
+    canonical.sender.fromMe &&
+    isAttendanceStateEnabled(tracking.organizationId) &&
+    Boolean(
+      await prisma.message.findUnique({ where: { messageId: canonical.externalMessageId }, select: { id: true } }),
+    );
 
   // ── 5. Persistência por tipo ────────────────────────────────────────────
   const persistParams: PersistMessageParams = {
@@ -387,6 +397,8 @@ export async function persistCanonicalInbound(
     fromMe: canonical.sender.fromMe,
     channel,
     isButtonClick: Boolean(interactiveReplyIdOf(canonical)),
+    isPlatformEcho,
+    messageAt: canonical.sentAt,
     // Só inbound: `leadMessage` é, por contrato, texto escrito pelo lead.
     ...(canonical.sender.fromMe
       ? {}

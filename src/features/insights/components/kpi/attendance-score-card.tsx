@@ -3,16 +3,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useAttendanceScore } from "@/features/insights/hooks/use-attendance-score";
+import { ATTENDANCE_SCORE_REASON_LABEL } from "@/features/org-defaults/lib/attendance/labels";
 
 // Score de atendimento (spec 0113, RF-16): total do período, de onde veio e ranking por atendente.
-const REASON_LABEL: Record<string, string> = {
-  replied_in_time: "Resposta no tempo",
-  unanswered_beyond_time: "Cliente sem resposta",
-  client_complained: "Cliente reclamou da demora",
-  human_answered_waiting_client: "Atendente respondeu quem esperava",
-  commitment_fulfilled: "Compromisso cumprido",
-  no_show: "Não compareceu",
-};
 
 interface AttendanceScoreCardProps {
   trackingId?: string;
@@ -40,7 +33,7 @@ export function AttendanceScoreCard({ trackingId, startDate, endDate }: Attendan
           {score.byReason.map((row) => (
             <li key={row.reason} className="flex justify-between gap-2">
               <span className="text-muted-foreground">
-                {REASON_LABEL[row.reason] ?? row.reason} ({row.count})
+                {ATTENDANCE_SCORE_REASON_LABEL[row.reason] ?? row.reason} ({row.count})
               </span>
               <span className={row.points < 0 ? "text-destructive" : ""}>{row.points > 0 ? `+${row.points}` : row.points}</span>
             </li>

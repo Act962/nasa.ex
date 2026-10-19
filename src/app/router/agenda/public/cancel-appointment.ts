@@ -1,6 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 
 /** Rota pública — sem autenticação. Permite que o lead cancele seu próprio compromisso. */
 export const cancelPublicAppointment = base
@@ -19,6 +20,8 @@ export const cancelPublicAppointment = base
       where: { id: input.appointmentId },
       data: { status: "CANCELLED", cancelledBy: "CLIENT" },
     });
+
+    await recordAppointmentChange({ appointmentId: input.appointmentId, change: "cancelled" }).catch((error: unknown) => console.warn("[agenda.publicCancel] atendimento do agendamento falhou", error));
 
     return { appointment: updated };
   });

@@ -2,6 +2,7 @@ import "server-only";
 import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import prisma from "@/lib/prisma";
+import { applyFinishedAttendance } from "@/features/org-defaults/lib/attendance/state";
 import { inngest } from "@/inngest/client";
 import { moveLeadToStage } from "@/features/leads/lib/move-lead";
 import { nerpPublicOrigin } from "@/features/nerp/lib/oauth";
@@ -45,6 +46,8 @@ async function closeOrderLeadAsWon(leadId: string, saleNumber: number) {
     where: { id: leadId },
     data: { currentAction: "WON", closedAt: new Date(), statusFlow: "FINISHED" },
   });
+  // Estado de atendimento (spec 0113): etiqueta "Finalizado" e a seção fecha como venda.
+  await applyFinishedAttendance({ leadId, outcome: "WON" }).catch((error: unknown) => console.warn("[nerp-catalog] estado de atendimento falhou", error));
   await trackLeadEvent({ leadId, kind: "won", metadata: { source: "catalog_order_paid", notes } });
 }
 

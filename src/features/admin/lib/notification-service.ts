@@ -103,6 +103,8 @@ interface CreateNotificationOptions {
   displaySurface?: DisplaySurface;
   /** Default deriva de severity (critical=true). */
   requiresAck?:    boolean;
+  /** Quem chama já cuida do WhatsApp (ex.: aviso do atendimento, com limite próprio). */
+  skipWhatsApp?:   boolean;
 }
 
 /**
@@ -122,6 +124,7 @@ export async function createNotification(opts: CreateNotificationOptions) {
     severity: severityRaw,
     displaySurface: displaySurfaceRaw,
     requiresAck: requiresAckRaw,
+    skipWhatsApp,
   } = opts;
 
   const severity: Severity = isSeverity(severityRaw) ? severityRaw : "info";
@@ -138,7 +141,7 @@ export async function createNotification(opts: CreateNotificationOptions) {
     });
     // Default: inApp=true, whatsApp=false
     const inApp = pref?.inApp ?? true;
-    sendWA = pref?.whatsApp ?? false;
+    sendWA = !skipWhatsApp && (pref?.whatsApp ?? false);
 
     if (!inApp && !sendWA) return null; // user opted out completely
   }

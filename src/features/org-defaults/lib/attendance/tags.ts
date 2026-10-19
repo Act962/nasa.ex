@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { applyTagsByAi } from "@/features/tracking-chat-ai/lib/apply-tags-by-ai";
 import { publishLeadChanged } from "@/features/leads/realtime/publish";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
-import { AUTO_TAG_SLUGS, DEFAULT_TAGS, type AutoTagKey } from "../default-org-template";
+import { ATTENDANCE_TAGS, AUTO_TAG_SLUGS, DEFAULT_TAGS, type AutoTagKey } from "../default-org-template";
 
 // Etiquetas de sistema do atendimento (spec 0113). Empresa antiga ganha a etiqueta na hora em que precisa;
 // etiqueta arquivada pela empresa desliga só a etiqueta (o estado do lead continua valendo).
@@ -18,16 +18,15 @@ const STATUS_FLOW_TAG: Record<AttendanceStatusFlow, AutoTagKey | null> = {
 };
 const STATE_TAG_KEYS: AutoTagKey[] = ["awaitingReply", "inService", "finished"];
 
-/** Id da etiqueta de sistema; `null` quando a empresa arquivou. */
+/**
+ * Id da etiqueta de sistema; `null` quando a empresa arquivou. Só etiqueta `SYSTEM`: uma etiqueta da empresa
+ * com o mesmo nome continua sendo dela, sem entrar e sair sozinha nem disparar os fluxos dela.
+ */
 export async function ensureSystemTagId(organizationId: string, key: AutoTagKey): Promise<string | null> {
-  const template = DEFAULT_TAGS.find((tag) => tag.key === key);
+  const template = [...DEFAULT_TAGS, ...ATTENDANCE_TAGS].find((tag) => tag.key === key);
   const slug = AUTO_TAG_SLUGS[key];
   const existing = await prisma.tag.findFirst({
-    where: {
-      organizationId,
-      trackingId: null,
-      OR: [{ slug }, ...(template ? [{ name: template.name }] : [])],
-    },
+    where: { organizationId, trackingId: null, slug, type: "SYSTEM" },
     orderBy: { archivedAt: { sort: "desc", nulls: "first" } },
     select: { id: true, archivedAt: true },
   });
@@ -49,7 +48,7 @@ export async function ensureSystemTagId(organizationId: string, key: AutoTagKey)
   if (created) return created.id;
   // Corrida com outra mensagem do mesmo lead: a outra criou primeiro.
   const createdMeanwhile = await prisma.tag.findFirst({
-    where: { organizationId, trackingId: null, slug, archivedAt: null },
+    where: { organizationId, trackingId: null, slug, type: "SYSTEM", archivedAt: null },
     select: { id: true },
   });
   return createdMeanwhile?.id ?? null;
@@ -72,7 +71,10 @@ export async function mirrorStatusFlowTags(params: {
   const currentKey = STATUS_FLOW_TAG[params.statusFlow];
   const otherSlugs = STATE_TAG_KEYS.filter((key) => key !== currentKey).map((key) => AUTO_TAG_SLUGS[key]);
   const removed = await prisma.leadTag.deleteMany({
-    where: { leadId: params.leadId, tag: { organizationId: params.organizationId, trackingId: null, slug: { in: otherSlugs } } },
+    where: {
+      leadId: params.leadId,
+      tag: { organizationId: params.organizationId, trackingId: null, slug: { in: otherSlugs }, type: "SYSTEM" },
+    },
   });
 
   const currentTagId = currentKey ? await ensureSystemTagId(params.organizationId, currentKey) : null;
@@ -117,7 +119,7 @@ export async function removeHistoryTag(params: {
   sectionId?: string;
 }): Promise<boolean> {
   const tag = await prisma.tag.findFirst({
-    where: { organizationId: params.organizationId, trackingId: null, slug: AUTO_TAG_SLUGS[params.key] },
+    where: { organizationId: params.organizationId, trackingId: null, slug: AUTO_TAG_SLUGS[params.key], type: "SYSTEM" },
     select: { id: true },
   });
   if (!tag) return false;

@@ -5,7 +5,7 @@ import { synthesizeSpeech } from "@/features/astro-bot/lib/voice/synthesize-spee
 import { chargeSpeech } from "@/features/astro-bot/lib/voice/reply-voice";
 import { TrackingProviderBotChannel } from "@/features/astro-bot/lib/tracking-provider-channel";
 import "server-only";
-import { generateText } from "ai";
+import { generateText, type ModelMessage } from "ai";
 import { reportAiQuotaExhausted } from "@/features/alerts/lib/ai-token-alerts";
 import type { GetStepTools } from "inngest";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
@@ -19,6 +19,8 @@ import { recordUsageEvent } from "@/features/stars/lib/metering";
 import prisma from "@/lib/prisma";
 import { loadAgentContext, type AgentEventData, type AgentTrigger } from "./context";
 import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
+import { markAiReplied } from "@/features/org-defaults/lib/attendance/state";
+import { findActiveCampaign } from "@/features/star-friends/lib/campaign/campaign";
 import {
   NOTES_INSTRUCTION,
   planSectionNotes,
@@ -155,23 +157,34 @@ async function sendAgentNotice(
   });
 }
 
+const HISTORY_WITH_SUMMARY_LIMIT = 10;
+
+/** Com o resumo da seção no prompt, bastam as últimas mensagens; começa sempre por uma do cliente. */
+function trimHistoryWithSummary(history: ModelMessage[]): ModelMessage[] {
+  const recent = history.slice(-HISTORY_WITH_SUMMARY_LIMIT);
+  const firstClientIndex = recent.findIndex((message) => message.role === "user");
+  return firstClientIndex > 0 ? recent.slice(firstClientIndex) : recent;
+}
+
 export async function runWhatsappAgent({ step, data }: RunArgs) {
-  // Uma foto só do estado da IA no lead e de a mensagem ser clique em menu (spec 0113, RF-3). Com a IA
-  // pausada só o clique segue, porque ele dispara ramo de fluxo; o resto para aqui, antes de carregar
-  // contexto, transcrever áudio ou ler campanha.
+  // Uma foto só do estado da IA no lead, de a mensagem ser clique em menu e de haver campanha ativa (spec
+  // 0113, RF-3). Com a IA pausada só o clique e a campanha seguem, porque disparam fluxo; o resto para aqui,
+  // antes de carregar contexto ou transcrever áudio.
   const isInboundTrigger = (data.trigger ?? "inbound") === "inbound";
   const entryGate = await step.run("check-lead-ai", async () => {
     const lead = await prisma.lead.findUnique({ where: { id: data.leadId }, select: { isActive: true } });
     const isActive = lead?.isActive ?? false;
-    if (isActive || !data.messageId) return { isActive, isMenuClick: false };
+    if (isActive || !data.messageId) return { isActive, isMenuClick: false, hasActiveCampaign: false };
     const inbound = await prisma.message.findFirst({
       where: { id: data.messageId, conversationId: data.conversationId, fromMe: false },
       select: { metadata: true },
     });
     const replyId = (inbound?.metadata as { interactiveReplyId?: unknown } | null)?.interactiveReplyId;
-    return { isActive, isMenuClick: typeof replyId === "string" };
+    const activeCampaign = await findActiveCampaign(data.organizationId, data.trackingId);
+    return { isActive, isMenuClick: typeof replyId === "string", hasActiveCampaign: Boolean(activeCampaign) };
   });
-  if (!entryGate.isActive && !(entryGate.isMenuClick && isInboundTrigger)) {
+  const isPausedRuleTrigger = isInboundTrigger && (entryGate.isMenuClick || entryGate.hasActiveCampaign);
+  if (!entryGate.isActive && !isPausedRuleTrigger) {
     return { skipped: true, reason: "lead_inactive" };
   }
   const isLeadAiActive = entryGate.isActive;
@@ -226,7 +239,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   }
 
   // Passo de fluxo esperando a resposta do cliente (spec 0099): a mensagem é do fluxo, ninguém mais responde.
-  if (leadGate.isActive && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
+  if ((leadGate.isActive || entryGate.isMenuClick) && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const isForWaitingFlow = await step.run("flow-awaiting-reply", () => isReplyForWaitingFlow(ctx, data.messageId));
     if (isForWaitingFlow) return { skipped: true, reason: "flow_awaiting_reply" };
   }
@@ -237,6 +250,8 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     const campaign = await step.run("star-friends-campaign", () => handleCampaign(ctx, data.messageId));
     if (campaign.handled) return { skipped: true, reason: "star_friends_campaign" };
   }
+  // IA pausada e sem clique: só a campanha valia. Menus e assistente ficam para quando a IA pode falar.
+  if (!leadGate.isActive && !entryGate.isMenuClick) return { skipped: true, reason: "lead_inactive" };
 
   if (leadGate.isActive && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
     const storeInfo = await step.run("store-info", () => handleStoreInfo(ctx, data.messageId));
@@ -432,7 +447,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
       model: resolved.model,
       system: systemPromptWithNotes,
       tools: buildAgentTools(assistantCtx),
-      messages: ctx.history,
+      messages: sectionNotesPlan?.hasOpenSummary ? trimHistoryWithSummary(ctx.history) : ctx.history,
       stopWhen: ({ steps }) => steps.length >= 6,
     }).catch(async (error: unknown) => {
       await reportAiQuotaExhausted({
@@ -570,10 +585,14 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
 
   const sectionId = sectionNotesPlan?.sectionId;
   const sectionNotes = aiResult.sectionNotes;
-  if (sectionId && sectionNotes) {
+  if (sectionId && sectionNotes && sectionNotesPlan?.shouldWriteNotes) {
     await step.run("save-section-notes", () =>
       saveSectionNotes({ sectionId, notes: sectionNotes, summaryCount: sectionNotesPlan?.summaryCount ?? 0 }),
     );
+  }
+  // A resposta da IA conta como fala da empresa na seção (troca de verdade, spec 0113 RF-9).
+  if (aiResult.text && sectionNotesPlan) {
+    await step.run("mark-ai-replied", () => markAiReplied({ leadId: ctx.lead.id, at: new Date() }));
   }
 
   return {

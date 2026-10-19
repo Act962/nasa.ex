@@ -2,6 +2,8 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { canAccessTracking } from "@/features/workflows/server/workflow-access";
+import { ORPCError } from "@orpc/server";
 import {
   assignedStatusFlowPatch,
   consultantLoadWhere,
@@ -22,6 +24,10 @@ export const newLead = base
   .handler(async ({ input, context }) => {
     const { leadId } = input;
     const userId = context.user.id;
+    const leadToAssign = await prisma.lead.findUnique({ where: { id: leadId }, select: { trackingId: true } });
+    if (!leadToAssign || !(await canAccessTracking(leadToAssign.trackingId, userId))) {
+      throw new ORPCError("NOT_FOUND", { message: "Lead não encontrado" });
+    }
 
     try {
       // 1. Buscar lead

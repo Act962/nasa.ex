@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
+import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 import type { AstroAction, AstroActionResult } from "../types";
 import { buildAppointmentPublicUrl, formatAgendaDateTime, formatAgendaTime, resolveWhenOrAsk } from "./schedule-steps";
 import { resolveSingleLead } from "../leads/resolve-lead";
@@ -426,6 +427,7 @@ export const createAppointmentAction: AstroAction<typeof inputSchema> = {
       },
       select: { id: true },
     });
+    await recordAppointmentChange({ appointmentId: appointment.id, change: "scheduled", actorId: ctx.userId }).catch((error: unknown) => console.warn("[astro.appointment.create] atendimento do agendamento falhou", error));
 
     if (noticePhone && noticeTracking) {
       const reminder = await prisma.reminder.create({

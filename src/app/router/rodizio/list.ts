@@ -2,6 +2,8 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { canAccessTracking } from "@/features/workflows/server/workflow-access";
+import { ORPCError } from "@orpc/server";
 import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
 
 export const listTrackingConsultants = base
@@ -17,6 +19,9 @@ export const listTrackingConsultants = base
     }),
   )
   .handler(async ({ input, context }) => {
+    if (!(await canAccessTracking(input.trackingId, context.user.id))) {
+      throw new ORPCError("NOT_FOUND", { message: "Funil não encontrado" });
+    }
     try {
       const tracking = await prisma.tracking.findUnique({
         where: { id: input.trackingId },

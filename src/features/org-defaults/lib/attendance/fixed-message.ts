@@ -15,7 +15,7 @@ import { applyVariables, buildLeadVariables } from "@/features/tracking-executio
 export type FixedMessageKind = "attendance_holding" | "attendance_handoff";
 
 export type FixedMessageResult =
-  | { isSent: true; messageId: string }
+  | { isSent: true; messageId: string | null }
   | { isSent: false; reason: "lead_not_found" | "window_closed" | "no_provider" | "no_balance" | "empty_text" };
 
 export async function sendAttendanceFixedMessage(params: {
@@ -55,6 +55,7 @@ export async function sendAttendanceFixedMessage(params: {
   if (!charge.success) return { isSent: false, reason: "no_balance" };
 
   const sent = await resolved.provider.sendText({ kind: "text", to: lead.phone, body, typingDelayMs: 0 });
+  // Já saiu para o cliente: falha ao gravar no chat não pode fazer o Inngest repetir o envio.
   const message = await persistOutboundMessage({
     conversationId: params.conversationId,
     leadId: params.leadId,
@@ -63,6 +64,9 @@ export async function sendAttendanceFixedMessage(params: {
     senderName: params.senderName,
     externalMessageId: toLegacyUazapiMessageId(sent),
     metadata: { kind: params.kind },
+  }).catch((error: unknown) => {
+    console.warn("[attendance] mensagem fixa enviada, mas não gravada no chat", error);
+    return null;
   });
-  return { isSent: true, messageId: message.id };
+  return { isSent: true, messageId: message?.id ?? null };
 }

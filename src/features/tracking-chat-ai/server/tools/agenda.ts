@@ -20,6 +20,7 @@ import {
   type AppointmentReminderScope,
 } from "../../lib/appointment-reminder";
 import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
+import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -211,6 +212,7 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
         await inngest
           .send({ name: "appointment/booking.notification", data: { appointmentId: appointment.id, type: "created" } })
           .catch((error: unknown) => console.warn("[tracking-chat-ai/agenda] aviso de agendamento falhou", error));
+        await recordAppointmentChange({ appointmentId: appointment.id, change: "scheduled" }).catch((error: unknown) => console.warn("[tracking-chat-ai/agenda] atendimento do agendamento falhou", error));
         await requestLeadMetricsRecompute(scope.leadId);
         const reminderSettings = scope.reminderScope?.reminder;
         const meetingLink = await syncGoogleEvent(() =>
@@ -268,6 +270,7 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
         await inngest
           .send({ name: "appointment/booking.notification", data: { appointmentId: appointment.id, type: "cancelled" } })
           .catch((error: unknown) => console.warn("[tracking-chat-ai/agenda] aviso de cancelamento falhou", error));
+        await recordAppointmentChange({ appointmentId: appointment.id, change: "cancelled" }).catch((error: unknown) => console.warn("[tracking-chat-ai/agenda] atendimento do agendamento falhou", error));
         await requestLeadMetricsRecompute(scope.leadId);
         await cancelGoogleEventForAppointment(googleEventScope(scope, appointment.id)).catch((error: unknown) =>
           console.warn("[tracking-chat-ai/agenda] cancelamento no Google Agenda falhou", error),
@@ -315,6 +318,7 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
           data: { startsAt: startsAt.toDate(), endsAt: endsAt.toDate() },
           select: { id: true, startsAt: true, agenda: { select: { name: true } } },
         });
+        await recordAppointmentChange({ appointmentId: updated.id, change: "rescheduled", previousStartsAt: appointment.startsAt }).catch((error: unknown) => console.warn("[tracking-chat-ai/agenda] atendimento do agendamento falhou", error));
         const meetingLink = await syncGoogleEvent(() => moveGoogleEventForAppointment(googleEventScope(scope, updated.id)));
         if (scope.reminderScope) {
           const reminderScope = scope.reminderScope;

@@ -69,7 +69,7 @@ export async function runLeadWaitingDetection(
     const waitingLeads = await step.run(`fetch-waiting-${rule.id}`, () =>
       prisma.lead.findMany({
         where: {
-          currentAction: "ACTIVE",
+          currentAction: { not: "DELETED" },
           isArchived: false,
           lastInboundAt: { lte: waitingSinceLimit, gte: lookbackLimit },
           conversation: { isNot: null },

@@ -36,6 +36,7 @@ import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { LeadSource } from "@/generated/prisma/enums";
 import type { WorkflowLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
+import { findActiveCampaign } from "@/features/star-friends/lib/campaign/campaign";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -72,6 +73,10 @@ export interface FirePostInboundParams {
   leadMessage?: WorkflowLeadMessage;
   /** Toque em botão ou item de lista: mensagem completa, não espera o cliente terminar de digitar. */
   isButtonClick?: boolean;
+  /** Eco de mensagem que a própria plataforma enviou (IA, fluxo, mensagem fixa): não é fala de atendente. */
+  isPlatformEcho?: boolean;
+  /** Hora da mensagem no provedor; ausente usa a hora do processamento. */
+  messageAt?: Date;
   /** Dados serializáveis pro Pusher per-conversation event. */
   messagePayload: Record<string, any>;
   /** Dados serializáveis pro Pusher per-tracking event (lista de conversas). */
@@ -141,10 +146,13 @@ export async function firePostInboundAutomations(
   // Roda antes de acionar a IA: com o estado de atendimento, é aqui que se decide se ela responde agora.
   const isAttendanceStateManaged = isAttendanceStateEnabled(params.organizationId);
   try {
+    const messageAt = params.messageAt ?? now;
     if (params.fromMe) {
       if (isAttendanceStateManaged) {
-        // Eco do celular: mensagem enviada à mão pelo atendente.
-        await applyHumanReplyAttendance({ leadId: params.lead.id, userId: null, at: now });
+        // Mensagem enviada à mão pelo atendente no celular. Eco do que a plataforma mandou não conta.
+        if (!params.isPlatformEcho) {
+          await applyHumanReplyAttendance({ leadId: params.lead.id, userId: null, at: messageAt });
+        }
       } else {
         await removeAwaitingTagOnReply({ organizationId: params.organizationId, leadId: params.lead.id });
       }
@@ -161,7 +169,7 @@ export async function firePostInboundAutomations(
           leadId: params.lead.id,
           messageId: params.messageId,
           messageText: params.leadMessage?.text ?? null,
-          at: now,
+          at: messageAt,
         });
       }
     }
@@ -239,16 +247,21 @@ export async function firePostInboundAutomations(
   }
 
   // ── 4. Inngest IA (só inbound + IA do funil conectada) ───────────────
-  // IA pausada no lead: só o clique em menu aciona o agente, porque ele dispara ramo de fluxo (spec 0113,
+  // IA pausada no lead: só o clique em menu e a campanha acionam o agente, porque disparam fluxo (spec 0113,
   // RF-3). Com o estado de atendimento, a pausa acabou de ser decidida no passo 1b: lê de novo.
   const isLeadAiActiveNow =
     isAttendanceStateManaged && !params.fromMe
       ? ((await prisma.lead.findUnique({ where: { id: params.lead.id }, select: { isActive: true } }))?.isActive ?? false)
       : params.lead.isActive;
+  // Campanha de sorteio ativa também vale com a IA pausada: a foto do cupom é resposta à campanha (RF-3).
+  const hasActiveCampaign =
+    !params.fromMe && params.globalAiActive && !isLeadAiActiveNow && !params.isButtonClick
+      ? Boolean(await findActiveCampaign(params.organizationId, params.trackingId).catch(() => null))
+      : false;
   if (
     !params.fromMe &&
     params.globalAiActive &&
-    (isLeadAiActiveNow || params.isButtonClick) &&
+    (isLeadAiActiveNow || params.isButtonClick || hasActiveCampaign) &&
     params.lead.conversation?.id
   ) {
     try {

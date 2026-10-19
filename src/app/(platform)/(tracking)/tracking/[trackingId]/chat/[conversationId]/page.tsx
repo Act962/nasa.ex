@@ -11,6 +11,7 @@ import { redirect, useParams } from "next/navigation";
 import { useState } from "react";
 
 import { MarkedMessage } from "@/features/tracking-chat/types";
+import { AppointmentCheckCard } from "@/features/tracking-chat/components/appointment-check-card";
 
 export default function Page() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -71,6 +72,7 @@ export default function Page() {
           trackingId={data.conversation.trackingId}
           statusFlow={data.conversation.lead.statusFlow}
         />
+        {data.pendingAppointmentCheck && <AppointmentCheckCard check={data.pendingAppointmentCheck} />}
         <Body
           messageSelected={messageSelected}
           onSelectMessage={setMessageSelected}

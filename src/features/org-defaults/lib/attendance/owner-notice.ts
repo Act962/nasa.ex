@@ -44,9 +44,16 @@ export async function notifyUnattendedLead(params: {
       appKey: "tracking",
       actionUrl,
       severity: "warning",
+      skipWhatsApp: true,
     }).catch((error: unknown) => console.warn("[attendance] aviso no sino falhou", error));
 
     if (isFinalNotice) continue;
+    // Quem desligou o WhatsApp deste aviso nas preferências não recebe.
+    const preference = await prisma.userNotificationPreference.findUnique({
+      where: { userId_organizationId_notifType: { userId, organizationId: params.organizationId, notifType: "LEAD_AWAITING_ATTENTION" } },
+      select: { whatsApp: true },
+    });
+    if (preference && !preference.whatsApp) continue;
     const channel = await resolveNoticeChannel({ userId, organizationId: params.organizationId }).catch(() => null);
     if (!channel) continue;
     const resolved = await resolveOutboundProvider(channel.trackingId).catch(() => null);

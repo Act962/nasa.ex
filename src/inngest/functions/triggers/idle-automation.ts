@@ -1,5 +1,6 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
+import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
 import { NonRetriableError } from "inngest";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import {
@@ -86,6 +87,8 @@ export const scheduleIdleChecks = inngest.createFunction(
     // contradiria o propósito da feature.
     if (ctx.lead.statusFlow === "FINISHED")
       return { scheduled: 0, reason: "lead-finished" };
+    if (isAttendanceStateEnabled(ctx.lead.tracking.organizationId))
+      return { scheduled: 0, reason: "attendance-state" };
 
     const toSend: { name: string; data: CheckEventData }[] = [];
     const now = Date.now();
@@ -330,6 +333,8 @@ async function executeIdleActions(args: {
   minutesWaiting: number;
 }) {
   const { lead, scenario, config, minutesWaiting } = args;
+  // Com o estado de atendimento, mensagem fixa, IA e avisos de espera são dele (spec 0113): nada em dobro.
+  if (isAttendanceStateEnabled(lead.tracking.organizationId)) return;
 
   const c: ActionConfig =
     scenario === "noFirstResp"

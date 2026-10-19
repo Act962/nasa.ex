@@ -6,6 +6,7 @@ import timezone from "dayjs/plugin/timezone";
 import z from "zod";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
+import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 import {
   trackingParamsSchema,
   trackingToLeadData,
@@ -184,6 +185,8 @@ export const createAppointment = base
       description: `Novo agendamento: ${input.name}`,
       appSlug: "spacetime",
     });
+
+    await recordAppointmentChange({ appointmentId: appointment.id, change: "scheduled" }).catch((error: unknown) => console.warn("[agenda.create] atendimento do agendamento falhou", error));
 
     return {
       success: true,

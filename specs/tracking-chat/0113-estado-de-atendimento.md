@@ -54,7 +54,7 @@ O cliente nunca fica sem resposta na ausência do humano. A IA fala curto e natu
 | RF-6 | O estado de atendimento é o `Lead.statusFlow`: `WAITING` = "Aguard. atendimento", `ACTIVE` = "Em atendimento", `FINISHED` = "Finalizado". As etiquetas espelham o campo e nunca coexistem. Toda troca passa por um único ponto (`setStatusFlow`). |
 | RF-7 | Cada funil escolhe quem responde primeiro: `EQUIPE` ou `IA` (padrão `IA` em funil com IA conectada, como hoje). Tempos e textos ficam nas configurações de IA do funil. |
 | RF-8 | Funil `EQUIPE`: mensagem do cliente sem resposta em 3 min recebe uma **mensagem fixa sem IA** por espera. +5 min sem resposta: a IA responde lendo o resumo. Reclamação do cliente durante a espera faz a IA responder na hora. |
-| RF-9 | "Em atendimento" começa na **troca de verdade**: alguém da empresa (humano, ou IA com contexto) falou e o cliente respondeu. A mensagem fixa não conta. |
+| RF-9 | "Em atendimento" começa na **troca de verdade**: dentro da seção aberta, o cliente escreveu e um humano ou a IA falou com ele. Mensagem fixa, de fluxo, de campanha e de inatividade não conta. O estado sai sempre da seção aberta, nunca do `statusFlow` anterior: seção nova começa em "Aguard.". |
 | RF-10 | Em atendimento, mensagem do cliente sem resposta humana em 10 min faz a IA continuar a conversa; o estado não muda. |
 | RF-11 | Quando o cliente pede humano ou a IA transfere: o lead vai para `WAITING`, recebe a mensagem de espera e, se nenhum humano responder em 10 min, a IA volta. O gatilho "IA finalizou" é disparado. |
 | RF-12 | Quando a IA entra por falta de humano, o dono ou um número autorizado é avisado. Avisos a cada 10 min, no máximo 3; depois, um sino/push final. |
@@ -63,12 +63,12 @@ O cliente nunca fica sem resposta na ausência do humano. A IA fala curto e natu
 | RF-15 | O contexto da IA passa a ser: resumo da seção + últimas ~10 mensagens + uma linha de cada uma das 3 seções anteriores. |
 | RF-16 | Score de atendimento da empresa e por atendente, lançado como `LeadJourneyEvent` `attendance_score` (tabela de pontos da seção 6). |
 | RF-17 | "Agendado" entra em todo agendamento e sai ao cancelar ou passar a data, com histórico. Cancelamento, reagendamento e exclusão viram eventos da Jornada. |
-| RF-18 | No horário de um agendamento, um cartão **interno** no chat pergunta à equipe Sim / Não / Cancelou. Sim finaliza; Não pergunta de novo em 10 min até 3 vezes e depois avisa o dono; Cancelou aplica "Cancelou" e dispara a recuperação. |
+| RF-18 | No horário de um agendamento, um cartão **interno** no chat pergunta à equipe Sim / Não / Cancelou. Sim finaliza; Não pergunta de novo em 10 min até 3 vezes e depois avisa o dono; Cancelou aplica "Cancelou" e dispara a recuperação. Cancelamento feito pelo cliente (link, chat do site, IA) também aplica "Cancelou"; cancelamento da equipe não. |
 | RF-19 | Recuperação nativa: fluxo-modelo nos Gatilhos, disparado por "Cancelou". A IA escreve a partir do resumo e envia antes de a janela de 24 h fechar; fora dela, por modelo aprovado. |
 | RF-20 | Mensagem enviada por passo de fluxo guarda `workflowId` e `nodeId`; no chat, "Editar gatilho" abre o passo exato no editor. |
 | RF-21 | Variável `{{primeiro_nome}}` nas mensagens; textos nativos curtos e com o nome do lead. |
 | RF-22 | Sai o botão "Ativar/Desativar IA" do chat e do card do kanban; no lugar, um selo com o estado. |
-| RF-23 | O modelo novo é ligado por empresa (`ATTENDANCE_STATE_ORGS`); RF-1 a RF-5 valem para todas, sem interruptor. |
+| RF-23 | O modelo novo é ligado por empresa (`ATTENDANCE_STATE_ORGS`); RF-1 a RF-5 valem para todas, sem interruptor. Só conversas de WhatsApp entram no modelo; Instagram e Facebook seguem com o botão da IA. |
 
 ### Não-funcionais
 
@@ -98,7 +98,7 @@ Roteiro: simulação do Weydson (atendimento de peça, 19–20/10), com funil em
 - [ ] **CA-13** — Funil `IA` (caso João Gabriel): a IA responde na hora e os follow-ups seguem com o lead em qualquer estado.
 - [ ] **CA-14** — "Editar gatilho" numa mensagem de fluxo abre o passo exato no editor.
 - [ ] **CA-15** — Aviso interno com WhatsApp ligado chega no número do membro e nunca no de um lead.
-- [ ] **CA-16** — Empresa fora do interruptor continua com o comportamento atual (exceto RF-1 a RF-5).
+- [ ] **CA-16** — Empresa fora do interruptor continua com o comportamento atual, exceto RF-1 a RF-5 e os relatórios que deixaram de usar `isActive` como "lead ativo" (funil, resgate, `list-dashboard`, contatos do Financeiro, analytics e interesse do Astro, alertas "lead esperando"/"parado", busca do `/pesquisar`): esses números mudam para todas, porque o filtro antigo escondia leads com a IA pausada.
 
 ## 5. Casos de borda
 
@@ -122,7 +122,7 @@ Roteiro: simulação do Weydson (atendimento de peça, 19–20/10), com funil em
 O campo já move as abas do chat, o Rodízio e o Insights. Usá-lo mantém uma fonte só. Consequência: o Rodízio passa a ler a fila como `WAITING` **sem responsável** e a capacidade como leads não `FINISHED`.
 
 ### D-2 — Tabelas existentes
-Seções e Score em `LeadJourneyEvent` (`kind` é texto livre, `metadata` Json); configuração em `AiSettings.capabilities`; cartão interno em `Message.metadata`. Descartado: tabelas `AttendanceSection` / `AttendanceScoreEvent` (pedido do Weydson, 19/10).
+Seções, Score e conferência do agendamento em `LeadJourneyEvent` (`kind` é texto livre, `metadata` Json); configuração em `AiSettings.capabilities`. Descartado: tabelas `AttendanceSection` / `AttendanceScoreEvent` (pedido do Weydson, 19/10) e cartão interno como `Message` (ver changelog: entraria na janela da Meta, na aba "sem resposta", no histórico da IA e nos relatórios de mensagens).
 
 ### D-3 — Um evento por lead, nunca relógio
 Cada mensagem do cliente agenda **um** `attendance/check` com `sleepUntil`. Descartado: cron de varredura (custo constante mesmo sem conversa).
@@ -160,6 +160,10 @@ Descartado: resumir a cada mensagem ou o histórico inteiro (custo cresce com a 
 
 - **Mudança visível nos números:** relatórios que filtravam por `isActive` passam a contar leads que a pausa e o bug escondiam; os cartões "Aguardando"/"Em atendimento" mostram o estado ao vivo. Conferir na PLENOCAR antes de ligar para todas.
 - **Abas do chat:** "Em atendimento" passa a mostrar só conversas com troca de verdade; "Sem resposta" passa a ler `WAITING`.
+- **Rodízio:** com o interruptor, a fila e a carga do consultor contam só conversas vivas (cliente escreveu nas últimas 24 h, estado "Aguard." ou "Em atendimento", sem estar arquivado). Sem isso, todo lead antigo, que nasce `ACTIVE` por padrão, lotava os consultores no primeiro dia.
+- **Automação de inatividade:** desligada nas empresas do interruptor; mensagem fixa, IA e avisos passam a ser do estado de atendimento. Ligar o interruptor sem avisar quem configurou a inatividade confunde.
+- **Empresa abrindo conversa** (campanha, "iniciar conversa") não muda o estado: marcar "Aguard." levaria a campanha inteira para a fila do Rodízio e para os fluxos dessa etiqueta.
+- **Antes de ligar numa empresa:** conferir as abas e os números do Insights; leads antigos seguem `ACTIVE` até o cliente escrever de novo. Depois do deploy, "Resync" do Inngest.
 - **Rollback:** desligar `ATTENDANCE_STATE_ORGS`. RF-1 a RF-5 são correções e ficam. Sem migration.
 
 ## 10. Changelog da spec
@@ -167,3 +171,6 @@ Descartado: resumir a cada mensagem ou o histórico inteiro (custo cresce com a 
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-19 | Weydson (com Claude) | Criada a partir do plano aprovado |
+| 2026-10-19 | Claude | Implementação diverge do plano em três pontos: reclamação detectada por regras de texto (sem chamada de IA); resumo pedido num bloco `<notas>` da própria resposta, separado antes do envio; mensagem de "consultor" sai quando o cliente escreve na espera, não na hora da transferência. |
+| 2026-10-19 | Claude | Revisão da fase 1 (dois revisores): troca de verdade passa a vir só da seção (`lastHumanAt`/`lastAiReplyAt`); espera de transferência tem prioridade sobre "Em atendimento"; seção nova começa em "Aguard."; checagens com trava na seção (`patchSectionIf`), id de evento e passos separados; seção aberta com trava por lead; só WhatsApp; eco do que a plataforma enviou não conta como atendente; reabertura de conversa finalizada fica com o atendimento; limite de respostas não traz a IA de volta; avisos ao dono sem WhatsApp em dobro e respeitando a preferência; campanha de sorteio passa com a IA pausada; empresa abrindo conversa não muda o estado; Rodízio conta só conversas vivas; automação de inatividade desligada no interruptor; etiquetas do atendimento só do tipo `SYSTEM` e criadas sob demanda; Score só aparece com o interruptor; histórico da IA cai para 10 mensagens quando há resumo; eventos da seção, do Score e da conferência fora da página pública do lead. |
+| 2026-10-19 | Claude | Fase 2: conferência do agendamento é evento `appointment_check` da Jornada lido pelo chat (cartão acima da conversa), não `Message`. "Esperar" ganha o modo "antes de fechar a janela de 24 h". Modelo "Recuperar quem cancelou" instalado (desligado) em funil novo e disponível ao Astro. Texto da IA nos fluxos recebe o último resumo do atendimento (`vars.resumoAtendimento`). Pendente: resumo final de seção conduzida só por humanos (RF-14, segunda parte). |

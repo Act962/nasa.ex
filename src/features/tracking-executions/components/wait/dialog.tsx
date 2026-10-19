@@ -56,12 +56,19 @@ const monthsSchema = z.object({
   minutes: z.number().min(0).max(59),
 });
 
+// Até X min antes de fechar a janela de 24 h do cliente (spec 0113, RF-19).
+const beforeWindowClosesSchema = z.object({
+  type: z.literal("BEFORE_WINDOW_CLOSES"),
+  minutesBefore: z.number().min(5, "Mínimo 5 minutos").max(600, "Máximo 600 minutos"),
+});
+
 const formSchema = z.discriminatedUnion("type", [
   minutesSchema,
   hoursSchema,
   daysSchema,
   weeksSchema,
   monthsSchema,
+  beforeWindowClosesSchema,
 ]);
 
 export type WaitFormValues = z.infer<typeof formSchema>;
@@ -122,6 +129,7 @@ export const WaitDialog = ({
                       <SelectItem value="DAYS">Dias</SelectItem>
                       <SelectItem value="WEEKS">Semanas</SelectItem>
                       <SelectItem value="MONTHS">Meses</SelectItem>
+                      <SelectItem value="BEFORE_WINDOW_CLOSES">Antes de fechar a janela de 24 h</SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>
@@ -142,6 +150,32 @@ export const WaitDialog = ({
                       max={59}
                       placeholder="59"
                     />
+                    {fieldState.error?.message && (
+                      <FieldError>{fieldState.error.message}</FieldError>
+                    )}
+                  </Field>
+                )}
+              />
+            )}
+            {timerType === "BEFORE_WINDOW_CLOSES" && (
+              <Controller
+                control={form.control}
+                name="minutesBefore"
+                render={({ field, fieldState }) => (
+                  <Field>
+                    <FieldLabel>Minutos antes de a janela fechar</FieldLabel>
+                    <Input
+                      value={field.value ?? 60}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      type="number"
+                      min={5}
+                      max={600}
+                      placeholder="60"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Conta das 24 h depois da última mensagem do cliente. Se a janela já fechou, segue na hora e o
+                      envio usa o modelo aprovado.
+                    </p>
                     {fieldState.error?.message && (
                       <FieldError>{fieldState.error.message}</FieldError>
                     )}

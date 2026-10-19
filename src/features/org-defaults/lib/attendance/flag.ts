@@ -12,3 +12,8 @@ export function isAttendanceStateEnabled(organizationId: string | null | undefin
     .map((enabledOrganizationId) => enabledOrganizationId.trim())
     .includes(organizationId);
 }
+
+/** Interruptor vazio: nenhuma empresa no modelo novo, e quem chama nem consulta o banco. */
+export function isAttendanceStateConfigured(): boolean {
+  return Boolean(process.env.ATTENDANCE_STATE_ORGS?.trim());
+}

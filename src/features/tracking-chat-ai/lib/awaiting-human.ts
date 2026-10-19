@@ -17,7 +17,8 @@ export type AwaitingHumanReason =
   | "quote_requested"
   | "manual_payment";
 
-const HANDOFF_REASONS_WITH_AI_RETURN: AwaitingHumanReason[] = ["client_asked", "assistant_could_not_solve", "usage_limit"];
+// No limite de respostas a IA não volta sozinha: voltaria para ficar calada (spec 0113, CB-6).
+const HANDOFF_REASONS_WITH_AI_RETURN: AwaitingHumanReason[] = ["client_asked", "assistant_could_not_solve"];
 
 const REASON_TEXT: Record<AwaitingHumanReason, string> = {
   client_asked: "pediu para falar com um atendente",
@@ -36,11 +37,13 @@ export async function signalLeadAwaitingHuman(params: {
   reason: AwaitingHumanReason;
 }): Promise<void> {
   try {
-    // Estado de atendimento (spec 0113): espera de consultor com volta da IA em 10 min. Pedidos do catálogo e
-    // falta de saldo seguem como antes: a IA não volta sozinha.
-    const isHandledByAttendance =
-      HANDOFF_REASONS_WITH_AI_RETURN.includes(params.reason) &&
-      (await applyHandoffAttendance({ leadId: params.leadId, at: new Date() }));
+    // Estado de atendimento (spec 0113): espera de consultor. A IA volta em 10 min quando o cliente pediu ou
+    // ela não resolveu; em catálogo, saldo e limite de respostas, espera o consultor.
+    const isHandledByAttendance = await applyHandoffAttendance({
+      leadId: params.leadId,
+      at: new Date(),
+      shouldAiReturn: HANDOFF_REASONS_WITH_AI_RETURN.includes(params.reason),
+    });
     if (!isHandledByAttendance) {
       await applyAwaitingTagNow({ organizationId: params.organizationId, leadId: params.leadId });
     }

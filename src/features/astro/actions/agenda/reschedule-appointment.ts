@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 import type { AstroAction, AstroActionResult } from "../types";
 import { buildAppointmentPublicUrl, formatAgendaDateTime, resolveWhenOrAsk } from "./schedule-steps";
 import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
@@ -186,6 +187,12 @@ export const rescheduleAppointmentAction: AstroAction<typeof inputSchema> = {
       where: { id: appointment.id },
       data: { startsAt: newStart, endsAt: newEnd },
     });
+    await recordAppointmentChange({
+      appointmentId: appointment.id,
+      change: "rescheduled",
+      actorId: ctx.userId,
+      previousStartsAt: appointment.startsAt,
+    }).catch((error: unknown) => console.warn("[astro.appointment.reschedule] atendimento do agendamento falhou", error));
 
     // O log exige identidade de quem agiu. Escrita feita pelo Astro ainda é
     // escrita de uma pessoa — sem isso, some da auditoria.

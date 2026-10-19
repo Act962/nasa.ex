@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { TEAM_ONLY_JOURNEY_KINDS } from "@/lib/lead-journey/track";
 
 /**
  * Linha do tempo PÚBLICA do lead — mostrada em `/lead/<token>` pra que o
@@ -114,7 +115,7 @@ export async function resolvePublicTimeline(
       },
     }),
     (prisma.leadJourneyEvent.findMany as (args: unknown) => Promise<RawJourneyEvent[]>)({
-      where: { leadId },
+      where: { leadId, kind: { notIn: TEAM_ONLY_JOURNEY_KINDS } },
       orderBy: { occurredAt: "desc" },
       take: limit,
       select: {

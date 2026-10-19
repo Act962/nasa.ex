@@ -17,7 +17,17 @@ export function consultantLoadWhere(params: {
   return {
     responsibleId: params.responsibleId,
     trackingId: params.trackingId,
-    statusFlow: { not: "FINISHED" },
+    ...liveConversationWhere(),
+  };
+}
+
+const LIVE_CONVERSATION_MS = 24 * 60 * 60_000;
+
+/** Conversa viva: cliente escreveu nas últimas 24 h e o atendimento não terminou. Lead antigo parado não pesa. */
+function liveConversationWhere(): Prisma.LeadWhereInput {
+  return {
+    statusFlow: { in: ["WAITING", "ACTIVE"] },
+    lastInboundAt: { gte: new Date(Date.now() - LIVE_CONVERSATION_MS) },
     currentAction: "ACTIVE",
     isArchived: false,
   };
@@ -28,12 +38,11 @@ export function rodizioQueueWhere(params: { organizationId: string; trackingId: 
   if (!isAttendanceStateEnabled(params.organizationId)) {
     return { trackingId: params.trackingId, statusFlow: "WAITING", isActive: true };
   }
+  // Inclui conversa que a IA já atende ("Em atendimento" sem consultor): ela continua precisando de alguém.
   return {
     trackingId: params.trackingId,
-    statusFlow: "WAITING",
     responsibleId: null,
-    currentAction: "ACTIVE",
-    isArchived: false,
+    ...liveConversationWhere(),
   };
 }
 

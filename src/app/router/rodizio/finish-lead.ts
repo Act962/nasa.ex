@@ -2,6 +2,8 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { canAccessTracking } from "@/features/workflows/server/workflow-access";
+import { ORPCError } from "@orpc/server";
 import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 import { assignedStatusFlowPatch, rodizioQueueWhere } from "@/features/org-defaults/lib/attendance/rodizio";
 import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
@@ -22,6 +24,11 @@ export const finishLead = base
   )
   .handler(async ({ input, context }) => {
     const { trackingId } = input;
+    // Só quem é da empresa dona do funil, e só lead daquele funil.
+    const leadToFinish = await prisma.lead.findFirst({ where: { id: input.leadId, trackingId }, select: { id: true } });
+    if (!leadToFinish || !(await canAccessTracking(trackingId, context.user.id))) {
+      throw new ORPCError("NOT_FOUND", { message: "Lead não encontrado" });
+    }
 
     try {
       const leadFinished = await prisma.lead.update({

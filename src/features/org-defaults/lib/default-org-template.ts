@@ -87,6 +87,10 @@ export const DEFAULT_TAGS: { key: AutoTagKey; name: string; color: string; descr
   { key: "siteChat", name: "Chat do site", color: "#8b5cf6", description: "Chegou pelo chat do site." },
   { key: "newLead", name: "Novo lead", color: "#06b6d4", description: "Primeiro contato do cliente." },
   { key: "paidTraffic", name: "Tráfego", color: "#f97316", description: "Chegou por anúncio." },
+];
+
+/** Etiquetas do estado de atendimento (spec 0113): criadas sob demanda, só nas empresas no modelo novo. */
+export const ATTENDANCE_TAGS: { key: AutoTagKey; name: string; color: string; description: string }[] = [
   { key: "finished", name: "Finalizado", color: "#64748b", description: "Atendimento concluído." },
   { key: "scheduled", name: "Agendado", color: "#0ea5e9", description: "Tem agendamento marcado." },
   { key: "cancelled", name: "Cancelou", color: "#ef4444", description: "Desistiu do agendamento." },

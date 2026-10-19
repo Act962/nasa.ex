@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { z } from "zod";
+import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 
 export const cancelAppointment = base
   .use(requiredAuthMiddleware)
@@ -59,6 +60,8 @@ export const cancelAppointment = base
       resourceId: appointmentId,
       metadata: { previousStatus: appointment.status },
     });
+
+    await recordAppointmentChange({ appointmentId, change: "cancelled", actorId: context.user.id }).catch((error: unknown) => console.warn("[agenda.cancel] atendimento do agendamento falhou", error));
 
     return { appointment: updatedAppointment };
   });

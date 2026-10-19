@@ -7,6 +7,8 @@ import { validWhatsappPhone } from "@/http/uazapi/valid-whatsapp-phone";
 import z from "zod";
 import { recordLeadHistory } from "../leads/utils/history";
 import { resolveOutboundProviderOrBadRequest } from "@/features/tracking-chat/lib/providers";
+import { canAccessTracking } from "@/features/workflows/server/workflow-access";
+import { ORPCError } from "@orpc/server";
 
 export const startConversationByPhone = base
   .use(requiredAuthMiddleware)
@@ -28,6 +30,10 @@ export const startConversationByPhone = base
     }),
   )
   .handler(async ({ input, context }) => {
+    // Só quem é da empresa dona do funil abre conversa pelo número dele.
+    if (!(await canAccessTracking(input.trackingId, context.user.id))) {
+      throw new ORPCError("NOT_FOUND", { message: "Funil não encontrado" });
+    }
     const normalized = input.phone.replace(/\D/g, "");
     if (!normalized) throw new Error("Telefone inválido");
 

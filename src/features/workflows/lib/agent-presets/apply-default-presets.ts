@@ -43,6 +43,10 @@ import {
   type ComprovantePagamentoParams,
 } from "./comprovante-pagamento";
 import {
+  buildRecuperacaoCancelouBlueprint,
+  RECOVERY_TRIGGER_TAG_SLUG,
+} from "./recuperacao-cancelou";
+import {
   createWorkflowFromBlueprint,
   type Blueprint,
 } from "./create-from-blueprint";
@@ -52,7 +56,8 @@ export type PresetSlug =
   | "closer-followup"
   | "proposta-contrato"
   | "boas-vindas-nasa-route"
-  | "comprovante-pagamento";
+  | "comprovante-pagamento"
+  | "recuperacao-cancelou";
 
 type BlueprintBuilder = (params: {
   organizationId: string;
@@ -63,6 +68,8 @@ interface PresetSpec {
   slug: PresetSlug;
   builder: BlueprintBuilder;
   logName: string;
+  /** Etiquetas da empresa usadas pelo modelo, por slug. Só procura; não cria. */
+  tagSlugs?: string[];
 }
 
 const DEFAULT_PRESETS: PresetSpec[] = [
@@ -91,7 +98,26 @@ const DEFAULT_PRESETS: PresetSpec[] = [
     builder: buildComprovantePagamentoBlueprint as unknown as BlueprintBuilder,
     logName: "Comprovante de Pagamento — IA Lê o Arquivo",
   },
+  {
+    slug: "recuperacao-cancelou",
+    builder: buildRecuperacaoCancelouBlueprint,
+    logName: "Recuperar quem cancelou",
+    tagSlugs: [RECOVERY_TRIGGER_TAG_SLUG],
+  },
 ];
+
+async function findOrganizationTagMap(
+  prisma: AppPrismaClient,
+  organizationId: string,
+  tagSlugs: string[] | undefined,
+): Promise<Record<string, string>> {
+  if (!tagSlugs?.length) return {};
+  const tags = await prisma.tag.findMany({
+    where: { organizationId, trackingId: null, slug: { in: tagSlugs }, type: "SYSTEM", archivedAt: null },
+    select: { id: true, slug: true },
+  });
+  return Object.fromEntries(tags.map((tag) => [tag.slug, tag.id]));
+}
 
 interface ApplyParams {
   prisma: AppPrismaClient;
@@ -131,6 +157,7 @@ export async function applyDefaultAgentPresets({
   for (const preset of targets) {
     try {
       const blueprint = preset.builder({ organizationId, trackingId });
+      const tagMap = await findOrganizationTagMap(prisma, organizationId, preset.tagSlugs);
 
       const result = await prisma.$transaction(async (tx) => {
         const r = await createWorkflowFromBlueprint(tx, {
@@ -140,6 +167,7 @@ export async function applyDefaultAgentPresets({
           agentMode: true,
           isActive: false,
           maxRunsPerHour: 60,
+          tagMap,
         });
         return r;
       });
@@ -191,5 +219,11 @@ export const PRESET_CATALOG: Array<{
     name: "Comprovante de Pagamento — IA Lê o Arquivo",
     description:
       "Tag 'Proposta Aceita' → pede comprovante → WAIT_FOR_EVENT(message-incoming, 7d) com mídia → AI_VISION (foto) + READ_PDF (PDF) extraem valor → AI_DECISION valida → branches pago/divergente/sem_resposta. Tags 'Pago' + 'Aguardando Pagamento' criadas auto. 11 nós.",
+  },
+  {
+    slug: "recuperacao-cancelou",
+    name: "Recuperar quem cancelou",
+    description:
+      "Tag 'Cancelou' (cliente cancelou ou não veio ao agendamento) → WAIT até 1 h antes de fechar a janela de 24 h → AI_GENERATE_TEXT a partir do resumo do atendimento → SEND_MESSAGE oferecendo remarcar. 4 nós.",
   },
 ];

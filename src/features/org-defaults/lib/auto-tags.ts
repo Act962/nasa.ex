@@ -4,6 +4,7 @@ import { inngest } from "@/inngest/client";
 import { applyTagsByAi } from "@/features/tracking-chat-ai/lib/apply-tags-by-ai";
 import { publishLeadChanged } from "@/features/leads/realtime/publish";
 import { AUTO_TAG_SLUGS, type AutoTagKey } from "./default-org-template";
+import { isAttendanceStateEnabled } from "./attendance/flag";
 
 // Tags automáticas da empresa (spec 0042, RF-3 a RF-7). Só atuam se a empresa tem
 // a tag padrão ativa: empresas antigas (sem ela) e tags arquivadas ficam de fora.
@@ -142,6 +143,8 @@ export async function applyAwaitingTagIfStillUnanswered(params: {
   leadId: string;
   inboundAt: string;
 }) {
+  // Checagem antiga, agendada antes de a empresa entrar no estado de atendimento: quem cuida agora é o estado.
+  if (isAttendanceStateEnabled(params.organizationId)) return { applied: false };
   const lead = await prisma.lead.findUnique({ where: { id: params.leadId }, select: { lastOutboundAt: true } });
   if (!lead) return { applied: false };
   if (lead.lastOutboundAt && lead.lastOutboundAt >= new Date(params.inboundAt)) return { applied: false };

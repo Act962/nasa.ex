@@ -6,7 +6,10 @@ import { findOpenSection, listClosedSections, patchSection } from "./section";
 
 export const MAX_SECTION_SUMMARY_UPDATES = 6;
 const PREVIOUS_SECTIONS_IN_CONTEXT = 3;
-const NOTES_BLOCK = /<notas>([\s\S]*?)(?:<\/notas>|$)/i;
+const CLOSED_NOTES_BLOCK = /<notas>([\s\S]*?)<\/notas>/gi;
+const TRAILING_NOTES_BLOCK = /<notas>([\s\S]*)$/i;
+/** Resumo refeito no máximo a cada 20 min de conversa com a IA, além das entradas pelo atendimento. */
+const SUMMARY_REFRESH_MS = 20 * 60_000;
 const MAX_SUMMARY_CHARS = 700;
 
 export interface SectionNotesPlan {
@@ -14,6 +17,8 @@ export interface SectionNotesPlan {
   summaryCount: number;
   /** Bloco para o system prompt: resumo da seção aberta e uma linha das anteriores. */
   contextBlock: string;
+  /** A seção aberta já tem resumo: a IA lê menos histórico (RF-15). */
+  hasOpenSummary: boolean;
   shouldWriteNotes: boolean;
 }
 
@@ -35,15 +40,18 @@ export async function planSectionNotes(params: { leadId: string; isAttendanceTri
     lines.push(`Atendimento de ${openedOn}: ${oneLine(section.state.summary, 200)}`);
   }
   const summaryCount = openSection?.state.summaryCount ?? 0;
-  // Atualiza quando a IA entra pelo estado de atendimento ou quando a seção ainda não tem resumo.
+  const summaryUpdatedAt = openSection?.state.summaryUpdatedAt;
+  const isSummaryStale = !summaryUpdatedAt || Date.now() - new Date(summaryUpdatedAt).getTime() >= SUMMARY_REFRESH_MS;
+  // Atualiza quando a IA entra pelo estado de atendimento, quando não há resumo ou quando ele envelheceu.
   const shouldWriteNotes =
     Boolean(openSection) &&
     summaryCount < MAX_SECTION_SUMMARY_UPDATES &&
-    (params.isAttendanceTrigger || !openSection?.state.summary);
+    (params.isAttendanceTrigger || !openSection?.state.summary || isSummaryStale);
   return {
     sectionId: openSection?.id ?? null,
     summaryCount,
     contextBlock: lines.length > 0 ? `# Anotações do atendimento\n\n${lines.join("\n")}` : "",
+    hasOpenSummary: Boolean(openSection?.state.summary),
     shouldWriteNotes,
   };
 }
@@ -51,12 +59,24 @@ export async function planSectionNotes(params: { leadId: string; isAttendanceTri
 export const NOTES_INSTRUCTION =
   "Ao final da resposta, numa linha separada, escreva <notas>resumo do negócio em até 60 palavras: produto de interesse, valor, forma de pagamento, combinado (data, retirada), pendências e como o cliente está</notas>. O cliente não vê essa parte. Não coloque documento, cartão nem senha.";
 
-/** Separa o bloco `<notas>` do texto que vai ao cliente. */
+/**
+ * Separa os blocos `<notas>` do texto que vai ao cliente. Bloco sem fechamento vai até o fim da resposta e
+ * nunca sai: se a resposta inteira estiver nele, o cliente não recebe nada em vez de receber a anotação.
+ */
 export function splitNotesFromReply(text: string): { replyText: string; notes: string | null } {
-  const match = text.match(NOTES_BLOCK);
-  if (!match) return { replyText: text, notes: null };
-  const replyText = text.replace(match[0], "").trim();
-  const notes = oneLine(match[1] ?? "", MAX_SUMMARY_CHARS);
+  const noteParts: string[] = [];
+  let replyText = text.replace(CLOSED_NOTES_BLOCK, (_, noteText: string) => {
+    noteParts.push(noteText);
+    return "";
+  });
+  const trailingMatch = replyText.match(TRAILING_NOTES_BLOCK);
+  if (trailingMatch && trailingMatch.index !== undefined) {
+    noteParts.push(trailingMatch[1] ?? "");
+    replyText = replyText.slice(0, trailingMatch.index);
+  }
+  // Tag solta que sobrou nunca vai ao cliente.
+  replyText = replyText.replace(/<\/?notas>/gi, "").trim();
+  const notes = oneLine(noteParts.join(" "), MAX_SUMMARY_CHARS);
   return { replyText, notes: notes || null };
 }
 
