@@ -4,6 +4,15 @@ import { useEffect, useState } from "react";
 import type { ElementBase } from "../../types";
 import { usePageRenderContext } from "../public/page-context";
 
+// sessionStorage do PageAnalytics (camelCase) → parâmetro que o formulário lê.
+const UTM_KEY_PAIRS = [
+  ["utmSource", "utm_source"],
+  ["utmMedium", "utm_medium"],
+  ["utmCampaign", "utm_campaign"],
+  ["utmContent", "utm_content"],
+  ["utmTerm", "utm_term"],
+] as const;
+
 /**
  * Embedded Form — renderiza um Formulário NASA existente dentro da
  * landing via iframe pointing to the public form route.
@@ -48,24 +57,19 @@ export function EmbeddedForm({ element }: { element: ElementBase }) {
   const params = new URLSearchParams({ embed: "1" });
   if (trackingId) params.set("tracking_override", trackingId);
 
-  // Lê UTMs persistidos pelo PageAnalytics e propaga pro form
+  // Propaga as UTMs da página pro form no formato `utm_*`, o único que o formulário lê (spec 0114, RF-6).
+  // A URL atual vem primeiro: na primeira visita o PageAnalytics ainda não gravou o sessionStorage.
   if (typeof window !== "undefined") {
+    const currentQuery = new URLSearchParams(window.location.search);
+    let storedUtm: Partial<Record<string, string>> = {};
     try {
-      const utmRaw = sessionStorage.getItem("nasa_page_utm");
-      if (utmRaw) {
-        const utm = JSON.parse(utmRaw);
-        for (const k of [
-          "utmSource",
-          "utmMedium",
-          "utmCampaign",
-          "utmContent",
-          "utmTerm",
-        ] as const) {
-          if (utm[k]) params.set(k, utm[k]);
-        }
-      }
+      storedUtm = JSON.parse(sessionStorage.getItem("nasa_page_utm") ?? "{}") as Partial<Record<string, string>>;
     } catch {
-      // ignora
+      // sessionStorage bloqueado ou corrompido: fica só com a URL.
+    }
+    for (const [storedKey, queryKey] of UTM_KEY_PAIRS) {
+      const utmValue = currentQuery.get(queryKey) ?? storedUtm[storedKey];
+      if (utmValue) params.set(queryKey, utmValue);
     }
   }
 

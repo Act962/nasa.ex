@@ -51,6 +51,7 @@ import {
 } from "@/lib/lead-journey/ctwa";
 import prisma from "@/lib/prisma";
 import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
+import { recordWhatsappLeadOrigin } from "@/features/leads/lib/lead-origin/resolve-whatsapp-origin";
 import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { tryHandleApproverInbound } from "@/features/nerp-catalog/lib/approvals/order-approvals";
 import { tryStartGuidedOrderFromInbound } from "@/features/nerp-catalog/lib/guided-order-contact";
@@ -530,6 +531,15 @@ async function createLeadFromInbound(
       console.error("[persist-canonical-inbound] ctwa_capture_failed", err);
     }
   }
+
+  // ── Origem real do lead (spec 0114): anúncio, código da página ou clique recente ──
+  await recordWhatsappLeadOrigin({
+    leadId: createdLead.id,
+    organizationId: env.organizationId,
+    firstMessageText:
+      canonical.type === "text" ? canonical.body : canonical.type === "media" ? (canonical.caption ?? null) : null,
+    metaAd: ctwa ? { headline: ctwa.ref.metaHeadline ?? null, adId: ctwa.ref.metaAdId } : null,
+  });
 
   // ── logActivity "lead.arrived" (best-effort) ────────────────────────────
   // Fetch direto do nome — o cache (`getCachedTrackingContext`) não traz

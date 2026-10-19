@@ -34,6 +34,31 @@ interface TimelineEntry {
     | "history";
 }
 
+type JourneyOrigin = {
+  origin: string;
+  sourceName: string | null;
+  channel: string | null;
+  isProbable: boolean;
+  note: string | null;
+  utm: { source?: string | null; medium?: string | null; campaign?: string | null } | null;
+};
+
+function toJourneyOrigin(metadata: unknown): JourneyOrigin | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const fields = metadata as Record<string, unknown>;
+  if (typeof fields.origin !== "string") return null;
+  const readText = (value: unknown) => (typeof value === "string" && value ? value : null);
+  const utm = fields.utm && typeof fields.utm === "object" ? (fields.utm as JourneyOrigin["utm"]) : null;
+  return {
+    origin: fields.origin,
+    sourceName: readText(fields.sourceName),
+    channel: readText(fields.channel),
+    isProbable: fields.confidence === "probable",
+    note: readText(fields.note),
+    utm,
+  };
+}
+
 export const getLeadJourney = base
   .use(requiredAuthMiddleware)
   .route({
@@ -56,7 +81,9 @@ export const getLeadJourney = base
         createdAt: true,
         source: true,
         utmSource: true,
+        utmMedium: true,
         utmCampaign: true,
+        landingPage: true,
         metaCampaignId: true,
         metaAdId: true,
         metaHeadline: true,
@@ -66,6 +93,12 @@ export const getLeadJourney = base
       },
     });
     if (!lead) throw errors.NOT_FOUND;
+    // Origem real (spec 0114): gravada uma vez, na criação. Lead antigo não tem e segue pela regra da 0105.
+    const originEvent = await prisma.leadJourneyEvent.findFirst({
+      where: { leadId: input.leadId, kind: "lead_origin" },
+      orderBy: { occurredAt: "asc" },
+      select: { metadata: true },
+    });
 
     // 6 fontes independentes — uma query cada, todas em paralelo. A nova
     // (`historyRows`) trás o LeadHistory legado (status, responsável,
@@ -584,7 +617,10 @@ export const getLeadJourney = base
         createdAt: lead.createdAt,
         source: lead.source,
         utmSource: lead.utmSource,
+        utmMedium: lead.utmMedium,
         utmCampaign: lead.utmCampaign,
+        landingPage: lead.landingPage,
+        origin: toJourneyOrigin(originEvent?.metadata),
         metaCampaignId: lead.metaCampaignId,
         metaAdId: lead.metaAdId,
         metaHeadline: lead.metaHeadline,

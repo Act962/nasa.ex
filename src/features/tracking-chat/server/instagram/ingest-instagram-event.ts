@@ -14,6 +14,7 @@ import { truncateLeadMessageText } from "@/features/tracking-executions/lib/lead
 import type { ChannelEventObserver } from "@/modules/social/process-channel-events";
 import type { InstagramMessageMetadata } from "../../lib/instagram-message-metadata";
 import { fetchInstagramMediaCard, fetchInstagramUserProfile } from "./instagram-graph-lookups";
+import { recordLeadOrigin } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 /**
  * Comentários e DMs do Instagram viram conversa no tracking-chat (spec 0062), para toda conta
@@ -104,6 +105,12 @@ async function findOrCreateLead(input: {
       },
     },
     include: { conversation: true },
+  });
+  // Origem real do lead (spec 0114): Direct ou comentário em post.
+  await recordLeadOrigin(lead.id, {
+    origin: input.source === LeadSource.INSTAGRAM_COMMENT ? "INSTAGRAM_COMMENT" : "INSTAGRAM_DIRECT",
+    matchedBy: "entry",
+    confidence: "certain",
   });
 
   await prisma.$transaction((transaction) => assignLeadRoundRobin(transaction, lead.id)).catch(() => undefined);

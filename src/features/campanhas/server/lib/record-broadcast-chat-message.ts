@@ -6,6 +6,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { LeadSource, MessageStatus } from "@/generated/prisma/enums";
 import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { renderTemplateText } from "../../lib/template-variables";
+import { recordLeadOrigin } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 /**
  * Espelha no chat do tracking o template que a campanha acabou de enviar
@@ -99,7 +100,7 @@ async function createBroadcastLead(
   });
 
   try {
-    return await prisma.lead.create({
+    const createdLead = await prisma.lead.create({
       data: {
         name: name?.trim() || waId,
         phone: waId,
@@ -111,6 +112,9 @@ async function createBroadcastLead(
       },
       select: leadSelect,
     });
+    // Origem real do lead (spec 0114): entrou pela lista de uma campanha.
+    await recordLeadOrigin(createdLead.id, { origin: "CAMPANHA", matchedBy: "entry", confidence: "certain" });
+    return createdLead;
   } catch (error) {
     // Resposta do contato criou o lead no meio do caminho — usa o dele.
     if (isUniqueViolation(error)) return findLeadByPhone(trackingId, waId);

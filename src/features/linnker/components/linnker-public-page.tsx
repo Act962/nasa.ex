@@ -5,6 +5,7 @@ import { client } from "@/lib/orpc";
 import type { LinnkerPage, LinnkerLink, SocialLink } from "../types";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
 import { extractWhatsappPhone } from "../lib/extract-whatsapp-phone";
+import { originCodeOf, withOriginCodeInWhatsappUrl } from "@/features/leads/lib/lead-origin/origin-code";
 import { LinnkerQrButton } from "./linnker-qr-button";
 
 const BUTTON_RADIUS: Record<string, string> = {
@@ -106,6 +107,16 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isP
     }
   }, [page.slug, isDraft, isPreview]);
 
+  // Origem do lead (spec 0114, RF-2/RF-3): o WhatsApp da página leva o código dela na mensagem pronta e o
+  // clique fica registrado, para a Jornada dizer que o cliente veio deste Linnker.
+  const originCode = originCodeOf("linnker", page.id);
+  const registerWhatsappClick = () => {
+    if (isDraft || isPreview) return;
+    client.linnker
+      .registerScan({ slug: page.slug, tracking: getTrackingParamsClient(), scanKind: "whatsapp_link" })
+      .catch(() => {});
+  };
+
   const handleLinkClick = (link: LinnkerLink) => {
     // In-Chat Fallback — só vale pra links do tipo CHAT (que apontam pro
     // WhatsApp da própria org). Links EXTERNAL com URL de WhatsApp são
@@ -116,6 +127,9 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isP
     }
     if (link.type === "TRACKING") {
       window.location.href = link.url;
+    } else if (link.type === "CHAT" && isWhatsAppUrl(link.url)) {
+      registerWhatsappClick();
+      window.open(withOriginCodeInWhatsappUrl(link.url, originCode), "_blank", "noreferrer");
     } else {
       window.open(link.url, "_blank", "noreferrer");
     }
@@ -300,7 +314,7 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isP
                 // atual, dando UX contínua pro lead.
                 const isWhatsApp = s.platform === "whatsapp";
                 const fallback = inChatUrl && isWhatsApp ? inChatUrl : null;
-                const href = fallback ?? s.url;
+                const href = fallback ?? (isWhatsApp ? withOriginCodeInWhatsappUrl(s.url, originCode) : s.url);
                 const target = fallback ? "_self" : "_blank";
                 return (
                   <a
@@ -308,6 +322,7 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isP
                     href={href}
                     target={target}
                     rel="noreferrer"
+                    onClick={isWhatsApp && !fallback ? registerWhatsappClick : undefined}
                     className="hover:opacity-70 transition-opacity"
                     title={s.platform}
                     style={{ color: iconColor }}

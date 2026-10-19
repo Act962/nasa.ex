@@ -37,6 +37,7 @@ import { LeadSource } from "@/generated/prisma/enums";
 import type { WorkflowLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 import { findActiveCampaign } from "@/features/star-friends/lib/campaign/campaign";
+import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -481,6 +482,12 @@ export async function createInChatLead(
   if (!createdLead.conversation) {
     throw new Error("conversation_creation_failed");
   }
+
+  // Origem real do lead (spec 0114): pedido do catálogo ou a página In-Chat.
+  await recordLeadOriginFromLead(createdLead.id, {
+    origin: params.source === LeadSource.NERP_CATALOG ? "CATALOG" : "IN_CHAT",
+    sourceName: params.sourceLabel ?? null,
+  });
 
   // ── logActivity (best-effort) ──────────────────────────────────────
   try {

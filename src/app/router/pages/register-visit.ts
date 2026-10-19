@@ -27,7 +27,8 @@ export const registerPageVisit = base
       //   - "scroll"  : marker de scroll depth (value = 25/50/75/100)
       //   - "section" : section entrou em viewport (targetId = el id)
       //   - "dwell"   : tempo gasto na página (value = segundos)
-      event: z.enum(["click", "scroll", "section", "dwell"]).optional(),
+      // `whatsapp_click`: botão de WhatsApp da página, para ligar o lead que chegar depois (spec 0114).
+      event: z.enum(["click", "scroll", "section", "dwell", "whatsapp_click"]).optional(),
       targetId: z.string().optional(),
       value: z.string().optional(),
     }),

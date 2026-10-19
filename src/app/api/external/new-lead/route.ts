@@ -5,6 +5,7 @@ import { NextRequest } from "next/server";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import { extractTracking } from "@/lib/tracking/extract-tracking.server";
 import { getPostHogClient } from "@/lib/posthog-server";
+import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 export async function POST(request: NextRequest) {
   const json = await request.json();
@@ -63,6 +64,8 @@ export async function POST(request: NextRequest) {
         device: tracking.device,
       },
     });
+    // Origem real do lead (spec 0114): integração por API, com a campanha que veio junto.
+    await recordLeadOriginFromLead(lead.id, { origin: "API" });
 
     if (tracking.utmSource || tracking.utmCampaign) {
       await trackLeadEvent({

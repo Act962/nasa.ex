@@ -9,6 +9,7 @@ import {
   trackingToLeadData,
   shouldLogUtmLanding,
 } from "@/lib/tracking/tracking-params";
+import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 export const captureLinnkerLead = base
   .route({
@@ -72,6 +73,8 @@ export const captureLinnkerLead = base
           ...trackingToLeadData(t),
         },
       });
+      // Origem real do lead (spec 0114): a página do Linnker.
+      await recordLeadOriginFromLead(lead.id, { origin: "LINNKER", sourceName: page.title, sourceId: page.id });
 
       if (shouldLogUtmLanding(t)) {
         await trackLeadEvent({

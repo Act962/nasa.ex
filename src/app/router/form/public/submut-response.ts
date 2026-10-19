@@ -32,6 +32,7 @@ import {
   placeLeadInFormTarget,
   type PlaceLeadResult,
 } from "@/features/form/server/lib/resolve-and-place-lead-for-form";
+import { buildLeadOriginEvent } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 type MovedLeadForBoard = {
   leadId: string;
@@ -356,6 +357,23 @@ export const submitResponse = base
               trackingId,
               statusId,
             };
+            // Origem real do lead (spec 0114): o formulário, com a campanha de quem preencheu.
+            pendingJourneyEvents.push(
+              buildLeadOriginEvent(placement.lead.id, {
+                origin: "FORM",
+                sourceName: form.name,
+                sourceId: id,
+                matchedBy: "entry",
+                confidence: "certain",
+                utm: {
+                  source: trackingParams?.utmSource,
+                  medium: trackingParams?.utmMedium,
+                  campaign: trackingParams?.utmCampaign,
+                  content: trackingParams?.utmContent,
+                  term: trackingParams?.utmTerm,
+                },
+              }),
+            );
             if (shouldLogUtmLanding(trackingParams)) {
               pendingJourneyEvents.push({
                 leadId: placement.lead.id,

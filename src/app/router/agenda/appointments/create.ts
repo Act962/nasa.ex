@@ -12,6 +12,7 @@ import {
   trackingToLeadData,
   shouldLogUtmLanding,
 } from "@/lib/tracking/tracking-params";
+import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -127,6 +128,8 @@ export const createAppointment = base
           ...trackingToLeadData(t),
         },
       });
+      // Origem real do lead (spec 0114): a agenda pública.
+      await recordLeadOriginFromLead(lead.id, { origin: "AGENDA", sourceName: agenda.name, sourceId: agenda.id });
 
       // Só ADICIONA tags da agenda ao lead novo. Nunca remove tags
       // existentes (leads pré-existentes nem entram aqui).

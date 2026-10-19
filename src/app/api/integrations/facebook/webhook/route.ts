@@ -18,6 +18,7 @@ import {
   ctwaToLeadData,
   captureMetaReferralForNewLead,
 } from "@/lib/lead-journey/ctwa"
+import { recordLeadOrigin } from "@/features/leads/lib/lead-origin/record-lead-origin"
 
 // Meta webhook verification
 export async function GET(request: NextRequest) {
@@ -165,6 +166,14 @@ export async function POST(request: NextRequest) {
             },
             include: { conversation: true, leadTags: { include: { tag: true } } },
           })
+
+          // Origem real do lead (spec 0114): anúncio da Meta quando veio de um; senão, o próprio canal.
+          await recordLeadOrigin(
+            lead.id,
+            fbReferral
+              ? { origin: "META_ADS", sourceName: fbReferral.ref.metaHeadline ?? null, sourceId: fbReferral.ref.metaAdId, channel: "FACEBOOK", matchedBy: "meta_ad", confidence: "certain" }
+              : { origin: "FACEBOOK", matchedBy: "entry", confidence: "certain" },
+          )
 
           try {
             await logActivity({
