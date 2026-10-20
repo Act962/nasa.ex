@@ -2,7 +2,7 @@
 // que chega enquanto o cliente espera resposta, para não confundir "demora" num assunto qualquer.
 
 const COMPLAINT_PATTERNS: RegExp[] = [
-  /\bdemor(a|ando|ou|aram|ando demais|ou demais)\b/,
+  /\bdemor(a|ar|ando|ou|aram|ado|ada)\b/,
   /\bninguem (me )?(responde|atende|respondeu|atendeu)\b/,
   /\b(vou|vamos) (procurar|buscar|comprar|fechar) (em )?outr[ao]\b/,
   /\boutra (empresa|loja|oficina)\b/,

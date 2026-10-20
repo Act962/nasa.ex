@@ -12,6 +12,9 @@ import type { Blueprint } from "./create-from-blueprint";
 
 export const RECOVERY_TRIGGER_TAG_SLUG = "cancelou";
 const MINUTES_BEFORE_WINDOW_CLOSES = 60;
+// O horário perdido vem de `agendamentosCliente`: o resumo do atendimento pode citar outra consulta, ainda marcada.
+export const RECOVERY_PROMPT =
+  "O cliente {{lead.name}} cancelou ou não veio a um horário. O horário perdido é o da linha \"Cancelou\" ou \"Não veio\" em agendamentosCliente; fale só dele. Nunca trate como perdido um horário de \"Ainda marcado\" e não ofereça remarcar esse. Use resumoAtendimento, se houver, só para lembrar o que ele queria. Escreva no máximo 2 frases curtas, chamando só pelo primeiro nome, e ofereça um novo horário. Sem cobrança, sem pedir desculpas demais, sem explicar regras.";
 
 export interface RecuperacaoCancelouParams {
   organizationId: string;
@@ -51,8 +54,7 @@ export function buildRecuperacaoCancelouBlueprint(params: RecuperacaoCancelouPar
         data: {
           organizationId: params.organizationId,
           tone: "leve, natural e direto",
-          prompt:
-            "O cliente {{lead.name}} cancelou ou não veio ao horário combinado. Escreva no máximo 2 frases curtas, chamando só pelo primeiro nome, retomando o que ele queria (veja resumoAtendimento, se houver) e oferecendo um novo horário. Sem cobrança, sem pedir desculpas demais, sem explicar regras.",
+          prompt: RECOVERY_PROMPT,
           maxTokens: 160,
         },
       },

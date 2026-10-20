@@ -56,8 +56,15 @@ export async function planSectionNotes(params: { leadId: string; isAttendanceTri
   };
 }
 
-export const NOTES_INSTRUCTION =
-  "Ao final da resposta, numa linha separada, escreva <notas>resumo do negócio em até 60 palavras: produto de interesse, valor, forma de pagamento, combinado (data, retirada), pendências e como o cliente está</notas>. O cliente não vê essa parte. Não coloque documento, cartão nem senha.";
+// Regra de formato à parte e explícita: como frase solta, o modelo a descartava diante do limite de tamanho
+// da mensagem ("uma mensagem só, até 2 frases") e nenhuma anotação era gravada.
+export const NOTES_INSTRUCTION = [
+  "## Anotação interna (OBRIGATÓRIA nesta resposta)",
+  "- Depois da mensagem ao cliente, numa linha separada, escreva <notas>resumo do negócio em até 60 palavras: produto de interesse, valor, forma de pagamento, combinado (data, retirada), pendências e como o cliente está</notas>.",
+  "- O cliente não vê essa parte, e ela não conta no limite de frases nem de caracteres da mensagem.",
+  "- Mesmo no começo da conversa, anote o que já se sabe. Exemplo: <notas>Quer marcar consulta; unidade e data ainda não definidas.</notas>",
+  "- Não coloque documento, cartão nem senha.",
+].join("\n");
 
 /**
  * Separa os blocos `<notas>` do texto que vai ao cliente. Bloco sem fechamento vai até o fim da resposta e

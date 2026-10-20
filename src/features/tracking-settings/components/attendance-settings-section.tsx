@@ -16,7 +16,7 @@ const FIRST_RESPONDER_OPTIONS: { value: AttendanceSettings["firstResponder"]; ti
   {
     value: "TEAM",
     title: "Equipe primeiro",
-    description: "Sem resposta da equipe, sai a mensagem fixa e, depois do tempo abaixo, a IA entra e o dono é avisado.",
+    description: "Sem resposta da equipe, sai a mensagem fixa e, depois do tempo abaixo, a IA entra e o dono é avisado. O cliente fica em \"Aguard. atendimento\" até alguém da equipe responder.",
   },
 ];
 

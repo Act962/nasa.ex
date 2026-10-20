@@ -28,7 +28,7 @@ import {
   splitNotesFromReply,
 } from "@/features/org-defaults/lib/attendance/section-notes";
 import { resolveModel } from "./model";
-import { buildSystemPrompt } from "./system-prompt";
+import { buildSystemPrompt, describeUpcomingAppointments } from "./system-prompt";
 import { loadAttendanceKnowledgeBlock } from "./attendance-knowledge";
 import { signalLeadAwaitingHuman, type AwaitingHumanReason } from "./awaiting-human";
 import { handleGuidedMenu } from "./guided-menu/guided-menu";
@@ -410,6 +410,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     availableTags: ctx.availableTags,
     availableButtonPresets: assistantCtx.availableButtonPresets,
     availableAgendas: ctx.availableAgendas,
+    upcomingAppointments: ctx.upcomingAppointments,
     availableForms: ctx.availableForms,
     capabilities: ctx.capabilities,
   });
@@ -450,28 +451,46 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
         }),
       )
     : null;
+  const resolved = resolveModel(ctx.modelConfig);
+  console.log(
+    `[tracking-chat-ai] tracking=${ctx.trackingId} provider=${resolved.provider} model=${resolved.modelId} custom=${resolved.usingCustom}`,
+  );
+
+  // Fatos e pedidos que o modelo tem de seguir vão também depois do histórico: no meio do prompt de sistema ele
+  // seguia a conversa (respostas gravadas sem notas, "já está marcado" sem agendamento). A Anthropic recusa
+  // instrução de sistema no meio da conversa, então lá eles ficam só no prompt de sistema.
+  const canInstructAfterHistory = resolved.provider !== "ANTHROPIC";
+  const shouldWriteNotes = Boolean(sectionNotesPlan?.shouldWriteNotes);
+  const isNotesAfterHistory = shouldWriteNotes && canInstructAfterHistory;
+  const trailingInstruction = canInstructAfterHistory
+    ? [
+        ctx.availableAgendas.length > 0 ? describeUpcomingAppointments(ctx.upcomingAppointments) : "",
+        isNotesAfterHistory ? NOTES_INSTRUCTION : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+    : "";
   const systemPromptWithNotes = [
     systemPrompt,
     // Tom de toda resposta no estado de atendimento (spec 0113, RF-21); nas entradas pelo atendimento já vai acima.
     // Fora do pedido do catálogo, que precisa listar itens e valores por inteiro.
     sectionNotesPlan && !attendanceInstruction && !ctx.catalogOrder ? ATTENDANCE_TONE : "",
     sectionNotesPlan?.contextBlock,
-    sectionNotesPlan?.shouldWriteNotes ? NOTES_INSTRUCTION : "",
+    shouldWriteNotes && !isNotesAfterHistory ? NOTES_INSTRUCTION : "",
   ]
     .filter(Boolean)
     .join("\n\n");
-
-  const resolved = resolveModel(ctx.modelConfig);
-  console.log(
-    `[tracking-chat-ai] tracking=${ctx.trackingId} provider=${resolved.provider} model=${resolved.modelId} custom=${resolved.usingCustom}`,
-  );
+  const agentHistory = sectionNotesPlan?.hasOpenSummary ? trimHistoryWithSummary(ctx.history) : ctx.history;
+  const agentMessages: ModelMessage[] = trailingInstruction
+    ? [...agentHistory, { role: "system", content: trailingInstruction }]
+    : agentHistory;
 
   const aiResult = await step.run("run-agent", async () => {
     const result = await generateText({
       model: resolved.model,
       system: systemPromptWithNotes,
       tools: buildAgentTools(assistantCtx),
-      messages: sectionNotesPlan?.hasOpenSummary ? trimHistoryWithSummary(ctx.history) : ctx.history,
+      messages: agentMessages,
       stopWhen: ({ steps }) => steps.length >= 6,
     }).catch(async (error: unknown) => {
       await reportAiQuotaExhausted({

@@ -184,6 +184,7 @@ export async function prepareClientCall(params: { instance: CallInstance; caller
       availableTags: agentContext.availableTags,
       availableButtonPresets: [],
       availableAgendas: agentContext.availableAgendas,
+      upcomingAppointments: agentContext.upcomingAppointments,
       availableForms: agentContext.availableForms,
       capabilities: agentContext.capabilities,
     }),

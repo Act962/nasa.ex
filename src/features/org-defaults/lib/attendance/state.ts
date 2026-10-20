@@ -158,10 +158,32 @@ function isHandoffWaiting(state: SectionState): boolean {
 
 /**
  * Troca de verdade (RF-9): nesta seção um humano ou a IA já falou com o cliente. Mensagem fixa, de fluxo, de
- * campanha ou de inatividade não conta, porque só humano e IA marcam a seção.
+ * campanha ou de inatividade não conta, porque só humano e IA marcam a seção. No "Equipe primeiro" só o
+ * atendente conta: a IA segura o cliente, mas ele segue esperando a equipe.
  */
-function hasCompanyTalked(state: SectionState): boolean {
+function hasCompanyTalked(state: SectionState, settings: AttendanceSettings): boolean {
+  if (settings.firstResponder === "TEAM") return Boolean(state.lastHumanAt);
   return Boolean(state.lastHumanAt || state.lastAiReplyAt);
+}
+
+/** Primeira reclamação da demora nesta espera: −10 no Score. Devolve se foi a primeira. */
+async function recordDelayComplaint(input: {
+  leadId: string;
+  sectionId: string;
+  state: SectionState;
+  messageText: string | null;
+  at: Date;
+}): Promise<boolean> {
+  if (input.state.complaintAt || !looksLikeDelayComplaint(input.messageText)) return false;
+  const isFirstComplaint = await patchSectionIf(
+    input.sectionId,
+    { complaintAt: input.at.toISOString() },
+    { complaintAt: null },
+  );
+  if (isFirstComplaint) {
+    await recordAttendanceScore({ leadId: input.leadId, reason: "client_complained", sectionId: input.sectionId });
+  }
+  return isFirstComplaint;
 }
 
 async function dispatchAiReply(params: {
@@ -203,7 +225,8 @@ export async function applyClientMessageAttendance(params: {
   await patchSection(section.id, { awaitingMessageId: params.messageId, awaitingSince });
 
   const isWaitingHandoff = isHandoffWaiting(state);
-  const nextStatus: AttendanceStatusFlow = !isWaitingHandoff && hasCompanyTalked(state) ? "ACTIVE" : "WAITING";
+  const nextStatus: AttendanceStatusFlow =
+    !isWaitingHandoff && hasCompanyTalked(state, context.settings) ? "ACTIVE" : "WAITING";
 
   // Decide a IA e agenda antes das etiquetas: falha em etiqueta não pode deixar o cliente sem resposta.
   if (context.isAiConnected) {
@@ -233,6 +256,9 @@ export async function applyClientMessageAttendance(params: {
       await setAiAllowed(params.leadId, isAiFirst, context.isActive);
       if (!isAiFirst) {
         await scheduleTeamFirstWait({ context, state, sectionId: section.id, params, awaitingSince, isFirstUnanswered });
+      } else if (settings.firstResponder === "TEAM") {
+        // A IA já segura o cliente, mas a equipe ainda não respondeu: a reclamação da demora pesa no Score.
+        await recordDelayComplaint({ leadId: params.leadId, sectionId: section.id, state, messageText: params.messageText, at: params.at });
       }
     }
   }
@@ -254,10 +280,9 @@ async function scheduleTeamFirstWait(input: {
   const waitedMinutes = (params.at.getTime() - new Date(awaitingSince).getTime()) / MINUTE_MS;
   const isWaitingLongEnough = Boolean(state.holdingSentAt) || waitedMinutes >= context.settings.holdingMinutes;
 
-  if (isWaitingLongEnough && !state.complaintAt && looksLikeDelayComplaint(params.messageText)) {
-    const isFirstComplaint = await patchSectionIf(sectionId, { complaintAt: params.at.toISOString() }, { complaintAt: null });
+  if (isWaitingLongEnough && looksLikeDelayComplaint(params.messageText)) {
+    const isFirstComplaint = await recordDelayComplaint({ leadId: params.leadId, sectionId, state, messageText: params.messageText, at: params.at });
     if (isFirstComplaint) {
-      await recordAttendanceScore({ leadId: params.leadId, reason: "client_complained", sectionId });
       await scheduleCheck({
         ...checkBase,
         stage: "ai_step_in",
@@ -287,17 +312,19 @@ export async function applyHumanReplyAttendance(params: { leadId: string; userId
   if (!context) return;
 
   const { section } = await ensureOpenSection(params.leadId, "company_reopened", params.at);
-  const { awaitingSince, openReason } = section.state;
+  const { awaitingSince, openReason, noticeAnchorAt } = section.state;
   // Pontua quem atende cliente que esperava atendimento ("Aguard."), não cada resposta de uma conversa em curso.
-  const wasClientWaiting = Boolean(awaitingSince) && context.statusFlow === "WAITING";
-  if (wasClientWaiting && awaitingSince) {
+  // Com a IA segurando o cliente, a mensagem dele já foi respondida: a espera pela equipe vem do aviso ao dono.
+  const waitingSince = awaitingSince ?? noticeAnchorAt ?? null;
+  const wasClientWaiting = Boolean(waitingSince) && context.statusFlow === "WAITING";
+  if (wasClientWaiting && waitingSince) {
     await recordAttendanceScore({
       leadId: params.leadId,
       reason: "human_answered_waiting_client",
       sectionId: section.id,
       actorId: params.userId,
     });
-    const waitedMinutes = (params.at.getTime() - new Date(awaitingSince).getTime()) / MINUTE_MS;
+    const waitedMinutes = (params.at.getTime() - new Date(waitingSince).getTime()) / MINUTE_MS;
     if (waitedMinutes <= context.settings.holdingMinutes) {
       await recordAttendanceScore({ leadId: params.leadId, reason: "replied_in_time", sectionId: section.id, actorId: params.userId });
     }

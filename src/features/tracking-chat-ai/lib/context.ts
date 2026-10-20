@@ -142,6 +142,21 @@ export async function loadAgentContext(data: AgentEventData) {
           orderBy: { name: "asc" },
         })
       : [];
+  // Consultas reais do cliente: o histórico só tem texto, e a IA chegou a afirmar agendamento que não existia.
+  const upcomingAppointments =
+    availableAgendas.length > 0
+      ? await prisma.appointment.findMany({
+          where: {
+            leadId: data.leadId,
+            agendaId: { in: availableAgendas.map((agenda) => agenda.id) },
+            status: { notIn: ["CANCELLED"] },
+            startsAt: { gte: new Date() },
+          },
+          orderBy: { startsAt: "asc" },
+          take: 5,
+          select: { startsAt: true, agenda: { select: { name: true } } },
+        })
+      : [];
 
   const availableForms =
     capabilities.forms.isEnabled && capabilities.forms.formIds.length > 0
@@ -204,6 +219,7 @@ export async function loadAgentContext(data: AgentEventData) {
     starFriendsProgramName: starFriendsProgram?.name ?? null,
     capabilities,
     availableAgendas,
+    upcomingAppointments,
     availableForms,
     // A última mensagem do cliente foi áudio: decide a resposta em voz (spec 0084, RF-3).
     isLastInboundAudio: isAudioMessage(messages.find((message) => !message.fromMe)),
