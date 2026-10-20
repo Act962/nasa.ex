@@ -25,11 +25,11 @@ export const syncWhatsappTags = base
       });
 
       if (!instance) {
-        throw errors.NOT_FOUND;
+        throw errors.NOT_FOUND();
       }
 
       if (!instance.isBusiness) {
-        throw errors.BAD_REQUEST;
+        throw errors.BAD_REQUEST({ message: "A instância não é WhatsApp Business." });
       }
 
       const labels = await getLabels({
@@ -87,6 +87,6 @@ export const syncWhatsappTags = base
       return { syncResult };
     } catch (err) {
       console.error(err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

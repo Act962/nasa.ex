@@ -37,30 +37,34 @@ function fromBRT(localDate: string, localTime: string): Date {
   return new Date(Date.UTC(year, month - 1, day, hours + 3, minutes, 0, 0));
 }
 
-/** Retorna o número de dias no mês de uma data "YYYY-MM-DD" (tratada como UTC). */
-function daysInMonth(localDate: string): number {
-  const [year, month] = localDate.split("-").map(Number);
+/** Número de dias do mês (1-based). */
+function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
 /** Avança uma data "YYYY-MM-DD" por N dias. */
 function addDays(localDate: string, days: number): string {
   const [year, month, day] = localDate.split("-").map(Number);
-  const d = new Date(Date.UTC(year, month - 1, day + days));
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
+  const shifted = new Date(Date.UTC(year, month - 1, day + days));
+  return dateInMonth(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, shifted.getUTCDate());
 }
 
-/** Avança uma data "YYYY-MM-DD" por 1 mês. */
-function addOneMonth(localDate: string): string {
-  const [year, month, day] = localDate.split("-").map(Number);
-  const d = new Date(Date.UTC(year, month, day)); // month (1-based) → month (0-based + 1)
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
+/**
+ * Data "YYYY-MM-DD" no mês pedido, com o dia limitado ao último dia do mês.
+ * Limitar aqui, e não depois de montar a data, é o que impede o dia 31 de
+ * transbordar para o mês seguinte (spec 0110).
+ */
+function dateInMonth(year: number, month: number, anchorDay: number): string {
+  const day = Math.min(anchorDay, daysInMonth(year, month));
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** Mesma data de referência, um mês depois de `localDate`. */
+function sameDayNextMonth(localDate: string, anchorDay: number): string {
+  const [year, month] = localDate.split("-").map(Number);
+  return month === 12
+    ? dateInMonth(year + 1, 1, anchorDay)
+    : dateInMonth(year, month + 1, anchorDay);
 }
 
 // ---------------------------------------------------------------------------
@@ -90,23 +94,34 @@ export function computeNextRemindAt(reminder: ReminderBase): Date | null {
       return fromBRT(addDays(localDate, 14), localTime);
 
     case ReminderRecurrenceType.MONTHLY: {
-      const nextDate = addOneMonth(localDate);
-      if (dayOfMonth) {
-        const max = daysInMonth(nextDate);
-        const clampedDay = Math.min(dayOfMonth, max);
-        const [y, m] = nextDate.split("-");
-        return fromBRT(`${y}-${m}-${String(clampedDay).padStart(2, "0")}`, localTime);
-      }
-      return fromBRT(nextDate, localTime);
+      const anchorDay = dayOfMonth ?? Number(localDate.split("-")[2]);
+      return fromBRT(sameDayNextMonth(localDate, anchorDay), localTime);
     }
   }
+}
+
+/**
+ * Dia de referência a gravar em `Reminder.dayOfMonth`.
+ *
+ * Mensal sem dia fixo guarda o dia da data de início: sem isso, depois de um
+ * mês curto o lembrete de dia 31 ficaria no dia 28 para sempre (spec 0110).
+ */
+export function resolveMonthlyAnchorDay(
+  recurrenceType: ReminderRecurrenceType,
+  dayOfMonth: number | undefined,
+  firstRemindAt: Date,
+): number | null {
+  if (dayOfMonth !== undefined) return dayOfMonth;
+  if (recurrenceType !== ReminderRecurrenceType.MONTHLY) return null;
+  return Number(dateBRT(firstRemindAt).split("-")[2]);
 }
 
 /**
  * Calcula a primeira data de disparo interpretando horários como BRT (UTC-3).
  *
  * - Se `dayOfMonth` for fornecido (MONTHLY com dia fixo):
- *   calcula o próximo mês que contiver esse dia a partir de "agora" em BRT.
+ *   agenda neste mês se o dia ainda não passou, senão no seguinte; em mês que
+ *   não tem o dia, usa o último dia do mês.
  *
  * - Caso contrário, usa `firstRemindAt` (ISO UTC) como base de data e aplica
  *   `remindTime` como horário BRT.
@@ -117,21 +132,11 @@ export function buildFirstRemindAt(
   dayOfMonth?: number,
 ): Date {
   if (dayOfMonth) {
-    const nowBRT = dateBRT(new Date());
-    const [year, month] = nowBRT.split("-").map(Number);
-    const dayStr = String(dayOfMonth).padStart(2, "0");
-    const candidateDate = `${year}-${String(month).padStart(2, "0")}-${dayStr}`;
-    let candidate = fromBRT(candidateDate, remindTime);
-
-    if (candidate <= new Date()) {
-      const nextDate = addOneMonth(candidateDate);
-      const max = daysInMonth(nextDate);
-      const clampedDay = Math.min(dayOfMonth, max);
-      const [y, m] = nextDate.split("-");
-      candidate = fromBRT(`${y}-${m}-${String(clampedDay).padStart(2, "0")}`, remindTime);
-    }
-
-    return candidate;
+    const [currentYear, currentMonth] = dateBRT(new Date()).split("-").map(Number);
+    const currentMonthDate = dateInMonth(currentYear, currentMonth, dayOfMonth);
+    const candidate = fromBRT(currentMonthDate, remindTime);
+    if (candidate > new Date()) return candidate;
+    return fromBRT(sameDayNextMonth(currentMonthDate, dayOfMonth), remindTime);
   }
 
   if (!firstRemindAt) {

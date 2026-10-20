@@ -37,7 +37,7 @@ export const getColumnsByWorkspace = base
     });
 
     if (!member) {
-      throw errors.FORBIDDEN;
+      throw errors.FORBIDDEN();
     }
 
     const workspace = await findWorkspaceInOrg(input.workspaceId, context.org.id);

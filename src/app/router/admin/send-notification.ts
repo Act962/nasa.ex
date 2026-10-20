@@ -38,7 +38,7 @@ export const sendNotification = base
       (input.targetType === "org" || input.targetType === "user") &&
       !input.targetId
     ) {
-      throw errors.BAD_REQUEST;
+      throw errors.BAD_REQUEST({ message: "Informe o destinatário da notificação." });
     }
 
     // Severity default: deriva do "type" legado quando omitido (warning/error → warning, success → info, info → info).

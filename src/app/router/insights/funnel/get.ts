@@ -43,6 +43,6 @@ export const getFunnel = base
       startDate: input.startDate ? new Date(input.startDate) : undefined,
       endDate: input.endDate ? new Date(input.endDate) : undefined,
     });
-    if (!result) throw errors.NOT_FOUND;
+    if (!result) throw errors.NOT_FOUND();
     return result;
   });

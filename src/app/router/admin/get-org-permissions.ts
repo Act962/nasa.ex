@@ -23,7 +23,7 @@ export const getOrgPermissions = base
       where: { id: input.orgId },
       select: { id: true },
     });
-    if (!org) throw errors.NOT_FOUND;
+    if (!org) throw errors.NOT_FOUND();
 
     const perms = await prisma.orgPermission.findMany({
       where: { organizationId: input.orgId },

@@ -32,7 +32,7 @@ export const listMessage = base
       });
 
       if (!conversation) {
-        throw errors.BAD_REQUEST;
+        throw errors.BAD_REQUEST({ message: "Conversa não encontrada." });
       }
 
       const limit = input.limit ?? 30;
@@ -85,6 +85,6 @@ export const listMessage = base
         remoteJid: conversation.remoteJid,
       };
     } catch (error) {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

@@ -1,5 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireTenantResource } from "@/app/middlewares/tenancy";
 import z from "zod";
 import { Conversation, Lead } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
@@ -16,6 +17,7 @@ export const getConversation = base
       conversationId: z.string(),
     }),
   )
+  .use(requireTenantResource("conversation", (input: { conversationId: string }) => input.conversationId, "lote-1"))
   .handler(async ({ input, context }) => {
     try {
       const { conversationId } = input;

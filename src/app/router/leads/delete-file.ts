@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireTenantResource } from "@/app/middlewares/tenancy";
 import prisma from "@/lib/prisma";
 import z from "zod";
 import { LeadAction } from "@/generated/prisma/enums";
@@ -23,6 +24,7 @@ export const deleteLeadFile = base
       fileId: z.string(),
     }),
   )
+  .use(requireTenantResource("lead", (input: { leadId: string }) => input.leadId, "lote-1"))
   .handler(async ({ input, errors, context }) => {
     try {
       const pendingLeadEvents: RecordLeadEventInput[] = [];
@@ -32,7 +34,7 @@ export const deleteLeadFile = base
           where: { id: input.fileId, leadId: input.leadId },
           select: { id: true, name: true },
         });
-        if (!file) throw errors.NOT_FOUND;
+        if (!file) throw errors.NOT_FOUND();
 
         await tx.leadFile.delete({ where: { id: file.id } });
 
@@ -60,6 +62,6 @@ export const deleteLeadFile = base
       return { ok: true };
     } catch (error) {
       console.error(error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

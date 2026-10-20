@@ -114,9 +114,9 @@ export const listTagsWithoutWidget = base
           error.message.includes("connection") ||
           error.message.includes("timeout")
         ) {
-          throw errors.INTERNAL_SERVER_ERROR;
+          throw errors.INTERNAL_SERVER_ERROR();
         }
       }
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

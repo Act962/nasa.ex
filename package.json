@@ -14,6 +14,17 @@
     "migrate": "prisma migrate deploy",
     "dev:setup": "prisma migrate dev && prisma generate && pnpm install",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:db:up": "docker compose -f docker-compose.test.yml up -d --wait",
+    "test:db:down": "docker compose -f docker-compose.test.yml down",
+    "test:watch": "vitest",
+    "arch": "pnpm arch:deps && pnpm arch:features",
+    "arch:deps": "depcruise src --config .dependency-cruiser.js --ignore-known .dependency-cruiser-known-violations.json",
+    "arch:deps:baseline": "depcruise-baseline src --config .dependency-cruiser.js --output-to .dependency-cruiser-known-violations.json",
+    "arch:features": "tsx scripts/arch/check-feature-boundaries.ts",
+    "arch:tenancy-triage": "tsx scripts/arch/triage-tenancy-candidates.ts",
     "inngest:dev": "inngest-cli dev",
     "dev:all": "mprocs",
     "db:generate": "prisma generate",
@@ -218,6 +229,7 @@
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "babel-plugin-react-compiler": "1.0.0",
     "cross-env": "^10.1.0",
+    "dependency-cruiser": "^18.6.0",
     "eslint": "^9.39.3",
     "eslint-config-next": "16.3.0",
     "inngest-cli": "^1.17.1",
@@ -228,7 +240,8 @@
     "tailwindcss": "^4.2.1",
     "tsx": "^4.21.0",
     "tw-animate-css": "^1.4.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.4"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

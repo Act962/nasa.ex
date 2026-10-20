@@ -29,7 +29,7 @@ export const getLeadPrefillByToken = base
         where: { publicToken: input.token },
         select: { name: true, email: true, phone: true },
       });
-      if (!lead) throw errors.NOT_FOUND;
+      if (!lead) throw errors.NOT_FOUND();
       const data = lead as { name: string; email: string | null; phone: string | null };
       return {
         prefill: {
@@ -40,6 +40,6 @@ export const getLeadPrefillByToken = base
       };
     } catch (err) {
       console.error(err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

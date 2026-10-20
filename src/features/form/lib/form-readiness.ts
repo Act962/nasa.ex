@@ -99,8 +99,8 @@ function checkBlock(block: FormBlockInstance): string | null {
     case "ParagraphWithTitle":
     case "Paragraph": {
       const text =
-        (attrs.text as string | undefined)?.trim() ??
-        (attrs.content as string | undefined)?.trim() ??
+        (attrs.text as string | undefined)?.trim() ||
+        (attrs.content as string | undefined)?.trim() ||
         "";
       if (!text) return "Adicione o conteúdo do parágrafo.";
       return null;

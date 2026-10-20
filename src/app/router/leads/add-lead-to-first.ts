@@ -41,7 +41,7 @@ import { recordLeadHistory } from "./utils/history";
         },
       });
 
-      if (!lead) throw errors.NOT_FOUND;
+      if (!lead) throw errors.NOT_FOUND();
 
       const isChangingColumn = lead.statusId !== statusId;
 

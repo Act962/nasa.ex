@@ -100,7 +100,7 @@ export const mergeLeads = base
         }),
       ]);
 
-      if (!source || !target) throw errors.NOT_FOUND;
+      if (!source || !target) throw errors.NOT_FOUND();
       if (source.id === target.id) {
         throw errors.BAD_REQUEST({
           message: "Origem e destino não podem ser o mesmo lead",
@@ -108,7 +108,7 @@ export const mergeLeads = base
       }
       const organizationId = target.tracking.organizationId;
       if (source.tracking.organizationId !== organizationId) {
-        throw errors.FORBIDDEN;
+        throw errors.FORBIDDEN();
       }
 
       // Permissão para consumir a origem — mesma trava do delete de lead.

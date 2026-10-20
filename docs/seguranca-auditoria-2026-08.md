@@ -39,7 +39,7 @@ outro problema — ver A4). O `.env` **nunca esteve** versionado no git.
 
 | | |
 | --- | --- |
-| **Status** | ⬜ |
+| **Status** | 🚧 Código em 2026-10-13 ([spec 0108](../specs/integrations/0108-rotas-anonimas-exigem-credencial.md), PR Act962/nasa.ex#459): token `asaas-access-token` conferido contra o `webhookSecret` dos gateways Asaas ativos, valor pago conferido, crédito atômico. ✅ Com teste de integração contra Postgres real (`tests/integration/security/asaas-stars-webhook.test.ts`). Pendente só a implantação pelo roteiro da spec e a conferência em homologação. |
 | **Arquivo** | `src/app/api/payments/asaas/webhook/route.ts` |
 | **Impacto** | **Perda financeira direta.** Stars são moeda interna com custo real (LLM, OCR, Whisper, WhatsApp) |
 | **Template de correção** | `src/app/api/stars/webhook/route.ts:131-150` |
@@ -72,7 +72,7 @@ POST anônimo → { event: "PAYMENT_CONFIRMED", payment: { externalReference: "<
 
 | | |
 | --- | --- |
-| **Status** | ⬜ |
+| **Status** | 🚧 Código em 2026-10-13 ([spec 0108](../specs/integrations/0108-rotas-anonimas-exigem-credencial.md)): exige sessão ou token de exclusão emitido no upload. Não confere se o usuário logado é dono do arquivo (as chaves não têm empresa). ✅ Com teste de integração (`tests/integration/security/s3-delete.test.ts`). Conferência em homologação pendente. |
 | **Arquivo** | `src/app/api/s3/delete/route.ts` (47 linhas) |
 | **Impacto** | **Perda de dados irreversível.** Qualquer pessoa na internet apaga qualquer objeto do bucket de imagens |
 
@@ -123,7 +123,7 @@ Também escreve em `public/uploads/` em runtime — efêmero em container.
 
 | | |
 | --- | --- |
-| **Status** | ⬜ |
+| **Status** | 🚧 Código em 2026-10-13 ([spec 0108](../specs/integrations/0108-rotas-anonimas-exigem-credencial.md)). `domain-providers`: fail-closed por `DOMAIN_PROVIDER_WEBHOOK_TOKEN`. Facebook e Instagram: assinatura conferida com `META_APP_SECRET`, mas em modo **só-registro por padrão** (conexões manuais antigas assinam com o app do cliente); passa a bloquear com `META_MESSAGING_WEBHOOK_AUTH_MODE=enforce`. Enquanto estiver em só-registro, a brecha continua aberta nessas duas rotas |
 | **Arquivos** | `src/app/api/integrations/facebook/webhook/route.ts` (268 L) · `.../instagram/webhook/route.ts` (270 L) · `src/app/api/domain-providers/[provider]/webhook/route.ts` (69 L) |
 | **Impacto** | Injeção de mensagens no pipeline de conversas; mutação de `NasaPageDomainPurchase` e disparo de Inngest por terceiro |
 | **Template de correção** | `src/http/whats-oficial/verify-signature.ts` |
@@ -145,7 +145,7 @@ Facebook e Instagram validam `hub.verify_token` no **GET**, mas o **POST não va
 
 | | |
 | --- | --- |
-| **Status** | ⬜ |
+| **Status** | 🚧 `form/delete` corrigido em 2026-10-13 (spec 0109). Em 2026-10-14: trava reutilizável `requireTenantResource` e lote 1 nas outras cinco procedures confirmadas ([spec 0111](../specs/security/0111-trava-de-isolamento-entre-empresas.md)), negando por padrão desde 2026-10-15 (`TENANCY_GUARD_LOG_ONLY_BATCHES=lote-1` volta a só registrar, em emergência); tags de outra empresa barradas no formulário público; catraca no job `arch` impede procedure nova sem conferência (173 candidatas na baseline, triadas em [`architecture/tenancy-triage.md`](architecture/tenancy-triage.md)) |
 | **Escopo** | ~175–190 procedures em `src/app/router/` |
 | **Impacto** | **Incidente LGPD.** Leitura e destruição de dados entre clientes |
 
@@ -179,12 +179,12 @@ O time já suspeitava: existem `scripts/diag-cross-org.ts` e `scripts/seed-cross
 
 **Correção** (item longo da Fase 0 — 1 a 2 semanas):
 
-- [ ] Script que classifica cada uma das ~190 em
+- [x] Script que classifica cada uma das ~190 em
       `{escopada-por-org | escopada-por-usuário | pública-intencional | VULNERÁVEL}`
       (partir de `scripts/diag-cross-org.ts`)
 - [ ] Revisão humana da classificação — nem toda procedure sem org é falha (preferências de usuário
       são legitimamente escopadas por usuário)
-- [ ] Guard de tenancy reutilizável: middleware que recebe o ID do input e valida a posse antes do handler
+- [x] Guard de tenancy reutilizável: middleware que recebe o ID do input e valida a posse antes do handler (`requireTenantResource`, 2026-10-14)
 - [ ] Correção em lotes por domínio, começando pelas **destrutivas**
 - [ ] Teste cross-org para **cada** procedure corrigida — "org A acessa recurso de org B → FORBIDDEN".
       Estes são os primeiros testes do projeto e definem o template
@@ -197,7 +197,7 @@ O time já suspeitava: existem `scripts/diag-cross-org.ts` e `scripts/seed-cross
 
 | | |
 | --- | --- |
-| **Status** | ⬜ |
+| **Status** | ✅ 2026-10-16 ([spec 0112](../specs/security/0112-importacao-com-login-e-entrada-de-leads-mapeada.md)). Não era integração de terceiros: o único chamador é a tela Configurações → Integração. As duas procedures exigem login e usam o e-mail da sessão, sem receber e-mail na entrada. Limite de chamadas dispensado: só o próprio usuário logado importa a própria conta. Pendente: restringir por papel no servidor (hoje só a tela restringe a Master, Adm e Moderador) |
 | **Arquivos** | `src/app/router/integrations/new-nasa-partial.ts:56` · `new-nasa-total.ts:72` (492 L) |
 | **Impacto** | DoS de escrita; criação de orgs em massa; vinculação indevida de membro por e-mail |
 
@@ -206,10 +206,10 @@ criando **Organization + Member + Trackings + Status + Tags**. Sem rate limit.
 
 **Correção:**
 
-- [ ] Autenticação ou token de integração dedicado
+- [x] Autenticação ou token de integração dedicado (sessão; e-mail vem dela)
 - [ ] Rate limit persistente por IP e por e-mail
-- [ ] Validação Zod do input
-- [ ] Testes: sem credencial rejeita · acima do rate limit rejeita
+- [x] Validação Zod do input (não há mais input)
+- [x] Testes: sem credencial rejeita (`tests/integration/security/external-entry-points.test.ts`); rate limit dispensado, ver status
 
 ---
 
@@ -217,7 +217,7 @@ criando **Organization + Member + Trackings + Status + Tags**. Sem rate limit.
 
 | | |
 | --- | --- |
-| **Status** | ⬜ |
+| **Status** | 🚧 Em 2026-10-13 o `console.log(json)` foi removido. Em 2026-10-16 ([spec 0112](../specs/security/0112-importacao-com-login-e-entrada-de-leads-mapeada.md)): corpo validado, coluna precisa ser do tracking e cada lead recebido registra quem chamou (`callerOrigin`, `callerUserAgent` em `lead.arrived`). A porta segue sem credencial: a chave por empresa será decidida com a lista de sites em mãos, para não parar quem manda lead hoje |
 | **Arquivo** | `src/app/api/external/new-lead/route.ts` |
 | **Impacto** | Injeção de leads em qualquer org; poluição de funil; **PII em log de produção** |
 
@@ -228,10 +228,10 @@ nome, telefone e e-mail em stdout.
 **Correção:**
 
 - [ ] API key por organização (o `trackingId` deve ser derivado da chave, nunca aceito do body cru)
-- [ ] Validação Zod do payload
+- [x] Validação Zod do payload
 - [ ] Rate limit
-- [ ] **Remover `console.log(json)`**
-- [ ] Testes: sem chave rejeita · chave de outra org não injeta no tracking alheio · payload inválido rejeita
+- [x] **Remover `console.log(json)`**
+- [ ] Testes: sem chave rejeita · chave de outra org não injeta no tracking alheio · payload inválido rejeita (este último feito, junto com coluna de outro tracking)
 
 ---
 
@@ -261,7 +261,7 @@ Bloco comentado como `// TEMP debug: log raw body for /api/rpc/nerp/* mutations.
 
 | | |
 | --- | --- |
-| **Status** | ⬜ |
+| **Status** | ✅ Em 2026-10-13: zero ocorrências. Os 169 `INTERNAL_SERVER_ERROR` e depois os 101 restantes foram invocados; o job `arch` do CI impede ocorrência nova. Onde o erro não é engolido por um `try/catch`, o cliente passa a receber 404/403/400/401. Falta conferir em homologação |
 | **Escopo** | 228 ocorrências em `src/app/router/` |
 
 `errors.NOT_FOUND` é uma **função** (Proxy que devolve o construtor). `throw errors.NOT_FOUND;` lança
@@ -438,5 +438,13 @@ Registrados para não serem re-auditados sem motivo:
 | 2026-08-18 | Registro inicial. 8 críticos, 6 altos, 5 médios, a partir da auditoria de `f67796d2`. Todos os itens 🔴 confirmados por leitura direta do código. Nenhuma correção aplicada. |
 | 2026-09-29 | S8 corrigido: bloco de debug removido depois de gravar em log a API key do Asaas de uma loja durante teste de PIX real. Pendentes: logging com redação e rotação das chaves expostas. |
 | 2026-09-26 | M6 adicionado e corrigido (vazamento do Financeiro pelo ASTRO para membro sem acesso), achado pela bateria de testes do ASTRO. |
+| 2026-10-16 | S6 fechado: importação do N.A.S.A antigo exige login e usa o e-mail da sessão. S7: corpo validado, coluna conferida contra o tracking e origem da chamada registrada para mapear os sites antes da chave por empresa ([spec 0112](../specs/security/0112-importacao-com-login-e-entrada-de-leads-mapeada.md)). |
+| 2026-10-15 | S5: lote 1 passa a negar por padrão, sem fase de registro (decisão do time). Saída de emergência `TENANCY_GUARD_LOG_ONLY_BATCHES`; recusas registradas no log. |
+| 2026-10-14 | S5: trava `requireTenantResource` e lote 1 (`status/create`, `leads/deleteFile`, `conversation/get`, `status/listSimple`, `column/getMany`), só registrando até ser aplicado por variável; tags de outra empresa barradas no formulário público; catraca S5 no job `arch` ([spec 0111](../specs/security/0111-trava-de-isolamento-entre-empresas.md)). |
+| 2026-10-13 | A1 concluído: os 101 `throw errors.X;` restantes invocados (zero no código). S5: `form/delete` corrigido com teste entre empresas ([spec 0109](../specs/form/0109-correcoes-achadas-na-caracterizacao.md)); demais procedures seguem abertas. |
+| 2026-10-13 | A1: 169 `throw errors.INTERNAL_SERVER_ERROR;` corrigidos por codemod; catraca no job `arch` contra ocorrência nova. Restam 101. |
+| 2026-10-13 | S1, S2 e S4 ganharam teste de integração por rota. S1 e S2 passam a ✅ (falta implantar e conferir em homologação). S4 segue 🚧: Facebook e Instagram continuam em só-registro por padrão. |
+| 2026-10-13 | S1, S2 e S4 com correção em código ([spec 0108](../specs/integrations/0108-rotas-anonimas-exigem-credencial.md)), ainda sem teste de integração nem conferência em homologação, por isso 🚧 e não ✅. S4 fica só-registro por padrão em Facebook e Instagram. S7: removido o log de dados pessoais; autenticação segue pendente. |
+| 2026-10-13 | Reverificação por leitura sobre `7ead1bb6`, sem correção aplicada: S1, S2, S3, S5, S6, S7, A2, A3, A4 e M5 seguem abertos; A1 subiu de 228 para 272 ocorrências. S4: Facebook e `domain-providers` abertos; no Instagram a assinatura só é repassada ao ramo de comentários, o de mensagens diretas processa sem conferir. `s3/delete` e `upload-local` estão em uso (4 e 9 arquivos), então a correção é proteger, não remover. Detalhe em [`architecture/current-state.md`](architecture/current-state.md) §5. |
 | 2026-10-01 | A7 adicionado e corrigido (Insights lia dados de qualquer empresa pelo ID), achado ao auditar os filtros do Insights. |
 | 2026-10-11 | A8 adicionado e corrigido (menus de botões do atendimento sem conferência de empresa), achado ao implementar a trava do modelo de atendimento (spec 0097). |

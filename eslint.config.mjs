@@ -43,6 +43,36 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    // Dentro de src/modules, Prisma só em infra/ (regra R7). O dependency-cruiser
+    // barra no CI (`pnpm arch`); aqui o aviso aparece já no editor.
+    // Repete a restrição de `debitStars`: no flat config a regra não se soma à do bloco acima.
+    files: ["src/modules/*/domain/**", "src/modules/*/application/**", "src/modules/*/ports/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/features/stars/lib/star-service",
+              importNames: ["debitStars"],
+              message: "Use meter() ou meterOrThrow() de @/features/stars/lib/metering.",
+            },
+            {
+              name: "@/lib/prisma",
+              message: "Em src/modules, o Prisma só entra por infra/. Declare um port e implemente em infra/.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["@/generated/prisma", "@/generated/prisma/*"],
+              message: "Em src/modules, tipos do Prisma só em infra/. Declare o tipo no domínio.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // O cliente Prisma tem dois tipos, e só eles:
     // - `Prisma.TransactionClient` — "cliente global ou transação" (sem `$transaction`);
     // - `AppPrismaClient` de `@/lib/prisma` — o cliente global, quando precisa de `$transaction`.

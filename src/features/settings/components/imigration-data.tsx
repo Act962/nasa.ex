@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
   useIntegrationTotal,
   useIntegrationPartial,
 } from "@/features/integration/use-intrgration";
-import { authClient } from "@/lib/auth-client";
 import { useOrgRole } from "@/hooks/use-org-role";
 import { toast } from "sonner";
 import { Lock } from "lucide-react";
@@ -24,7 +23,6 @@ import { DatabaseBackup, Database, Info } from "lucide-react";
 export function MigrationData() {
   const mutation = useIntegrationTotal();
   const mutationPartial = useIntegrationPartial();
-  const session = authClient.useSession();
   const { isSingle } = useOrgRole();
   const [hasImported, setHasImported] = useState(false);
 
@@ -44,18 +42,9 @@ export function MigrationData() {
     );
   }
 
-  useEffect(() => {
-    // const imported = localStorage.getItem("nasa_data_imported");
-    // if (imported === "true") {
-    //   setHasImported(true);
-    // }
-  }, []);
-
   const handleImport = () => {
-    if (!session.data?.user.email)
-      return toast.error("Nenhum email encontrado");
     mutation.mutate(
-      { email: session.data?.user.email },
+      undefined,
       {
         onSuccess: () => {
           localStorage.setItem("nasa_data_imported", "true");
@@ -71,10 +60,8 @@ export function MigrationData() {
   };
 
   const handleImportPartial = () => {
-    if (!session.data?.user.email)
-      return toast.error("Nenhum email encontrado");
     mutationPartial.mutate(
-      { email: session.data?.user.email },
+      undefined,
       {
         onSuccess: () => {
           localStorage.setItem("nasa_data_imported", "true");

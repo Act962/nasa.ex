@@ -10,7 +10,7 @@ import {
   RenderUploadingState,
 } from "./render-state";
 import { toast } from "sonner";
-import { uploadFileToStorage } from "@/lib/upload-to-storage";
+import { deleteFileFromStorage, uploadFileToStorage } from "@/lib/upload-to-storage";
 import { v4 as uuidv4 } from "uuid";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 
@@ -100,17 +100,12 @@ export function Uploader({
         isDeleting: true,
       }));
 
-      const response = await fetch("/api/s3/delete", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          key: fileState.key,
-        }),
-      });
+      const response = await deleteFileFromStorage(fileState.key ?? "");
 
-      if (!response.ok) {
+      // 401: quem está na tela não pode apagar o objeto (visitante sem sessão e
+      // arquivo de outra visita). O campo é esvaziado mesmo assim; o arquivo fica no bucket.
+      const isDetachOnly = response.status === 401;
+      if (!response.ok && !isDetachOnly) {
         toast.error("Falha ao deletar arquivo");
 
         setFileState((prev) => ({

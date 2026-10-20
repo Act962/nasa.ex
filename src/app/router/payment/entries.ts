@@ -132,7 +132,7 @@ export const listPaymentEntries = base
       return await queryPaymentEntries({ organizationId: context.org.id, ...input });
     } catch (err) {
       console.error("[payment/entries list]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -174,7 +174,7 @@ export const listRecentEntryDescriptions = base
       return { descriptions };
     } catch (err) {
       console.error("[payment/entries recentDescriptions]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -227,7 +227,7 @@ export const createPaymentEntry = base
       return { entries };
     } catch (err) {
       console.error("[payment/entries create]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -265,7 +265,7 @@ export const updatePaymentEntry = base
       });
     } catch (err) {
       console.error("[payment/entries update]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
     // Sem isso, uma entry de outra organização (ou já excluída) caía no catch
     // e virava "Something went wrong".
@@ -299,7 +299,7 @@ export const generatePaymentEntryInstallments = base
       });
     } catch (err) {
       console.error("[payment/entries generateInstallments]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
     if (!result.ok) {
       if (result.reason === "not_found") throw errors.NOT_FOUND({ message: result.message });
@@ -333,7 +333,7 @@ export const payPaymentEntry = base
       });
     } catch (err) {
       console.error("[payment/entries pay]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
     if (!result.ok) {
       // Fora do try de propósito: o catch converteria em INTERNAL_SERVER_ERROR
@@ -372,7 +372,7 @@ export const deletePaymentEntry = base
       return { ok: true };
     } catch (err) {
       console.error("[payment/entries cancel]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -420,6 +420,6 @@ export const removePaymentEntry = base
       return { ok: true };
     } catch (err) {
       console.error("[payment/entries remove]", err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

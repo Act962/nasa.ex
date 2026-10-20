@@ -29,7 +29,7 @@ export const listForgeTemplates = base
       });
       return { templates };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -58,7 +58,7 @@ export const createForgeTemplate = base
       });
       return { template };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -91,7 +91,7 @@ export const updateForgeTemplate = base
       });
       return { ok: true };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });
 
@@ -108,6 +108,6 @@ export const deleteForgeTemplate = base
       });
       return { ok: true };
     } catch {
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

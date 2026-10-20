@@ -1,4 +1,5 @@
 import { base } from "@/app/middlewares/base";
+import { requireTenantResource } from "@/app/middlewares/tenancy";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -16,6 +17,7 @@ export const listStatusSimple = base
       trackingId: z.string(),
     }),
   )
+  .use(requireTenantResource("tracking", (input: { trackingId: string }) => input.trackingId, "lote-1"))
   .handler(async ({ input }) => {
     const status = await prisma.status.findMany({
       where: {

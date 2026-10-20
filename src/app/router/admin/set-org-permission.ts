@@ -21,7 +21,7 @@ export const setOrgPermission = base
       where: { id: input.orgId },
       select: { id: true },
     });
-    if (!org) throw errors.NOT_FOUND;
+    if (!org) throw errors.NOT_FOUND();
 
     await prisma.orgPermission.upsert({
       where: {

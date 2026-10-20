@@ -156,6 +156,6 @@ export const createLead = base
       return { lead };
     } catch (err) {
       console.error(err);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { ReminderRecurrenceType } from "@/generated/prisma/enums";
-import { buildFirstRemindAt } from "@/lib/reminder-recurrence";
+import { buildFirstRemindAt, resolveMonthlyAnchorDay } from "@/lib/reminder-recurrence";
 import { inngest } from "@/inngest/client";
 import type { AstroAction, AstroActionResult } from "../types";
 import { resolveSingleLead } from "../leads/resolve-lead";
@@ -263,20 +263,22 @@ export const createReminderAction: AstroAction<typeof inputSchema> = {
       };
     }
 
+    // Mesmo cálculo da tela: o campo persistido é `nextRemindAt`, não a
+    // data que o usuário disse.
+    const nextRemindAt = buildFirstRemindAt(
+      input.remindTime,
+      firstRemindAt ?? undefined,
+      dayOfMonth,
+    );
+
     const reminder = await prisma.reminder.create({
       data: {
         createdByUserId: ctx.userId,
         message: input.message,
         recurrenceType: recurrence,
-        dayOfMonth: dayOfMonth ?? null,
+        dayOfMonth: resolveMonthlyAnchorDay(recurrence, dayOfMonth, nextRemindAt),
         remindTime: input.remindTime,
-        // Mesmo cálculo da tela: o campo persistido é `nextRemindAt`, não a
-        // data que o usuário disse.
-        nextRemindAt: buildFirstRemindAt(
-          input.remindTime,
-          firstRemindAt ?? undefined,
-          dayOfMonth,
-        ),
+        nextRemindAt,
         leadId: leadId ?? null,
       },
     });

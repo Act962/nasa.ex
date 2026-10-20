@@ -1,3 +1,4 @@
+import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import type { Temperature } from "@/generated/prisma/enums";
@@ -70,18 +71,14 @@ const slugify = (text: string) => {
 };
 
 export const newNasaIntegration = base
+  .use(requiredAuthMiddleware)
   .route({
     method: "POST",
     summary: "Integrate with ÓRBITA Bubble API",
     tags: ["Integrations"],
   })
-  .input(
-    z.object({
-      email: z.string().email("E-mail inválido"),
-    }),
-  )
-  .handler(async ({ input }) => {
-    const { email } = input;
+  .handler(async ({ context }) => {
+    const { email } = context.user;
 
     // 1. Fetch data from Bubble API
     const response = await fetch(

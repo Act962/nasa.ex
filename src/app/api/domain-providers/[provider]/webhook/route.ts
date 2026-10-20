@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
+import { isSecretTokenValid } from "@/lib/security/webhook-auth";
 
 interface RouteParams {
   params: Promise<{ provider: string }>;
@@ -13,8 +14,17 @@ interface RouteParams {
  * Em produção cada provider (Namecheap, GoDaddy, RegistroBR) tem seu próprio
  * formato; o adapter correspondente parseia. Aqui aceitamos um formato
  * genérico; qualquer compatibilidade adicional fica no provider adapter.
+ *
+ * Fail-closed: exige o header `x-webhook-token` igual a
+ * `DOMAIN_PROVIDER_WEBHOOK_TOKEN`. Sem a variável, recusa tudo — hoje só existe
+ * o registrador de teste, que não chama esta rota.
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
+  const receivedToken = request.headers.get("x-webhook-token");
+  if (!isSecretTokenValid(receivedToken, process.env.DOMAIN_PROVIDER_WEBHOOK_TOKEN)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { provider } = await params;
     const body = await request.json().catch(() => ({}));

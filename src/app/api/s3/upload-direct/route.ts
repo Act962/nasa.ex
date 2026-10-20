@@ -16,6 +16,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { S3 } from "@/lib/s3-client";
+import { createUploadDeleteToken, getUploadTokenSecret } from "@/lib/security/upload-delete-token";
 
 export const runtime = "nodejs";
 
@@ -91,7 +92,10 @@ export async function POST(req: Request) {
       }),
     );
 
-    return NextResponse.json({ key: uniqueKey });
+    return NextResponse.json({
+      key: uniqueKey,
+      deleteToken: createUploadDeleteToken(uniqueKey, getUploadTokenSecret()),
+    });
   } catch (error) {
     console.error("[s3/upload-direct]", error);
     return NextResponse.json(

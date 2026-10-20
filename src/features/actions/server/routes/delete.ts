@@ -74,6 +74,6 @@ export const deleteAction = base
       return { action };
     } catch (error) {
       console.error(error);
-      throw errors.INTERNAL_SERVER_ERROR;
+      throw errors.INTERNAL_SERVER_ERROR();
     }
   });

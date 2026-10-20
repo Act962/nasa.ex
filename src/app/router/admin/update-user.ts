@@ -20,11 +20,11 @@ export const updateUser = base
       where: { id: input.userId },
       select: { id: true },
     });
-    if (!user) throw errors.NOT_FOUND;
+    if (!user) throw errors.NOT_FOUND();
 
     // Prevent self-demotion
     if (input.userId === context.adminUser.id && input.isSystemAdmin === false) {
-      throw errors.FORBIDDEN;
+      throw errors.FORBIDDEN();
     }
 
     await prisma.user.update({

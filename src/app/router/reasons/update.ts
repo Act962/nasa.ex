@@ -25,7 +25,7 @@ export const updateReason = base
     });
 
     if (!reasonExists) {
-      throw errors.BAD_REQUEST;
+      throw errors.BAD_REQUEST({ message: "Motivo não encontrado." });
     }
 
     const reason = await prisma.winLossReason.update({

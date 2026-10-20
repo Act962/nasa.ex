@@ -65,7 +65,7 @@ export const getOrganization = base
       },
     });
 
-    if (!org) throw errors.NOT_FOUND;
+    if (!org) throw errors.NOT_FOUND();
 
     return {
       id: org.id,

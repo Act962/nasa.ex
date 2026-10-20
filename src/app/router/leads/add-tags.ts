@@ -34,7 +34,7 @@ export const addTagsToLead = base
     });
 
     if (!lead) {
-      throw errors.UNAUTHORIZED;
+      throw errors.UNAUTHORIZED();
     }
 
     // Busca info das tags ANTES da operação pra capturar `name`/`color` no
