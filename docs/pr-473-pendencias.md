@@ -29,7 +29,7 @@ A IA liga e desliga só para o funil inteiro (Configurações → Chatbot IA, `T
 - a IA ignora `Lead.isActive` (WhatsApp, In-Chat, Instagram, Facebook, chat do site e chamada de voz);
 - nada grava a pausa: resposta do atendente, `transfer_to_human`, limite de uso, consultor do catálogo e o endpoint legado `/api/chat/ia/deactive`;
 - o botão por lead some do card, do chat e do "Personalizar board" (fora das empresas no estado de atendimento);
-- no estado de atendimento a IA responde sempre primeiro: sem espera da equipe, sem "IA entra" e sem a volta depois da transferência.
+- no estado de atendimento a IA responde sempre primeiro: sem espera da equipe, sem "IA entra" e sem a volta depois da transferência. Por isso **também não saem a mensagem fixa de espera nem os avisos ao dono** (sino e WhatsApp), que dependem da espera da equipe. Só a espera do consultor do rodízio ainda manda a mensagem de espera. Seguem: etiquetas e estado, Score (reclamação só com "Equipe primeiro") e agendamento.
 
 **Em aberto:**
 - Definir quando a pausa por lead volta (ou se sai de vez). Se sair de vez, apagar o interruptor, o `CheckIaLead` e os caminhos `IS_LEAD_AI_PAUSE_ENABLED ? ... : ...`, e decidir o que fazer com a coluna `Lead.isActive`.
@@ -45,7 +45,7 @@ Consequência direta do item 1. A IA continua respondendo:
 
 ## 3. "Quem responde primeiro: Equipe" sem efeito
 
-Com a pausa desligada, a configuração `firstResponder = TEAM` do estado de atendimento é ignorada (a IA responde primeiro, ver `org-defaults/lib/attendance/state.ts`). A opção continua aparecendo na tela de configuração e no guia `chat.attendance-first-responder`.
+Com a pausa desligada, a configuração `firstResponder = TEAM` do estado de atendimento é ignorada (a IA responde primeiro, ver `org-defaults/lib/attendance/state.ts`). A opção continua aparecendo na tela de configuração e no guia `chat.attendance-first-responder`, assim como os tempos da mensagem fixa e dos avisos ao dono, que também ficam sem efeito.
 
 **Em aberto:** esconder ou desabilitar a opção enquanto a pausa estiver desligada.
 
