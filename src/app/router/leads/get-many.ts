@@ -189,7 +189,6 @@ export const listLeadsByStatus = base
         statusFlow: true,
         profile: true,
         amount: true,
-        // Campos novos: existem no client após `prisma generate` rodar pós-migration
         slaDeadline: true,
         statusEnteredAt: true,
         responsible: {

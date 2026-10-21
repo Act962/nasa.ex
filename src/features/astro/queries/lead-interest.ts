@@ -1,5 +1,4 @@
 import "server-only";
-import type { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { plural, type AstroQuery } from "./types";
