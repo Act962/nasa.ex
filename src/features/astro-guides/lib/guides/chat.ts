@@ -45,8 +45,8 @@ export const CHAT_GUIDES: GuideDef[] = [
       },
     ],
     finish: {
-      title: "Regra de atendimento pronta! ✅",
-      message: "As próximas conversas deste funil já seguem a regra escolhida.",
+      title: "Atendimento configurado ✨",
+      message: "As etiquetas \"Aguard. atendimento\" e \"Em atendimento\" passam a seguir essa regra neste funil.",
     },
   },
   {

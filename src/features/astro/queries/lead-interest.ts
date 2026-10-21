@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import { plural, type AstroQuery } from "./types";
 
 // "Quais leads com interesse alto?" (spec 0085): lê a Visão do Lead já

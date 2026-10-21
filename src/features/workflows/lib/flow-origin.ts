@@ -1,7 +1,7 @@
 // Origem de mensagem enviada por passo de fluxo (spec 0113, RF-20): fica no metadata da mensagem para o chat
 // mostrar "Editar gatilho" e abrir o passo exato no editor. Sem `server-only`: o chat lê o mesmo formato.
 
-// `type`, e não `interface`: só assim o Prisma aceita o objeto dentro do `metadata` (Json).
+// `type` e não `interface`: o metadata da mensagem é JSON, e interface não é aceita como objeto JSON pelo Prisma.
 export type FlowMessageOrigin = {
   workflowId: string;
   nodeId: string;
