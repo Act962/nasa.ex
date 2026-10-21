@@ -213,7 +213,12 @@ Descartado: resumir a cada mensagem ou o histórico inteiro (custo cresce com a 
 
 A fala humana recente também barra as entradas agendadas do atendimento (`attendance-*`): se o atendente responde depois que a checagem chamou a IA, ela não entra por cima dele. Isso resolve a corrida da pendência 4 de `docs/pr-473-pendencias.md`.
 
-**Verificado:** typecheck completo; `scripts/attendance-ai-hold-check.ts` (11 casos, citando CA-R1, CA-R2, CA-R7 e RF-7 a RF-11); a migration e o `UPDATE ... RETURNING` do pipeline num Postgres temporário com as 262 migrations (espera abre na primeira mensagem, não reabre na segunda, reabre depois da resposta, e o horário gravado bate com o lido pelo Prisma). **Não verificado:** CA-R3 a CA-R6 com WhatsApp e Inngest de verdade.
+**Verificado:** typecheck completo; `scripts/attendance-ai-hold-check.ts` (11 casos, citando CA-R1, CA-R2, CA-R7 e RF-7 a RF-11); a migration e o `UPDATE ... RETURNING` do pipeline num Postgres temporário com as 262 migrations (espera abre na primeira mensagem, não reabre na segunda, reabre depois da resposta, e o horário gravado bate com o lido pelo Prisma). **Verificado de ponta a ponta (21/10/2026)** num clone do banco local, com `pnpm dev` e o Inngest de desenvolvimento, num funil de teste com IA ligada e sem número de WhatsApp (nada sai para cliente):
+- `firePostInboundAutomations` real: a 1ª mensagem abre a espera e agenda um único `human_absent` para 10 min depois; a 2ª e a 3ª não reabrem nem agendam de novo (CA-R4).
+- Atendente falou há 2 min e o cliente escreve: a execução da IA sai com `skipped` (CA-R1).
+- `human_absent` com o atendente sumido aciona a IA (`attendance-in-service`), que roda até "sem número" (CA-R2); com resposta humana depois do início da espera devolve `human_answered`; com a espera encerrada devolve `stale`.
+
+**Não verificado:** envio real pelo WhatsApp, o eco da própria plataforma (pendência 5) e CA-R6 numa empresa fora de `ATTENDANCE_STATE_ORGS` com conversa real.
 
 ### Custo por mensagem recebida
 
