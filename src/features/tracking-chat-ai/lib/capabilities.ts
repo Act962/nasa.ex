@@ -12,11 +12,14 @@ export const DEFAULT_HOLDING_TEXT = "Opa, {{primeiro_nome}}, já respondemos, s�
 export const DEFAULT_HANDOFF_TEXT = "{{primeiro_nome}}, assim que um dos nossos consultores desocupar, já te atende.";
 
 /** Estado de atendimento por funil (spec 0113, RF-7): quem responde primeiro, tempos e textos fixos. */
+/** Teto do "IA volta se o atendente sumir": quem agenda a checagem filtra por ele antes de ler a configuração. */
+export const MAX_IN_SERVICE_AI_MINUTES = 120;
+
 export const attendanceSettingsSchema = z.object({
   firstResponder: z.enum(["AI", "TEAM"]).catch("AI").default("AI"),
   holdingMinutes: z.number().int().min(1).max(30).catch(3).default(3),
   aiStepInMinutes: z.number().int().min(1).max(60).catch(5).default(5),
-  inServiceAiMinutes: z.number().int().min(2).max(120).catch(10).default(10),
+  inServiceAiMinutes: z.number().int().min(2).max(MAX_IN_SERVICE_AI_MINUTES).catch(10).default(10),
   ownerNoticeMinutes: z.number().int().min(5).max(120).catch(10).default(10),
   holdingText: z.string().trim().min(1).max(300).catch(DEFAULT_HOLDING_TEXT).default(DEFAULT_HOLDING_TEXT),
   handoffText: z.string().trim().min(1).max(300).catch(DEFAULT_HANDOFF_TEXT).default(DEFAULT_HANDOFF_TEXT),

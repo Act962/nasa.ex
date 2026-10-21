@@ -6,54 +6,47 @@ As correções marcadas com ✅ entraram na própria PR em 21/10/2026. Foram con
 
 | # | Item | Status |
 | --- | --- | --- |
-| 1 | Pausa da IA por lead desligada (decisão temporária) | 🚧 feito; condição de volta em aberto |
-| 2 | IA fala por cima do atendente e depois de "quero falar com humano" | ⬜ consequência aceita do item 1 |
-| 3 | "Quem responde primeiro: Equipe" não faz efeito com a pausa desligada | ⬜ |
-| 4 | Corrida entre resposta do atendente e entrada da IA | ⬜ só acontece com a pausa ligada |
+| 1 | Botão de pausa da IA por lead desligado; a IA se cala sozinha | ✅ revisão 9.1 da spec 0113; `isActive` antigo em aberto |
+| 2 | IA fala por cima do atendente e depois de "quero falar com humano" | ✅ a IA se cala por resposta humana recente |
+| 3 | "Quem responde primeiro: Equipe" não faz efeito com a pausa desligada | ✅ volta a funcionar (pausa calculada) |
+| 4 | Corrida entre resposta do atendente e entrada da IA | 🚧 IA barrada; mensagem fixa ainda pode sair |
 | 5 | Eco da própria mensagem contando como fala do atendente | ⬜ precisa de teste com WhatsApp |
 | 6 | Requisição HTTP: redirecionamento para endereço interno | 🚧 endereço inicial barrado; redirecionamento em aberto |
 | 7 | Mudanças que valem para todas as empresas sem interruptor | ⬜ avisar suporte e clientes |
 | 8 | `isActive` mudou de sentido em ~15 filtros (contagens) | ⬜ validar números |
-| 9 | Custo do webhook de entrada e do Inngest | ⬜ medir em produção |
+| 9 | Custo do webhook de entrada e do Inngest | 🚧 webhook com 1 ida ao banco por mensagem; medir em produção |
 | 10 | Estado e Score em campo Json da Jornada | ⬜ dívida assumida pela spec |
 | 11 | Origem do lead: corrida e spam de cliques | ⬜ |
 | 12 | Número oficial antigo continua DISCONNECTED | ⬜ |
 | 13 | Variáveis preenchidas duas vezes nas mensagens | ⬜ |
 | 14 | Correções já feitas | ✅ |
 
-## 1. Pausa da IA por lead desligada (decisão temporária)
+## 1. Botão de pausa da IA por lead desligado; a IA se cala sozinha
 
-A IA liga e desliga só para o funil inteiro (Configurações → Chatbot IA, `Tracking.globalAiActive`). O interruptor `IS_LEAD_AI_PAUSE_ENABLED` em `src/features/tracking-chat-ai/lib/lead-ai-pause.ts` está `false`.
+O botão por lead saiu do card, do chat e do "Personalizar board". A IA liga e desliga para o funil inteiro (Configurações → Chatbot IA) e **se cala sozinha** enquanto um atendente conversa: depois de uma resposta humana, fica calada pelo prazo do funil (`inServiceAiMinutes`, padrão 10 min). Se o cliente escreve e o atendente não responde nesse prazo, a checagem `human_absent` traz a IA de volta. Vale para todas as empresas. Desenho e implementação na revisão 9.1 da [spec 0113](../specs/tracking-chat/0113-estado-de-atendimento.md).
 
-**Com ele desligado:**
-- a IA ignora `Lead.isActive` (WhatsApp, In-Chat, Instagram, Facebook, chat do site e chamada de voz);
-- nada grava a pausa: resposta do atendente, `transfer_to_human`, limite de uso, consultor do catálogo e o endpoint legado `/api/chat/ia/deactive`;
-- o botão por lead some do card, do chat e do "Personalizar board" (fora das empresas no estado de atendimento);
-- no estado de atendimento a IA responde sempre primeiro: sem espera da equipe, sem "IA entra" e sem a volta depois da transferência. Por isso **também não saem a mensagem fixa de espera nem os avisos ao dono** (sino e WhatsApp), que dependem da espera da equipe. Só a espera do consultor do rodízio ainda manda a mensagem de espera. Seguem: etiquetas e estado, Score (reclamação só com "Equipe primeiro") e agendamento.
+O interruptor `IS_LEAD_AI_PAUSE_ENABLED` (`tracking-chat-ai/lib/lead-ai-pause.ts`) continua `false`: a IA ignora `Lead.isActive` e nada grava a pausa manual.
 
 **Em aberto:**
-- Definir quando a pausa por lead volta (ou se sai de vez). Se sair de vez, apagar o interruptor, o `CheckIaLead` e os caminhos `IS_LEAD_AI_PAUSE_ENABLED ? ... : ...`, e decidir o que fazer com a coluna `Lead.isActive`.
-- Leads que já estavam com `isActive = false` antes do deploy continuam assim no banco. Se a pausa voltar, eles voltam pausados de uma vez.
+- Decidir se o botão manual volta. Se não voltar, apagar o interruptor, o `CheckIaLead`, os caminhos `IS_LEAD_AI_PAUSE_ENABLED ? ... : ...` e decidir o que fazer com a coluna `Lead.isActive` (ainda lida por relatórios e filtros, ver item 8).
+- Leads que já estavam com `isActive = false` antes do deploy continuam assim no banco. Hoje isso não muda nada; se o botão voltar, eles voltam pausados de uma vez.
+- O prompt (`system-prompt.ts`) ainda diz que `transfer_to_human` "pausa você nessa conversa". Agora quem segura a IA é a espera do consultor (empresas no estado de atendimento) ou a resposta humana; fora do estado de atendimento, depois de "quero falar com humano" a IA continua respondendo até um humano falar.
 
 ## 2. IA fala por cima do atendente
 
-Consequência direta do item 1. A IA continua respondendo:
-- depois que o cliente pede "quero falar com humano" (o prompt em `tracking-chat-ai/lib/system-prompt.ts` ainda diz que `transfer_to_human` pausa a IA);
-- enquanto o atendente conversa com o cliente.
-
-**Em aberto:** se a decisão "ligado ou desligado" ficar, ajustar o prompt para a IA não prometer que vai sair da conversa.
+✅ Resolvido pela regra do item 1: resposta humana recente cala a IA nessa conversa.
 
 ## 3. "Quem responde primeiro: Equipe" sem efeito
 
-Com a pausa desligada, a configuração `firstResponder = TEAM` do estado de atendimento é ignorada (a IA responde primeiro, ver `org-defaults/lib/attendance/state.ts`). A opção continua aparecendo na tela de configuração e no guia `chat.attendance-first-responder`, assim como os tempos da mensagem fixa e dos avisos ao dono, que também ficam sem efeito.
-
-**Em aberto:** esconder ou desabilitar a opção enquanto a pausa estiver desligada.
+✅ Volta a funcionar. A espera da equipe não depende mais de pausa guardada: o gatilho da IA calcula na hora se a seção a segura (`isAiHeldBySection`, em `attendance/ai-hold.ts`).
 
 ## 4. Corrida entre atendente e IA
 
-Só acontece com a pausa ligada. `attendance-check.ts` confere e trava a seção num passo e age em outros (`state.ts`, envio da mensagem fixa e `setAiAllowed`) sem conferir de novo `lastHumanAt`. Se o atendente responde entre os passos, a IA é religada e responde por cima dele, ou o "já vamos te atender" sai depois da resposta humana.
+`attendance-check.ts` confere e trava a seção num passo e age em outros sem conferir de novo `lastHumanAt`.
 
-**Em aberto:** antes de agir, reler a seção e sair se `lastHumanAt` mudou. Obrigatório antes de religar a pausa por lead.
+**Feito:** a IA chamada por uma checagem (`attendance-*`) confere a resposta humana recente ao começar e não entra se o atendente acabou de responder.
+
+**Em aberto:** a mensagem fixa ("já vamos te atender") ainda pode sair se o atendente responder entre a trava e o envio, uma janela de segundos. Conferir `Lead.lastHumanReplyAt` dentro de `sendCheckFixedMessage` antes de enviar.
 
 ## 5. Eco da própria mensagem como fala do atendente
 
@@ -89,12 +82,17 @@ A PR trocou `isActive: true` por `currentAction`/`isArchived` em cerca de 15 lug
 
 ## 9. Custo do webhook e do Inngest
 
-- Empresas no `ATTENDANCE_STATE_ORGS`: de 15 a 18 idas ao banco em sequência por mensagem recebida. `mirrorStatusFlowTags` roda mesmo quando o estado não mudou (`state.ts`).
-- Lead novo de WhatsApp, em qualquer empresa: mais consultas para descobrir a origem (`resolve-whatsapp-origin.ts`).
-- Inngest: duas funções novas por evento (`org-defaults-attendance-check` e `org-defaults-appointment-watch`). Com a pausa desligada, as checagens de "Equipe primeiro" não são agendadas. As esperas de até 15 dias do Modo Agente agora funcionam e ficam abertas no Inngest; conferir o limite de espera do plano.
-- O passo `check-lead-ai` soma 1 step em toda execução da IA, de todas as empresas.
+**Feito (revisão 9.1 da spec 0113):**
+- Mensagem recebida custa **uma ida ao banco** para o estado: o mesmo `UPDATE` que grava `lastInboundAt` abre a espera (`awaitingSince`) e diz se é a primeira mensagem dela. Antes da revisão eram cerca de 11.
+- A seção da Jornada só é lida e gravada na primeira mensagem de cada espera (ou numa reclamação), numa transação com uma gravação só.
+- A etiqueta do estado só é mexida quando o `statusFlow` muda.
+- "O atendente sumiu" usa a função `org-defaults-attendance-check` que já existia: no máximo um evento por espera, só quando o cliente escreve com a IA calada por resposta humana recente.
 
-**Em aberto:** ligar `ATTENDANCE_STATE_ORGS` primeiro só para as empresas de teste e acompanhar execuções e tempo do webhook. Pular `mirrorStatusFlowTags` quando o estado não mudou.
+**Em aberto:**
+- Lead novo de WhatsApp, em qualquer empresa: mais consultas para descobrir a origem (`resolve-whatsapp-origin.ts`).
+- As esperas de até 15 dias do Modo Agente agora funcionam e ficam abertas no Inngest; conferir o limite de espera do plano.
+- O passo `check-lead-ai` soma 1 step em toda execução da IA, de todas as empresas, e agora lê o lead com a configuração da IA (uma consulta).
+- Ligar `ATTENDANCE_STATE_ORGS` primeiro só para as empresas de teste e acompanhar execuções e tempo do webhook.
 
 ## 10. Estado e Score em Json
 

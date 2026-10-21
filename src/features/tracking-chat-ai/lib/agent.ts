@@ -1,6 +1,6 @@
 import { IS_LEAD_AI_PAUSE_ENABLED, isLeadAiPaused } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { transcribePendingLeadAudio } from "./audio-transcription";
-import { MAX_AGENT_REPLIES_PER_HOUR } from "./capabilities";
+import { MAX_AGENT_REPLIES_PER_HOUR, parseAiCapabilities } from "./capabilities";
 import { canBeSpoken, estimateSpokenSeconds, toSpeakableText } from "@/features/astro-bot/lib/voice/speakable-text";
 import { synthesizeSpeech } from "@/features/astro-bot/lib/voice/synthesize-speech";
 import { chargeSpeech } from "@/features/astro-bot/lib/voice/reply-voice";
@@ -20,7 +20,8 @@ import { recordUsageEvent } from "@/features/stars/lib/metering";
 import prisma from "@/lib/prisma";
 import { loadAgentContext, type AgentEventData, type AgentTrigger } from "./context";
 import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
-import { markAiReplied } from "@/features/org-defaults/lib/attendance/state";
+import { isAiHeldByAttendance, markAiReplied } from "@/features/org-defaults/lib/attendance/state";
+import { isHumanReplyRecent } from "@/features/org-defaults/lib/attendance/ai-hold";
 import { findActiveCampaign } from "@/features/star-friends/lib/campaign/campaign";
 import {
   NOTES_INSTRUCTION,
@@ -149,6 +150,7 @@ async function sendAgentNotice(
 ): Promise<void> {
   const externalMessageId = await sendAgentText(ctx.trackingId, ctx.lead.phone!, text, 0);
   await persistOutboundMessage({
+    isClientReply: true,
     conversationId: ctx.conversation.id,
     leadId: ctx.lead.id,
     trackingId: ctx.trackingId,
@@ -173,8 +175,20 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // antes de carregar contexto ou transcrever áudio.
   const isInboundTrigger = (data.trigger ?? "inbound") === "inbound";
   const entryGate = await step.run("check-lead-ai", async () => {
-    const lead = await prisma.lead.findUnique({ where: { id: data.leadId }, select: { isActive: true } });
-    const isActive = lead ? !isLeadAiPaused(lead) : false;
+    const lead = await prisma.lead.findUnique({
+      where: { id: data.leadId },
+      select: { isActive: true, lastHumanReplyAt: true, tracking: { select: { aiSettings: { select: { capabilities: true } } } } },
+    });
+    // A IA se cala sozinha enquanto um atendente conversa, e o estado de atendimento pode segurá-la ("Equipe
+    // primeiro", espera do consultor). A fala humana recente também barra as entradas agendadas do atendimento:
+    // se o atendente respondeu depois da checagem que chamou a IA, ela não entra por cima dele. A regra da seção
+    // só vale para a mensagem do cliente, porque as entradas agendadas existem justamente para passar por ela.
+    const { inServiceAiMinutes } = parseAiCapabilities(lead?.tracking.aiSettings?.capabilities).attendance;
+    const isAttendanceEntry = (data.trigger ?? "").startsWith("attendance-");
+    const isHeldForHuman =
+      ((isInboundTrigger || isAttendanceEntry) && isHumanReplyRecent(lead?.lastHumanReplyAt, new Date(), inServiceAiMinutes)) ||
+      (isInboundTrigger && (await isAiHeldByAttendance(data.leadId)));
+    const isActive = lead ? !isLeadAiPaused(lead) && !isHeldForHuman : false;
     if (isActive || !data.messageId) return { isActive, isMenuClick: false, hasActiveCampaign: false };
     const inbound = await prisma.message.findFirst({
       where: { id: data.messageId, conversationId: data.conversationId, fromMe: false },
@@ -612,6 +626,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
           INTER_MESSAGE_DELAY_MS,
         );
         await persistOutboundMessage({
+          isClientReply: true,
           conversationId: ctx.conversation.id,
           leadId: ctx.lead.id,
           trackingId: ctx.trackingId,

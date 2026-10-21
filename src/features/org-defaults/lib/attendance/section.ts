@@ -104,12 +104,14 @@ export async function closeSection(sectionId: string, outcome: SectionOutcome, n
 /**
  * Seção aberta do lead, abrindo uma nova quando não há ou quando a aberta está parada há mais de 24 h
  * (fecha como `EXPIRED`). Sem job agendado: a expiração é conferida quando chega a próxima mensagem. A trava
- * por lead evita duas seções abertas quando duas mensagens chegam juntas.
+ * por lead evita duas seções abertas quando duas mensagens chegam juntas. `buildPatch` recebe o estado lido e
+ * grava junto no mesmo comando (uma ida ao banco a menos); a seção devolvida traz o estado de antes do patch.
  */
 export async function ensureOpenSection(
   leadId: string,
   reason: SectionOpenReason,
   now: Date = new Date(),
+  buildPatch?: (stateBefore: SectionState) => Partial<SectionState>,
 ): Promise<{ section: AttendanceSection; isNew: boolean }> {
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`attendance-section:${leadId}`}))::text AS locked`;
@@ -122,18 +124,17 @@ export async function ensureOpenSection(
     if (openEvent) {
       const openSectionNow = toSection(openEvent);
       const idleMs = now.getTime() - new Date(openSectionNow.state.lastActivityAt).getTime();
-      const patch: Partial<SectionState> =
-        idleMs <= SECTION_IDLE_EXPIRY_MS
-          ? { lastActivityAt: nowIso }
-          : { status: "closed", outcome: "EXPIRED", closedAt: nowIso };
+      const isStillOpen = idleMs <= SECTION_IDLE_EXPIRY_MS;
+      const touchedState: SectionState = { ...openSectionNow.state, lastActivityAt: nowIso };
+      const patch: Partial<SectionState> = isStillOpen
+        ? { lastActivityAt: nowIso, ...buildPatch?.(touchedState) }
+        : { status: "closed", outcome: "EXPIRED", closedAt: nowIso };
       await tx.$executeRaw`
         UPDATE lead_journey_events SET metadata = metadata || ${JSON.stringify(patch)}::jsonb WHERE id = ${openEvent.id}
       `;
-      if (idleMs <= SECTION_IDLE_EXPIRY_MS) {
-        return { section: { ...openSectionNow, state: { ...openSectionNow.state, lastActivityAt: nowIso } }, isNew: false };
-      }
+      if (isStillOpen) return { section: { ...openSectionNow, state: touchedState }, isNew: false };
     }
-    const state: SectionState = {
+    const freshState: SectionState = {
       status: "open",
       openedAt: nowIso,
       openReason: reason,
@@ -142,10 +143,10 @@ export async function ensureOpenSection(
       ownerNoticeCount: 0,
     };
     const created = await tx.leadJourneyEvent.create({
-      data: { leadId, kind: "attendance_section", occurredAt: now, metadata: state as object },
+      data: { leadId, kind: "attendance_section", occurredAt: now, metadata: { ...freshState, ...buildPatch?.(freshState) } as object },
       select: { id: true, leadId: true, metadata: true },
     });
-    return { section: toSection(created), isNew: true };
+    return { section: { ...toSection(created), state: freshState }, isNew: true };
   });
 }
 

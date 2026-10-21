@@ -91,6 +91,9 @@ export async function claimLeadForAttendant(leadId: string, userId: string) {
     where: { id: lead.id },
     data: {
       lastOutboundAt: new Date(),
+      // Fala humana: a IA se cala por um tempo e a espera do cliente acaba (spec 0113, revisão 9.1).
+      lastHumanReplyAt: new Date(),
+      awaitingSince: null,
       ...(isAlreadyClaimed ? {} : { responsibleId: userId, ...(IS_LEAD_AI_PAUSE_ENABLED ? { isActive: false } : {}) }),
     },
   });
@@ -121,7 +124,11 @@ export async function claimLeadForAttendant(leadId: string, userId: string) {
 export async function recordHumanReply(leadId: string, options: { userId: string; isConversationReply: boolean }) {
   const lead = await prisma.lead.update({
     where: { id: leadId },
-    data: { lastOutboundAt: new Date() },
+    data: {
+      lastOutboundAt: new Date(),
+      // Encaminhar não é conversa: só a resposta na conversa conta como fala humana.
+      ...(options.isConversationReply ? { lastHumanReplyAt: new Date(), awaitingSince: null } : {}),
+    },
     select: { id: true, tracking: { select: { organizationId: true } }, conversation: { select: { channel: true } } },
   });
   const { organizationId } = lead.tracking;

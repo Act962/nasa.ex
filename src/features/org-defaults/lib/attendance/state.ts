@@ -1,4 +1,3 @@
-import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import "server-only";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
@@ -18,20 +17,23 @@ import {
 } from "./section";
 import { recordAttendanceScore } from "./score";
 import { looksLikeDelayComplaint } from "./complaint";
+import { hasAiTakenOver, hasCompanyTalked, isAiHeldBySection, isHandoffWaiting, isHumanInConversation, isHumanReplyRecent } from "./ai-hold";
 import { sendAttendanceFixedMessage, type FixedMessageKind } from "./fixed-message";
 import { notifyUnattendedLead, MAX_OWNER_WHATSAPP_NOTICES } from "./owner-notice";
 import { applyInboundAutoTags, type InboundChannel } from "../auto-tags";
 
-// Estado de atendimento (spec 0113). O estado é o `Lead.statusFlow`; `Lead.isActive` passa a dizer só "a IA
-// pode responder agora". Cada espera vira UM evento atrasado (`attendance/check`); quem acorda confere se
-// ainda vale, trava a seção e só então age. O estado sai da seção aberta, nunca do `statusFlow` anterior.
+// Estado de atendimento (spec 0113). O estado é o `Lead.statusFlow`. Se a IA pode responder agora é calculado
+// (`isAiHeldByAttendance` e `Lead.lastHumanReplyAt`), nunca guardado. Cada espera vira UM evento atrasado
+// (`attendance/check`); quem acorda confere se ainda vale, trava a seção e só então age. A seção é lida e
+// gravada só na primeira mensagem de cada espera (revisão 9.1): as seguintes custam uma ida ao banco.
 
 export const ATTENDANCE_CHECK_EVENT = "attendance/check";
 export const AI_MESSAGE_EVENT = "chat/ai.whatsapp-message-received";
 
-export type AttendanceCheckStage = "holding" | "ai_step_in" | "in_service_ai" | "handoff_resume" | "owner_notice";
+export type AttendanceCheckStage = "holding" | "ai_step_in" | "handoff_resume" | "owner_notice";
 type AttendanceAiTrigger = "attendance-step-in" | "attendance-in-service" | "attendance-handoff-resume";
 
+/** Checagem das empresas no estado de atendimento: lê e trava a seção. */
 export interface AttendanceCheckEventData {
   organizationId: string;
   leadId: string;
@@ -47,10 +49,26 @@ export interface AttendanceCheckEventData {
   isComplaint?: boolean;
 }
 
+/**
+ * "O atendente sumiu" (todas as empresas): o cliente escreveu com a IA calada por resposta humana recente.
+ * Só lê as colunas do lead, sem seção.
+ */
+export interface HumanAbsentCheckEventData {
+  stage: "human_absent";
+  organizationId: string;
+  leadId: string;
+  /** `Lead.awaitingSince` quando a espera começou: se mudou, alguém já respondeu. */
+  anchorAt: string;
+  dueAt: string;
+  /** Mensagem do cliente que abriu a espera; a IA responde a partir dela. */
+  messageId: string;
+}
+
+export type AttendanceCheckEvent = AttendanceCheckEventData | HumanAbsentCheckEventData;
+
 /** O que a checagem faz depois de travar a seção, cada parte num passo do Inngest. */
 export interface AttendanceCheckEffects {
   fixedMessageKind?: FixedMessageKind;
-  enableAi?: boolean;
   aiReply?: { anchorMessageId: string; trigger: AttendanceAiTrigger };
   ownerNoticeNumber?: number;
   noticeWaitingSince?: string;
@@ -109,18 +127,13 @@ export async function setStatusFlow(params: {
   from: AttendanceStatusFlow;
   to: AttendanceStatusFlow;
 }): Promise<void> {
-  if (params.from !== params.to) {
-    await prisma.lead.update({ where: { id: params.leadId }, data: { statusFlow: params.to } });
-  }
+  // Sem troca de estado a etiqueta já está certa: conferir a cada mensagem custava 4 idas ao banco.
+  if (params.from === params.to) return;
+  await prisma.lead.update({ where: { id: params.leadId }, data: { statusFlow: params.to } });
   // Etiqueta é espelho: se falhar (fluxo "Lead com Tag" com erro), o estado e a resposta ao cliente seguem.
   await mirrorStatusFlowTags({ organizationId: params.organizationId, leadId: params.leadId, statusFlow: params.to }).catch(
     (error: unknown) => console.warn("[attendance] etiqueta do estado falhou", error),
   );
-}
-
-async function setAiAllowed(leadId: string, isAllowed: boolean, current: boolean): Promise<void> {
-  if (!IS_LEAD_AI_PAUSE_ENABLED || isAllowed === current) return;
-  await prisma.lead.update({ where: { id: leadId }, data: { isActive: isAllowed } });
 }
 
 /** O `id` do evento faz o Inngest ignorar o mesmo agendamento repetido (retry ou mensagens em sequência). */
@@ -139,32 +152,6 @@ async function scheduleCheck(data: AttendanceCheckEventData): Promise<void> {
 
 function minutesFrom(base: Date, minutes: number): string {
   return new Date(base.getTime() + minutes * MINUTE_MS).toISOString();
-}
-
-/** A IA assumiu nesta espera e nenhum humano falou depois. */
-function hasAiTakenOver(state: SectionState): boolean {
-  const { aiStepInAt, lastHumanAt } = state;
-  return Boolean(aiStepInAt && (!lastHumanAt || aiStepInAt > lastHumanAt));
-}
-
-/** Um atendente está na conversa: falou nesta seção e a IA não assumiu depois dele. */
-function isHumanInConversation(state: SectionState): boolean {
-  return Boolean(state.lastHumanAt) && !hasAiTakenOver(state);
-}
-
-/** O cliente pediu humano (ou a IA transferiu) e ninguém, nem a IA de volta, assumiu ainda. */
-function isHandoffWaiting(state: SectionState): boolean {
-  return Boolean(state.humanRequestedAt) && !state.aiStepInAt;
-}
-
-/**
- * Troca de verdade (RF-9): nesta seção um humano ou a IA já falou com o cliente. Mensagem fixa, de fluxo, de
- * campanha ou de inatividade não conta, porque só humano e IA marcam a seção. No "Equipe primeiro" só o
- * atendente conta: a IA segura o cliente, mas ele segue esperando a equipe.
- */
-function hasCompanyTalked(state: SectionState, settings: AttendanceSettings): boolean {
-  if (settings.firstResponder === "TEAM") return Boolean(state.lastHumanAt);
-  return Boolean(state.lastHumanAt || state.lastAiReplyAt);
 }
 
 /** Primeira reclamação da demora nesta espera: −10 no Score. Devolve se foi a primeira. */
@@ -214,48 +201,42 @@ export async function applyClientMessageAttendance(params: {
   messageId: string;
   messageText: string | null;
   at: Date;
+  /**
+   * A mensagem abriu a espera (`Lead.awaitingSince` estava vazio). As seguintes da mesma espera não mudam o
+   * estado nem os prazos: só a reclamação da demora mexe em algo, então o resto sai sem consultar o banco.
+   */
+  isFirstOfWait?: boolean;
 }): Promise<void> {
+  if (params.isFirstOfWait === false && !looksLikeDelayComplaint(params.messageText)) return;
   const context = await loadAttendanceContext(params.leadId);
   if (!context) return;
 
-  const { section } = await ensureOpenSection(params.leadId, "client_message", params.at);
-  const { state } = section;
   const atIso = params.at.toISOString();
+  const { section } = await ensureOpenSection(params.leadId, "client_message", params.at, (stateBefore) => ({
+    awaitingMessageId: stateBefore.awaitingMessageId && stateBefore.awaitingSince ? stateBefore.awaitingMessageId : params.messageId,
+    awaitingSince: stateBefore.awaitingSince ?? atIso,
+  }));
+  const { state } = section;
   const isFirstUnanswered = !state.awaitingSince;
   const awaitingSince = state.awaitingSince ?? atIso;
-  await patchSection(section.id, { awaitingMessageId: params.messageId, awaitingSince });
 
   const isWaitingHandoff = isHandoffWaiting(state);
   const nextStatus: AttendanceStatusFlow =
     !isWaitingHandoff && hasCompanyTalked(state, context.settings) ? "ACTIVE" : "WAITING";
 
-  // Decide a IA e agenda antes das etiquetas: falha em etiqueta não pode deixar o cliente sem resposta.
+  // Agenda antes das etiquetas: falha em etiqueta não pode deixar o cliente sem resposta. Se a IA responde agora
+  // é decidido no gatilho dela (`isAiHeldByAttendance`), a partir deste mesmo estado.
   if (context.isAiConnected) {
     const { settings } = context;
     const checkBase = { organizationId: context.organizationId, leadId: params.leadId, sectionId: section.id };
 
     if (isWaitingHandoff) {
       // Esperando consultor: a mensagem de "assim que um consultor desocupar" sai uma vez, na hora.
-      await setAiAllowed(params.leadId, false, context.isActive);
       if (!state.holdingSentAt) {
         await scheduleCheck({ ...checkBase, stage: "holding", anchorAt: awaitingSince, dueAt: atIso, isHandoffWait: true });
       }
-    } else if (nextStatus === "ACTIVE") {
-      // Em atendimento só cala a IA quando há humano na conversa; conversa só com a IA segue respondendo na hora.
-      const isHumanTalking = isHumanInConversation(state);
-      await setAiAllowed(params.leadId, !isHumanTalking, context.isActive);
-      if (IS_LEAD_AI_PAUSE_ENABLED && isHumanTalking && isFirstUnanswered) {
-        await scheduleCheck({
-          ...checkBase,
-          stage: "in_service_ai",
-          anchorAt: awaitingSince,
-          dueAt: minutesFrom(params.at, settings.inServiceAiMinutes),
-        });
-      }
-    } else {
-      // Sem a pausa por lead a IA responde sempre: esperar a equipe só geraria a mensagem fixa depois da resposta dela.
-      const isAiFirst = !IS_LEAD_AI_PAUSE_ENABLED || settings.firstResponder === "AI" || hasAiTakenOver(state);
-      await setAiAllowed(params.leadId, isAiFirst, context.isActive);
+    } else if (nextStatus === "WAITING") {
+      const isAiFirst = settings.firstResponder === "AI" || hasAiTakenOver(state);
       if (!isAiFirst) {
         await scheduleTeamFirstWait({ context, state, sectionId: section.id, params, awaitingSince, isFirstUnanswered });
       } else if (settings.firstResponder === "TEAM") {
@@ -263,6 +244,7 @@ export async function applyClientMessageAttendance(params: {
         await recordDelayComplaint({ leadId: params.leadId, sectionId: section.id, state, messageText: params.messageText, at: params.at });
       }
     }
+    // Em atendimento com o atendente sumido, quem traz a IA de volta é o `human_absent` (todas as empresas).
   }
 
   await setStatusFlow({ organizationId: context.organizationId, leadId: params.leadId, from: context.statusFlow, to: nextStatus });
@@ -343,7 +325,6 @@ export async function applyHumanReplyAttendance(params: { leadId: string; userId
     noticeAnchorAt: null,
     complaintAt: null,
   });
-  await setAiAllowed(params.leadId, false, context.isActive);
   const hasClientSpoken = openReason === "client_message" || Boolean(awaitingSince);
   if (hasClientSpoken) {
     await setStatusFlow({ organizationId: context.organizationId, leadId: params.leadId, from: context.statusFlow, to: "ACTIVE" });
@@ -377,10 +358,9 @@ export async function applyHandoffAttendance(params: { leadId: string; at: Date;
     ownerNoticeCount: 0,
     noticeAnchorAt: null,
   });
-  await setAiAllowed(params.leadId, false, context.isActive);
 
   // A IA já se despede com as próprias palavras; a mensagem de espera sai se o cliente escrever (RF-11).
-  if (IS_LEAD_AI_PAUSE_ENABLED && context.isAiConnected && (params.shouldAiReturn ?? true)) {
+  if (context.isAiConnected && (params.shouldAiReturn ?? true)) {
     await scheduleCheck({
       organizationId: context.organizationId,
       leadId: params.leadId,
@@ -413,6 +393,72 @@ export async function isHumanAttendingNow(leadId: string): Promise<boolean | nul
   return section ? isHumanInConversation(section.state) : false;
 }
 
+/** Gatilho da IA, nas empresas no estado de atendimento: a seção aberta segura a IA agora? Roda no Inngest. */
+export async function isAiHeldByAttendance(leadId: string): Promise<boolean> {
+  const context = await loadAttendanceContext(leadId);
+  if (!context) return false;
+  const section = await findOpenSection(leadId);
+  return section ? isAiHeldBySection(section.state, context.settings) : false;
+}
+
+/**
+ * O cliente abriu uma espera com a IA calada por resposta humana recente: agenda UMA checagem para o fim do
+ * prazo, contado da mensagem do cliente: o atendente teve esse tempo para responder. O id junta lead e início da espera, então mensagens seguidas não agendam de novo.
+ */
+export async function scheduleHumanAbsentCheck(params: {
+  organizationId: string;
+  leadId: string;
+  trackingId: string;
+  awaitingSince: Date;
+  lastHumanReplyAt: Date | null;
+  messageId: string;
+}): Promise<void> {
+  const aiSettings = await prisma.aiSettings.findUnique({ where: { trackingId: params.trackingId }, select: { capabilities: true } });
+  const { inServiceAiMinutes } = parseAiCapabilities(aiSettings?.capabilities).attendance;
+  // A IA só está calada se a resposta humana cabe no prazo deste funil; fora dele ela já responde sozinha.
+  if (!isHumanReplyRecent(params.lastHumanReplyAt, params.awaitingSince, inServiceAiMinutes)) return;
+  const anchorAt = params.awaitingSince.toISOString();
+  const data: HumanAbsentCheckEventData = {
+    stage: "human_absent",
+    organizationId: params.organizationId,
+    leadId: params.leadId,
+    anchorAt,
+    dueAt: minutesFrom(params.awaitingSince, inServiceAiMinutes),
+    messageId: params.messageId,
+  };
+  await inngest.send({ id: ["attendance", "human-absent", params.leadId, anchorAt].join(":"), name: ATTENDANCE_CHECK_EVENT, data });
+}
+
+/** O atendente sumiu? Se ninguém respondeu desde o início da espera, a IA continua a conversa. */
+export async function runHumanAbsentCheck(data: HumanAbsentCheckEventData): Promise<{ action: string }> {
+  const lead = await prisma.lead.findUnique({
+    where: { id: data.leadId },
+    select: {
+      awaitingSince: true,
+      lastHumanReplyAt: true,
+      trackingId: true,
+      conversation: { select: { id: true } },
+      tracking: { select: { organizationId: true, globalAiActive: true } },
+    },
+  });
+  if (!lead?.conversation || !lead.tracking.globalAiActive) return { action: "disabled" };
+  if (lead.awaitingSince?.toISOString() !== data.anchorAt) return { action: "stale" };
+  if (lead.lastHumanReplyAt && lead.lastHumanReplyAt.toISOString() >= data.anchorAt) return { action: "human_answered" };
+  await inngest.send({
+    id: ["attendance-ai", "human-absent", data.leadId, data.anchorAt].join(":"),
+    name: AI_MESSAGE_EVENT,
+    data: {
+      trackingId: lead.trackingId,
+      leadId: data.leadId,
+      conversationId: lead.conversation.id,
+      messageId: data.messageId,
+      organizationId: lead.tracking.organizationId,
+      trigger: "attendance-in-service" satisfies AttendanceAiTrigger,
+    },
+  });
+  return { action: "human_absent_ai" };
+}
+
 /** O próximo passo é da IA (pedido do catálogo): ela responde mesmo que um atendente tenha falado antes. */
 export async function handOverToAi(params: { leadId: string }): Promise<void> {
   const context = await loadAttendanceContext(params.leadId);
@@ -420,7 +466,6 @@ export async function handOverToAi(params: { leadId: string }): Promise<void> {
   const now = new Date();
   const { section } = await ensureOpenSection(params.leadId, "client_message", now);
   await patchSection(section.id, { aiStepInAt: now.toISOString() });
-  await setAiAllowed(params.leadId, true, context.isActive);
 }
 
 /**
@@ -491,25 +536,10 @@ export async function claimAttendanceCheck(data: AttendanceCheckEventData): Prom
       return {
         action: "ai_step_in",
         effects: {
-          enableAi: true,
           aiReply: { anchorMessageId: state.awaitingMessageId, trigger: "attendance-step-in" },
           ownerNoticeNumber: 1,
           noticeWaitingSince: data.anchorAt,
         },
-      };
-    }
-    case "in_service_ai": {
-      if (state.awaitingSince !== data.anchorAt || !state.awaitingMessageId) return { action: "stale" };
-      if (state.aiStepInAt && state.aiStepInAt >= data.anchorAt) return { action: "stale" };
-      const isClaimed = await patchSectionIf(
-        section.id,
-        { aiStepInAt: nowIso },
-        { awaitingSince: data.anchorAt, aiStepInAt: state.aiStepInAt ?? null },
-      );
-      if (!isClaimed) return { action: "stale" };
-      return {
-        action: "in_service_ai",
-        effects: { enableAi: true, aiReply: { anchorMessageId: state.awaitingMessageId, trigger: "attendance-in-service" } },
       };
     }
     case "handoff_resume": {
@@ -526,7 +556,6 @@ export async function claimAttendanceCheck(data: AttendanceCheckEventData): Prom
       return {
         action: "handoff_resume",
         effects: {
-          enableAi: true,
           ...(hasClientWrittenSince && state.awaitingMessageId
             ? { aiReply: { anchorMessageId: state.awaitingMessageId, trigger: "attendance-handoff-resume" as const } }
             : {}),
@@ -578,7 +607,6 @@ export async function sendCheckFixedMessage(data: AttendanceCheckEventData, kind
 export async function applyCheckEffects(data: AttendanceCheckEventData, effects: AttendanceCheckEffects): Promise<{ action: string }> {
   const context = await loadAttendanceContext(data.leadId);
   if (!context) return { action: "disabled" };
-  if (effects.enableAi) await setAiAllowed(data.leadId, true, context.isActive);
   if (effects.aiReply) {
     await dispatchAiReply({
       context,

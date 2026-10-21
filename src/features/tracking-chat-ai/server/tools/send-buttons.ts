@@ -82,6 +82,7 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
             if (button.tagId) officialTagMap[button.id as string] = button.tagId;
           }
           await persistOutboundMessage({
+            isClientReply: true,
             conversationId: ctx.conversation.id,
             leadId: ctx.lead.id,
             trackingId: ctx.trackingId,
@@ -105,6 +106,7 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
             if (button.id && button.tagId) numberedTagMap[button.id] = button.tagId;
           }
           await persistOutboundMessage({
+            isClientReply: true,
             conversationId: ctx.conversation.id,
             leadId: ctx.lead.id,
             trackingId: ctx.trackingId,
@@ -159,6 +161,7 @@ export const makeSendButtonsTool = (ctx: AgentContext) =>
         }
 
         await persistOutboundMessage({
+          isClientReply: true,
           conversationId: ctx.conversation.id,
           leadId: ctx.lead.id,
           trackingId: ctx.trackingId,

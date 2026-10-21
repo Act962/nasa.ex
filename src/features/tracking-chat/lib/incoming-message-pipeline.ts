@@ -26,7 +26,9 @@
 import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { applyInboundAutoTags, loadAwaitingState, removeAwaitingTagOnReply } from "@/features/org-defaults/lib/auto-tags";
 import { isAttendanceManagedChannel } from "@/features/org-defaults/lib/attendance/flag";
-import { applyClientMessageAttendance, applyHumanReplyAttendance } from "@/features/org-defaults/lib/attendance/state";
+import { applyClientMessageAttendance, applyHumanReplyAttendance, scheduleHumanAbsentCheck } from "@/features/org-defaults/lib/attendance/state";
+import { isHumanReplyRecent } from "@/features/org-defaults/lib/attendance/ai-hold";
+import { MAX_IN_SERVICE_AI_MINUTES } from "@/features/tracking-chat-ai/lib/capabilities";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { inngest } from "@/inngest/client";
@@ -119,29 +121,70 @@ export async function firePostInboundAutomations(
     : await loadAwaitingState(params.lead.id).catch(() => null);
 
   // ── 1. Update timestamps ─────────────────────────────────────────────
+  // Mensagem do cliente abre a espera (`awaitingSince`) no mesmo comando que grava o horário: é assim que o
+  // estado de atendimento custa uma ida ao banco por mensagem (spec 0113, revisão 9.1).
+  const isHumanPhoneReply = params.fromMe && !params.isPlatformEcho;
+  let inboundWait: { isFirstOfWait: boolean; awaitingSince: Date; lastHumanReplyAt: Date | null } | null = null;
   try {
-    await prisma.conversation.update({
-      where: {
-        leadId_trackingId: {
-          leadId: params.lead.id,
-          trackingId: params.trackingId,
-        },
-      },
-      data: {
-        lastMessage: { connect: { id: params.messageId } },
-        lead: {
-          update: {
-            updatedAt: now,
-            ...(params.fromMe
-              ? { lastOutboundAt: now }
-              : { lastInboundAt: now }),
-            ...(shouldSetFirstResponse ? { firstResponseAt: now } : {}),
+    if (params.fromMe) {
+      await prisma.conversation.update({
+        where: { leadId_trackingId: { leadId: params.lead.id, trackingId: params.trackingId } },
+        data: {
+          lastMessage: { connect: { id: params.messageId } },
+          lead: {
+            update: {
+              updatedAt: now,
+              lastOutboundAt: now,
+              ...(isHumanPhoneReply ? { lastHumanReplyAt: params.messageAt ?? now, awaitingSince: null } : {}),
+              ...(shouldSetFirstResponse ? { firstResponseAt: now } : {}),
+            },
           },
         },
-      },
-    });
+      });
+    } else {
+      await prisma.conversation.update({
+        where: { leadId_trackingId: { leadId: params.lead.id, trackingId: params.trackingId } },
+        data: { lastMessage: { connect: { id: params.messageId } } },
+      });
+      // A comparação e as datas saem do próprio banco (em ms): o driver lê `timestamp` sem fuso no fuso da máquina.
+      const [leadTimes] = await prisma.$queryRaw<
+        { is_first_of_wait: boolean; awaiting_since_ms: number; last_human_reply_ms: number | null }[]
+      >`
+        UPDATE leads
+        SET updated_at = ${now}, last_inbound_at = ${now}, awaiting_since = COALESCE(awaiting_since, ${now})
+        WHERE id = ${params.lead.id}
+        RETURNING
+          awaiting_since = ${now} AS is_first_of_wait,
+          (EXTRACT(EPOCH FROM awaiting_since) * 1000)::float8 AS awaiting_since_ms,
+          (EXTRACT(EPOCH FROM last_human_reply_at) * 1000)::float8 AS last_human_reply_ms
+      `;
+      if (leadTimes) {
+        inboundWait = {
+          isFirstOfWait: leadTimes.is_first_of_wait,
+          awaitingSince: new Date(leadTimes.awaiting_since_ms),
+          lastHumanReplyAt: leadTimes.last_human_reply_ms === null ? null : new Date(leadTimes.last_human_reply_ms),
+        };
+      }
+    }
   } catch (err) {
     console.error("[pipeline] update_timestamps_failed", err);
+  }
+
+  // A IA está calada porque um atendente falou há pouco: se ele sumir, uma checagem no fim do prazo a traz de
+  // volta. Só na primeira mensagem da espera, e só se a resposta humana pode estar dentro do prazo máximo.
+  if (
+    inboundWait?.isFirstOfWait &&
+    params.globalAiActive &&
+    isHumanReplyRecent(inboundWait.lastHumanReplyAt, now, MAX_IN_SERVICE_AI_MINUTES)
+  ) {
+    await scheduleHumanAbsentCheck({
+      organizationId: params.organizationId,
+      leadId: params.lead.id,
+      trackingId: params.trackingId,
+      awaitingSince: inboundWait.awaitingSince,
+      lastHumanReplyAt: inboundWait.lastHumanReplyAt,
+      messageId: params.messageId,
+    }).catch((error: unknown) => console.error("[pipeline] human_absent_schedule_failed", error));
   }
 
   // ── 1b. Tags automáticas da empresa (spec 0042) e estado de atendimento (spec 0113) ──
@@ -172,6 +215,7 @@ export async function firePostInboundAutomations(
           messageId: params.messageId,
           messageText: params.leadMessage?.text ?? null,
           at: messageAt,
+          isFirstOfWait: inboundWait?.isFirstOfWait,
         });
       }
     }

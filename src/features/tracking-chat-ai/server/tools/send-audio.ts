@@ -38,6 +38,7 @@ export const makeSendAudioTool = (ctx: AgentContext) =>
           );
 
       await persistOutboundMessage({
+        isClientReply: true,
         conversationId: ctx.conversation.id,
         leadId: ctx.lead.id,
         trackingId: ctx.trackingId,

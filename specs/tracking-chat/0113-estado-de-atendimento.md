@@ -166,6 +166,84 @@ Descartado: resumir a cada mensagem ou o histórico inteiro (custo cresce com a 
 - **Antes de ligar numa empresa:** conferir as abas e os números do Insights; leads antigos seguem `ACTIVE` até o cliente escrever de novo. Depois do deploy, "Resync" do Inngest.
 - **Rollback:** desligar `ATTENDANCE_STATE_ORGS`. RF-1 a RF-5 são correções e ficam. Sem migration.
 
+## 9.1 Revisão de 21/10/2026: IA se cala sozinha e estado em colunas do lead
+
+> **Aprovada em 21/10/2026 e implementada.** Substitui RNF-3 (há migration, só aditiva) e o "IA pausada" de RF-3, RF-10 e RF-11: a pausa deixa de ser guardada e passa a ser calculada. O fim desta seção registra onde a implementação difere do desenho aprovado.
+
+### Por quê
+
+1. **Decisão de produto (21/10):** sai o botão de ligar e desligar a IA por lead. A IA liga e desliga só para o funil inteiro e **se cala sozinha** enquanto um humano conversa, voltando se ele sumir.
+2. **Escala:** com o estado ao vivo dentro da seção (`LeadJourneyEvent.metadata`), cada mensagem recebida custa cerca de 11 idas ao banco em sequência no webhook. São elas: transação com trava por lead, busca da seção aberta pelo Json (sem índice para esse filtro, e a busca cresce com o histórico do lead), duas gravações na seção e o espelho das etiquetas mesmo sem troca de estado.
+
+### Desenho
+
+**Duas colunas novas em `Lead`, opcionais:**
+
+| Coluna | Significado | Quem grava |
+| --- | --- | --- |
+| `lastHumanReplyAt` | Última vez que uma pessoa da equipe falou com o cliente (plataforma ou celular). | `claimLeadForAttendant`, `recordHumanReply` e mensagem `fromMe` vinda do celular. Nunca IA, fluxo nem campanha. |
+| `awaitingSince` | Primeira mensagem do cliente ainda sem resposta da empresa (humano ou IA). | Preenchida na mensagem do cliente só se estiver vazia; limpa quando a empresa responde. |
+
+`lastOutboundAt` não serve para isso: IA, fluxos e botões também gravam nele.
+
+**Mensagem do cliente (webhook):** o pipeline já faz um `UPDATE` no lead a cada mensagem (`lastInboundAt`). O estado entra **no mesmo comando**: `awaiting_since = COALESCE(awaiting_since, agora)` e, se for o caso, `status_flow = 'WAITING'`, com `RETURNING` do valor anterior. Custo: **1 ida ao banco**, a mesma de antes da PR. A etiqueta só é mexida quando o `statusFlow` muda. Evento no Inngest só quando a espera começa, não a cada mensagem.
+
+**A IA se cala sozinha (todas as empresas):** a IA não responde enquanto `agora − lastHumanReplyAt < inServiceAiMinutes` (padrão 10 min). A regra é lida no próprio gatilho da IA, que já carrega o lead: custo zero. O `Lead.isActive` deixa de ser lido pela IA (o interruptor `IS_LEAD_AI_PAUSE_ENABLED` continua `false`).
+
+**A IA volta se o atendente sumir:** quando o cliente escreve com a IA calada, sai **um** `attendance/check` para `awaitingSince + inServiceAiMinutes`, com id `lead:<id>:<awaitingSince>` (o Inngest descarta repetidos). Ao acordar, a checagem lê o lead: se `awaitingSince` mudou ou `lastHumanReplyAt` é posterior, sai sem fazer nada; senão, aciona a IA.
+
+**"Equipe primeiro", mensagem fixa e avisos ao dono (só empresas em `ATTENDANCE_STATE_ORGS`):** mesmo mecanismo. Quando a espera começa, agenda `holding` (+`holdingMinutes`) e `ai_step_in` (+`holdingMinutes` + `aiStepInMinutes`). Os avisos ao dono encadeiam a partir do `ai_step_in`, no máximo 3. Toda checagem confere se `awaitingSince` ainda é o mesmo e se nenhum humano respondeu. É isso que torna a checagem idempotente e evita a corrida "o atendente respondeu no meio", sem trava nem transação.
+
+**O que continua na Jornada (`LeadJourneyEvent`):** a seção, o resumo e as notas da IA, os pontos do Score e os eventos de agendamento.
+
+### Como ficou implementado (difere do desenho em dois pontos)
+
+1. **A seção continua sendo o estado das empresas no estado de atendimento, mas só é lida e gravada na primeira mensagem de cada espera** (e quando a mensagem parece reclamação). As mensagens seguintes da mesma espera saem sem consultar a seção. Motivo: tirar a seção do caminho exigiria reescrever as checagens de "Equipe primeiro", consultor e avisos ao dono, testadas com WhatsApp real em 19 e 20/10; o ganho de escala está em não tocá-la a cada mensagem. A gravação da seção virou um comando só (`ensureOpenSection` com `buildPatch`) e o espelho das etiquetas só roda quando o `statusFlow` muda.
+2. **Sem índice novo na Jornada.** Criar índice em `lead_journey_events` trava escritas na tabela enquanto ele é montado. A busca da seção usa o índice `(lead_id, occurred_at)` que já existe e roda uma vez por espera.
+
+**Onde mora cada regra:**
+
+| Regra | Arquivo |
+| --- | --- |
+| Abrir a espera e saber se é a primeira mensagem dela | `incoming-message-pipeline.ts` (um `UPDATE ... RETURNING`; datas devolvidas em ms pelo banco para não depender do fuso do servidor) |
+| Fala humana grava `lastHumanReplyAt` e fecha a espera | `message/utils.ts` (`claimLeadForAttendant`, `recordHumanReply`) e o pipeline (mensagem `fromMe` que não é eco) |
+| Resposta da IA fecha a espera | `persistOutboundMessage` com `isClientReply` (só as respostas da IA; mensagem fixa, inatividade e avisos não passam) |
+| A IA pode falar agora? | `check-lead-ai` em `agent.ts`, com as regras puras de `attendance/ai-hold.ts` |
+| O atendente sumiu | estágio `human_absent` na mesma função `org-defaults-attendance-check` (nenhuma função nova no Inngest) |
+
+A fala humana recente também barra as entradas agendadas do atendimento (`attendance-*`): se o atendente responde depois que a checagem chamou a IA, ela não entra por cima dele. Isso resolve a corrida da pendência 4 de `docs/pr-473-pendencias.md`.
+
+**Verificado:** typecheck completo; `scripts/attendance-ai-hold-check.ts` (11 casos, citando CA-R1, CA-R2, CA-R7 e RF-7 a RF-11); a migration e o `UPDATE ... RETURNING` do pipeline num Postgres temporário com as 262 migrations (espera abre na primeira mensagem, não reabre na segunda, reabre depois da resposta, e o horário gravado bate com o lido pelo Prisma). **Não verificado:** CA-R3 a CA-R6 com WhatsApp e Inngest de verdade.
+
+### Custo por mensagem recebida
+
+| | Antes da PR | PR como está | Revisão |
+| --- | --- | --- | --- |
+| Idas ao banco no webhook | 1 | ~11 | 1 (+1 a 3 só quando o estado muda) |
+| Cresce com o histórico do lead | não | sim | não |
+| Eventos Inngest | 0 | 1 por espera | 1 a 3 por espera, nunca por mensagem |
+
+### Migration
+
+Duas colunas `TIMESTAMP` opcionais em `leads`, sem índice (só lidas por id) e sem valor padrão: aditiva e instantânea no Postgres. Leads existentes ficam com as duas vazias, o que significa "ninguém esperando, nenhum humano recente": a IA responde, como hoje. Nenhuma empresa está em `ATTENDANCE_STATE_ORGS`, então não há seção aberta para migrar.
+
+### Critérios de aceite da revisão
+
+| ID | Critério |
+| --- | --- |
+| CA-R1 | O atendente responde pela plataforma ou pelo celular: a próxima mensagem do cliente nos 10 min seguintes não aciona a IA. |
+| CA-R2 | O cliente escreve e o atendente não responde em 10 min: a IA responde uma vez. Se o atendente responder antes, a IA não responde. |
+| CA-R3 | IA, fluxo, campanha e mensagem fixa não gravam `lastHumanReplyAt`. |
+| CA-R4 | Três mensagens seguidas do cliente geram um único `attendance/check` por etapa. |
+| CA-R5 | Mensagem do cliente sem troca de estado faz uma única ida ao banco no webhook para o estado. |
+| CA-R6 | Empresa fora de `ATTENDANCE_STATE_ORGS`: sem mensagem fixa, sem avisos ao dono e sem etiqueta de estado; vale só a regra de a IA se calar e voltar. |
+| CA-R7 | Lead antigo, com as colunas vazias: a IA responde normalmente. |
+
+### Riscos
+
+- **Eco da própria plataforma** (pendência 5 de `docs/pr-473-pendencias.md`): se o eco de uma mensagem da IA chegar como `fromMe` antes de ser gravado, contaria como humano e calaria a IA por 10 min. A revisão só grava `lastHumanReplyAt` em `fromMe` quando a mensagem não foi enviada pela plataforma; precisa de teste com WhatsApp real.
+- **Rollback:** reverter o código. As duas colunas podem ficar (opcionais e sem uso) até uma migration de remoção.
+
 ## 10. Changelog da spec
 
 | Data | Autor | Mudança |
@@ -184,3 +262,4 @@ Descartado: resumir a cada mensagem ou o histórico inteiro (custo cresce com a 
 | 2026-10-20 | Claude | Teste real da recuperação: a IA citou a consulta que continuava marcada (amanhã às 9h, a do resumo do atendimento) em vez da cancelada. Os fluxos com IA ganham a variável `agendamentosCliente` ("Cancelou/Não veio: <agenda>, <data e hora>. Ainda marcado: …"), carregada junto do `resumoAtendimento` (`org-defaults/lib/attendance/appointment-context.ts`), e o pedido do modelo "Recuperar quem cancelou" passa a falar só do horário perdido e a não oferecer remarcar o que segue marcado. |
 | 2026-10-21 | Claude | **Pausa da IA por lead desligada (decisão temporária).** A IA liga e desliga só para o funil inteiro (`Tracking.globalAiActive`); o interruptor `IS_LEAD_AI_PAUSE_ENABLED` (`tracking-chat-ai/lib/lead-ai-pause.ts`) está `false`. Enquanto estiver assim: a IA ignora `Lead.isActive`, nada grava a pausa, o botão por lead some do card e do chat, e no estado de atendimento a IA responde sempre primeiro (sem espera da equipe, sem "IA entra" e sem a volta depois da transferência). Com isso também não saem a mensagem fixa de espera nem os avisos ao dono, que dependem da espera da equipe; só a espera do consultor do rodízio ainda manda a mensagem de espera. Seguem etiquetas e estado, Score (reclamação só com "Equipe primeiro") e agendamento. Para voltar à pausa por lead, trocar o interruptor para `true`. |
 | 2026-10-21 | Claude | Correções da revisão: só a OpenAI recebe instrução depois do histórico (o Gemini recusava e a IA não respondia); In-Chat volta às etiquetas antigas (o estado só é gravado em WhatsApp); "quanto tempo demora…?" não conta mais como reclamação; a IA que assume a conversa do atendente diz que é a assistente virtual se perguntada. |
+| 2026-10-21 | Claude | Revisão 9.1 aprovada e implementada: a IA se cala sozinha por resposta humana recente (`Lead.lastHumanReplyAt`) e volta pelo `human_absent` se o atendente sumir; espera do cliente em `Lead.awaitingSince`; seção tocada só na primeira mensagem de cada espera; etiqueta só na troca de estado; `setAiAllowed` removido (pausa calculada, não guardada). Migration `20261021120000_lead_attendance_columns`. |

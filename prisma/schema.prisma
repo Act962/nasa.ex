@@ -1191,6 +1191,9 @@ model Lead {
   lastOutboundAt     DateTime? @map("last_outbound_at")
   firstResponseAt    DateTime? @map("first_response_at")
   lastStatusChangeAt DateTime? @map("last_status_change_at")
+  // Estado de atendimento ao vivo (spec 0113, revisão 9.1): lidos por id, sem índice.
+  lastHumanReplyAt   DateTime? @map("last_human_reply_at")
+  awaitingSince      DateTime? @map("awaiting_since")
 
   // ─── Formulários / SLA por etapa / Link público (feature/W-formularios) ───
   publicToken     String?   @unique @map("public_token")
