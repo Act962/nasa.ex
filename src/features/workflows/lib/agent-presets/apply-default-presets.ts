@@ -107,7 +107,7 @@ const DEFAULT_PRESETS: PresetSpec[] = [
     builder: buildRecuperacaoCancelouBlueprint,
     logName: "Recuperar quem cancelou",
     requiresAttendanceState: true,
-    resolveTagMap: async (organizationId) => {
+    resolveTagMap: async (organizationId): Promise<Record<string, string>> => {
       const cancelledTagId = await ensureSystemTagId(organizationId, "cancelled");
       return cancelledTagId ? { [RECOVERY_TRIGGER_TAG_SLUG]: cancelledTagId } : {};
     },

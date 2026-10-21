@@ -44,6 +44,10 @@ export const CHAT_GUIDES: GuideDef[] = [
         advanceOn: "next",
       },
     ],
+    finish: {
+      title: "Atendimento configurado ✨",
+      message: "As etiquetas \"Aguard. atendimento\" e \"Em atendimento\" passam a seguir essa regra neste funil.",
+    },
   },
   {
     key: "chat.connect-whatsapp",

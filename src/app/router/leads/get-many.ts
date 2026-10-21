@@ -449,7 +449,9 @@ export const listLeadsByStatus = base
         return {
           ...rest,
           // Instagram e Facebook seguem com o botão da IA (spec 0113, só WhatsApp entra no estado).
-          isAttendanceManaged: isOrganizationAttendanceManaged && (lead.conversation?.channel ?? "WHATSAPP") === "WHATSAPP",
+          isAttendanceManaged:
+            isOrganizationAttendanceManaged &&
+            ((lead.conversation as { channel?: string } | null | undefined)?.channel ?? "WHATSAPP") === "WHATSAPP",
           order: lead.order.toString(),
           amount: lead.amount.toString(),
           forms: responses,
