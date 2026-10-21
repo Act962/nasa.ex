@@ -1,3 +1,4 @@
+import { IS_LEAD_AI_PAUSE_ENABLED, isLeadAiPaused } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { transcribePendingLeadAudio } from "./audio-transcription";
 import { MAX_AGENT_REPLIES_PER_HOUR } from "./capabilities";
 import { canBeSpoken, estimateSpokenSeconds, toSpeakableText } from "@/features/astro-bot/lib/voice/speakable-text";
@@ -116,7 +117,7 @@ const ATTENDANCE_TRIGGER_INSTRUCTIONS: Partial<Record<AgentTrigger, string>> = {
   "attendance-step-in":
     "O cliente esperou alguns minutos sem resposta da equipe. Peça desculpa pela demora numa frase curta e já ajude no que ele pediu. Se ele reclamou, reconheça sem se justificar.",
   "attendance-in-service":
-    "Um atendente estava conversando com o cliente mas não respondeu a tempo. Continue a conversa de onde parou, como se fosse da mesma equipe, sem dizer que é outra pessoa.",
+    "Um atendente estava conversando com o cliente mas não respondeu a tempo. Continue a conversa de onde parou, como parte da mesma equipe. Se o cliente perguntar com quem fala, diga que é a assistente virtual.",
   "attendance-handoff-resume":
     "O cliente pediu um atendente e ninguém da equipe pôde assumir ainda. Diga que a equipe já foi avisada e ajude no que for possível enquanto isso.",
 };
@@ -173,7 +174,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   const isInboundTrigger = (data.trigger ?? "inbound") === "inbound";
   const entryGate = await step.run("check-lead-ai", async () => {
     const lead = await prisma.lead.findUnique({ where: { id: data.leadId }, select: { isActive: true } });
-    const isActive = lead?.isActive ?? false;
+    const isActive = lead ? !isLeadAiPaused(lead) : false;
     if (isActive || !data.messageId) return { isActive, isMenuClick: false, hasActiveCampaign: false };
     const inbound = await prisma.message.findFirst({
       where: { id: data.messageId, conversationId: data.conversationId, fromMe: false },
@@ -309,7 +310,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     if (repliesLastHour === MAX_AGENT_REPLIES_PER_HOUR && !ctx.catalogOrder) {
       await step.run("send-rate-limit-notice", async () => {
         await sendAgentNotice(ctx, "Vou passar seu atendimento para a nossa equipe, que continua por aqui.");
-        await prisma.lead.update({ where: { id: ctx.lead.id }, data: { isActive: false, statusFlow: "ACTIVE" } });
+        await prisma.lead.update({ where: { id: ctx.lead.id }, data: { statusFlow: "ACTIVE", ...(IS_LEAD_AI_PAUSE_ENABLED ? { isActive: false } : {}) } });
         await signalAwaitingHuman(ctx, "usage_limit");
         // Conta como execução: a próxima mensagem já cai acima do limite e não repete o aviso.
         await prisma.aiChatRun.create({
@@ -457,9 +458,9 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   );
 
   // Fatos e pedidos que o modelo tem de seguir vão também depois do histórico: no meio do prompt de sistema ele
-  // seguia a conversa (respostas gravadas sem notas, "já está marcado" sem agendamento). A Anthropic recusa
-  // instrução de sistema no meio da conversa, então lá eles ficam só no prompt de sistema.
-  const canInstructAfterHistory = resolved.provider !== "ANTHROPIC";
+  // seguia a conversa (respostas gravadas sem notas, "já está marcado" sem agendamento). Só a OpenAI aceita
+  // instrução de sistema no meio da conversa: Anthropic e Gemini recusam, e lá eles ficam no prompt de sistema.
+  const canInstructAfterHistory = resolved.provider === "OPENAI";
   const shouldWriteNotes = Boolean(sectionNotesPlan?.shouldWriteNotes);
   const isNotesAfterHistory = shouldWriteNotes && canInstructAfterHistory;
   const trailingInstruction = canInstructAfterHistory

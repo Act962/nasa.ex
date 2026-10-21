@@ -838,10 +838,17 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
 
   try {
     // Como no modo normal: etiqueta arquivada ou apagada é ignorada, sem derrubar o passo.
-    const activeTags = await prisma.tag.findMany({
-      where: { id: { in: tagsIds }, archivedAt: null },
-      select: { id: true },
+    // Só etiquetas da empresa do lead: os ids vêm do passo e não podem apontar para outra empresa.
+    const leadTracking = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { tracking: { select: { organizationId: true } } },
     });
+    const activeTags = leadTracking
+      ? await prisma.tag.findMany({
+          where: { id: { in: tagsIds }, archivedAt: null, organizationId: leadTracking.tracking.organizationId },
+          select: { id: true },
+        })
+      : [];
     const activeTagIds = activeTags.map((tag) => tag.id);
 
     // Track quais tags REALMENTE foram aplicadas/removidas (não-dup) — só

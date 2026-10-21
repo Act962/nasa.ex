@@ -83,9 +83,16 @@ async function isSiteClickAlreadyUsed(pageId: string, clickedAt: Date): Promise<
       // Intervalo da chave primária (cuid v1), como nos cliques: só os eventos gravados depois do clique.
       id: { gte: minimumIdSince(clickedAt) },
       occurredAt: { gte: clickedAt },
+      // Lead que veio pelo código do botão também consumiu o clique: sem isso, o próximo lead sem código
+      // herdaria "Site (provável)" do clique de outra pessoa.
       AND: [
         { metadata: { path: ["sourceId"], equals: pageId } },
-        { metadata: { path: ["matchedBy"], equals: "click_time" } },
+        {
+          OR: [
+            { metadata: { path: ["matchedBy"], equals: "click_time" } },
+            { metadata: { path: ["matchedBy"], equals: "code" } },
+          ],
+        },
       ],
     },
     select: { id: true },
@@ -120,10 +127,10 @@ async function originFromRecentClick(input: WhatsappOriginInput): Promise<LeadOr
     }),
   ]);
 
-  const unusedSiteClicks = [];
-  for (const siteClick of siteClicks) {
-    if (!(await isSiteClickAlreadyUsed(siteClick.pageId, siteClick.createdAt))) unusedSiteClicks.push(siteClick);
-  }
+  const isSiteClickUsedList = await Promise.all(
+    siteClicks.map((siteClick) => isSiteClickAlreadyUsed(siteClick.pageId, siteClick.createdAt)),
+  );
+  const unusedSiteClicks = siteClicks.filter((_, index) => !isSiteClickUsedList[index]);
   const clickedPageIds = new Set([...linnkerClicks.map((click) => click.pageId), ...unusedSiteClicks.map((click) => click.pageId)]);
   if (clickedPageIds.size !== 1) return null;
 

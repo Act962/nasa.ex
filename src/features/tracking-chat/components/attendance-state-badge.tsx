@@ -1,5 +1,6 @@
 "use client";
 
+import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -36,8 +37,9 @@ export function AttendanceStateBadge({ statusFlow, isAiAnswering, className }: A
         </Badge>
       </TooltipTrigger>
       <TooltipContent className="max-w-64">
-        O estado muda sozinho: a IA responde quando ninguém da equipe está na conversa e se cala quando um atendente
-        fala. Fluxos e lembretes seguem sempre.
+        {IS_LEAD_AI_PAUSE_ENABLED
+          ? "O estado muda sozinho: a IA responde quando ninguém da equipe está na conversa e se cala quando um atendente fala. Fluxos e lembretes seguem sempre."
+          : "O estado muda sozinho conforme a conversa. A IA segue a configuração do funil (ligada ou desligada para todos). Fluxos e lembretes seguem sempre."}
       </TooltipContent>
     </Tooltip>
   );

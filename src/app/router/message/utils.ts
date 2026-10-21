@@ -1,3 +1,4 @@
+import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { logActivity } from "@/features/admin/lib/activity-logger";
@@ -85,12 +86,12 @@ export async function claimLeadForAttendant(leadId: string, userId: string) {
 
   if (!lead) return;
 
-  const isAlreadyClaimed = !lead.isActive && lead.responsibleId === userId;
+  const isAlreadyClaimed = lead.responsibleId === userId && (!IS_LEAD_AI_PAUSE_ENABLED || !lead.isActive);
   await prisma.lead.update({
     where: { id: lead.id },
     data: {
       lastOutboundAt: new Date(),
-      ...(isAlreadyClaimed ? {} : { isActive: false, responsibleId: userId }),
+      ...(isAlreadyClaimed ? {} : { responsibleId: userId, ...(IS_LEAD_AI_PAUSE_ENABLED ? { isActive: false } : {}) }),
     },
   });
 

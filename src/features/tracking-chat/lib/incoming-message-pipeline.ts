@@ -23,6 +23,7 @@
  *    identify quando phone novo.
  */
 
+import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { applyInboundAutoTags, loadAwaitingState, removeAwaitingTagOnReply } from "@/features/org-defaults/lib/auto-tags";
 import { isAttendanceManagedChannel } from "@/features/org-defaults/lib/attendance/flag";
 import { applyClientMessageAttendance, applyHumanReplyAttendance } from "@/features/org-defaults/lib/attendance/state";
@@ -250,8 +251,9 @@ export async function firePostInboundAutomations(
   // ── 4. Inngest IA (só inbound + IA do funil conectada) ───────────────
   // IA pausada no lead: só o clique em menu e a campanha acionam o agente, porque disparam fluxo (spec 0113,
   // RF-3). Com o estado de atendimento, a pausa acabou de ser decidida no passo 1b: lê de novo.
-  const isLeadAiActiveNow =
-    isAttendanceStateManaged && !params.fromMe
+  const isLeadAiActiveNow = !IS_LEAD_AI_PAUSE_ENABLED
+    ? true
+    : isAttendanceStateManaged && !params.fromMe
       ? ((await prisma.lead.findUnique({ where: { id: params.lead.id }, select: { isActive: true } }))?.isActive ?? false)
       : params.lead.isActive;
   // Campanha de sorteio ativa também vale com a IA pausada: a foto do cupom é resposta à campanha (RF-3).

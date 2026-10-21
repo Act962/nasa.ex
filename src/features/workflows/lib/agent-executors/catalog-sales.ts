@@ -2,6 +2,7 @@
 // estas ações só fazem o que o motor não sabia: aprovação da equipe, crédito, cliente por
 // documento, consultor do cliente e o pedido em variáveis.
 
+import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import "server-only";
 import prisma from "@/lib/prisma";
 import { applyTagsByAi } from "@/features/tracking-chat-ai/lib/apply-tags-by-ai";
@@ -508,7 +509,7 @@ export const routeToConsultantExecutor: NodeExecutor = async ({ nodeId, data, co
   const consultant = matches[0];
   if (dryRun) return { output: { vars: { consultor: { nome: consultant.name } } }, chosenOutput: "found" };
 
-  await prisma.lead.update({ where: { id: scope.leadId }, data: { responsibleId: consultant.userId, assignedAt: new Date(), isActive: false } });
+  await prisma.lead.update({ where: { id: scope.leadId }, data: { responsibleId: consultant.userId, assignedAt: new Date(), ...(IS_LEAD_AI_PAUSE_ENABLED ? { isActive: false } : {}) } });
   await applySalesTag(scope, SALES_TAGS.hasConsultant);
   const conversation = await prisma.conversation.findFirst({ where: { leadId: scope.leadId, trackingId: scope.trackingId }, select: { id: true } });
   if (conversation) {

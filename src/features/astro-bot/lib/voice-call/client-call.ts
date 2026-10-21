@@ -1,3 +1,4 @@
+import { isLeadAiPaused } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import "server-only";
 import { z } from "zod";
 import type { ToolSet } from "ai";
@@ -155,7 +156,7 @@ export async function prepareClientCall(params: { instance: CallInstance; caller
   // Com o estado de atendimento, a IA pausada na espera da equipe não impede a ligação: só humano na conversa.
   const isHumanAttending = await isHumanAttendingNow(lead.id);
   const isLeadWithHuman =
-    isHumanAttending ?? (!agentContext.lead.isActive || agentContext.lead.statusFlow === "FINISHED");
+    isHumanAttending ?? (isLeadAiPaused(agentContext.lead) || agentContext.lead.statusFlow === "FINISHED");
   if (isLeadWithHuman) {
     return { canAnswer: false, reason: "lead_with_human", shouldSendTextOnlyNotice: true };
   }

@@ -1,3 +1,4 @@
+import { isLeadAiPaused } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { type NextRequest, NextResponse } from "next/server"
 import { loadAwaitingState } from "@/features/org-defaults/lib/auto-tags"
 import { applyInboundAttendanceOutsidePipeline } from "@/features/org-defaults/lib/attendance/state"
@@ -301,7 +302,7 @@ export async function POST(request: NextRequest) {
         await pusherServer.trigger(lead!.conversation!.id, "message:new", messageData)
         await pusherServer.trigger(trackingId, "message:new", messageData)
 
-        if (lead!.isActive && tracking.globalAiActive && text) {
+        if (!isLeadAiPaused(lead!) && tracking.globalAiActive && text) {
           await fetch(process.env.WEBHOOK_AI_AGENT_N8N!, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

@@ -19,9 +19,9 @@ export function isAttendanceStateConfigured(): boolean {
 }
 
 /**
- * Conversa que o estado de atendimento cuida: empresa no interruptor e canal WhatsApp (ou o portal In-Chat
- * dele). Instagram, Facebook e chat do site seguem a regra antiga de etiquetas e o botão da IA.
+ * Conversa que o estado de atendimento cuida: empresa no interruptor e canal WhatsApp. In-Chat, Instagram,
+ * Facebook e chat do site seguem a regra antiga de etiquetas (o estado só é gravado em conversa de WhatsApp).
  */
 export function isAttendanceManagedChannel(organizationId: string | null | undefined, channel: string | null | undefined): boolean {
-  return isAttendanceStateEnabled(organizationId) && (channel === "WHATSAPP" || channel === "IN_CHAT");
+  return isAttendanceStateEnabled(organizationId) && channel === "WHATSAPP";
 }

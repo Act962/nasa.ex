@@ -1,8 +1,11 @@
 // Reclamação de demora (spec 0113, RF-8): regra de texto, sem chamada de IA. Só é avaliada em mensagem
 // que chega enquanto o cliente espera resposta, para não confundir "demora" num assunto qualquer.
 
+const DELAY_WORD_PATTERN = /\bdemor(a|ar|ando|ou|aram|ado|ada)\b/;
+// "Quanto tempo demora a entrega?" pergunta prazo, não reclama da espera.
+const DURATION_QUESTION_PATTERN = /\b(quanto tempo|quantos dias|quantas horas|qual (o|e o) prazo|vai demorar|demora quanto)\b/;
+
 const COMPLAINT_PATTERNS: RegExp[] = [
-  /\bdemor(a|ar|ando|ou|aram|ado|ada)\b/,
   /\bninguem (me )?(responde|atende|respondeu|atendeu)\b/,
   /\b(vou|vamos) (procurar|buscar|comprar|fechar) (em )?outr[ao]\b/,
   /\boutra (empresa|loja|oficina)\b/,
@@ -24,5 +27,6 @@ function normalizeText(text: string): string {
 export function looksLikeDelayComplaint(text: string | null | undefined): boolean {
   if (!text) return false;
   const normalizedText = normalizeText(text);
-  return COMPLAINT_PATTERNS.some((pattern) => pattern.test(normalizedText));
+  if (COMPLAINT_PATTERNS.some((pattern) => pattern.test(normalizedText))) return true;
+  return DELAY_WORD_PATTERN.test(normalizedText) && !DURATION_QUESTION_PATTERN.test(normalizedText);
 }

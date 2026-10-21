@@ -1,5 +1,6 @@
 "use client";
 
+import { isLeadAiPaused } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StartHereSpot } from "@/features/org-defaults/components/start-here-spot";
 import { isSampleLead } from "@/features/org-defaults/lib/sample-lead";
@@ -366,7 +367,7 @@ export const LeadItem = memo(
                 data.statusFlow ? (
                   <AttendanceStateBadge
                     statusFlow={data.statusFlow}
-                    isAiAnswering={data.isActive}
+                    isAiAnswering={!isLeadAiPaused(data)}
                     className="h-5 px-1.5 text-[10px]"
                   />
                 ) : null

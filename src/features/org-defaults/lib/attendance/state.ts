@@ -1,3 +1,4 @@
+import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import "server-only";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
@@ -118,7 +119,7 @@ export async function setStatusFlow(params: {
 }
 
 async function setAiAllowed(leadId: string, isAllowed: boolean, current: boolean): Promise<void> {
-  if (isAllowed === current) return;
+  if (!IS_LEAD_AI_PAUSE_ENABLED || isAllowed === current) return;
   await prisma.lead.update({ where: { id: leadId }, data: { isActive: isAllowed } });
 }
 
@@ -243,7 +244,7 @@ export async function applyClientMessageAttendance(params: {
       // Em atendimento só cala a IA quando há humano na conversa; conversa só com a IA segue respondendo na hora.
       const isHumanTalking = isHumanInConversation(state);
       await setAiAllowed(params.leadId, !isHumanTalking, context.isActive);
-      if (isHumanTalking && isFirstUnanswered) {
+      if (IS_LEAD_AI_PAUSE_ENABLED && isHumanTalking && isFirstUnanswered) {
         await scheduleCheck({
           ...checkBase,
           stage: "in_service_ai",
@@ -252,7 +253,8 @@ export async function applyClientMessageAttendance(params: {
         });
       }
     } else {
-      const isAiFirst = settings.firstResponder === "AI" || hasAiTakenOver(state);
+      // Sem a pausa por lead a IA responde sempre: esperar a equipe só geraria a mensagem fixa depois da resposta dela.
+      const isAiFirst = !IS_LEAD_AI_PAUSE_ENABLED || settings.firstResponder === "AI" || hasAiTakenOver(state);
       await setAiAllowed(params.leadId, isAiFirst, context.isActive);
       if (!isAiFirst) {
         await scheduleTeamFirstWait({ context, state, sectionId: section.id, params, awaitingSince, isFirstUnanswered });
@@ -378,7 +380,7 @@ export async function applyHandoffAttendance(params: { leadId: string; at: Date;
   await setAiAllowed(params.leadId, false, context.isActive);
 
   // A IA já se despede com as próprias palavras; a mensagem de espera sai se o cliente escrever (RF-11).
-  if (context.isAiConnected && (params.shouldAiReturn ?? true)) {
+  if (IS_LEAD_AI_PAUSE_ENABLED && context.isAiConnected && (params.shouldAiReturn ?? true)) {
     await scheduleCheck({
       organizationId: context.organizationId,
       leadId: params.leadId,

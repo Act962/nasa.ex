@@ -1,3 +1,4 @@
+import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { dispatchAiFinished, broadcastAgentWorkflowEvent } from "@/inngest/utils";
 import { getLastLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 import prisma from "@/lib/prisma";
@@ -40,9 +41,7 @@ export async function POST(request: Request) {
     where: {
       id: leadId,
     },
-    data: {
-      isActive: false,
-    },
+    data: IS_LEAD_AI_PAUSE_ENABLED ? { isActive: false } : {},
   });
 
   const workflow = await prisma.workflow.findMany({
