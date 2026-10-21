@@ -301,13 +301,15 @@ export async function persistCanonicalInbound(
       })
     : null;
 
-  // Eco do que a plataforma enviou: a mensagem já existe com o mesmo id externo (spec 0113).
+  // Eco do que a plataforma enviou não é fala de atendente (spec 0113). O provedor diz quando a mensagem saiu
+  // por API; sem essa marca, vale a mensagem já gravada com o mesmo id externo. A marca não depende de a
+  // plataforma ter gravado antes de o eco chegar, e vale para todas as empresas: a IA se cala com fala humana.
   const isPlatformEcho =
     canonical.sender.fromMe &&
-    isAttendanceStateEnabled(tracking.organizationId) &&
-    Boolean(
-      await prisma.message.findUnique({ where: { messageId: canonical.externalMessageId }, select: { id: true } }),
-    );
+    (canonical.sender.isSentByApi === true ||
+      Boolean(
+        await prisma.message.findUnique({ where: { messageId: canonical.externalMessageId }, select: { id: true } }),
+      ));
 
   // ── 5. Persistência por tipo ────────────────────────────────────────────
   const persistParams: PersistMessageParams = {

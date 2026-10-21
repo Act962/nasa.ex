@@ -10,7 +10,7 @@ As correções marcadas com ✅ entraram na própria PR em 21/10/2026. Foram con
 | 2 | IA fala por cima do atendente e depois de "quero falar com humano" | ✅ a IA se cala por resposta humana recente |
 | 3 | "Quem responde primeiro: Equipe" não faz efeito com a pausa desligada | ✅ volta a funcionar (pausa calculada) |
 | 4 | Corrida entre resposta do atendente e entrada da IA | 🚧 IA barrada; mensagem fixa ainda pode sair |
-| 5 | Eco da própria mensagem contando como fala do atendente | ⬜ precisa de teste com WhatsApp |
+| 5 | Eco da própria mensagem contando como fala do atendente | ✅ marca `wasSentByApi` da Uazapi |
 | 6 | Requisição HTTP: redirecionamento para endereço interno | 🚧 endereço inicial barrado; redirecionamento em aberto |
 | 7 | Mudanças que valem para todas as empresas sem interruptor | ⬜ avisar suporte e clientes |
 | 8 | `isActive` mudou de sentido em ~15 filtros (contagens) | ⬜ validar números |
@@ -50,9 +50,13 @@ O interruptor `IS_LEAD_AI_PAUSE_ENABLED` (`tracking-chat-ai/lib/lead-ai-pause.ts
 
 ## 5. Eco da própria mensagem como fala do atendente
 
-`persist-canonical-inbound.ts` decide se a mensagem é eco procurando a `Message` pelo id externo, mas a mensagem fixa (`fixed-message.ts`) e a IA enviam primeiro e gravam depois. Se o eco do uazapi chegar antes da gravação, vira `applyHumanReplyAttendance`: o lead fica "Em atendimento" sem ninguém.
+**Antes:** `persist-canonical-inbound.ts` decidia se a mensagem `fromMe` era eco procurando a `Message` pelo id externo, mas a mensagem fixa e a IA enviam primeiro e gravam depois. Se o eco chegasse antes da gravação, virava fala humana e calava a IA. Além disso, a conferência só rodava para as empresas em `ATTENDANCE_STATE_ORGS`: nas outras, todo eco contava como atendente.
 
-**Em aberto:** reproduzir com WhatsApp real. Se acontecer, gravar a mensagem antes de enviar ou marcar o envio em andamento.
+**Feito (21/10/2026):** a Uazapi manda `wasSentByApi` em cada mensagem. O adaptador passa isso como `sender.isSentByApi`, e o eco é reconhecido pela marca do provedor, sem depender de quem gravou primeiro. A busca pelo id externo continua como reserva (payload sem o campo) e vale para todas as empresas. A Meta não entrega `fromMe` no webhook, então não há eco no número oficial.
+
+**Verificado** no webhook real (`/api/chat/webhook`) com o servidor local e um clone do banco: eco com a marca e eco sem a marca já gravado não gravam `lastHumanReplyAt`; mensagem digitada no celular grava e encerra a espera do cliente.
+
+**Em aberto:** mensagens enviadas por outras integrações que usam o mesmo número pela API (n8n, por exemplo) também têm a marca e não contam como atendente. Se alguma empresa atende por uma integração externa, a IA não se cala para ela.
 
 ## 6. Requisição HTTP e redirecionamento
 
