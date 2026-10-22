@@ -11,10 +11,7 @@ export function useCreateDunningRule() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.dunning.rules.create.mutationOptions(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payment", "dunning"] });
-      qc.invalidateQueries({ queryKey: ["payment.dunning"] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
   });
 }
 
@@ -22,7 +19,7 @@ export function useUpdateDunningRule() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.dunning.rules.update.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["payment"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
   });
 }
 
@@ -30,7 +27,7 @@ export function useDeleteDunningRule() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.dunning.rules.delete.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["payment"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
   });
 }
 
@@ -38,7 +35,7 @@ export function useCreateDunningStep() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.dunning.steps.create.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["payment"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
   });
 }
 
@@ -46,7 +43,7 @@ export function useUpdateDunningStep() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.dunning.steps.update.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["payment"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
   });
 }
 
@@ -54,7 +51,7 @@ export function useDeleteDunningStep() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.dunning.steps.delete.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["payment"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
   });
 }
 
@@ -62,7 +59,7 @@ export function useAssignDunningRuleToEntry() {
   const qc = useQueryClient();
   return useMutation({
     ...orpc.payment.dunning.entries.assignRule.mutationOptions(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["payment"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
   });
 }
 
