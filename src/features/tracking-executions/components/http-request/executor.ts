@@ -2,7 +2,6 @@ import { NodeExecutor } from "@/features/tracking-executions/types";
 import { httpRequestChannel } from "@/inngest/channels/http-request";
 import { NonRetriableError } from "inngest";
 import ky, { type Options as KyOptions } from "ky";
-import { isPubliclyFetchable } from "@/features/trafego/server/lib/release/fetch-site";
 
 type HttpRequestData = {
   endpoint?: string;
@@ -34,13 +33,6 @@ export const httpRequestExecutor: NodeExecutor<HttpRequestData> = async ({
       }),
     );
     throw new NonRetriableError("Endpoint is required");
-  }
-
-  // A resposta fica no histórico do fluxo: endereço interno (localhost, rede privada, metadados da nuvem)
-  // deixaria uma empresa ler o que roda dentro do servidor.
-  if (!isPubliclyFetchable(data.endpoint)) {
-    await publish(httpRequestChannel().status({ nodeId, status: "error" }));
-    throw new NonRetriableError("Endereço interno não é permitido na Requisição HTTP");
   }
 
   const result = await step.run("http-request", async () => {

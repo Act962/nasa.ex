@@ -30,7 +30,6 @@ export const textStrategy: ForwardStrategy<TextPayload> = {
         fromMe: true,
         status: MessageStatus.SEEN,
         senderName: ctx.senderName,
-        senderId: ctx.senderId,
       },
       select: MESSAGE_SELECT,
     });

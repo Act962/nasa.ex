@@ -4,12 +4,7 @@ import { useEffect } from "react";
 import { client } from "@/lib/orpc";
 import type { LinnkerPage, LinnkerLink, SocialLink } from "../types";
 import { getTrackingParamsClient } from "@/lib/tracking/tracking-params";
-import { buildWaMeUrl, extractWhatsappPhone } from "../lib/extract-whatsapp-phone";
-import {
-  isWhatsappUrl as isWhatsappLinkUrl,
-  originCodeOf,
-  withOriginCodeInWhatsappUrl,
-} from "@/features/leads/lib/lead-origin/origin-code";
+import { extractWhatsappPhone } from "../lib/extract-whatsapp-phone";
 import { LinnkerQrButton } from "./linnker-qr-button";
 
 const BUTTON_RADIUS: Record<string, string> = {
@@ -79,15 +74,6 @@ interface Props {
 }
 
 /** Detecta se um URL é WhatsApp (wa.me, api.whatsapp.com, whatsapp://). */
-const LINNKER_SCAN_ENDPOINT = "/api/rpc/linnker/registerScan";
-
-/** Ícone de WhatsApp com só o telefone vira `wa.me`, para a mensagem levar o código da página. */
-function whatsappIconUrl(socialLink: SocialLink): string {
-  if (isWhatsappLinkUrl(socialLink.url)) return socialLink.url;
-  const phoneDigits = extractWhatsappPhone([socialLink]);
-  return phoneDigits ? buildWaMeUrl(phoneDigits, undefined) : socialLink.url;
-}
-
 function isWhatsAppUrl(url: string): boolean {
   const u = url.toLowerCase();
   return (
@@ -120,24 +106,6 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isP
     }
   }, [page.slug, isDraft, isPreview]);
 
-  // Origem do lead (spec 0114, RF-2/RF-3): o WhatsApp da página leva o código dela na mensagem pronta e o
-  // clique fica registrado, para a Jornada dizer que o cliente veio deste Linnker.
-  const isLivePage = !isDraft && !isPreview;
-  const originCode = originCodeOf("linnker", page.id);
-  // Rascunho e prévia: sem código, para o teste do dono não virar lead "do Linnker".
-  const withPageCode = (whatsappUrl: string) => (isLivePage ? withOriginCodeInWhatsappUrl(whatsappUrl, originCode) : whatsappUrl);
-  const registerWhatsappClick = () => {
-    if (!isLivePage) return;
-    // sendBeacon: no celular o app do WhatsApp abre na hora e um pedido comum se perderia.
-    const body = JSON.stringify({
-      json: { slug: page.slug, tracking: getTrackingParamsClient(), scanKind: "whatsapp_link" },
-    });
-    if (navigator.sendBeacon?.(LINNKER_SCAN_ENDPOINT, new Blob([body], { type: "application/json" }))) return;
-    client.linnker
-      .registerScan({ slug: page.slug, tracking: getTrackingParamsClient(), scanKind: "whatsapp_link" })
-      .catch(() => {});
-  };
-
   const handleLinkClick = (link: LinnkerLink) => {
     // In-Chat Fallback — só vale pra links do tipo CHAT (que apontam pro
     // WhatsApp da própria org). Links EXTERNAL com URL de WhatsApp são
@@ -148,9 +116,6 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isP
     }
     if (link.type === "TRACKING") {
       window.location.href = link.url;
-    } else if (link.type === "CHAT" && isWhatsAppUrl(link.url)) {
-      registerWhatsappClick();
-      window.open(withPageCode(link.url), "_blank", "noreferrer");
     } else {
       window.open(link.url, "_blank", "noreferrer");
     }
@@ -335,7 +300,7 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isP
                 // atual, dando UX contínua pro lead.
                 const isWhatsApp = s.platform === "whatsapp";
                 const fallback = inChatUrl && isWhatsApp ? inChatUrl : null;
-                const href = fallback ?? (isWhatsApp ? withPageCode(whatsappIconUrl(s)) : s.url);
+                const href = fallback ?? s.url;
                 const target = fallback ? "_self" : "_blank";
                 return (
                   <a
@@ -343,7 +308,6 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isP
                     href={href}
                     target={target}
                     rel="noreferrer"
-                    onClick={isWhatsApp && !fallback ? registerWhatsappClick : undefined}
                     className="hover:opacity-70 transition-opacity"
                     title={s.platform}
                     style={{ color: iconColor }}

@@ -3,8 +3,6 @@ import { NonRetriableError } from "inngest";
 import { WaitFormValues } from "./dialog";
 import { waitChannel } from "@/inngest/channels/wait";
 import dayjs from "dayjs";
-import type { LeadContext } from "@/features/tracking-executions/schemas";
-import { WINDOW_WAIT_TYPE, minutesUntilWindowDeadline } from "@/features/workflows/lib/window-wait";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 
@@ -50,13 +48,7 @@ export const waitExecutor: NodeExecutor<WaitNodeData> = async ({
     throw new NonRetriableError("Wait action is not defined");
   }
 
-  if (action.type === WINDOW_WAIT_TYPE) {
-    const leadId = (context.lead as LeadContext | undefined)?.id;
-    const minutesToWait = await step.run("calcula-janela", () =>
-      minutesUntilWindowDeadline({ leadId, minutesBefore: action.minutesBefore }),
-    );
-    if (minutesToWait > 0) await step.sleep("wait", `${minutesToWait}m`);
-  } else if (action.type === "MINUTES" || action.type === "HOURS") {
+  if (action.type === "MINUTES" || action.type === "HOURS") {
     const waitTime =
       action.type === "MINUTES" ? action.minutes + "m" : action.hours + "h";
     await step.sleep("wait", waitTime);

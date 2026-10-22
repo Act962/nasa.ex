@@ -26,25 +26,7 @@ export type LeadJourneyEventKind =
   | "erp_purchase"
   | "erp_customer_since"
   /** Recebeu uma campanha de email (spec 0107). */
-  | "email_sent"
-  /** Seção de atendimento: uma oportunidade, com o resumo daquele período (spec 0113). */
-  | "attendance_section"
-  /** Lançamento do Score de atendimento: `{ points, reason, sectionId }` (spec 0113). */
-  | "attendance_score"
-  | "appointment_cancelled"
-  | "appointment_rescheduled"
-  /** Conferência interna no horário do agendamento: Sim / Não / Cancelou (spec 0113, RF-18). */
-  | "appointment_check"
-  /** De onde o lead veio de verdade, gravado uma vez na criação (spec 0114). */
-  | "lead_origin";
-
-/** Eventos só da equipe: nunca entram na página pública do lead, que mostra o metadata. */
-export const TEAM_ONLY_JOURNEY_KINDS: LeadJourneyEventKind[] = [
-  "attendance_section",
-  "attendance_score",
-  "appointment_check",
-  "lead_origin",
-];
+  | "email_sent";
 
 export interface TrackLeadEventInput {
   leadId: string;

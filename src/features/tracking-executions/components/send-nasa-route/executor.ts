@@ -8,7 +8,6 @@ import {
   buildLeadVariables,
 } from "../../lib/interpolate-message";
 import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
-import { flowOriginOf } from "@/features/workflows/lib/flow-origin";
 
 /**
  * SEND_NASA_ROUTE — envia link de curso NASA Route pro lead. Pra cursos
@@ -113,7 +112,6 @@ export const sendNasaRouteExecutor: NodeExecutor<SendNasaRouteData> = async ({
         leadId: lead.id,
         trackingId: lead.trackingId,
         body,
-        origin: flowOriginOf(context, nodeId),
       });
 
       if (realTime) {

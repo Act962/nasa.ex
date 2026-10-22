@@ -38,7 +38,6 @@ export const locationStrategy: ForwardStrategy<LocationPayload> = {
         fromMe: true,
         status: MessageStatus.SEEN,
         senderName: ctx.senderName,
-        senderId: ctx.senderId,
         mediaType: "location",
         latitude: payload.latitude,
         longitude: payload.longitude,

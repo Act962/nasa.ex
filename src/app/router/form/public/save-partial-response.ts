@@ -9,7 +9,6 @@ import { recordLeadEvent } from "@/features/leads/lib/history";
 import { publishLeadCreated } from "@/features/leads/realtime/publish";
 import { deriveResponseLabel } from "@/features/form/lib/derive-response-label";
 import { syncFormLabelsToLeadDescription } from "@/features/form/lib/sync-form-labels-to-lead-description";
-import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 /**
  * Salvamento INCREMENTAL de uma resposta de formulário público — usado
@@ -130,7 +129,6 @@ export const savePartialResponse = base
         where: { id, published: true },
         select: {
           id: true,
-          name: true,
           jsonBlock: true,
           organizationId: true,
           settings: { select: { trackingId: true, statusId: true } },
@@ -185,8 +183,6 @@ export const savePartialResponse = base
         });
         leadId = newLead.id;
         didCreateLead = true;
-        // Origem real do lead (spec 0114): o formulário, mesmo antes de a pessoa terminar de preencher.
-        await recordLeadOriginFromLead(newLead.id, { origin: "FORM", sourceName: form.name, sourceId: form.id });
       }
 
       // Cria a FormResponses + incrementa contador (1x só, mesmo se

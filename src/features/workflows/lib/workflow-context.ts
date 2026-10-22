@@ -22,22 +22,18 @@ export type WorkflowContext = {
   loopItem?: unknown;
   /** Índice da iteração atual quando dentro de LOOP_OVER */
   loopIndex?: number;
-  /** Fluxo em execução: a mensagem enviada por um passo guarda de onde veio (spec 0113, RF-20). */
-  workflowId?: string;
 };
 
 export function createInitialContext(input: {
   lead?: Record<string, unknown>;
   trigger?: Record<string, unknown>;
   initialVars?: Record<string, unknown>;
-  workflowId?: string;
 }): WorkflowContext {
   return {
     lead: input.lead,
     trigger: input.trigger,
     vars: { ...(input.initialVars ?? {}) },
     nodeOutputs: {},
-    ...(input.workflowId ? { workflowId: input.workflowId } : {}),
   };
 }
 

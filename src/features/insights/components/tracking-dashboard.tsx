@@ -44,7 +44,6 @@ import { useInsightsMembers } from "@/features/insights/hooks/use-insights-membe
 import type { DashboardReport } from "@/features/insights/types";
 import { authClient } from "@/lib/auth-client";
 import { KPIAtendimentCards } from "./kpi/atendiment-cards";
-import { AttendanceScoreCard } from "./kpi/attendance-score-card";
 import { cn } from "@/lib/utils";
 import { useHeaderPin } from "../context/use-header-pin";
 
@@ -907,11 +906,6 @@ export function TrackingDashboard({
               <KPIAtendimentCards
                 summary={data.summary}
                 onSentRemindersClick={() => setIsSentRemindersModalOpen(true)}
-              />
-              <AttendanceScoreCard
-                trackingId={trackingIdsForMembers?.[0]}
-                startDate={dateRange.from?.toISOString()}
-                endDate={dateRange.to?.toISOString()}
               />
             </div>
           )}

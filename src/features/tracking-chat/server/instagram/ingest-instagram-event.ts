@@ -6,15 +6,13 @@ import { MessageStatus } from "@/features/tracking-chat/types";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
-import { loadAwaitingState } from "@/features/org-defaults/lib/auto-tags";
-import { applyInboundAttendanceOutsidePipeline } from "@/features/org-defaults/lib/attendance/state";
+import { applyInboundAutoTags, loadAwaitingState } from "@/features/org-defaults/lib/auto-tags";
 import { AUTO_TAG_SLUGS, DEFAULT_TAGS } from "@/features/org-defaults/lib/default-org-template";
 import { applyTagsByAi } from "@/features/tracking-chat-ai/lib/apply-tags-by-ai";
 import { truncateLeadMessageText } from "@/features/tracking-executions/lib/lead-message";
 import type { ChannelEventObserver } from "@/modules/social/process-channel-events";
 import type { InstagramMessageMetadata } from "../../lib/instagram-message-metadata";
 import { fetchInstagramMediaCard, fetchInstagramUserProfile } from "./instagram-graph-lookups";
-import { recordLeadOrigin } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 /**
  * Comentários e DMs do Instagram viram conversa no tracking-chat (spec 0062), para toda conta
@@ -106,12 +104,6 @@ async function findOrCreateLead(input: {
     },
     include: { conversation: true },
   });
-  // Origem real do lead (spec 0114): Direct ou comentário em post.
-  await recordLeadOrigin(lead.id, {
-    origin: input.source === LeadSource.INSTAGRAM_COMMENT ? "INSTAGRAM_COMMENT" : "INSTAGRAM_DIRECT",
-    matchedBy: "entry",
-    confidence: "certain",
-  });
 
   await prisma.$transaction((transaction) => assignLeadRoundRobin(transaction, lead.id)).catch(() => undefined);
   await logActivity({
@@ -197,13 +189,11 @@ export const ingestInstagramEventToChat: ChannelEventObserver = async ({ channel
     });
 
     await ensureInstagramTag(channel.organizationId, lead.leadId).catch((error) => console.error("[instagram-chat] tag_failed", error));
-    await applyInboundAttendanceOutsidePipeline({
+    await applyInboundAutoTags({
       organizationId: channel.organizationId,
       leadId: lead.leadId,
       channel: "INSTAGRAM",
       wasAwaitingReply: awaitingState?.isAwaitingReply ?? false,
-      messageId: inbound.id,
-      messageText: event.text ?? null,
     }).catch((error) => console.error("[instagram-chat] auto_tags_failed", error));
     await trackLeadEvent({ leadId: lead.leadId, kind: "message_in", metadata: { channel: "INSTAGRAM", messageId: event.externalEventId } }).catch(() => undefined);
 

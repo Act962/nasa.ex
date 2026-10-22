@@ -5,9 +5,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useMemo } from "react";
 import { toast } from "sonner";
-import { sortStateTagsFirst } from "@/features/org-defaults/lib/attendance/tag-order";
 
 export function useSuspenseLeadsByWhats() {
   return useSuspenseQuery(orpc.leads.listLeadByWhats.queryOptions({}));
@@ -37,10 +35,8 @@ export const useQueryTagByLead = (leadId: string, initialTags?: any[]) => {
     initialData: initialTags ? { leadId, tags: initialTags } : undefined,
     staleTime: 1000 * 60 * 120, // 2 horas
   });
-  // Listas curtas mostram as primeiras etiquetas: as do estado do atendimento não podem ficar no "+N".
-  const tags = useMemo(() => sortStateTagsFirst(data?.tags ?? []), [data?.tags]);
   return {
-    tags,
+    tags: data?.tags || [],
     isLoading,
   };
 };

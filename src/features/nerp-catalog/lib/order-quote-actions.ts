@@ -1,6 +1,5 @@
 import "server-only";
 import prisma from "@/lib/prisma";
-import { handOverToAi } from "@/features/org-defaults/lib/attendance/state";
 import { pusherServer } from "@/lib/pusher";
 import { applyTagsByAi } from "@/features/tracking-chat-ai/lib/apply-tags-by-ai";
 import { signalLeadAwaitingHuman } from "@/features/tracking-chat-ai/lib/awaiting-human";
@@ -160,7 +159,6 @@ export async function sendOrderQuote(params: {
   await prisma.catalogOrder.updateMany({ where: { id: order.id, quoteRequestedAt: null }, data: { quoteRequestedAt: quotedAt } });
   // O próximo passo (aprovação → cobrança) é do Astro: reativa a IA se alguém a tinha pausado.
   await prisma.lead.update({ where: { id: order.leadId }, data: { amount: toLeadAmountCents(totals.total), isActive: true } });
-  await handOverToAi({ leadId: order.leadId }).catch((error: unknown) => console.warn("[nerp-catalog] estado de atendimento falhou", error));
   await pusherServer.trigger(order.trackingId, "lead:updated", { leadId: order.leadId }).catch(() => undefined);
 
   // Spec 0104, D-5: com aprovadores, o valor vai para a aprovação da equipe pelo fluxo dos Gatilhos

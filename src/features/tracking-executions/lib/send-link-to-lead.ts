@@ -39,15 +39,12 @@ import {
   toStoredMessageId,
   WORKFLOW_TYPING_DELAY_MS,
 } from "./workflow-outbound";
-import { flowOriginMetadata, type FlowMessageOrigin } from "@/features/workflows/lib/flow-origin";
 
 export interface SendLinkToLeadParams {
   leadId: string;
   trackingId: string;
   /** Mensagem completa (já com variáveis substituídas e URL incluída). */
   body: string;
-  /** Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20). */
-  origin?: FlowMessageOrigin | null;
 }
 
 export async function sendLinkToLead(
@@ -60,11 +57,15 @@ export async function sendLinkToLead(
       id: true,
       phone: true,
       trackingId: true,
+      isActive: true,
       tracking: { select: { organizationId: true } },
     },
   });
   if (!lead) {
     throw new NonRetriableError("Lead not found");
+  }
+  if (!lead.isActive) {
+    throw new NonRetriableError("Lead is not active");
   }
   if (!lead.phone) {
     throw new NonRetriableError("Lead phone is missing");
@@ -132,7 +133,6 @@ export async function sendLinkToLead(
       status: MessageStatus.SENT,
       quotedMessageId: null,
       viaInChat: skipUazapi,
-      ...(params.origin ? { metadata: flowOriginMetadata(params.origin) } : {}),
     },
     include: {
       conversation: { include: { lead: true } },

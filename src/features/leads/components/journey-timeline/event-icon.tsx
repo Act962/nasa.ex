@@ -59,11 +59,6 @@ const ICON_MAP: Record<string, { icon: typeof MessageCircle; color: string; bg: 
   erp_purchase: { icon: ShoppingCart, color: "text-success", bg: "bg-success/10" },
   erp_customer_since: { icon: Database, color: "text-info", bg: "bg-info/10" },
   email_sent: { icon: Mail, color: "text-info", bg: "bg-info/10" },
-  attendance_section: { icon: StickyNote, color: "text-info", bg: "bg-info/10" },
-  attendance_score: { icon: Trophy, color: "text-warning", bg: "bg-warning/10" },
-  appointment_cancelled: { icon: CalendarX, color: "text-destructive", bg: "bg-destructive/10" },
-  appointment_rescheduled: { icon: CalendarPlus, color: "text-info", bg: "bg-info/10" },
-  appointment_check: { icon: ClipboardCheck, color: "text-info", bg: "bg-info/10" },
 };
 
 const FALLBACK = { icon: Activity, color: "text-muted-foreground", bg: "bg-muted" };
@@ -97,12 +92,6 @@ const LABELS: Record<string, string> = {
   erp_purchase: "Compra no ERP",
   erp_customer_since: "Cliente cadastrado no ERP",
   email_sent: "Recebeu email de campanha",
-  attendance_section: "Atendimento",
-  attendance_score: "Score de atendimento",
-  appointment_cancelled: "Agendamento cancelado",
-  appointment_rescheduled: "Agendamento remarcado",
-  appointment_check: "Conferência do agendamento",
-  lead_origin: "Origem do lead",
 };
 
 export function kindLabel(kind: LeadJourneyEventKind | string) {

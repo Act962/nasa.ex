@@ -63,11 +63,6 @@ export interface CanonicalInboundSender {
   readonly displayName?: string;
   /** Indica se a mensagem foi enviada pelo dono do número (atendente). */
   readonly fromMe: boolean;
-  /**
-   * `fromMe` enviada por API (a própria plataforma ou outra integração), não digitada no celular. Só a Uazapi
-   * informa (`wasSentByApi`); a Meta não entrega `fromMe` no webhook.
-   */
-  readonly isSentByApi?: boolean;
 }
 
 interface InboundBase {

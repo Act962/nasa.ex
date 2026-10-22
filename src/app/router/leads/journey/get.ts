@@ -4,7 +4,6 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import type { LeadJourneyEventKind } from "@/lib/lead-journey/track";
 import { resolveLeadChannel } from "@/features/leads/lib/lead-channel";
-import { canAccessTracking } from "@/features/workflows/server/workflow-access";
 
 /**
  * Timeline unificada da jornada de um lead. Faz UNION de várias fontes:
@@ -35,31 +34,6 @@ interface TimelineEntry {
     | "history";
 }
 
-type JourneyOrigin = {
-  origin: string;
-  sourceName: string | null;
-  channel: string | null;
-  isProbable: boolean;
-  note: string | null;
-  utm: { source?: string | null; medium?: string | null; campaign?: string | null } | null;
-};
-
-function toJourneyOrigin(metadata: unknown): JourneyOrigin | null {
-  if (!metadata || typeof metadata !== "object") return null;
-  const fields = metadata as Record<string, unknown>;
-  if (typeof fields.origin !== "string") return null;
-  const readText = (value: unknown) => (typeof value === "string" && value ? value : null);
-  const utm = fields.utm && typeof fields.utm === "object" ? (fields.utm as JourneyOrigin["utm"]) : null;
-  return {
-    origin: fields.origin,
-    sourceName: readText(fields.sourceName),
-    channel: readText(fields.channel),
-    isProbable: fields.confidence === "probable",
-    note: readText(fields.note),
-    utm,
-  };
-}
-
 export const getLeadJourney = base
   .use(requiredAuthMiddleware)
   .route({
@@ -73,19 +47,16 @@ export const getLeadJourney = base
       limit: z.number().int().positive().max(500).optional().default(200),
     }),
   )
-  .handler(async ({ input, errors, context }) => {
+  .handler(async ({ input, errors }) => {
     const lead = await prisma.lead.findUnique({
       where: { id: input.leadId },
       select: {
         id: true,
-        trackingId: true,
         name: true,
         createdAt: true,
         source: true,
         utmSource: true,
-        utmMedium: true,
         utmCampaign: true,
-        landingPage: true,
         metaCampaignId: true,
         metaAdId: true,
         metaHeadline: true,
@@ -94,14 +65,7 @@ export const getLeadJourney = base
         _count: { select: { linnkerScans: true } },
       },
     });
-    // Só quem é da empresa dona do funil lê a jornada (com origem, campanha e mensagens do cliente).
-    if (!lead || !(await canAccessTracking(lead.trackingId, context.user.id))) throw errors.NOT_FOUND;
-    // Origem real (spec 0114): gravada uma vez, na criação. Lead antigo não tem e segue pela regra da 0105.
-    const originEvent = await prisma.leadJourneyEvent.findFirst({
-      where: { leadId: input.leadId, kind: "lead_origin" },
-      orderBy: { occurredAt: "asc" },
-      select: { metadata: true },
-    });
+    if (!lead) throw errors.NOT_FOUND;
 
     // 6 fontes independentes — uma query cada, todas em paralelo. A nova
     // (`historyRows`) trás o LeadHistory legado (status, responsável,
@@ -325,7 +289,7 @@ export const getLeadJourney = base
           enriched.responsibleImage = newOne.image;
         }
       }
-      if (e.kind === "tag_added" || e.kind === "tag_removed") {
+      if (e.kind === "tag_added") {
         const tId = typeof m.tagId === "string" ? m.tagId : null;
         const tag = tagInfo(tId);
         if (tag) {
@@ -620,10 +584,7 @@ export const getLeadJourney = base
         createdAt: lead.createdAt,
         source: lead.source,
         utmSource: lead.utmSource,
-        utmMedium: lead.utmMedium,
         utmCampaign: lead.utmCampaign,
-        landingPage: lead.landingPage,
-        origin: toJourneyOrigin(originEvent?.metadata),
         metaCampaignId: lead.metaCampaignId,
         metaAdId: lead.metaAdId,
         metaHeadline: lead.metaHeadline,

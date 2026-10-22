@@ -8,7 +8,6 @@ import { getLeadsByTags } from "./get-leads-by-tags";
 import { getSoldThisMonth } from "./get-sold-this-month";
 import { getTrackingDashboardReport } from "./get-tracking-dashboard-report";
 import { getWonLeads } from "./get-won-leads";
-import { getAttendanceScore } from "./get-attendance-score";
 import { createShareInsights } from "./create-share-insights";
 import { listInsightShares } from "./list-insight-shares";
 import { publicOrganizationDashboard } from "./public-organization-dashboard";
@@ -53,7 +52,6 @@ export const insightsRouter = {
   getLeadsByTags,
   getSoldThisMonth,
   getWonLeads,
-  getAttendanceScore,
   createShareInsights,
   listInsightShares,
   publicOrganizationDashboard,

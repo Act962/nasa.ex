@@ -4,7 +4,7 @@ import { IconNodeCaption, IconNodeGlyph, hasIconCaption, hasIconGlyph } from "@/
 import { FlowNoticeBadge } from "@/features/editor/components/rich/flow-notice-badge";
 import { AnimatedOutline, type OutlineTone } from "@/features/editor/components/rich/animated-outline";
 import { hasRichPreview } from "@/features/editor/components/rich/rich-node-types";
-import { connectionHoverAtom, editorReadOnlyAtom, editorViewModeAtom, nodeToOpenAtom } from "@/features/editor/store/atoms";
+import { connectionHoverAtom, editorReadOnlyAtom, editorViewModeAtom } from "@/features/editor/store/atoms";
 import { useIsNodeBlockedByFlowProblem, useNodeFlowDiagnostics } from "@/features/editor/hooks/use-flow-diagnostics";
 
 import {
@@ -24,7 +24,7 @@ import { WorkflowNode } from "@/components/workflow-node";
 import { BaseNode, BaseNodeContent } from "@/components/react-flow/base-node";
 import { validateNode } from "@/features/workflows/lib/validate-node";
 import { useNodeIssues } from "@/features/workflows/components/workflow-issues-context";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { stepByStepStateAtom } from "@/features/editor/store/step-by-step-atoms";
 import { StepRocketOverlay } from "@/features/editor/components/step-rocket-overlay";
 import Image from "next/image";
@@ -92,13 +92,6 @@ export const BaseExecutionNode = memo(
     const viewMode = useAtomValue(editorViewModeAtom);
     const isRichView = viewMode === "rich";
     const isReadOnly = useAtomValue(editorReadOnlyAtom);
-    // Aberto pelo link "Editar gatilho" do chat: este quadro abre a própria configuração uma vez.
-    const [nodeToOpen, setNodeToOpen] = useAtom(nodeToOpenAtom);
-    useEffect(() => {
-      if (nodeToOpen !== id) return;
-      setNodeToOpen(null);
-      if (!isReadOnly) onSettings?.();
-    }, [nodeToOpen, id, isReadOnly, onSettings, setNodeToOpen]);
     // Saídas nomeadas: uma por botão (spec 0090, seção F) ou as do passo de conversa (spec 0099).
     const replyOutputs = useMemo(() => buttonReplyOutputs(nodeData) ?? conversationStepOutputs(nodeData), [nodeData]);
     // Menu salvo: uma saída por opção, além da saída de sempre (spec 0098).

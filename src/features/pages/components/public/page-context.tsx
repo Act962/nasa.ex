@@ -23,8 +23,6 @@ export type PageRenderContext = {
   organizationSlug?: string;
   /** Slug da própria page (pra analytics, links etc). */
   pageSlug?: string;
-  /** Id da própria page: o botão de WhatsApp leva o código de origem dela (spec 0114). */
-  pageId?: string;
   /** Slug do root site (multi-page). Usado pelo navbar pra construir
    *  hrefs `/s/<rootSlug>` e `/s/<rootSlug>/<sub>`. */
   rootSlug?: string;

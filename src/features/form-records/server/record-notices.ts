@@ -5,7 +5,6 @@ import type { AgentContext } from "@/features/astro/server/agents/types";
 import { TrackingProviderBotChannel } from "@/features/astro-bot/lib/tracking-provider-channel";
 import { MENU_ROOT_ID } from "@/features/astro-bot/lib/menu/menu-tree";
 import { startOfBrazilDay } from "@/features/form-records/lib/next-due-window";
-import { resolveNoticeChannel } from "@/features/astro-bot/lib/member-notice-channel";
 
 // Avisos das fichas no WhatsApp do prestador (spec 0081, parte C): resumo do dia na hora escolhida
 // e lista do que vence em N dias. Cada pessoa liga o seu; vai para o número dela liberado no ASTRO.
@@ -55,7 +54,20 @@ function formatDay(date: Date): string {
   return date.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
 }
 
-export { resolveNoticeChannel };
+/** Número e tracking por onde o aviso sai: o número liberado da pessoa e um funil habilitado para o ASTRO. */
+export async function resolveNoticeChannel(params: { userId: string; organizationId: string }) {
+  const binding = await prisma.userWhatsappBinding.findFirst({
+    where: { userId: params.userId, organizationId: params.organizationId, isActive: true, botConfig: { isActive: true } },
+    select: { phoneE164: true, organizationBotConfigId: true },
+  });
+  if (!binding) return null;
+  const enabledTracking = await prisma.astroBotTracking.findFirst({
+    where: { botConfigId: binding.organizationBotConfigId, tracking: { isArchived: false } },
+    orderBy: { createdAt: "asc" },
+    select: { trackingId: true },
+  });
+  return enabledTracking ? { phone: binding.phoneE164, trackingId: enabledTracking.trackingId } : null;
+}
 
 interface DueRecordLine {
   clientName: string;

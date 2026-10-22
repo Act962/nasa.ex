@@ -18,7 +18,6 @@ import { useAiCapabilities, useUpdateAiCapabilities } from "../hooks/use-ai-capa
 import { KnowledgeChipPicker } from "@/features/astro-commander/components/intelligence/knowledge-chip-picker";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import Link from "next/link";
-import { AttendanceSettingsSection } from "./attendance-settings-section";
 
 // Aba "O que o Astro pode fazer" do Chatbot IA (spec 0084). Tudo começa desligado.
 
@@ -106,11 +105,9 @@ function CapabilitiesForm({
   availableWorkspaces,
   availableKnowledge,
   canSave,
-  isAttendanceManaged,
 }: {
   trackingId: string;
   savedCapabilities: AiCapabilities;
-  isAttendanceManaged: boolean;
   availableAgendas: NamedOption[];
   availableForms: NamedOption[];
   availableWorkspaces: NamedOption[];
@@ -169,13 +166,6 @@ function CapabilitiesForm({
           onToggle={(singleMessageReply) => setCapabilities({ ...capabilities, singleMessageReply })}
         />
       </section>
-
-      {isAttendanceManaged && (
-        <AttendanceSettingsSection
-          value={capabilities.attendance}
-          onChange={(attendance) => setCapabilities({ ...capabilities, attendance })}
-        />
-      )}
 
       <section data-guide={GUIDE_ANCHORS.chatbotIaKnowledgePicker.id}>
         <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">O que o Astro sabe</h3>
@@ -505,7 +495,6 @@ export function ChatBotIaCapabilitiesTab({ trackingId }: { trackingId: string })
       availableWorkspaces={data?.availableWorkspaces ?? []}
       availableKnowledge={data?.availableKnowledge ?? []}
       canSave={data?.hasAiSettings ?? false}
-      isAttendanceManaged={data?.isAttendanceManaged ?? false}
     />
   );
 }

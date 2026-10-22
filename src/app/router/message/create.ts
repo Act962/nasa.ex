@@ -261,7 +261,6 @@ export const createTextMessage = base
           quotedMessageId: input.id,
           mimetype: input.mediaUrl ? "image/jpeg" : null,
           senderName: context.user.name,
-          senderId: context.user.id,
           // Marca a origem da mensagem — In-Chat (página pública) ou
           // WhatsApp normal. Visível em Insights e ajuda no debug.
           viaInChat: inChatMode,

@@ -1,6 +1,5 @@
 import prisma from "@/lib/prisma";
 import { leadWhereOf, trackingWhereOf, type CrossScope } from "./cross-scope";
-import { LINNKER_VISIT_SCAN_WHERE } from "@/features/linnker/lib/visit-scans";
 
 /** Cada série por período devolve datas (e valores, quando não é contagem) dentro do intervalo da série. */
 
@@ -150,7 +149,7 @@ export const PERIOD_LOADERS: Record<string, PeriodLoader> = {
     })).map((action) => ({ date: action.closedAt })),
   "ts-linnker-scans": async (scope) =>
     (await prisma.linnkerScan.findMany({
-      where: { page: { organizationId: { in: scope.organizationIds } }, createdAt: scope.range, ...LINNKER_VISIT_SCAN_WHERE },
+      where: { page: { organizationId: { in: scope.organizationIds } }, createdAt: scope.range },
       select: { createdAt: true },
     })).map((scan) => ({ date: scan.createdAt })),
   "ts-posts-published": async (scope) =>

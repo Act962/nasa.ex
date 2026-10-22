@@ -111,7 +111,6 @@ export const createTemplateMessage = base
         fromMe: true,
         status: MessageStatus.SENT,
         senderName: context.user.name,
-        senderId: context.user.id,
       },
       select: {
         id: true,

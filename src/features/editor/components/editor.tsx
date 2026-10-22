@@ -39,7 +39,6 @@ import {
   editorReadOnlyAtom,
   connectionHoverAtom,
   insertOnEdgeIdAtom,
-  nodeToOpenAtom,
 } from "../store/atoms";
 import { NodeType } from "@/generated/prisma/enums";
 import { ExecuteWorkflowButton } from "./execute-workflow-button";
@@ -82,7 +81,7 @@ const edgeTypes = {
 
 export function Editor({ workflowId }: { workflowId: string }) {
   const [openSelector, setOpenSelector] = useState(false);
-  const { canEdit, isLoading: isPermissionLoading } = useAutomationPermissions();
+  const { canEdit } = useAutomationPermissions();
   const isReadOnly = !canEdit;
   const setEditorReadOnly = useSetAtom(editorReadOnlyAtom);
   useEffect(() => {
@@ -99,8 +98,6 @@ export function Editor({ workflowId }: { workflowId: string }) {
   );
 
   const setEditor = useSetAtom(editorAtom);
-  // A instância do React Flow morre com o editor: o átomo é global e ficaria apontando para ela.
-  useEffect(() => () => setEditor(null), [setEditor]);
   const setLastSavedSnapshot = useSetAtom(lastSavedSnapshotAtom);
   const setDirty = useSetAtom(workflowDirtyAtom);
 
@@ -418,58 +415,6 @@ export function Editor({ workflowId }: { workflowId: string }) {
       "Nó adicionado — clique nele pra configurar e depois salve o workflow.",
     );
   }, [searchParams, pathname, router]);
-
-  // "Editar gatilho" no chat (spec 0113, RF-20): `?node=<id>` centraliza o passo e abre a configuração dele.
-  // Espera a permissão: em aba nova ela chega depois, e antes disso o editor parece somente leitura.
-  const flowEditor = useAtomValue(editorAtom);
-  const setNodeToOpen = useSetAtom(nodeToOpenAtom);
-  const nodeParamApplied = useRef(false);
-  const focusTimerRef = useRef<number | null>(null);
-  useEffect(
-    () => () => {
-      if (focusTimerRef.current !== null) window.clearTimeout(focusTimerRef.current);
-    },
-    [],
-  );
-  const workflowTrackingId = (data?.workflow as { trackingId?: string | null } | undefined)?.trackingId ?? null;
-  const { trackingId: urlTrackingId } = useParams<{ trackingId: string }>();
-  useEffect(() => {
-    if (nodeParamApplied.current || !flowEditor || isPermissionLoading) return;
-    const requestedNodeId = searchParams.get("node");
-    if (!requestedNodeId) return;
-    // O link do chat usa o funil da conversa; o fluxo pode ser de outro funil (subfluxo, lead movido).
-    if (workflowTrackingId && urlTrackingId && workflowTrackingId !== urlTrackingId) {
-      nodeParamApplied.current = true;
-      router.replace(`/tracking/${workflowTrackingId}/workflows/${workflowId}?node=${encodeURIComponent(requestedNodeId)}`);
-      return;
-    }
-    nodeParamApplied.current = true;
-    // Sai da URL: voltar pelo navegador ou recarregar não reabre a janela.
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("node");
-    router.replace(params.toString() ? `${pathname}?${params.toString()}` : pathname, { scroll: false });
-    if (!nodes.some((node) => node.id === requestedNodeId)) {
-      toast.error("Esse passo não existe mais neste fluxo.");
-      return;
-    }
-    // Um instante para o React Flow medir os quadros; sem medida o enquadramento não acontece. O timer só é
-    // cancelado ao sair do editor: a troca de URL logo acima re-executa este efeito.
-    focusTimerRef.current = window.setTimeout(() => {
-      flowEditor.fitView({ nodes: [{ id: requestedNodeId }], padding: 0.8, duration: 600, maxZoom: 1.2 });
-      setNodeToOpen(requestedNodeId);
-    }, 300);
-  }, [
-    flowEditor,
-    isPermissionLoading,
-    nodes,
-    pathname,
-    router,
-    searchParams,
-    setNodeToOpen,
-    urlTrackingId,
-    workflowId,
-    workflowTrackingId,
-  ]);
 
   // Provider envolve tudo — qualquer NodeSelector renderizado embaixo
   // (botão "+" no canvas, no node inicial, no fim de cada execution/trigger

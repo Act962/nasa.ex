@@ -14,11 +14,6 @@ type Fields = Record<string, unknown>;
 export function formatWaitLabel(data: unknown): string | null {
   const fields = (data && typeof data === "object" ? data : {}) as Fields;
   const action = (fields.action && typeof fields.action === "object" ? fields.action : fields) as Fields;
-  // Até X min antes de fechar a janela de 24 h do cliente (spec 0113, RF-19).
-  if (action.type === "BEFORE_WINDOW_CLOSES") {
-    const minutesBefore = Number(action.minutesBefore);
-    return Number.isFinite(minutesBefore) && minutesBefore > 0 ? `${minutesBefore} min antes das 24 h` : "antes das 24 h";
-  }
   const unit = String(action.type ?? action.unit ?? "").toLowerCase();
   const unitLabel = UNIT_LABELS[unit];
   const amount = Number(action[unit]);

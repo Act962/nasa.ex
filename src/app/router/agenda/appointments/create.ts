@@ -6,13 +6,11 @@ import timezone from "dayjs/plugin/timezone";
 import z from "zod";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
-import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 import {
   trackingParamsSchema,
   trackingToLeadData,
   shouldLogUtmLanding,
 } from "@/lib/tracking/tracking-params";
-import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -128,8 +126,6 @@ export const createAppointment = base
           ...trackingToLeadData(t),
         },
       });
-      // Origem real do lead (spec 0114): a agenda pública.
-      await recordLeadOriginFromLead(lead.id, { origin: "AGENDA", sourceName: agenda.name, sourceId: agenda.id });
 
       // Só ADICIONA tags da agenda ao lead novo. Nunca remove tags
       // existentes (leads pré-existentes nem entram aqui).
@@ -188,8 +184,6 @@ export const createAppointment = base
       description: `Novo agendamento: ${input.name}`,
       appSlug: "spacetime",
     });
-
-    await recordAppointmentChange({ appointmentId: appointment.id, change: "scheduled" }).catch((error: unknown) => console.warn("[agenda.create] atendimento do agendamento falhou", error));
 
     return {
       success: true,

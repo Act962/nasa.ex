@@ -2,13 +2,6 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { canAccessTracking } from "@/features/workflows/server/workflow-access";
-import { ORPCError } from "@orpc/server";
-import {
-  assignedStatusFlowPatch,
-  consultantLoadWhere,
-  queuedStatusFlowPatch,
-} from "@/features/org-defaults/lib/attendance/rodizio";
 export const newLead = base
   .use(requiredAuthMiddleware)
   .route({
@@ -24,10 +17,6 @@ export const newLead = base
   .handler(async ({ input, context }) => {
     const { leadId } = input;
     const userId = context.user.id;
-    const leadToAssign = await prisma.lead.findUnique({ where: { id: leadId }, select: { trackingId: true } });
-    if (!leadToAssign || !(await canAccessTracking(leadToAssign.trackingId, userId))) {
-      throw new ORPCError("NOT_FOUND", { message: "Lead não encontrado" });
-    }
 
     try {
       // 1. Buscar lead
@@ -36,14 +25,12 @@ export const newLead = base
         select: {
           id: true,
           trackingId: true,
-          tracking: { select: { organizationId: true } },
         },
       });
 
       if (!lead) {
         throw new Error("Lead not found");
       }
-      const { organizationId } = lead.tracking;
 
       // 2. Buscar consultores com contagem de leads
       const consultants = await prisma.trackingConsultant.findMany({
@@ -80,7 +67,11 @@ export const newLead = base
 
       for (const c of shuffled) {
         const leadsCount = await prisma.lead.count({
-          where: consultantLoadWhere({ organizationId, trackingId: lead.trackingId, responsibleId: c.userId }),
+          where: {
+            responsibleId: c.userId,
+            trackingId: lead.trackingId,
+            isActive: true,
+          },
         });
 
         if (leadsCount < c.maxFlow) {
@@ -93,7 +84,9 @@ export const newLead = base
       if (!selectedConsultant) {
         await prisma.lead.update({
           where: { id: leadId },
-          data: queuedStatusFlowPatch(organizationId),
+          data: {
+            statusFlow: "WAITING",
+          },
         });
 
         return {
@@ -107,7 +100,7 @@ export const newLead = base
         where: { id: leadId },
         data: {
           responsibleId: selectedConsultant.userId,
-          ...assignedStatusFlowPatch(organizationId),
+          statusFlow: "ACTIVE",
         },
       });
 

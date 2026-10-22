@@ -1,5 +1,4 @@
 import "server-only";
-import { resolveNoticeChannel } from "@/features/astro-bot/lib/member-notice-channel";
 
 import prisma from "@/lib/prisma";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
@@ -47,8 +46,6 @@ export const NOTIF_TYPES = {
   PLANNER_POST_APPROVED:     "PLANNER_POST_APPROVED",
   PLANNER_PUBLISH_FAILED:    "PLANNER_PUBLISH_FAILED",
   PLANNER_ACCOUNT_RECONNECT: "PLANNER_ACCOUNT_RECONNECT",
-  // ── Estado de atendimento (spec 0113) ─────────────────────────────────
-  LEAD_AWAITING_ATTENTION:   "LEAD_AWAITING_ATTENTION",
 } as const;
 
 export type NotifType = (typeof NOTIF_TYPES)[keyof typeof NOTIF_TYPES];
@@ -84,7 +81,6 @@ export const NOTIF_META: Record<NotifType, { label: string; appKey: string; desc
   PLANNER_CHANGES_REQUESTED: { label: "Ajustes pedidos no conteúdo",       appKey: "nasa-planner", description: "O revisor pediu ajustes em um post seu" },
   PLANNER_POST_APPROVED:     { label: "Conteúdo aprovado",                 appKey: "nasa-planner", description: "Um post seu foi aprovado" },
   PLANNER_PUBLISH_FAILED:    { label: "Publicação falhou",                 appKey: "nasa-planner", description: "Um post programado não foi publicado" },
-  LEAD_AWAITING_ATTENTION:   { label: "Cliente esperando atendimento",     appKey: "tracking",   description: "Um cliente está sem atendimento humano e a IA assumiu a conversa" },
   PLANNER_ACCOUNT_RECONNECT: { label: "Reconectar conta da Meta",          appKey: "nasa-planner", description: "A conexão de uma conta do Instagram/Facebook expirou" },
 };
 
@@ -103,8 +99,6 @@ interface CreateNotificationOptions {
   displaySurface?: DisplaySurface;
   /** Default deriva de severity (critical=true). */
   requiresAck?:    boolean;
-  /** Quem chama já cuida do WhatsApp (ex.: aviso do atendimento, com limite próprio). */
-  skipWhatsApp?:   boolean;
 }
 
 /**
@@ -124,7 +118,6 @@ export async function createNotification(opts: CreateNotificationOptions) {
     severity: severityRaw,
     displaySurface: displaySurfaceRaw,
     requiresAck: requiresAckRaw,
-    skipWhatsApp,
   } = opts;
 
   const severity: Severity = isSeverity(severityRaw) ? severityRaw : "info";
@@ -141,7 +134,7 @@ export async function createNotification(opts: CreateNotificationOptions) {
     });
     // Default: inApp=true, whatsApp=false
     const inApp = pref?.inApp ?? true;
-    sendWA = !skipWhatsApp && (pref?.whatsApp ?? false);
+    sendWA = pref?.whatsApp ?? false;
 
     if (!inApp && !sendWA) return null; // user opted out completely
   }
@@ -240,7 +233,10 @@ export async function createNotification(opts: CreateNotificationOptions) {
 }
 
 
-/** Aviso por WhatsApp ao número liberado do próprio membro no Astro (nunca a um lead). */
+/**
+ * Sends a WhatsApp message using the org's connected WhatsApp instance.
+ * Uses the user's phone from their tracking profile (if available).
+ */
 async function sendWhatsAppNotification({
   userId,
   organizationId,
@@ -252,18 +248,32 @@ async function sendWhatsAppNotification({
   title: string;
   body: string;
 }) {
-  // Só o número liberado do próprio membro no Astro, pelo funil habilitado para o Astro: assim a resposta
-  // dele cai no Astro e não vira lead, e o aviso nunca vai a cliente (spec 0113, RF-5). Sem número liberado,
-  // fica só no sino.
-  const channel = await resolveNoticeChannel({ userId, organizationId });
-  if (!channel) return;
+  // Get org's active WhatsApp instance
+  const instance = await prisma.whatsAppInstance.findFirst({
+    where: { organizationId, isActive: true, status: "CONNECTED" },
+    select: { trackingId: true },
+  });
+  if (!instance) return;
+
+  // Get user's phone from a lead they are responsible for in this org
+  const lead = await prisma.lead.findFirst({
+    where: {
+      tracking: { organizationId },
+      responsibleId: userId,
+      phone: { not: null },
+    },
+    select: { phone: true },
+  });
+
+  const phone = lead?.phone;
+  if (!phone) return;
 
   const text = `*${title}*\n\n${body}\n\n_NASA.ex Platform_`;
 
-  const resolved = await resolveOutboundProvider(channel.trackingId);
+  const resolved = await resolveOutboundProvider(instance.trackingId);
   // Na API Oficial só sairia por template do próprio cliente: não envia.
   if (resolved.providerId === "meta-cloud") return;
-  await resolved.provider.sendText({ kind: "text", to: channel.phone, body: text });
+  await resolved.provider.sendText({ kind: "text", to: phone, body: text });
 }
 
 /**

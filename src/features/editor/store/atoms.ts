@@ -44,12 +44,6 @@ export const connectionHoverAtom = atom<{ nodeId: string; isAllowed: boolean } |
  */
 export const editorReadOnlyAtom = atom(false);
 
-/**
- * Passo pedido pelo link "Editar gatilho" do chat (`?node=`, spec 0113 RF-20): o próprio quadro abre a
- * configuração dele e limpa o pedido.
- */
-export const nodeToOpenAtom = atom<string | null>(null);
-
 export type EditorViewMode = "icon" | "rich";
 
 /**

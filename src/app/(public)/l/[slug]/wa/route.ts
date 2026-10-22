@@ -5,7 +5,6 @@ import {
   buildWaMeUrl,
   type SocialLink,
 } from "@/features/linnker/lib/extract-whatsapp-phone";
-import { appendOriginCode, originCodeOf } from "@/features/leads/lib/lead-origin/origin-code";
 
 /**
  * QR Bridge: redireciona pra `wa.me/<phone>?text=...` registrando
@@ -83,11 +82,7 @@ export async function GET(
     (page as unknown as { qrMessageTemplate?: string | null })
       .qrMessageTemplate ?? null;
   const template = textOverride ?? savedTemplate ?? DEFAULT_MESSAGE;
-  // Código da página no fim da mensagem: a origem do lead sai certa quando ela chega (spec 0114, RF-2).
-  const text = appendOriginCode(
-    template.replace(/\{org\}/g, page.organization?.name ?? ""),
-    originCodeOf("linnker", page.id),
-  );
+  const text = template.replace(/\{org\}/g, page.organization?.name ?? "");
 
   // User-Agent + IP do request — pra correlacionar com inbound
   // depois (helper match-scan-to-lead).

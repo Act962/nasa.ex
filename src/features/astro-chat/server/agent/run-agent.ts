@@ -1,4 +1,3 @@
-import { isLeadAiPaused } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import "server-only";
 import { generateText, type ModelMessage } from "ai";
 import { v4 as uuidv4 } from "uuid";
@@ -117,7 +116,7 @@ async function loadAgentContext(event: AstroChatAgentEvent): Promise<AgentContex
     select: { isActive: true, statusFlow: true, phone: true, email: true },
   });
   if (!lead) return { skipReason: "lead_missing" };
-  if (isLeadAiPaused(lead)) return { skipReason: "transferred_to_team" };
+  if (!lead.isActive) return { skipReason: "transferred_to_team" };
 
   const recentMessages = await prisma.message.findMany({
     where: { conversationId: event.conversationId },

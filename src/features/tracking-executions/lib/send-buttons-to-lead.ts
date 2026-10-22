@@ -30,8 +30,6 @@ import {
   sendWithWorkflowErrors,
 } from "./workflow-outbound";
 import { OFFICIAL_MENU_LIMITS, isMetaInteractiveOn } from "@/features/workflows/lib/button-reply-flow";
-import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
-import { flowOriginMetadata, type FlowMessageOrigin } from "@/features/workflows/lib/flow-origin";
 
 export interface SendButtonsToLeadParams {
   leadId: string;
@@ -45,10 +43,6 @@ export interface SendButtonsToLeadParams {
   // botões. `listButton` é o rótulo que abre a lista (default "Ver opções").
   menuFormat?: "BUTTON" | "LIST";
   listButton?: string;
-  /** Cobra o envio como o modo normal cobra (1 envio = `message_send`). */
-  chargeStars?: boolean;
-  /** Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20). */
-  origin?: FlowMessageOrigin | null;
 }
 
 export async function sendButtonsToLead(
@@ -67,14 +61,10 @@ export async function sendButtonsToLead(
   // 1. Lead com phone
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
-    select: {
-      id: true,
-      phone: true,
-      trackingId: true,
-      tracking: { select: { organizationId: true } },
-    },
+    select: { id: true, phone: true, trackingId: true, isActive: true },
   });
   if (!lead) throw new NonRetriableError("Lead not found");
+  if (!lead.isActive) throw new NonRetriableError("Lead is not active");
   if (!lead.phone) throw new NonRetriableError("Lead phone is missing");
 
   // 2. Conversation
@@ -98,16 +88,6 @@ export async function sendButtonsToLead(
   let isSentAsNumberedText = false;
   const numberedOptions = buttons.filter((button) => button.id).map((button) => ({ id: button.id, title: button.text }));
   const resolvedProvider = skipUazapi ? null : await resolveWorkflowProvider(trackingId);
-  // Em modo In-Chat nada sai pelo WhatsApp: sem custo de envio, como no `sendLinkToLead`.
-  if (resolvedProvider && params.chargeStars) {
-    const charge = await chargeStarsByAction(lead.tracking.organizationId, "message_send", {
-      appSlug: "message_send",
-      description: "Workflow tracking — envio de menu de botões",
-    });
-    if (!charge.success) {
-      throw new NonRetriableError("Saldo de STARs insuficiente pra envio automático.");
-    }
-  }
   const sendOfficialInteractive =
     resolvedProvider && !resolvedProvider.uazapiToken && isMetaInteractiveOn()
       ? resolvedProvider.provider.sendInteractive?.bind(resolvedProvider.provider)
@@ -200,14 +180,8 @@ export async function sendButtonsToLead(
       status: MessageStatus.SENT,
       quotedMessageId: null,
       viaInChat: skipUazapi,
-      ...(hasTagMap || isSentAsNumberedText || params.origin
-        ? {
-            metadata: {
-              ...(hasTagMap ? { buttonTagMap } : {}),
-              ...(isSentAsNumberedText ? numberedMenuMetadata(numberedOptions) : {}),
-              ...flowOriginMetadata(params.origin),
-            },
-          }
+      ...(hasTagMap || isSentAsNumberedText
+        ? { metadata: { ...(hasTagMap ? { buttonTagMap } : {}), ...(isSentAsNumberedText ? numberedMenuMetadata(numberedOptions) : {}) } }
         : {}),
     },
     include: {

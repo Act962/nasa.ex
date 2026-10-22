@@ -29,11 +29,6 @@ import {
   type WorkflowContext,
 } from "./workflow-context";
 import { MAX_EXECUTIONS_PER_RUN } from "./cycle-detector";
-import { resolveWaitMinutes } from "./wait-duration";
-import { isWindowWait, minutesUntilWindowDeadline } from "./window-wait";
-import { findLatestSectionSummary } from "@/features/org-defaults/lib/attendance/section";
-import { describeAppointmentsForFlow } from "@/features/org-defaults/lib/attendance/appointment-context";
-import { isAttendanceStateConfigured } from "@/features/org-defaults/lib/attendance/flag";
 
 // ─── Types ─────────────────────────────────────────
 
@@ -197,16 +192,6 @@ export async function runWorkflow(
   const lead = leadId
     ? await prisma.lead.findUnique({ where: { id: leadId } })
     : null;
-  // Texto da IA nos fluxos parte do resumo do atendimento (spec 0113, RF-19). Só lê quando o fluxo tem IA escrevendo.
-  const shouldLoadAttendanceSummary =
-    isAttendanceStateConfigured() && !isResume && workflow.nodes.some((node) => node.type === "AI_GENERATE_TEXT");
-  const [attendanceSummary, clientAppointments] =
-    lead && shouldLoadAttendanceSummary
-      ? await Promise.all([
-          findLatestSectionSummary(lead.id).catch(() => null),
-          describeAppointmentsForFlow(lead.id).catch(() => null),
-        ])
-      : [null, null];
 
   // 4. Cria WorkflowRun (ou reusa o anterior se for resume)
   const run = dryRun
@@ -298,21 +283,14 @@ export async function runWorkflow(
   );
 
   // 7. Executa caminhos. Resume reidrata estado; nova execução inicia do trigger.
-  // Execução retomada de antes do deploy não tinha `workflowId`: a origem das mensagens vem dele (spec 0113).
   let ctx: WorkflowContext = isResume
-    ? { ...resumeContext!, workflowId }
+    ? resumeContext!
     : createInitialContext({
         lead: lead
           ? (sanitizeForJson(lead) as Record<string, unknown>)
           : undefined,
         trigger: triggerPayload,
-        // Agendamentos antes do resumo: a IA lê as variáveis cortadas em 1.500 caracteres.
-        initialVars: {
-          ...(clientAppointments ? { agendamentosCliente: clientAppointments } : {}),
-          ...(attendanceSummary ? { resumoAtendimento: attendanceSummary } : {}),
-          ...initialVars,
-        },
-        workflowId,
+        initialVars,
       });
   let executions = isResume ? resumeExecutions ?? 0 : 0;
   let totalStars = isResume ? resumeStars ?? 0 : 0;
@@ -635,6 +613,7 @@ async function executeNode(params: {
 
     case "WAIT": {
       // Nó "Esperar" do tracking (não confundir com WAIT_FOR_EVENT).
+      // data.action.{type: minutes|hours|days|weeks, [unit]: N}
       // Usa o mesmo mecanismo do WAIT_FOR_EVENT: retorna WAITING + nome
       // de evento que ninguém publica → o caller (Inngest) dorme via
       // step.waitForEvent com timeout = N minutos e segue após.
@@ -642,12 +621,15 @@ async function executeNode(params: {
         (node.data.action && typeof node.data.action === "object"
           ? (node.data.action as Record<string, unknown>)
           : node.data) ?? {};
-      const minutes = isWindowWait(action)
-        ? await minutesUntilWindowDeadline({
-            leadId: typeof context.lead?.id === "string" ? context.lead.id : null,
-            minutesBefore: Number(action.minutesBefore ?? 0),
-          })
-        : resolveWaitMinutes(action);
+      const unit = String(action.type ?? action.unit ?? "minutes");
+      const minutes =
+        unit === "weeks"
+          ? Number(action.weeks ?? 0) * 60 * 24 * 7
+          : unit === "days"
+            ? Number(action.days ?? 0) * 60 * 24
+            : unit === "hours"
+              ? Number(action.hours ?? 0) * 60
+              : Number(action.minutes ?? 0);
       if (dryRun) {
         return { output: { dryRun: true, willWaitMinutes: minutes } };
       }

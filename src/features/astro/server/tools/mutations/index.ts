@@ -2,7 +2,6 @@ import "server-only";
 import { tool } from "ai";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import {
   isFreeFormWindowOpen,
@@ -796,7 +795,6 @@ export function buildMutationTools(ctx: AgentContext) {
           },
           select: { id: true, title: true, startsAt: true },
         });
-        await recordAppointmentChange({ appointmentId: appointment.id, change: "scheduled", actorId: ctx.userId }).catch((error: unknown) => console.warn("[astro.tools.createAppointment] atendimento do agendamento falhou", error));
 
         // Verifica se o tracking da agenda tem WhatsApp ativo —
         // útil pra o Astro decidir se oferece compartilhar via WA.

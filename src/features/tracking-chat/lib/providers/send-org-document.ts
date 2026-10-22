@@ -15,12 +15,10 @@ export type OrganizationWhatsAppSendResult =
   | { isSent: false; reason: string };
 
 export async function findConnectedOrganizationInstance(organizationId: string) {
-  // Número de QR code primeiro (UAZAPI vem antes de META_CLOUD no enum): o oficial recusa mensagem livre fora da
-  // janela de 24h, e lembretes e avisos daqui são mensagem livre.
   return prisma.whatsAppInstance.findFirst({
     where: { organizationId, status: "CONNECTED" },
     select: { id: true, trackingId: true, provider: true },
-    orderBy: [{ provider: "asc" }, { createdAt: "asc" }],
+    orderBy: { createdAt: "asc" },
   });
 }
 

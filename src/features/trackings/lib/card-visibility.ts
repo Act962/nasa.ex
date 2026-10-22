@@ -76,8 +76,8 @@ export const CARD_FIELDS: CardFieldDefinition[] = [
   },
   {
     id: "aiIndicator",
-    label: "IA / estado de atendimento",
-    description: "Botão da IA no card, ou o estado do atendimento quando ele é automático.",
+    label: "Indicador de IA",
+    description: "Selo do agente de IA no card.",
     group: "card",
   },
   {

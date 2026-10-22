@@ -31,11 +31,6 @@ import { SummerizeConversation } from "./summerize-conversation";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { withSearchParams } from "../utils/url";
 import { CheckIaLead } from "./check-ia-lead";
-import { AttendanceStateBadge } from "./attendance-state-badge";
-import {
-  IS_LEAD_AI_PAUSE_ENABLED,
-  isLeadAiPaused,
-} from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { MessageChannel, StatusFlow } from "@/generated/prisma/enums";
 import { useMutationRodizio } from "../hooks/use-rodizio";
 import { SyncMessagesButton } from "./sync-messages-button";
@@ -59,8 +54,6 @@ interface HeaderProps {
   active: boolean;
   trackingId: string;
   statusFlow: StatusFlow;
-  /** Estado de atendimento automático (spec 0113): mostra o estado no lugar do botão da IA. */
-  isAttendanceManaged?: boolean;
   channel?: MessageChannel;
   /** Nome do tracking (ex: "2. Orçamento") — exibido como breadcrumb no
    *  header, ao lado do nome do lead. */
@@ -102,7 +95,6 @@ export function Header({
   leadId,
   conversationId,
   active: initialActive,
-  isAttendanceManaged = false,
   trackingId,
   statusFlow,
   channel,
@@ -148,11 +140,7 @@ export function Header({
         const consultorCallPath = `/call/${encodeURIComponent(data.roomName)}?t=${encodeURIComponent(data.consultorToken)}&n=${encodeURIComponent("Você")}&mode=video`;
         // Tenta abrir nova aba; em mobile, alguns browsers bloqueiam — fallback
         // pra mesma aba via location.assign após confirmação.
-        const w = window.open(
-          consultorCallPath,
-          "_blank",
-          "noopener,noreferrer",
-        );
+        const w = window.open(consultorCallPath, "_blank", "noopener,noreferrer");
         if (!w) {
           window.location.assign(consultorCallPath);
         }
@@ -173,8 +161,7 @@ export function Header({
       conversationId,
       mode: "video",
       notifyLead: true,
-      appOrigin:
-        typeof window !== "undefined" ? window.location.origin : undefined,
+      appOrigin: typeof window !== "undefined" ? window.location.origin : undefined,
     });
   };
   const videoCallPending = videoCall.isPending;
@@ -214,12 +201,7 @@ export function Header({
     // do texto em Claro/Escuro. text-foreground força a cor seguir o tema.
     <div className="bg-background text-foreground w-full flex sm:px-4 py-3 px-4 lg:px-6 justify-between items-center">
       <div className="flex gap-2 items-center min-w-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          asChild
-          className="shrink-0 lg:hidden"
-        >
+        <Button variant="ghost" size="icon" asChild className="shrink-0 lg:hidden">
           <Link href={backHref} aria-label="Voltar para as conversas">
             <ArrowLeftIcon className="size-5" />
           </Link>
@@ -259,7 +241,10 @@ export function Header({
               acionável: leva pro tracking dele). */}
           {(trackingName || statusName) && (
             <Link
-              href={withSearchParams(`/tracking/${trackingId}`, searchParams)}
+              href={withSearchParams(
+                `/tracking/${trackingId}`,
+                searchParams,
+              )}
               className="text-xs font-light text-foreground/50 hover:text-foreground/70 transition-colors flex items-center gap-1 truncate"
               title={`Ir pro tracking "${trackingName ?? ""}"`}
             >
@@ -289,19 +274,12 @@ export function Header({
             open={syncOpen}
             onOpenChange={setSyncOpen}
           />
-          {isAttendanceManaged ? (
-            <AttendanceStateBadge
-              statusFlow={statusFlow}
-              isAiAnswering={!isLeadAiPaused({ isActive: initialActive })}
-            />
-          ) : (
-            <CheckIaLead
-              size={"default"}
-              active={initialActive}
-              leadId={leadId}
-              trackingId={trackingId}
-            />
-          )}
+          <CheckIaLead
+            size={"default"}
+            active={initialActive}
+            leadId={leadId}
+            trackingId={trackingId}
+          />
           <Button
             onClick={handleFinishLead}
             variant={statusFlow === "FINISHED" ? "default" : "outline"}
@@ -377,32 +355,21 @@ export function Header({
             {/* Mobile/tablet-only actions */}
             <div className="lg:hidden">
               <DropdownMenuSeparator />
-              {(isAttendanceManaged || IS_LEAD_AI_PAUSE_ENABLED) && (
-                <DropdownMenuItem
-                  className="flex items-center justify-between gap-2"
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  <span className="flex items-center gap-2">
-                    <BotIcon className="size-4" />
-                    {isAttendanceManaged ? "Atendimento" : "IA do lead"}
-                  </span>
-                  {isAttendanceManaged ? (
-                    <AttendanceStateBadge
-                      statusFlow={statusFlow}
-                      isAiAnswering={
-                        !isLeadAiPaused({ isActive: initialActive })
-                      }
-                    />
-                  ) : (
-                    <CheckIaLead
-                      size="sm"
-                      active={initialActive}
-                      leadId={leadId}
-                      trackingId={trackingId}
-                    />
-                  )}
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem
+                className="flex items-center justify-between gap-2"
+                onSelect={(e) => e.preventDefault()}
+              >
+                <span className="flex items-center gap-2">
+                  <BotIcon className="size-4" />
+                  IA do lead
+                </span>
+                <CheckIaLead
+                  size="sm"
+                  active={initialActive}
+                  leadId={leadId}
+                  trackingId={trackingId}
+                />
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleFinishLead}
                 disabled={statusFlow === "FINISHED" || mutation.isPending}

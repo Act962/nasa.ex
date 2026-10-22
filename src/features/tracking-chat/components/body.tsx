@@ -37,7 +37,6 @@ import { SaveToNBoxPanel } from "./save-to-nbox-panel";
 import { useMessageStore } from "../context/use-message";
 import { playIncomingChatBeep } from "../lib/notification-sound";
 import { useMutationEditMessage } from "../hooks/use-messages";
-import { useAutomationPermissions } from "@/features/workflows/hooks/use-automation-permissions";
 
 interface BodyProps {
   messageSelected: MarkedMessage | undefined;
@@ -50,8 +49,6 @@ interface BodyProps {
 }
 
 export function Body({ messageSelected, onSelectMessage, conversationId: conversationIdProp, trackingId, isGroup }: BodyProps) {
-  // Uma vez para a conversa toda: "Editar gatilho" só aparece para quem vê Automações (spec 0113, RF-20).
-  const { canView: canOpenAutomations } = useAutomationPermissions();
   const params = useParams<{ conversationId: string }>();
   const conversationId = conversationIdProp ?? params.conversationId;
   const [saveToNBoxMessage, setSaveToNBoxMessage] = useState<Message | null>(null);
@@ -529,7 +526,6 @@ export function Body({ messageSelected, onSelectMessage, conversationId: convers
                     conversationId={conversationId}
                     trackingId={trackingId}
                     isGroup={isGroup}
-                    canOpenAutomations={canOpenAutomations}
                   />
                 ))}
               </div>

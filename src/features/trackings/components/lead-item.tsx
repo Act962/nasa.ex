@@ -1,6 +1,5 @@
 "use client";
 
-import { isLeadAiPaused } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { StartHereSpot } from "@/features/org-defaults/components/start-here-spot";
 import { isSampleLead } from "@/features/org-defaults/lib/sample-lead";
@@ -71,7 +70,6 @@ import {
 } from "../hooks/use-leads";
 import { cn } from "@/lib/utils";
 import { CheckIaLead } from "@/features/tracking-chat/components/check-ia-lead";
-import { AttendanceStateBadge } from "@/features/tracking-chat/components/attendance-state-badge";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { Textarea } from "@/components/ui/textarea";
 import { useView } from "../contexts/use-view";
@@ -362,23 +360,14 @@ export const LeadItem = memo(
             >
               <ArrowUpRight className="size-3.5" />
             </button>
-            {isFieldVisible(visibility, "aiIndicator") &&
-              (data.isAttendanceManaged ? (
-                data.statusFlow ? (
-                  <AttendanceStateBadge
-                    statusFlow={data.statusFlow}
-                    isAiAnswering={!isLeadAiPaused(data)}
-                    className="h-5 px-1.5 text-[10px]"
-                  />
-                ) : null
-              ) : (
-                <CheckIaLead
-                  size={"xs"}
-                  active={data.isActive}
-                  leadId={data.id}
-                  trackingId={data.trackingId}
-                />
-              ))}
+            {isFieldVisible(visibility, "aiIndicator") && (
+              <CheckIaLead
+                size={"xs"}
+                active={data.isActive}
+                leadId={data.id}
+                trackingId={data.trackingId}
+              />
+            )}
             {showBasket && (
               <LeadPurchaseBasket
                 purchase={leadPurchase}

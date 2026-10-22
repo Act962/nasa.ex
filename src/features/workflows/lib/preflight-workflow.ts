@@ -127,14 +127,12 @@ export async function preflightWorkflow(args: {
       tracking: {
         select: {
           id: true,
-          name: true,
           isArchived: true,
           whatsappInstance: {
             select: {
               id: true,
               status: true,
               isActive: true,
-              provider: true,
             },
           },
         },
@@ -195,17 +193,14 @@ export async function preflightWorkflow(args: {
             "Nenhuma instância WhatsApp conectada ao tracking. Configure uma em Tracking → WhatsApp.",
         });
       }
-    } else if (
-      // A API oficial envia só com as credenciais da Meta; status e "ativo" são da conexão por QR code.
-      instance.provider !== "META_CLOUD" &&
-      (instance.status === "DISCONNECTED" || !instance.isActive)
-    ) {
+    } else if (instance.status === "DISCONNECTED" || !instance.isActive) {
       for (const n of messagingNodes) {
         checks.push({
           nodeId: n.id,
           severity: "error",
           code: "WHATSAPP_DISCONNECTED",
-          message: `O WhatsApp do tracking ${workflow.tracking?.name ?? ""} está desconectado.`,
+          message:
+            "Instância WhatsApp do tracking está DESCONECTADA. Reconecte antes de rodar — mensagens vão falhar.",
         });
       }
     }

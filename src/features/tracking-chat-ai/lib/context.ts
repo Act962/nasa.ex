@@ -13,13 +13,7 @@ const HISTORY_LIMIT = 20;
 export type AgentTrigger =
   | "inbound"
   | "idle-reopen"
-  | "idle-reopen-with-instruction"
-  /** Estado de atendimento (spec 0113): a IA entra porque o cliente esperou sem resposta da equipe. */
-  | "attendance-step-in"
-  /** O atendente está na conversa, mas não respondeu a tempo: a IA continua por ele. */
-  | "attendance-in-service"
-  /** Nenhum consultor assumiu depois da transferência: a IA volta a ajudar. */
-  | "attendance-handoff-resume";
+  | "idle-reopen-with-instruction";
 
 export interface AgentEventData {
   trackingId: string;
@@ -142,21 +136,6 @@ export async function loadAgentContext(data: AgentEventData) {
           orderBy: { name: "asc" },
         })
       : [];
-  // Consultas reais do cliente: o histórico só tem texto, e a IA chegou a afirmar agendamento que não existia.
-  const upcomingAppointments =
-    availableAgendas.length > 0
-      ? await prisma.appointment.findMany({
-          where: {
-            leadId: data.leadId,
-            agendaId: { in: availableAgendas.map((agenda) => agenda.id) },
-            status: { notIn: ["CANCELLED"] },
-            startsAt: { gte: new Date() },
-          },
-          orderBy: { startsAt: "asc" },
-          take: 5,
-          select: { startsAt: true, agenda: { select: { name: true } } },
-        })
-      : [];
 
   const availableForms =
     capabilities.forms.isEnabled && capabilities.forms.formIds.length > 0
@@ -219,7 +198,6 @@ export async function loadAgentContext(data: AgentEventData) {
     starFriendsProgramName: starFriendsProgram?.name ?? null,
     capabilities,
     availableAgendas,
-    upcomingAppointments,
     availableForms,
     // A última mensagem do cliente foi áudio: decide a resposta em voz (spec 0084, RF-3).
     isLastInboundAudio: isAudioMessage(messages.find((message) => !message.fromMe)),

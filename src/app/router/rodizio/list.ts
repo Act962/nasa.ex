@@ -2,9 +2,6 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { canAccessTracking } from "@/features/workflows/server/workflow-access";
-import { ORPCError } from "@orpc/server";
-import { consultantLoadFilter } from "@/features/org-defaults/lib/attendance/rodizio";
 
 export const listTrackingConsultants = base
   .use(requiredAuthMiddleware)
@@ -19,14 +16,7 @@ export const listTrackingConsultants = base
     }),
   )
   .handler(async ({ input, context }) => {
-    if (!(await canAccessTracking(input.trackingId, context.user.id))) {
-      throw new ORPCError("NOT_FOUND", { message: "Funil não encontrado" });
-    }
     try {
-      const tracking = await prisma.tracking.findUnique({
-        where: { id: input.trackingId },
-        select: { organizationId: true },
-      });
       const [consultants, leadsCount] = await Promise.all([
         prisma.trackingConsultant.findMany({
           where: {
@@ -44,8 +34,11 @@ export const listTrackingConsultants = base
 
         prisma.lead.groupBy({
           by: ["responsibleId"],
-          // Estado de atendimento (spec 0113): mesma carga que o Rodízio usa para distribuir.
-          where: consultantLoadFilter({ organizationId: tracking?.organizationId ?? "", trackingId: input.trackingId }),
+          where: {
+            trackingId: input.trackingId,
+            isActive: true,
+            statusFlow: "ACTIVE",
+          },
           _count: {
             _all: true,
           },

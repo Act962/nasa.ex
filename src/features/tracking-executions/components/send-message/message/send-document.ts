@@ -10,7 +10,6 @@ import {
   sendWithWorkflowErrors,
   WORKFLOW_TYPING_DELAY_MS,
 } from "../../../lib/workflow-outbound";
-import { flowOriginMetadata, type FlowMessageOrigin } from "@/features/workflows/lib/flow-origin";
 
 interface SendDocumentMessageProps {
   conversationId: string;
@@ -19,8 +18,6 @@ interface SendDocumentMessageProps {
   provider: WhatsAppChatProvider;
   mediaUrl: string;
   fileName: string;
-  /** Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20). */
-  origin?: FlowMessageOrigin | null;
 }
 
 export const sendDocumentMessage = async (params: SendDocumentMessageProps) => {
@@ -45,7 +42,6 @@ export const sendDocumentMessage = async (params: SendDocumentMessageProps) => {
       fromMe: true,
       fileName: params.fileName,
       status: MessageStatus.SENT,
-      ...(params.origin ? { metadata: flowOriginMetadata(params.origin) } : {}),
     },
     include: {
       conversation: {

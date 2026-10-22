@@ -8,7 +8,6 @@ import {
   buildLeadVariables,
 } from "../../lib/interpolate-message";
 import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
-import { flowOriginOf } from "@/features/workflows/lib/flow-origin";
 
 /**
  * SEND_AGENDA — envia link público da agenda pro lead se agendar via
@@ -91,7 +90,6 @@ export const sendAgendaExecutor: NodeExecutor<SendAgendaData> = async ({
         leadId: lead.id,
         trackingId: lead.trackingId,
         body,
-        origin: flowOriginOf(context, nodeId),
       });
 
       if (realTime) {

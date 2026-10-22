@@ -12,7 +12,6 @@ import {
   statusIdForColumnKey,
   type TrafegoOperationsSettings,
 } from "./trafego-settings";
-import { recordLeadOrigin } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 /**
  * O card do cliente no tracking de operação.
@@ -176,8 +175,6 @@ export async function ensureTrafegoLead(
     },
     select: { id: true },
   });
-  // Origem real do lead (spec 0114): o checkout do trafeGO.
-  await recordLeadOrigin(created.id, { origin: "TRAFEGO", sourceName: "trafeGO", matchedBy: "entry", confidence: "certain" });
   return created.id;
 }
 

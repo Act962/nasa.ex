@@ -407,7 +407,6 @@ export class UazapiProvider implements WhatsAppChatProvider {
           pickString(raw.chat, "wa_name"))
         : (pickString(message, "senderName") ?? pickString(raw.chat, "name")),
       fromMe,
-      isSentByApi: fromMe && pickBoolean(message, "wasSentByApi") === true,
     } as const;
 
     const base = {

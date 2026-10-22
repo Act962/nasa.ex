@@ -1,4 +1,3 @@
-import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { tool } from "ai";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -26,8 +25,8 @@ export const makeTransferToHumanTool = (ctx: AgentContext) =>
       await prisma.lead.update({
         where: { id: ctx.lead.id },
         data: {
+          isActive: false,
           statusFlow: "ACTIVE",
-          ...(IS_LEAD_AI_PAUSE_ENABLED ? { isActive: false } : {}),
         },
       });
 

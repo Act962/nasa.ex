@@ -127,22 +127,6 @@ export const GUIDE_ANCHORS = {
     id: "automations-hub.list",
     description: "Lista das automações da empresa na central de Gatilhos Automáticos, com busca, filtros e interruptor de ligar",
   },
-  settingsChatbotTab: {
-    id: "tracking.settings.chatbot-tab",
-    description: "Aba \"Fluxo de atendimento\" nas configurações do funil",
-  },
-  chatbotIaCapabilitiesTab: {
-    id: "tracking.chatbot-ia.capabilities-tab",
-    description: "Aba \"O que o Astro pode fazer\" do Fluxo de atendimento",
-  },
-  attendanceSettingsSection: {
-    id: "tracking.chatbot-ia.attendance-settings",
-    description: "Seção \"Atendimento\": quem responde primeiro (equipe ou IA), tempos de espera e textos fixos (spec 0113)",
-  },
-  appointmentCheckCard: {
-    id: "chat.appointment-check-card",
-    description: "Cartão interno acima da conversa, no horário do agendamento: o cliente veio? Sim / Não / Cancelou (spec 0113)",
-  },
   chatbotIaKnowledgePicker: {
     id: "tracking.chatbot-ia.knowledge-picker",
     description: "Seletor \"Documentos que o atendimento pode usar\" na aba \"O que o Astro pode fazer\" do Fluxo de atendimento",

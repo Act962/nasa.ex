@@ -39,8 +39,7 @@ export const listExternalContacts = base
       const leads = await prisma.lead.findMany({
         where: {
           tracking: { organizationId: orgId },
-          currentAction: { not: "DELETED" },
-          isArchived: false,
+          isActive: true,
           ...searchFilter,
         },
         select: {

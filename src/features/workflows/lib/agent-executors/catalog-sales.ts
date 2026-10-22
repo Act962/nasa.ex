@@ -2,7 +2,6 @@
 // estas ações só fazem o que o motor não sabia: aprovação da equipe, crédito, cliente por
 // documento, consultor do cliente e o pedido em variáveis.
 
-import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import "server-only";
 import prisma from "@/lib/prisma";
 import { applyTagsByAi } from "@/features/tracking-chat-ai/lib/apply-tags-by-ai";
@@ -37,7 +36,6 @@ import { markAwaitingReply } from "./conversation-steps";
 import { AWAITING_REPLY_KEY } from "../conversation-steps";
 import type { NodeExecutionResult, NodeExecutor } from "../run-workflow";
 import { interpolate, type WorkflowContext } from "../workflow-context";
-import { flowOriginMetadata, flowOriginOf } from "../flow-origin";
 
 export const SALES_APPROVAL_OUTPUTS = ["approved", "rejected", "timeout"] as const;
 export const CHECK_CREDIT_OUTPUTS = ["eligible", "overdue"] as const;
@@ -356,8 +354,6 @@ async function askCustomer(params: {
     // Re-pergunta com a janela ainda fechada não repete a cópia no chat.
     shouldPersistWhenUnsent: !params.isRetryOfPending,
     template: params.template,
-    // Passo de fluxo que perguntou: o chat mostra "Editar gatilho" (spec 0113, RF-20).
-    metadata: flowOriginMetadata(flowOriginOf(params.context, params.nodeId)),
   }).catch((error: unknown) => ({ isSent: false as const, reason: error instanceof Error ? error.message : "whatsapp_send_failed" }));
   if (!delivery.isSent && UNREACHABLE_REASONS.has(delivery.reason)) {
     return failed(`Não foi possível perguntar ao cliente (${delivery.reason}).`);
@@ -509,7 +505,7 @@ export const routeToConsultantExecutor: NodeExecutor = async ({ nodeId, data, co
   const consultant = matches[0];
   if (dryRun) return { output: { vars: { consultor: { nome: consultant.name } } }, chosenOutput: "found" };
 
-  await prisma.lead.update({ where: { id: scope.leadId }, data: { responsibleId: consultant.userId, assignedAt: new Date(), ...(IS_LEAD_AI_PAUSE_ENABLED ? { isActive: false } : {}) } });
+  await prisma.lead.update({ where: { id: scope.leadId }, data: { responsibleId: consultant.userId, assignedAt: new Date(), isActive: false } });
   await applySalesTag(scope, SALES_TAGS.hasConsultant);
   const conversation = await prisma.conversation.findFirst({ where: { leadId: scope.leadId, trackingId: scope.trackingId }, select: { id: true } });
   if (conversation) {

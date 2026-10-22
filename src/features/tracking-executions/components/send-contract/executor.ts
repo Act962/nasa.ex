@@ -9,7 +9,6 @@ import {
 } from "../../lib/interpolate-message";
 import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
 import { randomUUID } from "crypto";
-import { flowOriginOf } from "@/features/workflows/lib/flow-origin";
 
 /**
  * SEND_CONTRACT — clona um `ForgeContractTemplate` num novo `ForgeContract`
@@ -71,11 +70,6 @@ export const sendContractExecutor: NodeExecutor<SendContractData> = async ({
         await publish(
           sendAppActionChannel().status({ nodeId, status: "loading" }),
         );
-      }
-
-      // Sem modelo escolhido, o `findFirst` com id indefinido pegaria um modelo qualquer da empresa.
-      if (!data.templateContractId) {
-        throw new NonRetriableError("Escolha o modelo de contrato no passo");
       }
 
       // 1. Valida template + ownership
@@ -162,7 +156,6 @@ export const sendContractExecutor: NodeExecutor<SendContractData> = async ({
         leadId: lead.id,
         trackingId: lead.trackingId,
         body,
-        origin: flowOriginOf(context, nodeId),
       });
 
       if (realTime) {

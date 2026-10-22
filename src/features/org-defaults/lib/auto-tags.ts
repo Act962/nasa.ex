@@ -4,7 +4,6 @@ import { inngest } from "@/inngest/client";
 import { applyTagsByAi } from "@/features/tracking-chat-ai/lib/apply-tags-by-ai";
 import { publishLeadChanged } from "@/features/leads/realtime/publish";
 import { AUTO_TAG_SLUGS, type AutoTagKey } from "./default-org-template";
-import { isAttendanceStateEnabled } from "./attendance/flag";
 
 // Tags automáticas da empresa (spec 0042, RF-3 a RF-7). Só atuam se a empresa tem
 // a tag padrão ativa: empresas antigas (sem ela) e tags arquivadas ficam de fora.
@@ -64,36 +63,12 @@ export async function loadAwaitingState(leadId: string) {
   return { isAwaitingReply };
 }
 
-const CHANNEL_TAG_SLUGS = [...new Set(Object.values(CHANNEL_TAG).filter((key): key is AutoTagKey => key !== null))].map(
-  (key) => AUTO_TAG_SLUGS[key],
-);
-
-/** Etiqueta de canal = canal da última mensagem: as dos outros canais saem (spec 0113). */
-async function removeOtherChannelTags(params: { organizationId: string; leadId: string; currentSlug: string }) {
-  const removed = await prisma.leadTag.deleteMany({
-    where: {
-      leadId: params.leadId,
-      tag: {
-        organizationId: params.organizationId,
-        trackingId: null,
-        slug: { in: CHANNEL_TAG_SLUGS.filter((slug) => slug !== params.currentSlug) },
-      },
-    },
-  });
-  return removed.count;
-}
-
-/**
- * Mensagem do cliente: canal + "Em atendimento"; nova mensagem sem resposta → "Aguard. atendimento".
- * Com o estado de atendimento ligado (spec 0113), "Em atendimento" e "Aguard." ficam com ele e a etiqueta de
- * canal troca quando o cliente muda de canal.
- */
+/** Mensagem do cliente: canal + "Em atendimento"; nova mensagem sem resposta → "Aguard. atendimento". */
 export async function applyInboundAutoTags(params: {
   organizationId: string;
   leadId: string;
   channel: InboundChannel;
   wasAwaitingReply: boolean;
-  isAttendanceStateManaged?: boolean;
 }) {
   const lead = await prisma.lead.findUnique({
     where: { id: params.leadId },
@@ -103,22 +78,6 @@ export async function applyInboundAutoTags(params: {
   // Origem (spec 0085): só na chegada do lead, para não remarcar cliente antigo a cada mensagem.
   const originKeys: AutoTagKey[] =
     lead && isNewLead(lead.createdAt) ? ["newLead", ...(cameFromPaidTraffic(lead) ? (["paidTraffic"] as const) : [])] : [];
-  if (params.isAttendanceStateManaged) {
-    const managedKeys: AutoTagKey[] = [...(channelKey ? [channelKey] : []), ...originKeys];
-    const managedTagIdBySlug = await findActiveAutoTags(params.organizationId, managedKeys);
-    const removedChannelTags =
-      channelKey && channelKey !== "catalog"
-        ? await removeOtherChannelTags({ organizationId: params.organizationId, leadId: params.leadId, currentSlug: AUTO_TAG_SLUGS[channelKey] })
-        : 0;
-    await addMissingTags(params.leadId, [...managedTagIdBySlug.values()]);
-    if (removedChannelTags > 0) {
-      const leadPlacement = await prisma.lead.findUnique({ where: { id: params.leadId }, select: { trackingId: true, statusId: true } });
-      if (leadPlacement) {
-        await publishLeadChanged({ leadId: params.leadId, trackingId: leadPlacement.trackingId, statusId: leadPlacement.statusId, fields: ["tag"] });
-      }
-    }
-    return;
-  }
   const keys: AutoTagKey[] = ["inService", "awaitingReply", ...(channelKey ? [channelKey] : []), ...originKeys];
   const tagIdBySlug = await findActiveAutoTags(params.organizationId, keys);
   if (tagIdBySlug.size === 0) return;
@@ -143,8 +102,6 @@ export async function applyAwaitingTagIfStillUnanswered(params: {
   leadId: string;
   inboundAt: string;
 }) {
-  // Checagem antiga, agendada antes de a empresa entrar no estado de atendimento: quem cuida agora é o estado.
-  if (isAttendanceStateEnabled(params.organizationId)) return { applied: false };
   const lead = await prisma.lead.findUnique({ where: { id: params.leadId }, select: { lastOutboundAt: true } });
   if (!lead) return { applied: false };
   if (lead.lastOutboundAt && lead.lastOutboundAt >= new Date(params.inboundAt)) return { applied: false };

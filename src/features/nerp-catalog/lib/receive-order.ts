@@ -1,7 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import prisma from "@/lib/prisma";
-import { handOverToAi } from "@/features/org-defaults/lib/attendance/state";
 import { LeadSource, MessageStatus } from "@/generated/prisma/enums";
 import {
   createInChatLead,
@@ -157,10 +156,6 @@ async function findOrCreateOrderLead(input: {
     },
   });
   if (!lead.conversation) throw new Error("conversation_creation_failed");
-  // Pedido novo é passo da IA (Astro do catálogo), mesmo que um atendente tenha falado antes (spec 0113).
-  await handOverToAi({ leadId: lead.id }).catch((error: unknown) =>
-    console.warn("[nerp-catalog] estado de atendimento falhou", error),
-  );
   return { ...lead, conversation: lead.conversation, isNew: false, statusId: input.statusId };
 }
 

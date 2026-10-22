@@ -11,8 +11,6 @@ export const registerPageVisit = base
   .input(
     z.object({
       slug: z.string(),
-      // Slug de subpágina só é único dentro do site: com o id, o clique não cai na página de outra empresa.
-      pageId: z.string().optional(),
       path: z.string().optional(),
       referrer: z.string().optional(),
       userAgent: z.string().optional(),
@@ -29,15 +27,14 @@ export const registerPageVisit = base
       //   - "scroll"  : marker de scroll depth (value = 25/50/75/100)
       //   - "section" : section entrou em viewport (targetId = el id)
       //   - "dwell"   : tempo gasto na página (value = segundos)
-      // `whatsapp_click`: botão de WhatsApp da página, para ligar o lead que chegar depois (spec 0114).
-      event: z.enum(["click", "scroll", "section", "dwell", "whatsapp_click"]).optional(),
+      event: z.enum(["click", "scroll", "section", "dwell"]).optional(),
       targetId: z.string().optional(),
       value: z.string().optional(),
     }),
   )
   .handler(async ({ input }) => {
     const page = await prisma.nasaPage.findFirst({
-      where: { slug: input.slug, status: "PUBLISHED", ...(input.pageId ? { id: input.pageId } : {}) },
+      where: { slug: input.slug, status: "PUBLISHED" },
       select: { id: true },
     });
     if (!page) return { success: false };

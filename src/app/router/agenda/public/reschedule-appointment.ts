@@ -4,7 +4,6 @@ import { z } from "zod";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -57,12 +56,6 @@ export const reschedulePublicAppointment = base
         status: "CONFIRMED",
       },
     });
-
-    await recordAppointmentChange({
-      appointmentId: input.appointmentId,
-      change: "rescheduled",
-      previousStartsAt: appointment.startsAt,
-    }).catch((error: unknown) => console.warn("[agenda.publicReschedule] atendimento do agendamento falhou", error));
 
     return { appointment: updated };
   });

@@ -10,15 +10,12 @@ import {
   toStoredMessageId,
   WORKFLOW_TYPING_DELAY_MS,
 } from "../../../lib/workflow-outbound";
-import { flowOriginMetadata, type FlowMessageOrigin } from "@/features/workflows/lib/flow-origin";
 
 interface SendTextMessageProps {
   body: string;
   conversationId: string;
   leadPhone: string;
   provider: WhatsAppChatProvider;
-  /** Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20). */
-  origin?: FlowMessageOrigin | null;
 }
 
 export const sendTextMessage = async ({
@@ -26,7 +23,6 @@ export const sendTextMessage = async ({
   conversationId,
   leadPhone,
   provider,
-  origin,
 }: SendTextMessageProps) => {
   const sent = await sendWithWorkflowErrors(() =>
     provider.sendText({
@@ -45,7 +41,6 @@ export const sendTextMessage = async ({
       fromMe: true,
       status: MessageStatus.SENT,
       quotedMessageId: null,
-      ...(origin ? { metadata: flowOriginMetadata(origin) } : {}),
     },
     include: {
       conversation: {

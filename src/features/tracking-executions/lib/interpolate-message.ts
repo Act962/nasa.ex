@@ -30,13 +30,6 @@ export interface LeadForInterpolation {
   responsible?: { name: string } | null;
 }
 
-/** Primeiro nome do lead; vazio quando o nome é o padrão "Sem nome". */
-export function firstNameOf(fullName: string): string {
-  const trimmedName = fullName.trim();
-  if (!trimmedName || trimmedName.toLowerCase() === "sem nome") return "";
-  return trimmedName.split(/\s+/)[0] ?? "";
-}
-
 /**
  * Monta o objeto de variáveis globais (mesmo conjunto do SEND_MESSAGE
  * atual). Retorna um Record<string, string> prontamente usável em
@@ -49,8 +42,6 @@ export function buildLeadVariables(
   return {
     "{{name}}": lead.name,
     "{{nome}}": lead.name,
-    // Primeiro nome soa natural na conversa ("João", não "João Gabriel"); spec 0113, RF-21.
-    "{{primeiro_nome}}": firstNameOf(lead.name),
     "{{email}}": lead.email || "",
     "{{phone}}": lead.phone || "",
     "{{contato}}": lead.phone || "",

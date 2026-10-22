@@ -55,6 +55,7 @@ export const listLeadRescue = base
 
     const whereBase = {
       currentAction: "ACTIVE" as const,
+      isActive: true,
       ...(input.trackingId ? { trackingId: input.trackingId } : {}),
       tracking: { organizationId: { in: orgIds } },
     };

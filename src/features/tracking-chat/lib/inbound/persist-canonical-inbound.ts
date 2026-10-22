@@ -50,8 +50,6 @@ import {
   resolveReferralForOrg,
 } from "@/lib/lead-journey/ctwa";
 import prisma from "@/lib/prisma";
-import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
-import { recordWhatsappLeadOrigin } from "@/features/leads/lib/lead-origin/resolve-whatsapp-origin";
 import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { tryHandleApproverInbound } from "@/features/nerp-catalog/lib/approvals/order-approvals";
 import { tryStartGuidedOrderFromInbound } from "@/features/nerp-catalog/lib/guided-order-contact";
@@ -270,8 +268,7 @@ export async function persistCanonicalInbound(
       }
     }
 
-    // Com o estado de atendimento, quem reabre é o módulo de atendimento, como "Aguard. atendimento" (spec 0113).
-    if (!canonical.sender.fromMe && lead.statusFlow === "FINISHED" && !isAttendanceStateEnabled(tracking.organizationId)) {
+    if (!canonical.sender.fromMe && lead.statusFlow === "FINISHED") {
       lead = await prisma.lead.update({
         where: { id: lead.id },
         data: { statusFlow: "ACTIVE" },
@@ -300,16 +297,6 @@ export async function persistCanonicalInbound(
         select: { id: true, body: true, messageId: true },
       })
     : null;
-
-  // Eco do que a plataforma enviou não é fala de atendente (spec 0113). O provedor diz quando a mensagem saiu
-  // por API; sem essa marca, vale a mensagem já gravada com o mesmo id externo. A marca não depende de a
-  // plataforma ter gravado antes de o eco chegar, e vale para todas as empresas: a IA se cala com fala humana.
-  const isPlatformEcho =
-    canonical.sender.fromMe &&
-    (canonical.sender.isSentByApi === true ||
-      Boolean(
-        await prisma.message.findUnique({ where: { messageId: canonical.externalMessageId }, select: { id: true } }),
-      ));
 
   // ── 5. Persistência por tipo ────────────────────────────────────────────
   const persistParams: PersistMessageParams = {
@@ -400,8 +387,6 @@ export async function persistCanonicalInbound(
     fromMe: canonical.sender.fromMe,
     channel,
     isButtonClick: Boolean(interactiveReplyIdOf(canonical)),
-    isPlatformEcho,
-    messageAt: canonical.sentAt,
     // Só inbound: `leadMessage` é, por contrato, texto escrito pelo lead.
     ...(canonical.sender.fromMe
       ? {}
@@ -533,16 +518,6 @@ async function createLeadFromInbound(
       console.error("[persist-canonical-inbound] ctwa_capture_failed", err);
     }
   }
-
-  // ── Origem real do lead (spec 0114): anúncio, código da página ou clique recente ──
-  await recordWhatsappLeadOrigin({
-    leadId: createdLead.id,
-    organizationId: env.organizationId,
-    firstMessageText:
-      canonical.type === "text" ? canonical.body : canonical.type === "media" ? (canonical.caption ?? null) : null,
-    metaAd: ctwa ? { headline: ctwa.ref.metaHeadline ?? null, adId: ctwa.ref.metaAdId } : null,
-    isOpenedByCompany: canonical.sender.fromMe,
-  });
 
   // ── logActivity "lead.arrived" (best-effort) ────────────────────────────
   // Fetch direto do nome — o cache (`getCachedTrackingContext`) não traz

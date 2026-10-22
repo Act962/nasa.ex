@@ -86,27 +86,3 @@ export function resolveLeadChannel(input: LeadChannelInput): LeadChannelKey {
   }
   return isChannelKey(input.source) ? input.source : "OTHER";
 }
-
-/**
- * Origem real (spec 0114) → nome e ícone. Reaproveita os canais acima e acrescenta as origens que não são canal
- * de conversa (site, trafeGO, campanha, integração, importação).
- */
-export const LEAD_ORIGIN_DISPLAY: Record<string, { label: string; icon: LucideIcon; color: string }> = {
-  WHATSAPP: LEAD_CHANNELS.WHATSAPP,
-  LINNKER: LEAD_CHANNELS.LINNKER,
-  PAGES: { label: "Site", icon: Globe, color: "#7c3aed" },
-  TRAFEGO: { label: "trafeGO", icon: Megaphone, color: "#f97316" },
-  META_ADS: LEAD_CHANNELS.META_ADS,
-  FORM: LEAD_CHANNELS.FORM,
-  AGENDA: LEAD_CHANNELS.AGENDA,
-  SITE_CHAT: { label: "Chat do site", icon: Globe, color: "#7c3aed" },
-  IN_CHAT: LEAD_CHANNELS.IN_CHAT,
-  INSTAGRAM_DIRECT: LEAD_CHANNELS.INSTAGRAM,
-  INSTAGRAM_COMMENT: LEAD_CHANNELS.INSTAGRAM_COMMENT,
-  FACEBOOK: LEAD_CHANNELS.FACEBOOK,
-  CATALOG: LEAD_CHANNELS.NERP_CATALOG,
-  CAMPANHA: { label: "Campanha", icon: Megaphone, color: "#0ea5e9" },
-  API: { label: "Integração (API)", icon: Bot, color: "#64748b" },
-  MANUAL: LEAD_CHANNELS.DEFAULT,
-  IMPORT: { label: "Importação", icon: Database, color: "#64748b" },
-};

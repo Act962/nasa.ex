@@ -10,7 +10,6 @@ import {
   sendWithWorkflowErrors,
   WORKFLOW_TYPING_DELAY_MS,
 } from "../../../lib/workflow-outbound";
-import { flowOriginMetadata, type FlowMessageOrigin } from "@/features/workflows/lib/flow-origin";
 
 interface SendImageMessageProps {
   conversationId: string;
@@ -18,8 +17,6 @@ interface SendImageMessageProps {
   leadPhone: string;
   provider: WhatsAppChatProvider;
   mediaUrl: string;
-  /** Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20). */
-  origin?: FlowMessageOrigin | null;
 }
 
 export const sendImageMessage = async (params: SendImageMessageProps) => {
@@ -43,7 +40,6 @@ export const sendImageMessage = async (params: SendImageMessageProps) => {
       messageId: sent.externalMessageId,
       fromMe: true,
       status: MessageStatus.SENT,
-      ...(params.origin ? { metadata: flowOriginMetadata(params.origin) } : {}),
     },
     include: {
       conversation: {

@@ -6,7 +6,6 @@ import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 
 dayjs.extend(isBetween);
 dayjs.extend(utc);
@@ -383,7 +382,6 @@ export function makeBookAppointmentTool(orgSlug: string, agendaSlug: string) {
         name: "appointment/booking.notification",
         data: { appointmentId: appointment.id, type: "created" },
       });
-      await recordAppointmentChange({ appointmentId: appointment.id, change: "scheduled" }).catch((error: unknown) => console.warn("[public-booking-chat] atendimento do agendamento falhou", error));
 
       return {
         success: true,
@@ -519,14 +517,13 @@ export function makeCancelAppointmentTool(orgSlug: string, agendaSlug: string) {
 
       await prisma.appointment.update({
         where: { id: appointmentId },
-        data: { status: "CANCELLED", cancelledBy: "CLIENT" },
+        data: { status: "CANCELLED" },
       });
 
       await inngest.send({
         name: "appointment/booking.notification",
         data: { appointmentId: appointment.id, type: "cancelled" },
       });
-      await recordAppointmentChange({ appointmentId: appointment.id, change: "cancelled" }).catch((error: unknown) => console.warn("[public-booking-chat] atendimento do agendamento falhou", error));
 
       return {
         success: true,

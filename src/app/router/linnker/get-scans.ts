@@ -2,7 +2,6 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import z from "zod";
-import { LINNKER_VISIT_SCAN_WHERE } from "@/features/linnker/lib/visit-scans";
 
 export const getLinnkerScans = base
   .use(requiredAuthMiddleware)
@@ -20,7 +19,7 @@ export const getLinnkerScans = base
     if (!page) throw errors.NOT_FOUND({ message: "Página não encontrada" });
 
     const scans = await prisma.linnkerScan.findMany({
-      where: { pageId: input.id, ...LINNKER_VISIT_SCAN_WHERE },
+      where: { pageId: input.id },
       include: { lead: { select: { id: true, name: true, email: true, phone: true } } },
       orderBy: { createdAt: "desc" },
       take: 100,

@@ -11,11 +11,14 @@
  *
  * Executors externos (este arquivo wireia):
  *   IA → AI_DECISION, AI_GENERATE_TEXT, AI_VISION, READ_PDF
- *   Controle → WAIT_FOR_EVENT, CALL_WORKFLOW, FILTER_LEAD
+ *   Controle → WAIT_FOR_EVENT, CALL_WORKFLOW
  *   Apps → CHECK_PAYMENT, SEND_VOICE, SEND_MEDIA
  *
- * Passos do modo normal sem versão própria aqui (Temperatura, Responsável, Ganho/Perda, HTTP,
- * envios de app etc.) entram pelo executor clássico, via `runClassicNodeInAgentMode`.
+ * NÃO incluímos os executors antigos do tracking (SEND_MESSAGE, MOVE_LEAD,
+ * SEND_PROPOSAL, etc.) — eles ficam responsabilidade do
+ * `workspace-workflow-executor.ts` legado, que será delegado pro engine
+ * novo quando `workflow.agentMode = true` mas mantém o catálogo de
+ * executors clássicos via wrapper (Fase 4).
  */
 import "server-only";
 import type { NodeExecutor } from "./run-workflow";
@@ -43,9 +46,6 @@ import { webSearchExecutor } from "./agent-executors/web-search";
 import { sendEmailExecutor } from "./agent-executors/email";
 import { seiActionAgentExecutor } from "./agent-executors/sei";
 import { notifyTeamExecutor } from "./agent-executors/notify-team";
-import { filterLeadAgentExecutor } from "./agent-executors/filter-lead";
-import { runClassicNodeInAgentMode } from "./agent-executors/classic-node";
-import { executorRegistry as classicExecutorRegistry } from "@/features/tracking-executions/lib/executor-registry";
 import {
   catalogOrderActionExecutor,
   checkCreditExecutor,
@@ -68,7 +68,7 @@ const complianceItemDueTriggerExecutor: NodeExecutor = async ({ nodeType }) => (
  * (dry-run com executors mockados, por exemplo).
  */
 export function getAgentExecutorRegistry(): Map<string, NodeExecutor> {
-  const registry = new Map<string, NodeExecutor>([
+  return new Map<string, NodeExecutor>([
     // IA
     ["AI_DECISION", aiDecisionExecutor],
     ["AI_GENERATE_TEXT", aiGenerateTextExecutor],
@@ -77,7 +77,6 @@ export function getAgentExecutorRegistry(): Map<string, NodeExecutor> {
     // Controle
     ["WAIT_FOR_EVENT", waitForEventExecutor],
     ["CALL_WORKFLOW", callWorkflowExecutor],
-    ["FILTER_LEAD", filterLeadAgentExecutor],
     // Apps NASA
     ["CHECK_PAYMENT", checkPaymentExecutor],
     ["SEND_VOICE", sendVoiceExecutor],
@@ -103,12 +102,4 @@ export function getAgentExecutorRegistry(): Map<string, NodeExecutor> {
     // Gatilho da aba Contábil (spec 0051)
     ["COMPLIANCE_ITEM_DUE", complianceItemDueTriggerExecutor],
   ]);
-
-  // Paridade com o modo normal (spec 0112): passo do motor clássico sem versão própria aqui roda
-  // pelo executor clássico. Gatilhos e "Esperar" nem chegam ao registry (o motor trata antes).
-  for (const [nodeType, classicExecutor] of Object.entries(classicExecutorRegistry)) {
-    if (!classicExecutor || registry.has(nodeType)) continue;
-    registry.set(nodeType, runClassicNodeInAgentMode(classicExecutor));
-  }
-  return registry;
 }

@@ -10,7 +10,6 @@ import {
 import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
 import { randomBytes } from "crypto";
 import { UNRESTRICTED_ITEM_FILTER } from "@/features/nbox/server/can-view-restricted-nbox";
-import { flowOriginOf } from "@/features/workflows/lib/flow-origin";
 
 /**
  * SEND_NBOX — garante que o `NBoxItem` está público (gera `publicToken`
@@ -115,7 +114,6 @@ export const sendNboxExecutor: NodeExecutor<SendNboxData> = async ({
         leadId: lead.id,
         trackingId: lead.trackingId,
         body,
-        origin: flowOriginOf(context, nodeId),
       });
 
       if (realTime) {

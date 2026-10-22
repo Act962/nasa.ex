@@ -25,12 +25,10 @@ export const registerLinnkerScan = base
       latitude: z.number().optional(),
       longitude: z.number().optional(),
       tracking: trackingParamsSchema.optional(),
-      // Clique num botão de WhatsApp da página (spec 0114, RF-3): liga a página ao lead que chegar depois.
-      scanKind: z.enum(["whatsapp_link"]).optional(),
     }),
   )
   .handler(async ({ input, errors, context }) => {
-    const { slug, name, email, phone, latitude, longitude, tracking: t, scanKind } = input;
+    const { slug, name, email, phone, latitude, longitude, tracking: t } = input;
 
     const page = await prisma.linnkerPage.findUnique({
       where: { slug, isPublished: true },
@@ -101,7 +99,6 @@ export const registerLinnkerScan = base
         phone,
         latitude,
         longitude,
-        ...(scanKind ? { scanKind, utmSource: t?.utmSource ?? null, utmMedium: t?.utmMedium ?? null, utmCampaign: t?.utmCampaign ?? null } : {}),
       },
     });
 

@@ -12,8 +12,6 @@ export interface ForwardContext {
    */
   provider: WhatsAppChatProvider;
   senderName: string;
-  /** Atendente que encaminhou: conta como resposta humana (spec 0113, RF-4). */
-  senderId: string;
 }
 
 export interface ForwardedMessage {

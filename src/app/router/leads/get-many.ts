@@ -1,7 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
-import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
 import { z } from "zod";
 import { deriveResponseState } from "@/features/form/lib/form-response-state";
 import { buildResponseSlug } from "@/features/form/lib/response-slug";
@@ -117,9 +116,6 @@ export const listLeadsByStatus = base
       statusFlowFilter,
     } = input;
 
-    const trackingOwner = await prisma.tracking.findUnique({ where: { id: trackingId }, select: { organizationId: true } });
-    const isOrganizationAttendanceManaged = isAttendanceStateEnabled(trackingOwner?.organizationId);
-
     const leads = await prisma.lead.findMany({
       where: {
         statusId,
@@ -189,8 +185,8 @@ export const listLeadsByStatus = base
         statusFlow: true,
         profile: true,
         amount: true,
-        slaDeadline: true,
-        statusEnteredAt: true,
+        // Campos novos: existem no client após `prisma generate` rodar pós-migration
+        ...({ slaDeadline: true, statusEnteredAt: true } as any),
         responsible: {
           select: {
             image: true,
@@ -200,7 +196,7 @@ export const listLeadsByStatus = base
         // Conversation do lead — usado pelo ícone WhatsApp do card pra
         // direcionar pro chat (substituiu o ícone "Em atendimento").
         conversation: {
-          select: { id: true, channel: true },
+          select: { id: true },
         },
         // Form responses do lead — usados pra renderizar os ícones de
         // estado do formulário no card. Carregamos jsonResponse +
@@ -448,10 +444,6 @@ export const listLeadsByStatus = base
           : null;
         return {
           ...rest,
-          // Instagram e Facebook seguem com o botão da IA (spec 0113, só WhatsApp entra no estado).
-          isAttendanceManaged:
-            isOrganizationAttendanceManaged &&
-            ((lead.conversation as { channel?: string } | null | undefined)?.channel ?? "WHATSAPP") === "WHATSAPP",
           order: lead.order.toString(),
           amount: lead.amount.toString(),
           forms: responses,

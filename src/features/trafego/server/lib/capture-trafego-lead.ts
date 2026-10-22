@@ -12,7 +12,6 @@ import {
   findLeadInTracking,
 } from "./ensure-trafego-lead";
 import { loadTrafegoSettings } from "./trafego-settings";
-import { recordLeadOrigin } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 /**
  * Lead captado no passo Contato do wizard, antes de existir pagamento
@@ -96,14 +95,6 @@ export async function captureTrafegoLead(
       order: await computeTopOrder(prisma, trackingId, statusId),
     },
     select: { id: true },
-  });
-  // Origem real do lead (spec 0114): o trafeGO, com o "conheceu por" de quem preencheu.
-  await recordLeadOrigin(created.id, {
-    origin: "TRAFEGO",
-    sourceName: "trafeGO",
-    matchedBy: "entry",
-    confidence: "certain",
-    note: input.referralSource ? `conheceu por ${input.referralSource}` : null,
   });
 
   return { leadId: created.id, trackingId, statusId, created: true };

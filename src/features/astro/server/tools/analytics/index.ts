@@ -5,7 +5,6 @@ import prisma from "@/lib/prisma";
 import type { AgentContext } from "@/features/astro/server/agents/types";
 import { resolveTargetOrgs } from "@/features/astro/server/tools/shared/resolve-target-orgs";
 import { assertPaymentToolAccess } from "@/features/astro/server/tools/finance/access";
-import { LINNKER_VISIT_SCAN_WHERE } from "@/features/linnker/lib/visit-scans";
 
 /**
  * Tools de ANALYTICS pro Astro responder perguntas sobre indicadores
@@ -255,10 +254,10 @@ export function buildAnalyticsTools(ctx: AgentContext) {
               where: { ...leadWhere, currentAction: "LOST" },
             }),
             prisma.lead.count({
-              where: { ...leadWhere, currentAction: "ACTIVE" },
+              where: { ...leadWhere, currentAction: "ACTIVE", isActive: true },
             }),
             prisma.lead.findMany({
-              where: { ...leadWhere, currentAction: "ACTIVE" },
+              where: { ...leadWhere, currentAction: "ACTIVE", isActive: true },
               select: { amount: true },
             }),
           ]);
@@ -280,6 +279,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
                   ...leadWhere,
                   trackingId: t.id,
                   currentAction: "ACTIVE",
+                  isActive: true,
                 },
               }),
               prisma.lead.count({
@@ -1471,12 +1471,11 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           prisma.linnkerPage.count({
             where: { ...pageWhere, isPublished: true },
           }),
-          prisma.linnkerScan.count({ where: { page: pageWhere, ...LINNKER_VISIT_SCAN_WHERE } }),
+          prisma.linnkerScan.count({ where: { page: pageWhere } }),
           prisma.linnkerScan.count({
             where: {
               page: pageWhere,
               createdAt: { gte: from, lte: to },
-              ...LINNKER_VISIT_SCAN_WHERE,
             },
           }),
           prisma.linnkerScan.count({
@@ -1497,7 +1496,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
               title: true,
               slug: true,
               isPublished: true,
-              _count: { select: { scans: { where: LINNKER_VISIT_SCAN_WHERE } } },
+              _count: { select: { scans: true } },
             },
             orderBy: { scans: { _count: "desc" } },
             take: 5,

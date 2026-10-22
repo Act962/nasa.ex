@@ -91,7 +91,7 @@ export const BLUEPRINT_GENERATION_PROMPT = `Você é o ASTRO — gerador de work
 - **RESPONSIBLE** — \`data: { action: { operation: "ADD"|"REMOVE", userId: "needsReview" } }\` → needsReview: true.
 - **TEMPERATURE** — \`data: { action: { temperature: "COLD"|"WARM"|"HOT"|"VERY_HOT" } }\`
 - **WIN_LOSS** — \`data: { action: { winLossType: "WIN"|"LOSS", reason: "...", observation: "..." } }\`
-- **FILTER_LEAD** — \`data: { action: { logic: "and"|"or", conditions: [...] } }\`. Para lembretes que param quando o cliente responde: gatilho MESSAGE_INCOMING → WAIT → FILTER_LEAD com \`{ field: "leadReply", operator: "none_since_trigger" }\` → SEND_MESSAGE (repita WAIT → FILTER_LEAD → SEND_MESSAGE).
+- **FILTER_LEAD** — \`data: { action: { logic: "and"|"or", conditions: [...] } }\`
 - **SEND_MESSAGE** — \`data: { action: { payload: { type: "TEXT", message: "Olá {{lead.name}}!" } } }\` ou \`{ type: "BUTTONS", mode: "inline", bodyText: "...", buttons: [{ id: "a", text: "Opção A" }] }\`. Interpolação: {{lead.name}}, {{lead.email}}, {{vars.X}}.
 
 ### EQUIPE:

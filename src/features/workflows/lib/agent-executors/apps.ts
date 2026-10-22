@@ -29,7 +29,6 @@ import {
   resolveWorkflowProvider,
   sendWithWorkflowErrors,
   VOICE_UNSUPPORTED_MESSAGE,
-  WINDOW_CLOSED_MESSAGE,
 } from "@/features/tracking-executions/lib/workflow-outbound";
 import {
   sendTemplateToLead,
@@ -40,19 +39,7 @@ import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { AGENT_STARS_ACTIONS } from "../agent-stars-actions";
 import { getByPath, interpolate } from "../workflow-context";
 import { sendLinkToLead } from "@/features/tracking-executions/lib/send-link-to-lead";
-import { sendMessageExecutor as classicSendMessageExecutor } from "@/features/tracking-executions/components/send-message/executor";
-import { sendProposalExecutor as classicSendProposalExecutor } from "@/features/tracking-executions/components/send-proposal/executor";
-import { sendContractExecutor as classicSendContractExecutor } from "@/features/tracking-executions/components/send-contract/executor";
-import { moveLeadExecutor as classicMoveLeadExecutor } from "@/features/tracking-executions/components/move-lead/executor";
-import { hasPlaceholderText } from "../placeholder-text";
 import type { NodeExecutor } from "../run-workflow";
-import { runClassicNodeInAgentMode } from "./classic-node";
-import type { NodeExecutor as ClassicNodeExecutor } from "@/features/tracking-executions/types";
-import { createMessageFiller } from "./message-variables";
-import { flowOriginOf, type FlowMessageOrigin } from "../flow-origin";
-
-const PLACEHOLDER_NOT_SENT_MESSAGE =
-  'Mensagem com texto de exemplo ("[Escreva aqui…]") não foi enviada. Troque o texto no passo.';
 
 // ─── CHECK_PAYMENT ─────────────────────────────────
 // data: {
@@ -393,16 +380,17 @@ export const sendMediaExecutor: NodeExecutor = async ({
 
 function toTemplateContent(
   rawTemplate: unknown,
-  fillText: (text: string) => string,
+  context: Parameters<typeof interpolate>[0],
 ): WorkflowTemplateContent | null {
-  return toWorkflowTemplateContent(rawTemplate, fillText);
+  return toWorkflowTemplateContent(rawTemplate, (parameter) =>
+    interpolate(context, parameter),
+  );
 }
 
 async function sendTemplateStep(params: {
   leadId: string;
   trackingId: string;
   template: WorkflowTemplateContent;
-  origin?: FlowMessageOrigin | null;
 }) {
   try {
     const result = await sendTemplateToLead(params);
@@ -437,7 +425,6 @@ async function sendTemplateStep(params: {
 // O texto suporta interpolação {{lead.name}}, {{vars.x}}, etc.
 export const sendMessageExecutor: NodeExecutor = async ({
   nodeId,
-  nodeType,
   data,
   context,
   dryRun,
@@ -471,8 +458,6 @@ export const sendMessageExecutor: NodeExecutor = async ({
       errorMessage: "lead_or_tracking_missing",
     };
   }
-  // Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20).
-  const origin = flowOriginOf(context, nodeId);
 
   // ─── BUTTONS branch ───────────────────────────────────────────────
   // Passos de conversa (spec 0099): pedem algo ao cliente e esperam a resposta dele.
@@ -480,24 +465,6 @@ export const sendMessageExecutor: NodeExecutor = async ({
     const { runConsentStep, runFormChatStep } = await import("./conversation-steps");
     const stepParams = { nodeId, payload, context, dryRun, leadId, trackingId };
     return payloadType === CONSENT_TYPE ? runConsentStep(stepParams) : runFormChatStep(stepParams);
-  }
-
-  // Imagem, documento e envio para outro número (spec 0112): o mesmo envio do modo normal.
-  const target = action.target as { sendMode?: unknown } | undefined;
-  if (payloadType === "IMAGE" || payloadType === "DOCUMENT" || target?.sendMode === "CUSTOM") {
-    if (dryRun) return { output: { dryRun: true, type: payloadType } };
-    return runClassicNodeInAgentMode(classicSendMessageExecutor as ClassicNodeExecutor)({
-      nodeId,
-      nodeType,
-      data,
-      context,
-      dryRun,
-    });
-  }
-
-  const fillText = await createMessageFiller(context, leadId);
-  if (!fillText) {
-    return { output: { error: "lead_not_found" }, status: "FAILED", errorMessage: "Lead not found" };
   }
 
   if (payloadType === "BUTTONS") {
@@ -568,8 +535,8 @@ export const sendMessageExecutor: NodeExecutor = async ({
         : [];
     }
 
-    bodyText = fillText(bodyText).trim();
-    if (footerText) footerText = fillText(footerText);
+    bodyText = interpolate(context, bodyText).trim();
+    if (footerText) footerText = interpolate(context, footerText);
 
     if (!bodyText) {
       return {
@@ -597,21 +564,6 @@ export const sendMessageExecutor: NodeExecutor = async ({
       };
     }
 
-    // Como no modo normal: fora da janela de 24h vai o template reserva, ou o passo para.
-    const fallbackTemplate = toTemplateContent(action.fallbackTemplate, fillText);
-    try {
-      if (await isFreeFormWindowClosedForLead({ leadId, trackingId })) {
-        if (fallbackTemplate) return sendTemplateStep({ leadId, trackingId, template: fallbackTemplate, origin });
-        return { output: { error: WINDOW_CLOSED_MESSAGE }, status: "FAILED", errorMessage: WINDOW_CLOSED_MESSAGE };
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "send_failed";
-      return { output: { error: errorMessage }, status: "FAILED", errorMessage };
-    }
-    if (hasPlaceholderText({ bodyText, footerText, buttons })) {
-      return { output: { error: "placeholder_text" }, status: "FAILED", errorMessage: PLACEHOLDER_NOT_SENT_MESSAGE };
-    }
-
     try {
       const result = await sendButtonsToLead({
         leadId,
@@ -621,8 +573,6 @@ export const sendMessageExecutor: NodeExecutor = async ({
         buttons,
         menuFormat,
         listButton,
-        chargeStars: true,
-        origin,
       });
       // Espera o clique e segue um caminho por resposta (spec 0090, seção F). Só com o interruptor
       // ligado e marcado no quadro; sem isso o menu segue pela saída única de sempre.
@@ -665,7 +615,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
 
   // ─── TEMPLATE branch (API Oficial) ────────────────────────────────
   if (payloadType === "TEMPLATE") {
-    const template = toTemplateContent(payload, fillText);
+    const template = toTemplateContent(payload, context);
     if (!template) {
       return {
         output: { error: "template_missing" },
@@ -684,12 +634,12 @@ export const sendMessageExecutor: NodeExecutor = async ({
         },
       };
     }
-    return sendTemplateStep({ leadId, trackingId, template, origin });
+    return sendTemplateStep({ leadId, trackingId, template });
   }
 
   // ─── TEXT branch (default) ────────────────────────────────────────
   const rawText = String(payload.message ?? payload.text ?? "");
-  const text = fillText(rawText).trim();
+  const text = interpolate(context, rawText).trim();
 
   if (!text) {
     return {
@@ -710,7 +660,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
 
   // Template reserva: na API Oficial, fora da janela de 24h, vai no lugar
   // do texto em vez de o passo falhar.
-  const fallbackTemplate = toTemplateContent(action.fallbackTemplate, fillText);
+  const fallbackTemplate = toTemplateContent(action.fallbackTemplate, context);
   if (fallbackTemplate) {
     try {
       const isWindowClosed = await isFreeFormWindowClosedForLead({
@@ -722,7 +672,6 @@ export const sendMessageExecutor: NodeExecutor = async ({
           leadId,
           trackingId,
           template: fallbackTemplate,
-          origin,
         });
       }
     } catch (err) {
@@ -731,16 +680,11 @@ export const sendMessageExecutor: NodeExecutor = async ({
     }
   }
 
-  if (hasPlaceholderText(rawText)) {
-    return { output: { error: "placeholder_text" }, status: "FAILED", errorMessage: PLACEHOLDER_NOT_SENT_MESSAGE };
-  }
-
   try {
     const result = await sendLinkToLead({
       leadId,
       trackingId,
       body: text,
-      origin,
     });
     return {
       output: {
@@ -837,38 +781,24 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
   }
 
   try {
-    // Como no modo normal: etiqueta arquivada ou apagada é ignorada, sem derrubar o passo.
-    // Só etiquetas da empresa do lead: os ids vêm do passo e não podem apontar para outra empresa.
-    const leadTracking = await prisma.lead.findUnique({
-      where: { id: leadId },
-      select: { tracking: { select: { organizationId: true } } },
-    });
-    const activeTags = leadTracking
-      ? await prisma.tag.findMany({
-          where: { id: { in: tagsIds }, archivedAt: null, organizationId: leadTracking.tracking.organizationId },
-          select: { id: true },
-        })
-      : [];
-    const activeTagIds = activeTags.map((tag) => tag.id);
-
     // Track quais tags REALMENTE foram aplicadas/removidas (não-dup) — só
     // grava na jornada o que mudou, pra não inflar timeline com noise.
     const changedTagIds: string[] = [];
 
     if (type === "REMOVE") {
       const result = await prisma.leadTag.deleteMany({
-        where: { leadId, tagId: { in: activeTagIds } },
+        where: { leadId, tagId: { in: tagsIds } },
       });
       // deleteMany retorna count, não os IDs. Assume que removeu todos que
       // existiam — se contar > 0, registra na jornada todas as tagsIds
       // pedidas (acurácia "boa o suficiente" pra timeline).
-      if (result.count > 0) changedTagIds.push(...activeTagIds);
+      if (result.count > 0) changedTagIds.push(...tagsIds);
     } else {
       // ADD — upsert por (leadId, tagId) pra evitar dup. Usa loop porque
       // o composite key não suporta createMany direto. Track quais foram
       // NOVAS (upsert retorna o registro existente em ambos casos — então
       // checamos createdAt vs now pra distinguir).
-      for (const tagId of activeTagIds) {
+      for (const tagId of tagsIds) {
         const before = await prisma.leadTag.findUnique({
           where: { leadId_tagId: { leadId, tagId } },
           select: { id: true },
@@ -878,18 +808,6 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
           changedTagIds.push(tagId);
         }
       }
-    }
-
-    // Atualiza o card no quadro na hora, como o modo normal.
-    const leadInContext = (context.lead ?? {}) as Record<string, unknown>;
-    if (changedTagIds.length > 0 && leadInContext.trackingId && leadInContext.statusId) {
-      const { publishLeadChanged } = await import("@/features/leads/realtime/publish");
-      await publishLeadChanged({
-        leadId,
-        trackingId: String(leadInContext.trackingId),
-        statusId: String(leadInContext.statusId),
-        fields: ["tag"],
-      }).catch((error: unknown) => console.warn("[tag-executor] publish lead changed failed", error));
     }
 
     // ── Jornada do lead ─────────────────────────────────────────────
@@ -969,30 +887,139 @@ export const tagExecutor: NodeExecutor = async ({ data, context, dryRun }) => {
   }
 };
 
-// ─── SEND_PROPOSAL / SEND_CONTRACT / MOVE_LEAD ─────────────────────
-// Mesmo executor do modo normal (spec 0112), com o `data` da janela do editor valendo sobre o
-// `action` dos fluxos gerados. Mover Lead devolve o lead já na coluna nova para os passos seguintes.
-export const sendProposalExecutor: NodeExecutor = runClassicNodeInAgentMode(
-  classicSendProposalExecutor as ClassicNodeExecutor,
-);
+// ─── SEND_PROPOSAL (agent-mode wrapper) ───────────────────────────
+// Reusa o executor legado de `send-proposal/executor.ts` via fake-step
+// adapter — engine agent-mode já roda dentro de step.run do parent,
+// então `step.run` aninhado equivale a chamada direta.
+//
+// IMPORTANTE:
+//   1. O legacy executor lê `data.productIds` direto (flat), não
+//      `data.action.productIds`. Aqui achatamos pra manter compat.
+//   2. O legacy retorna `{...context}` (full Lead com Decimal fields).
+//      Prisma JSON field não serializa Decimal → erro
+//      "Could not serialize [object Function]". Por isso devolvemos
+//      um output enxuto, não a context cheia.
+//
+// data esperado: { action: { productIds, responsibleId, validityDays?, messageTemplate? } }
+export const sendProposalExecutor: NodeExecutor = async ({ data, context }) => {
+  const action =
+    (data.action && typeof data.action === "object"
+      ? (data.action as Record<string, unknown>)
+      : data) ?? {};
+  try {
+    const { sendProposalExecutor: legacy } =
+      await import("@/features/tracking-executions/components/send-proposal/executor");
+    const fakeStep = {
+      run: async <T>(_n: string, fn: () => Promise<T>) => fn(),
+    };
+    const noopPublish = async () => {};
+    await legacy({
+      data: action as never, // flat — legacy lê data.productIds direto
+      nodeId: "agent",
+      context: context as never,
+      step: fakeStep as never,
+      publish: noopPublish as never,
+    });
+    return {
+      output: {
+        sent: true,
+        productIds: Array.isArray(action.productIds) ? action.productIds : [],
+      },
+    };
+  } catch (err) {
+    return {
+      output: {
+        error: err instanceof Error ? err.message : "send_proposal_failed",
+      },
+      status: "FAILED",
+      errorMessage: err instanceof Error ? err.message : "send_proposal_failed",
+    };
+  }
+};
 
-export const sendContractExecutor: NodeExecutor = runClassicNodeInAgentMode(
-  classicSendContractExecutor as ClassicNodeExecutor,
-);
+// ─── SEND_CONTRACT (agent-mode wrapper) ───────────────────────────
+// data esperado: { action: { templateContractId, messageTemplate? } }
+// Legacy lê flat (data.templateContractId), por isso achatamos.
+export const sendContractExecutor: NodeExecutor = async ({ data, context }) => {
+  const action =
+    (data.action && typeof data.action === "object"
+      ? (data.action as Record<string, unknown>)
+      : data) ?? {};
+  try {
+    const { sendContractExecutor: legacy } =
+      await import("@/features/tracking-executions/components/send-contract/executor");
+    const fakeStep = {
+      run: async <T>(_n: string, fn: () => Promise<T>) => fn(),
+    };
+    const noopPublish = async () => {};
+    await legacy({
+      data: action as never,
+      nodeId: "agent",
+      context: context as never,
+      step: fakeStep as never,
+      publish: noopPublish as never,
+    });
+    return {
+      output: {
+        sent: true,
+        templateContractId: action.templateContractId ?? null,
+      },
+    };
+  } catch (err) {
+    return {
+      output: {
+        error: err instanceof Error ? err.message : "send_contract_failed",
+      },
+      status: "FAILED",
+      errorMessage: err instanceof Error ? err.message : "send_contract_failed",
+    };
+  }
+};
 
-const classicMoveLeadInAgentMode = runClassicNodeInAgentMode(
-  classicMoveLeadExecutor as ClassicNodeExecutor,
-);
-
-// Sem funil escolhido no passo, move dentro do funil atual do lead.
-export const moveLeadExecutor: NodeExecutor = (params) => {
-  const nodeAction =
-    params.data.action && typeof params.data.action === "object"
-      ? (params.data.action as Record<string, unknown>)
-      : {};
-  const currentTrackingId = (params.context.lead as Record<string, unknown> | undefined)?.trackingId;
-  return classicMoveLeadInAgentMode({
-    ...params,
-    data: { ...params.data, trackingId: params.data.trackingId ?? nodeAction.trackingId ?? currentTrackingId },
-  });
+// ─── MOVE_LEAD (agent-mode wrapper) ───────────────────────────────
+// data esperado: { action: { statusId, trackingId? } }
+// Legacy move-lead lê data.action.X (já espera wrap), então passamos
+// data como-está, sem achatar.
+export const moveLeadExecutor: NodeExecutor = async ({ data, context }) => {
+  try {
+    const { moveLeadExecutor: legacy } =
+      await import("@/features/tracking-executions/components/move-lead/executor");
+    const fakeStep = {
+      run: async <T>(_n: string, fn: () => Promise<T>) => fn(),
+    };
+    const noopPublish = async () => {};
+    // O executor antigo lê `trackingId`/`statusId` na raiz; os fluxos gerados
+    // (blueprint, Agente, construtor rápido) gravam em `data.action`. Sem o
+    // tracking, a busca quebrava e o lead nunca era movido.
+    const nodeAction =
+      data.action && typeof data.action === "object" ? (data.action as Record<string, unknown>) : {};
+    const lead = (context.lead ?? {}) as Record<string, unknown>;
+    const legacyData = {
+      ...data,
+      statusId: data.statusId ?? nodeAction.statusId,
+      trackingId: data.trackingId ?? nodeAction.trackingId ?? lead.trackingId,
+    };
+    await legacy({
+      data: legacyData as never,
+      nodeId: "agent",
+      context: context as never,
+      step: fakeStep as never,
+      publish: noopPublish as never,
+    });
+    const action =
+      (data.action && typeof data.action === "object"
+        ? (data.action as Record<string, unknown>)
+        : data) ?? {};
+    return {
+      output: { moved: true, statusId: action.statusId ?? null },
+    };
+  } catch (err) {
+    return {
+      output: {
+        error: err instanceof Error ? err.message : "move_lead_failed",
+      },
+      status: "FAILED",
+      errorMessage: err instanceof Error ? err.message : "move_lead_failed",
+    };
+  }
 };

@@ -103,6 +103,11 @@ export const stepNodeProc = base
     // ── 4. Lead ativo pra SEND_*? ─────────────────────────────────
     const messagingTypes = ["SEND_MESSAGE", "SEND_MEDIA", "SEND_VOICE"];
     if (messagingTypes.includes(node.type)) {
+      if (input.mockLead.isActive === false) {
+        warningsList.push(
+          "Mock lead está com isActive=false → executor vai abortar com 'Lead is not active' em runtime",
+        );
+      }
       if (!input.mockLead.phone) {
         warningsList.push(
           "Mock lead sem phone → executor vai abortar em runtime",

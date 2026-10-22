@@ -7,7 +7,6 @@ import {
   userTrackingsFilter,
   type BriefingAudience,
 } from "./build-app-briefings";
-import { LINNKER_VISIT_SCAN_WHERE } from "@/features/linnker/lib/visit-scans";
 
 /** Resumos dos demais Apps no painel do Astro (spec 0056): mesmas regras, só leitura no banco. */
 
@@ -88,7 +87,7 @@ export async function buildPagesBriefing({ organizationId, firstName, period }: 
 
 export async function buildLinnkerBriefing({ organizationId, firstName, period }: BriefingAudience) {
   const [weekAccessCount, topLink] = await Promise.all([
-    prisma.linnkerScan.count({ where: { page: { organizationId }, createdAt: { gte: period.weekStart }, ...LINNKER_VISIT_SCAN_WHERE } }),
+    prisma.linnkerScan.count({ where: { page: { organizationId }, createdAt: { gte: period.weekStart } } }),
     prisma.linnkerLink.findFirst({
       where: { page: { organizationId }, clicks: { gt: 0 } },
       orderBy: { clicks: "desc" },

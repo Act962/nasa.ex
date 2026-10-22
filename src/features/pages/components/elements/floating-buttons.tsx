@@ -10,9 +10,6 @@ import { ArrowUp } from "lucide-react";
 import { WhatsappIcon } from "@/components/whatsapp";
 import { digitsOf } from "../../lib/phone-br";
 import type { ElementBase } from "../../types";
-import { usePageRenderContext } from "../public/page-context";
-import { registerWhatsappClick } from "../../lib/register-whatsapp-click";
-import { originCodeOf, withOriginCodeInWhatsappUrl } from "@/features/leads/lib/lead-origin/origin-code";
 
 const BACK_TO_TOP_SCROLL_THRESHOLD_PX = 480;
 const BRAZIL_COUNTRY_CODE = "55";
@@ -47,17 +44,13 @@ export function FloatingButtons({ element }: { element: ElementBase }) {
   const backToTopBackground = (element.bgColor as string | undefined) ?? "#111827";
   const backToTopForeground = (element.fgColor as string | undefined) ?? "#ffffff";
 
-  const { pageId, pageSlug } = usePageRenderContext();
   // No servidor não há <body> para o portal nem rolagem para ler.
   const isMounted = useSyncExternalStore(subscribeToNothing, readTrue, readFalse);
   const hasScrolledDown = useSyncExternalStore(subscribeToScroll, readHasScrolledDown, readFalse);
 
   if (!isMounted) return null;
 
-  const plainWhatsappUrl = isWhatsAppEnabled ? buildWhatsAppUrl(whatsappPhone, whatsappMessage) : null;
-  // Página publicada: a mensagem leva o código de origem do site (spec 0114, RF-2).
-  const whatsappUrl =
-    plainWhatsappUrl && pageId ? withOriginCodeInWhatsappUrl(plainWhatsappUrl, originCodeOf("pages", pageId)) : plainWhatsappUrl;
+  const whatsappUrl = isWhatsAppEnabled ? buildWhatsAppUrl(whatsappPhone, whatsappMessage) : null;
 
   return createPortal(
     <div
@@ -85,7 +78,6 @@ export function FloatingButtons({ element }: { element: ElementBase }) {
           href={whatsappUrl}
           target="_blank"
           rel="noreferrer"
-          onClick={pageId && pageSlug ? () => registerWhatsappClick({ slug: pageSlug, id: pageId }) : undefined}
           aria-label="Falar pelo WhatsApp"
           className="grid size-14 place-items-center rounded-full text-white shadow-xl transition-transform hover:scale-105"
           style={{ background: WHATSAPP_GREEN }}

@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { dispatchAlert } from "@/features/alerts/lib/alert-engine";
 import { LEAD_AWAITING_HUMAN_EVENT } from "@/features/alerts/lib/lead-awaiting-human-event";
 import { applyAwaitingTagNow } from "@/features/org-defaults/lib/auto-tags";
-import { applyHandoffAttendance } from "@/features/org-defaults/lib/attendance/state";
 
 // A assistente parou de atender e o cliente espera uma pessoa. Sem este aviso a equipe só
 // descobria ao abrir o chat. Reaproveita a tag padrão "Aguard. atendimento" (que dispara os
@@ -16,9 +15,6 @@ export type AwaitingHumanReason =
   | "no_balance"
   | "quote_requested"
   | "manual_payment";
-
-// No limite de respostas a IA não volta sozinha: voltaria para ficar calada (spec 0113, CB-6).
-const HANDOFF_REASONS_WITH_AI_RETURN: AwaitingHumanReason[] = ["client_asked", "assistant_could_not_solve"];
 
 const REASON_TEXT: Record<AwaitingHumanReason, string> = {
   client_asked: "pediu para falar com um atendente",
@@ -37,16 +33,7 @@ export async function signalLeadAwaitingHuman(params: {
   reason: AwaitingHumanReason;
 }): Promise<void> {
   try {
-    // Estado de atendimento (spec 0113): espera de consultor. A IA volta em 10 min quando o cliente pediu ou
-    // ela não resolveu; em catálogo, saldo e limite de respostas, espera o consultor.
-    const isHandledByAttendance = await applyHandoffAttendance({
-      leadId: params.leadId,
-      at: new Date(),
-      shouldAiReturn: HANDOFF_REASONS_WITH_AI_RETURN.includes(params.reason),
-    });
-    if (!isHandledByAttendance) {
-      await applyAwaitingTagNow({ organizationId: params.organizationId, leadId: params.leadId });
-    }
+    await applyAwaitingTagNow({ organizationId: params.organizationId, leadId: params.leadId });
   } catch (tagError) {
     console.warn("[tracking-chat-ai] tag de espera falhou", tagError instanceof Error ? tagError.message : "erro");
   }

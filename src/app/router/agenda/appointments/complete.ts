@@ -5,7 +5,6 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
-import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 
 export const completeAppointment = base
   .use(requiredAuthMiddleware)
@@ -75,8 +74,6 @@ export const completeAppointment = base
         metadata: { appointmentId, title: appointment.title },
       });
     }
-
-    await recordAppointmentChange({ appointmentId, change: "done", actorId: context.user.id }).catch((error: unknown) => console.warn("[agenda.complete] atendimento do agendamento falhou", error));
 
     return { appointment: updatedAppointment };
   });

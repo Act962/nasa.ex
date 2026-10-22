@@ -8,7 +8,6 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import z from "zod";
-import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -164,8 +163,6 @@ export const createAdminAppointment = base
       description: `Criou agendamento (${agenda.name})`,
       appSlug: "spacetime",
     });
-
-    await recordAppointmentChange({ appointmentId: appointment.id, change: "scheduled", actorId: context.user.id }).catch((error: unknown) => console.warn("[agenda.createAdmin] atendimento do agendamento falhou", error));
 
     return { success: true, appointment };
   });

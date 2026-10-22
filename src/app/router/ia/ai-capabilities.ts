@@ -4,7 +4,6 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { aiCapabilitiesSchema, parseAiCapabilities } from "@/features/tracking-chat-ai/lib/capabilities";
 import { resolveBotVoice } from "@/features/astro-bot/lib/voice/voices";
 import prisma from "@/lib/prisma";
-import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
 import { z } from "zod";
 
 // O que o Chatbot IA pode fazer pelo cliente (spec 0084). O tracking é sempre
@@ -51,8 +50,6 @@ export const getAiCapabilities = base
     ]);
     return {
       hasAiSettings: Boolean(tracking.aiSettings),
-      // Estado de atendimento ligado na empresa (spec 0113): mostra a seção "Atendimento".
-      isAttendanceManaged: isAttendanceStateEnabled(context.org.id),
       capabilities: parseAiCapabilities(tracking.aiSettings?.capabilities),
       availableAgendas: agendas,
       availableForms: forms,

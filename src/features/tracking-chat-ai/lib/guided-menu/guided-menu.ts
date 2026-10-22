@@ -158,7 +158,6 @@ class GuidedMenu {
     if (this.isTest) return;
     const optionsLine = options.length > 0 ? `\n[opções: ${options.map((option) => option.title).join(" · ")}]` : "";
     await persistOutboundMessage({
-      isClientReply: true,
       conversationId: this.ctx.conversation.id,
       leadId: this.ctx.lead.id,
       trackingId: this.ctx.trackingId,

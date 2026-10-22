@@ -2,7 +2,6 @@ import "server-only";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
-import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 import type { AstroAction, AstroActionResult } from "../types";
 import { formatAgendaDateTime } from "./schedule-steps";
 import { parsePickedAnswer, type AstroPicker } from "@/features/astro/lib/astro-picker";
@@ -119,7 +118,6 @@ export const cancelAppointmentAction: AstroAction<typeof inputSchema> = {
       where: { id: appointment.id },
       data: { status: "CANCELLED", cancelledBy: "SYSTEM" },
     });
-    await recordAppointmentChange({ appointmentId: appointment.id, change: "cancelled", actorId: ctx.userId }).catch((error: unknown) => console.warn("[astro.appointment.cancel] atendimento do agendamento falhou", error));
 
     const actor = await prisma.user.findUnique({
       where: { id: ctx.userId },

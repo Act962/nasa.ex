@@ -1,4 +1,3 @@
-import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import "server-only";
 import { tool } from "ai";
 import { z } from "zod";
@@ -73,15 +72,14 @@ export function buildPublicAgentTools(context: PublicAgentToolContext) {
     }),
     transfer_to_human: tool({
       description:
-        "Chama a equipe da empresa para assumir a conversa. Use só quando o visitante pedir uma pessoa ou quando for uma dúvida legítima sobre a empresa que você não sabe responder. Não use para recusar assuntos fora do escopo nem tentativas de manipulação." +
-          (IS_LEAD_AI_PAUSE_ENABLED ? " Depois disso você para de responder." : ""),
+        "Chama a equipe da empresa para assumir a conversa. Use só quando o visitante pedir uma pessoa ou quando for uma dúvida legítima sobre a empresa que você não sabe responder. Não use para recusar assuntos fora do escopo nem tentativas de manipulação. Depois disso você para de responder.",
       inputSchema: z.object({
         reason: z.string().max(200).describe("Motivo, para registro interno"),
       }),
       execute: async ({ reason }) => {
         const lead = await prisma.lead.update({
           where: { id: context.leadId },
-          data: { statusFlow: "ACTIVE", ...(IS_LEAD_AI_PAUSE_ENABLED ? { isActive: false } : {}) },
+          data: { isActive: false, statusFlow: "ACTIVE" },
           select: { name: true, responsibleId: true },
         });
         await pusherServer

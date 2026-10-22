@@ -20,7 +20,6 @@ import {
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { useHideOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import { computeLeadHeat } from "@/features/leads/components/lead-audit/lead-heat";
-import { AppointmentCheckCard } from "@/features/tracking-chat/components/appointment-check-card";
 
 export default function Page() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -159,7 +158,6 @@ export default function Page() {
             leadId={data.conversation.lead.id}
             conversationId={conversationId}
             active={data.conversation.lead.isActive}
-            isAttendanceManaged={data.isAttendanceManaged}
             trackingId={data.conversation.trackingId}
             statusFlow={data.conversation.lead.statusFlow}
             channel={data.conversation.channel}
@@ -175,7 +173,6 @@ export default function Page() {
                 : null
             }
           />
-          {data.pendingAppointmentCheck && <AppointmentCheckCard check={data.pendingAppointmentCheck} />}
           <Body
             messageSelected={messageSelected}
             onSelectMessage={setMessageSelected}

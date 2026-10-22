@@ -33,7 +33,6 @@ function toForwardFailure(conversationId: string, reason: unknown) {
 }
 import prisma from "@/lib/prisma";
 import z from "zod";
-import { recordHumanReply } from "./utils";
 
 type ForwardKind = z.infer<typeof forwardPayloadSchema>["kind"];
 
@@ -81,7 +80,7 @@ export const forwardMessageHandler = base
             remoteJid: true,
             channel: true,
             trackingId: true,
-            lead: { select: { id: true, phone: true } },
+            lead: { select: { phone: true } },
             tracking: { select: { organizationId: true } },
           },
         });
@@ -117,14 +116,9 @@ export const forwardMessageHandler = base
           number,
           provider: resolved.provider,
           senderName: context.user.name,
-          senderId: context.user.id,
         };
 
         const message = await dispatchForward(input.payload, ctx);
-        // Encaminhar registra que a empresa falou, sem tomar o lead nem pausar a IA (spec 0113, RF-4).
-        await recordHumanReply(conversation.lead.id, { userId: context.user.id, isConversationReply: false }).catch(
-          (error: unknown) => console.warn("[forward] record human reply failed", error),
-        );
 
         return {
           conversationId,
