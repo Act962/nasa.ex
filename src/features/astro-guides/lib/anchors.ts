@@ -447,6 +447,10 @@ export const GUIDE_ANCHORS = {
     id: "payment.new-payable",
     description: "Botão \"Nova Despesa\" na aba Despesa do Financeiro",
   },
+  paymentMessagingSender: {
+    id: "payment.messaging-sender",
+    description: "Escolha do tracking (número de WhatsApp) que envia as cobranças, nas Configurações do Financeiro",
+  },
   paymentEntryDescription: {
     id: "payment.entry.description",
     description: "Campo de descrição no formulário de lançamento",

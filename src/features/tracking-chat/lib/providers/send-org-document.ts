@@ -29,10 +29,23 @@ function describeSendError(error: unknown): string {
   return "whatsapp_send_failed";
 }
 
-async function resolveOrganizationProvider(organizationId: string) {
-  const instance = await findConnectedOrganizationInstance(organizationId);
+/** Com `senderTrackingId`, só o número daquele tracking: sem trocar sozinho para outro número da org. */
+export async function findOrganizationSenderInstance(organizationId: string, senderTrackingId?: string | null) {
+  if (!senderTrackingId) return findConnectedOrganizationInstance(organizationId);
+  return prisma.whatsAppInstance.findFirst({
+    where: { organizationId, trackingId: senderTrackingId, status: "CONNECTED" },
+    select: { id: true, trackingId: true, provider: true },
+  });
+}
+
+async function resolveOrganizationProvider(organizationId: string, senderTrackingId?: string | null) {
+  const instance = await findOrganizationSenderInstance(organizationId, senderTrackingId);
   if (!instance) return null;
   return resolveOutboundProvider(instance.trackingId);
+}
+
+function describeMissingInstance(senderTrackingId?: string | null): string {
+  return senderTrackingId ? "sender_tracking_not_connected" : "no_connected_whatsapp_instance";
 }
 
 export async function sendOrganizationWhatsAppDocument(params: {
@@ -42,13 +55,14 @@ export async function sendOrganizationWhatsAppDocument(params: {
   fileName: string;
   mimeType: string;
   caption?: string;
+  senderTrackingId?: string | null;
 }): Promise<OrganizationWhatsAppSendResult> {
   const recipientPhone = normalizePhoneToMetaE164(params.phone);
   if (recipientPhone.length < 10) return { isSent: false, reason: "invalid_phone" };
 
   try {
-    const resolved = await resolveOrganizationProvider(params.organizationId);
-    if (!resolved) return { isSent: false, reason: "no_connected_whatsapp_instance" };
+    const resolved = await resolveOrganizationProvider(params.organizationId, params.senderTrackingId);
+    if (!resolved) return { isSent: false, reason: describeMissingInstance(params.senderTrackingId) };
 
     const mediaUrl = await getPresignedReadUrl(params.fileKey, PRESIGNED_URL_TTL_SECONDS);
     const isImage = params.mimeType.startsWith("image/");
@@ -72,13 +86,14 @@ export async function sendOrganizationWhatsAppText(params: {
   organizationId: string;
   phone: string;
   message: string;
+  senderTrackingId?: string | null;
 }): Promise<OrganizationWhatsAppSendResult> {
   const recipientPhone = normalizePhoneToMetaE164(params.phone);
   if (recipientPhone.length < 10) return { isSent: false, reason: "invalid_phone" };
 
   try {
-    const resolved = await resolveOrganizationProvider(params.organizationId);
-    if (!resolved) return { isSent: false, reason: "no_connected_whatsapp_instance" };
+    const resolved = await resolveOrganizationProvider(params.organizationId, params.senderTrackingId);
+    if (!resolved) return { isSent: false, reason: describeMissingInstance(params.senderTrackingId) };
 
     const result = await resolved.provider.sendText({
       kind: "text",

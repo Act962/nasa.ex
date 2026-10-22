@@ -673,6 +673,9 @@ model Tracking {
   astroBotEnabledOn AstroBotTracking[]
   astroChatSites    AstroChatSite[]
 
+  // Tracking cujo número envia a régua e os lembretes do financeiro (spec 0115).
+  paymentMessagingFor PaymentGovernanceConfig[]
+
   @@map("tracking")
 }
 
@@ -6494,11 +6497,15 @@ model PaymentGovernanceConfig {
   sessionTimeoutMinutes      Int      @default(30) @map("session_timeout_minutes")
   // A cada N sessões abertas, exige OTP novo via WhatsApp (em vez de só senha).
   otpEveryNSessions          Int      @default(10) @map("otp_every_n_sessions")
+  // Tracking cujo número de WhatsApp envia a régua e os lembretes (spec 0115). null = número mais antigo da org.
+  messagingTrackingId        String?  @map("messaging_tracking_id")
   createdAt                  DateTime @default(now()) @map("created_at")
   updatedAt                  DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  messagingTracking Tracking?    @relation(fields: [messagingTrackingId], references: [id], onDelete: SetNull)
 
+  @@index([messagingTrackingId])
   @@map("payment_governance_config")
 }
 

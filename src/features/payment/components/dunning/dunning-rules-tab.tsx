@@ -29,6 +29,7 @@ import {
   Star,
 } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
+import { MessagingSenderSelect } from "./messaging-sender-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -102,6 +103,8 @@ export function DunningRulesTab() {
           Nova régua
         </Button>
       </div>
+
+      <MessagingSenderSelect />
 
       {rules.length === 0 ? (
         <Card className="p-8 text-center">

@@ -7,6 +7,7 @@ import { resend } from "@/lib/email/resend";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { buildChargeUrl } from "@/features/payment/lib/charge-link";
 import { formatCalendarDate } from "@/features/payment/lib/dates";
+import { getPaymentSenderTrackingId } from "@/features/payment/server/messaging/sender-tracking";
 import {
   buildChargePixCode,
   getOpenAmountCents,
@@ -199,12 +200,13 @@ export const paymentDunningFire = inngest.createFunction(
         if (!recipientPhone) {
           return { status: "FAILED" as const, reason: "contact-no-phone", messageId: null };
         }
-        // Pelo número da própria empresa, em uazapi ou API oficial (fora da janela de 24h a
-        // Meta recusa texto livre e o motivo fica na execução).
+        // Pelo número do tracking escolhido nas configurações (ou o mais antigo da org), em uazapi ou
+        // API oficial (fora da janela de 24h a Meta recusa texto livre e o motivo fica na execução).
         const result = await sendOrganizationWhatsAppText({
           organizationId,
-          phone:   recipientPhone,
-          message: body,
+          phone:            recipientPhone,
+          message:          body,
+          senderTrackingId: await getPaymentSenderTrackingId(organizationId),
         });
         if (!result.isSent) {
           return { status: "FAILED" as const, reason: result.reason, messageId: null };
