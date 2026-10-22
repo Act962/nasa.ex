@@ -1,5 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import prisma from "@/lib/prisma";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
@@ -77,36 +78,6 @@ export async function withDomainErrors<T>(run: () => Promise<T>): Promise<T> {
     }
     throw error;
   }
-}
-
-/**
- * Origem pública do app, para montar a URL que o usuário cola na Meta.
- *
- * `NEXT_PUBLIC_*` é **congelada no build**: se o deploy não receber a variável
- * como build arg, o valor sai `undefined` no bundle e nenhuma variável de
- * runtime conserta. Por isso existe o fallback pelos headers da própria
- * requisição — atrás de proxy (Coolify/Traefik) o host real chega em
- * `x-forwarded-*`, e é a fonte que não depende de configuração nenhuma.
- *
- * A env continua tendo precedência porque é o único jeito de apontar o webhook
- * para um túnel enquanto se navega em localhost.
- */
-function resolvePublicOrigin(headers?: Headers): string {
-  const fromEnv =
-    process.env.NEXT_PUBLIC_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL;
-  if (fromEnv) return fromEnv.replace(/\/$/, "");
-
-  const host = headers?.get("x-forwarded-host") ?? headers?.get("host");
-  if (host) {
-    const protocol =
-      headers?.get("x-forwarded-proto") ??
-      (host.startsWith("localhost") || host.startsWith("127.0.0.1")
-        ? "http"
-        : "https");
-    return `${protocol}://${host}`;
-  }
-
-  return "http://localhost:3000";
 }
 
 export function webhookUrlFor(
