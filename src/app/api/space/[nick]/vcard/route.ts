@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 
 /**
  * Exporta vCard 3.0 da empresa para salvar em contatos (viral).
@@ -44,10 +45,7 @@ export async function GET(
   }
 
   const { name, bio, website, logo } = station.org;
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    new URL(req.url).origin;
-  const spaceUrl = `${baseUrl}/space/${nick}`;
+  const spaceUrl = `${resolvePublicOrigin(req.headers)}/space/${nick}`;
 
   // vCard 3.0 — escape básico de separadores e nova linha.
   const esc = (v: string) => v.replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");

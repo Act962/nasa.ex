@@ -13,6 +13,7 @@ import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 import { getStripe } from "@/lib/stripe";
 import { getStarPriceBrl, starsToBrlCents } from "@/features/nasa-route/lib/pricing";
 import {
@@ -22,7 +23,6 @@ import {
 import { PartnerStatus, Prisma } from "@/generated/prisma/client";
 import { MIN_TOPUP_BRL_CENTS, MAX_TOPUP_STARS } from "./get-stars-pricing";
 
-const ORIGIN = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 const DEFAULT_RETURN = "/settings/billing";
 
 /**
@@ -167,8 +167,8 @@ export const createStarsCheckout = base
     // ── Stripe Checkout Session ──────────────────────────────────────────────
     const ret = safeReturnPath(input.returnPath);
     const sep = ret.includes("?") ? "&" : "?";
-    const successUrl = `${ORIGIN}${ret}${sep}stars=success`;
-    const cancelUrl = `${ORIGIN}${ret}${sep}stars=cancelled`;
+    const successUrl = `${resolvePublicOrigin()}${ret}${sep}stars=success`;
+    const cancelUrl = `${resolvePublicOrigin()}${ret}${sep}stars=cancelled`;
 
     const piMetadata = {
       kind: "stars_topup",

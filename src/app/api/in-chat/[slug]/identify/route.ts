@@ -29,6 +29,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 import { z } from "zod";
 import { createInChatLead } from "@/features/tracking-chat/lib/incoming-message-pipeline";
 
@@ -162,7 +163,7 @@ export async function POST(
   // Cria lead via pipeline compartilhado — dispara workflow NEW_LEAD,
   // round-robin, logActivity automaticamente.
   try {
-    const appOrigin = req.nextUrl.origin;
+    const appOrigin = resolvePublicOrigin(req.headers);
     const created = await createInChatLead({
       trackingId,
       statusId: parsed.data.statusId,

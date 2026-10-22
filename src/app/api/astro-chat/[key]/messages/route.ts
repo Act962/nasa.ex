@@ -2,6 +2,7 @@ import { after, type NextRequest } from "next/server";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import prisma from "@/lib/prisma";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 import { inngest } from "@/inngest/client";
 import { MessageStatus } from "@/generated/prisma/enums";
 import { firePostInboundAutomations } from "@/features/tracking-chat/lib/incoming-message-pipeline";
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const conversation = await ensureVisitorConversation({
     site,
     visitor,
-    appOrigin: request.nextUrl.origin,
+    appOrigin: resolvePublicOrigin(request.headers),
   });
   if (!conversation)
     return jsonResponse({ error: "not_configured" }, { status: 403, origin });
