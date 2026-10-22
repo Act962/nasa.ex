@@ -24,9 +24,11 @@ export async function sendWhatsAppText(opts: {
   linkPreview?: boolean;
 }): Promise<{ messageId: string | null } | null> {
   const instance = await prisma.whatsAppInstance.findFirst({
+    // Envio pelo QR code (uazapi): número da API oficial também conta como conectado, mas não serve aqui.
     where: {
       organizationId: opts.organizationId,
       status: "CONNECTED",
+      provider: "UAZAPI",
     },
     select: { apiKey: true, baseUrl: true, instanceName: true },
     orderBy: { createdAt: "asc" },

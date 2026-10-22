@@ -37,6 +37,7 @@ const FILTER_FIELD_LABELS: Record<string, string> = {
   email: "E-mail",
   leadMessage: "Mensagem",
   interest: "Interesse",
+  leadReply: "Cliente",
 };
 const FILTER_OPERATOR_LABELS: Record<string, string> = {
   is: "é",
@@ -47,6 +48,8 @@ const FILTER_OPERATOR_LABELS: Record<string, string> = {
   less_than: "menor que",
   equals: "igual a",
   at_least: "pelo menos",
+  none_since_trigger: "não escreveu desde o início",
+  since_trigger: "escreveu desde o início",
 };
 const INTEREST_LABELS: Record<string, string> = { LOW: "Baixo", MEDIUM: "Médio", HIGH: "Alto" };
 const MAX_FILTER_LINES = 4;

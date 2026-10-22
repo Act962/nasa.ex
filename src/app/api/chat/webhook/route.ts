@@ -450,7 +450,8 @@ export async function POST(request: NextRequest) {
                   where: {
                     conversationId: buttonTagLead.conversation.id,
                     fromMe: true,
-                    metadata: { not: Prisma.DbNull },
+                    // Só menus com etiqueta: mensagem de fluxo também tem metadata (spec 0113) e encolhia a janela.
+                    metadata: { path: ["buttonTagMap"], not: Prisma.DbNull },
                   },
                   orderBy: { createdAt: "desc" },
                   take: 20,

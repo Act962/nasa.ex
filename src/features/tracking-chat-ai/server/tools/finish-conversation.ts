@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import type { AgentContext } from "../../lib/context";
+import { applyFinishedAttendance } from "@/features/org-defaults/lib/attendance/state";
 
 export const makeFinishConversationTool = (ctx: AgentContext) =>
   tool({
@@ -19,6 +20,11 @@ export const makeFinishConversationTool = (ctx: AgentContext) =>
         where: { id: ctx.lead.id },
         data: { statusFlow: "FINISHED" },
       });
+
+      // Estado de atendimento (spec 0113): etiqueta "Finalizado" e seção fechada.
+      await applyFinishedAttendance({ leadId: ctx.lead.id, outcome: "FINISHED" }).catch((error: unknown) =>
+        console.warn("[finish-conversation] attendance state failed", error),
+      );
 
       await pusherServer.trigger(ctx.trackingId, "lead:updated", {
         leadId: ctx.lead.id,

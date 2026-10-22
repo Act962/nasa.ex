@@ -61,7 +61,7 @@ export function buildWorkflowTools(
     // ── 2. Aplica preset por slug ──────────────────────────────────
     apply_workflow_preset: tool({
       description:
-        "Aplica um dos 4 presets prontos no tracking informado. Workflow nasce com isActive=false. Use quando o user pede algo que JÁ existe como preset (lista via list_workflow_presets antes). Mais rápido e validado que generate.",
+        "Aplica um dos presets prontos no tracking informado. Workflow nasce com isActive=false. Use quando o user pede algo que JÁ existe como preset (lista via list_workflow_presets antes). Mais rápido e validado que generate.",
       inputSchema: z.object({
         slug: z.enum([
           "agendamento",
@@ -69,6 +69,7 @@ export function buildWorkflowTools(
           "proposta-contrato",
           "boas-vindas-nasa-route",
           "comprovante-pagamento",
+          "recuperacao-cancelou",
         ]),
         trackingId: z
           .string()

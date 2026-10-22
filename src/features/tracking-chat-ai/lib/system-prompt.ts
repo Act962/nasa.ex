@@ -12,6 +12,11 @@ interface AvailableAgenda {
   name: string;
 }
 
+export interface UpcomingAppointment {
+  startsAt: Date;
+  agenda: { name: string };
+}
+
 interface CurrentLeadTag {
   tag: { id: string; name: string };
 }
@@ -36,6 +41,8 @@ interface BuildPromptArgs {
   availableButtonPresets: AvailableButtonPreset[];
   /** Agendas liberadas ao agente (spec 0084). Vazio = sem agenda. */
   availableAgendas?: AvailableAgenda[];
+  /** Próximas consultas do cliente, lidas da agenda: valem mais que o que a conversa diz. */
+  upcomingAppointments?: UpcomingAppointment[];
   availableForms?: AvailableAgenda[];
   capabilities?: AiCapabilities;
 }
@@ -49,6 +56,7 @@ export function buildSystemPrompt({
   availableTags,
   availableButtonPresets,
   availableAgendas,
+  upcomingAppointments,
   availableForms,
   capabilities,
 }: BuildPromptArgs): string {
@@ -92,7 +100,7 @@ quem assume a partir daí é o atendente humano.`;
     "",
     buttonsBlock,
     taggingBlock,
-    buildAgendaBlock(availableAgendas ?? [], capabilities?.reminder.isEnabled ?? false),
+    buildAgendaBlock(availableAgendas ?? [], capabilities?.reminder.isEnabled ?? false, upcomingAppointments),
     buildClientServicesBlock(capabilities, availableForms ?? []),
     finishBlock,
     CLIENT_SAFETY_BLOCK,
@@ -183,7 +191,28 @@ const SINGLE_MESSAGE_STYLE = [
   "- Exemplo ruim (NÃO faça): três mensagens seguidas, ou um parágrafo explicando tudo o que a empresa faz.",
 ];
 
-function buildAgendaBlock(agendas: AvailableAgenda[], hasReminders: boolean): string {
+export function describeUpcomingAppointments(appointments: UpcomingAppointment[]): string {
+  if (appointments.length === 0) {
+    return "Este cliente não tem nenhum agendamento marcado agora (lido da agenda neste momento). Se a conversa disser que já está marcado, ela está errada: diga que ainda não ficou registrado, confirme agenda, data e horário e, depois do \"sim\", chame `book_appointment`.";
+  }
+  const appointmentLines = appointments.map((appointment) => {
+    const startsAt = appointment.startsAt.toLocaleString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return `- ${appointment.agenda.name}: ${startsAt}`;
+  });
+  return ["Agendamentos marcados deste cliente agora (lidos da agenda; vale isto, não o que a conversa diz). Só diga que algo está marcado se estiver nesta lista:", ...appointmentLines].join("\n");
+}
+
+function buildAgendaBlock(
+  agendas: AvailableAgenda[],
+  hasReminders: boolean,
+  upcomingAppointments: UpcomingAppointment[] | undefined,
+): string {
   if (agendas.length === 0) return "";
   const now = new Date();
   const today = now.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
@@ -196,10 +225,13 @@ function buildAgendaBlock(agendas: AvailableAgenda[], hasReminders: boolean): st
     agendas.length === 1
       ? "Só há esta agenda: use-a direto, sem perguntar qual."
       : "Se o cliente não disser o serviço, pergunte qual destas agendas ele quer.",
+    // Sem a lista (quem chama não a carregou), nada é dito: "nenhum agendamento" seria falso.
+    ...(upcomingAppointments ? [describeUpcomingAppointments(upcomingAppointments)] : []),
     "- Antes de sugerir horário, chame SEMPRE `get_available_slots`. Nunca invente horário. Ao chamar as ferramentas, use data YYYY-MM-DD e hora HH:mm; para o cliente, escreva DD/MM e HH:mm.",
     "- Se o cliente já disse o dia, consulte os horários na hora, sem pedir confirmação do dia.",
     "- Mostre no máximo 6 horários por vez, em linhas curtas, respeitando o período pedido (manhã, tarde).",
     "- Antes de `book_appointment`, `cancel_my_appointment` ou `reschedule_my_appointment`, repita agenda, data e horário e espere o cliente confirmar. Só chame a ferramenta depois do \"sim\".",
+    "- Quando o cliente confirmar, chame a ferramenta ANTES de responder. Nunca diga que marcou, remarcou ou cancelou sem a ferramenta ter devolvido sucesso nesta resposta.",
     "- Para remarcar ou cancelar, chame antes `list_my_appointments`. Nunca mostre o identificador interno do agendamento nem o agendaId.",
     "- Depois de marcar ou remarcar, informe data, horário e o link devolvido pela ferramenta.",
     "- Não peça nome nem telefone para agendar: o sistema já sabe quem é o cliente.",

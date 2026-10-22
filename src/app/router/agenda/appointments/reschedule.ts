@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { z } from "zod";
+import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -78,6 +79,13 @@ export const rescheduleAppointment = base
       resourceId: input.appointmentId,
       metadata: { oldStart: appointment.startsAt, newStart, newEnd },
     });
+
+    await recordAppointmentChange({
+      appointmentId: input.appointmentId,
+      change: "rescheduled",
+      actorId: context.user.id,
+      previousStartsAt: appointment.startsAt,
+    }).catch((error: unknown) => console.warn("[agenda.reschedule] atendimento do agendamento falhou", error));
 
     return { appointment: updated };
   });

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
+import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 
 import { cn } from "@/lib/utils";
 import * as SwitchPrimitive from "@radix-ui/react-switch";
@@ -43,6 +44,8 @@ export function CheckIaLead({
       active: checked,
     });
   };
+
+  if (!IS_LEAD_AI_PAUSE_ENABLED) return null;
 
   return (
     <>

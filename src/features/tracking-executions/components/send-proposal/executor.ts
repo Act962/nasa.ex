@@ -8,6 +8,7 @@ import {
   buildLeadVariables,
 } from "../../lib/interpolate-message";
 import { sendAppActionChannel } from "@/inngest/channels/send-app-action";
+import { flowOriginOf } from "@/features/workflows/lib/flow-origin";
 
 /**
  * SEND_PROPOSAL — cria uma `ForgeProposal` vinculada ao lead com
@@ -167,6 +168,7 @@ export const sendProposalExecutor: NodeExecutor<SendProposalData> = async ({
         leadId: lead.id,
         trackingId: lead.trackingId,
         body,
+        origin: flowOriginOf(context, nodeId),
       });
 
       if (realTime) {

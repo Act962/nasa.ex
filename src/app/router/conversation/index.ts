@@ -9,6 +9,7 @@ import { getInChatStatus } from "./get-in-chat-status";
 import { importExistingChats } from "./import-existing-chats";
 import { startFromGroupParticipant } from "./start-from-group-participant";
 import { getUnansweredCounts, getUnansweredTotal } from "./unanswered-counts";
+import { answerAppointmentCheckRoute } from "./answer-appointment-check";
 
 export const conversationRouter = {
   list: listConversation,
@@ -23,4 +24,5 @@ export const conversationRouter = {
   startFromGroupParticipant,
   unansweredCounts: getUnansweredCounts,
   unansweredTotal: getUnansweredTotal,
+  answerAppointmentCheck: answerAppointmentCheckRoute,
 };

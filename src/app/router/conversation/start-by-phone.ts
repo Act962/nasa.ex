@@ -1,4 +1,5 @@
 import { base } from "@/app/middlewares/base";
+import { applyCompanyOpenedConversation } from "@/features/org-defaults/lib/attendance/state";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { LeadAction, LeadSource } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
@@ -6,6 +7,8 @@ import { validWhatsappPhone } from "@/http/uazapi/valid-whatsapp-phone";
 import z from "zod";
 import { recordLeadHistory } from "../leads/utils/history";
 import { resolveOutboundProviderOrBadRequest } from "@/features/tracking-chat/lib/providers";
+import { canAccessTracking } from "@/features/workflows/server/workflow-access";
+import { ORPCError } from "@orpc/server";
 
 export const startConversationByPhone = base
   .use(requiredAuthMiddleware)
@@ -27,6 +30,10 @@ export const startConversationByPhone = base
     }),
   )
   .handler(async ({ input, context }) => {
+    // Só quem é da empresa dona do funil abre conversa pelo número dele.
+    if (!(await canAccessTracking(input.trackingId, context.user.id))) {
+      throw new ORPCError("NOT_FOUND", { message: "Funil não encontrado" });
+    }
     const normalized = input.phone.replace(/\D/g, "");
     if (!normalized) throw new Error("Telefone inválido");
 
@@ -107,6 +114,10 @@ export const startConversationByPhone = base
       action: LeadAction.ACTIVE,
       notes: "Conversa iniciada a partir de contato",
     });
+    // A empresa abriu a conversa: "Aguard." até o cliente responder (spec 0113).
+    await applyCompanyOpenedConversation({ leadId: lead.id }).catch((error: unknown) =>
+      console.warn("[startByPhone] attendance state failed", error),
+    );
 
     return { conversationId: conversation.id, leadId: lead.id };
   });

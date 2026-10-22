@@ -6,6 +6,8 @@ export type Lead = {
   id: string;
   trackingId: string;
   isActive: boolean;
+  /** Estado de atendimento automático na empresa (spec 0113): o card mostra o estado no lugar do botão da IA. */
+  isAttendanceManaged?: boolean;
   currentAction: LeadAction;
   email: string | null;
   name: string;

@@ -12,6 +12,7 @@ import {
   trackingParamsSchema,
   trackingToLeadData,
 } from "@/lib/tracking/tracking-params";
+import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 // 🟧 LIST ALL
 export const createLead = base
@@ -49,6 +50,7 @@ export const createLead = base
   )
   .handler(async ({ input, errors, context }) => {
     try {
+      let isNewLead = false;
       const lead = await prisma.$transaction(async (tx) => {
         const existingLead = await tx.lead.findUnique({
           where: {
@@ -114,8 +116,12 @@ export const createLead = base
           tx,
         });
 
+        isNewLead = true;
         return newLead;
       });
+
+      // Origem real do lead (spec 0114): cadastrado à mão no funil.
+      if (isNewLead) await recordLeadOriginFromLead(lead.id, { origin: "MANUAL" });
 
       await trackLeadEvent({
         leadId: lead.id,

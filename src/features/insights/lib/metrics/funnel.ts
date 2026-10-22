@@ -71,7 +71,6 @@ export async function computeFunnel(
     where: {
       trackingId,
       currentAction: "ACTIVE",
-      isActive: true,
       ...dateFilter,
     },
     _count: { id: true },
@@ -85,7 +84,6 @@ export async function computeFunnel(
     where: {
       trackingId,
       currentAction: "ACTIVE",
-      isActive: true,
       ...dateFilter,
     },
     select: {

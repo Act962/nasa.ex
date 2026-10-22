@@ -23,7 +23,7 @@ import {
   type GapSeverity,
 } from "@/features/leads/lib/journey/journey-gaps";
 import { JourneyEventIcon } from "./event-icon";
-import { LEAD_CHANNELS, type LeadChannelKey } from "@/features/leads/lib/lead-channel";
+import { LEAD_CHANNELS, LEAD_ORIGIN_DISPLAY, type LeadChannelKey } from "@/features/leads/lib/lead-channel";
 import { EventMetadataPreview, deriveKindLabel } from "./event-details";
 
 // Jornada do lead como linha do tempo: de onde veio até hoje, com o tempo
@@ -164,26 +164,59 @@ export function JourneyTimeline({ leadId, trackingId, onOpenScreen }: JourneyTim
   );
 }
 
+type JourneyOrigin = {
+  origin: string;
+  sourceName: string | null;
+  channel: string | null;
+  isProbable: boolean;
+  note: string | null;
+  utm: { source?: string | null; medium?: string | null; campaign?: string | null } | null;
+};
+
 type JourneyLead = {
   name: string;
   createdAt: Date | string;
   source: string;
   utmSource: string | null;
+  utmMedium?: string | null;
   utmCampaign: string | null;
+  landingPage?: string | null;
+  origin?: JourneyOrigin | null;
   metaCampaignId: string | null;
   metaAdId: string | null;
   metaHeadline: string | null;
   channel: LeadChannelKey;
 };
 
+/** "Origem: Linnker 'Bio Pleno Car' · conversou pelo WhatsApp" (spec 0114, RF-7). */
+function describeOrigin(origin: JourneyOrigin): string {
+  const originLabel = LEAD_ORIGIN_DISPLAY[origin.origin]?.label ?? origin.origin;
+  const channelLabel = origin.channel && origin.channel in LEAD_CHANNELS ? LEAD_CHANNELS[origin.channel as LeadChannelKey].label : null;
+  const sourceLabel = origin.sourceName && origin.sourceName !== originLabel ? ` "${origin.sourceName}"` : "";
+  return [
+    `Origem: ${originLabel}${sourceLabel}${origin.isProbable ? " (provável)" : ""}`,
+    channelLabel && channelLabel !== originLabel ? `conversou pelo ${channelLabel}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function OriginCard({ lead }: { lead: JourneyLead }) {
+  const utmSource = lead.origin?.utm?.source ?? lead.utmSource;
+  const utmMedium = lead.origin?.utm?.medium ?? lead.utmMedium;
+  const utmCampaign = lead.origin?.utm?.campaign ?? lead.utmCampaign;
   const details = [
     lead.metaCampaignId && `Campanha Meta ${lead.metaCampaignId}`,
     lead.metaAdId && `Anúncio ${lead.metaAdId}`,
-    lead.utmSource && `utm_source ${lead.utmSource}`,
-    lead.utmCampaign && `utm_campaign ${lead.utmCampaign}`,
+    utmSource && `utm_source ${utmSource}`,
+    utmMedium && `utm_medium ${utmMedium}`,
+    utmCampaign && `utm_campaign ${utmCampaign}`,
+    lead.origin?.note,
+    // Formulário embutido grava o caminho do iframe, que não diz nada a quem lê.
+    lead.landingPage && !lead.landingPage.includes("embed=1") && `entrou por ${lead.landingPage}`,
   ].filter(Boolean);
-  const channel = LEAD_CHANNELS[lead.channel];
+  // Lead com origem gravada mostra a origem; lead antigo segue com o canal (spec 0105).
+  const channel = (lead.origin && LEAD_ORIGIN_DISPLAY[lead.origin.origin]) || LEAD_CHANNELS[lead.channel];
   const ChannelIcon = channel.icon;
   return (
     <div className="flex items-start gap-3 rounded-2xl border bg-gradient-to-br from-success/10 to-transparent p-3 animate-in fade-in duration-500">
@@ -196,7 +229,8 @@ function OriginCard({ lead }: { lead: JourneyLead }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold">
-          Entrou em {dayjs(lead.createdAt).format("DD/MM/YYYY")} · via {channel.label}
+          Entrou em {dayjs(lead.createdAt).format("DD/MM/YYYY")} ·{" "}
+          {lead.origin ? describeOrigin(lead.origin) : `via ${channel.label}`}
         </p>
         <p className="text-xs text-muted-foreground">
           Há {dayjs(lead.createdAt).fromNow(true)} na jornada{details.length ? ` · ${details.join(" · ")}` : ""}

@@ -24,6 +24,7 @@ import {
 import { parseCommandIntent } from "./ai-intent";
 import { createProposalAction } from "@/features/astro/actions/forge/create-proposal";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
+import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 import { UNRESTRICTED_ITEM_FILTER } from "@/features/nbox/server/can-view-restricted-nbox";
 
 // ─── Fuzzy normaliser ─────────────────────────────────────────────────────────
@@ -1054,7 +1055,7 @@ CTA: [chamada para ação]`;
         const startsAt = buildDateTime(finalDate, finalTime);
         const endsAt = new Date(startsAt.getTime() + 30 * 60 * 1000);
 
-        await prisma.appointment.create({
+        const createdAppointment = await prisma.appointment.create({
           data: {
             agendaId: agenda.id,
             title: `${actionContext === "create" ? "Reunião" : "Compromisso"} - ${resolvedLead.name}`,
@@ -1068,6 +1069,7 @@ CTA: [chamada para ação]`;
           },
           select: { id: true },
         });
+        await recordAppointmentChange({ appointmentId: createdAppointment.id, change: "scheduled", actorId: context.user.id }).catch((error: unknown) => console.warn("[nasa-command] atendimento do agendamento falhou", error));
 
         const costKind = "create" as const;
         const starsSpent = await tryDebitStars(costKind, `Agendamento criado — ${resolvedLead.name}`);
@@ -1211,7 +1213,7 @@ CTA: [chamada para ação]`;
 
         const leads = await prisma.lead.findMany({
           where: {
-            isActive: true,
+            currentAction: { not: "DELETED" }, isArchived: false,
             tracking: trackingFilter
               ? { id: trackingFilter.id }
               : { organizationId: orgId },
@@ -1353,7 +1355,7 @@ CTA: [chamada para ação]`;
     if (isCount && hasLead) {
       try {
         const count = await prisma.lead.count({
-          where: { isActive: true, tracking: { organizationId: orgId } },
+          where: { currentAction: "ACTIVE", isArchived: false, tracking: { organizationId: orgId } },
         });
         return {
           type: "query_result" as const,
@@ -1379,7 +1381,7 @@ CTA: [chamada para ação]`;
     ) {
       try {
         const [leadCount, trackings] = await Promise.all([
-          prisma.lead.count({ where: { isActive: true, tracking: { organizationId: orgId } } }),
+          prisma.lead.count({ where: { currentAction: "ACTIVE", isArchived: false, tracking: { organizationId: orgId } } }),
           prisma.tracking.findMany({
             where: { organizationId: orgId },
             take: 5,
@@ -1431,7 +1433,7 @@ CTA: [chamada para ação]`;
         const [leads, users, trackings, products] = await Promise.all([
           prisma.lead.findMany({
             where: {
-              isActive: true,
+              currentAction: { not: "DELETED" }, isArchived: false,
               tracking: { organizationId: orgId },
               OR: [
                 { name: { contains: termNorm, mode: "insensitive" } },

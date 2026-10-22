@@ -4,6 +4,7 @@ import { LeadSource } from "@/generated/prisma/enums";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import type { PublicSite, PublicVisitor } from "./public-api";
+import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 /**
  * Lead anônimo do visitante do ASTRO CHAT (spec 0031, RF-5). Nasce na primeira
@@ -123,6 +124,8 @@ export async function ensureVisitorConversation(params: {
     }
     throw error;
   }
+  // Origem real do lead (spec 0114): o chat do site. Depois da transação, como manda a regra 18.
+  await recordLeadOriginFromLead(created.id, { origin: "SITE_CHAT", sourceName: site.name, sourceId: site.id });
 
   return {
     leadId: created.id,

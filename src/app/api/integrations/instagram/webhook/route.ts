@@ -1,5 +1,7 @@
+import { isLeadAiPaused } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { type NextRequest, NextResponse } from "next/server"
-import { applyInboundAutoTags, loadAwaitingState } from "@/features/org-defaults/lib/auto-tags"
+import { loadAwaitingState } from "@/features/org-defaults/lib/auto-tags"
+import { applyInboundAttendanceOutsidePipeline } from "@/features/org-defaults/lib/attendance/state"
 import { pusherServer } from "@/lib/pusher"
 import { isMetaLoginInstagramAccount, processMetaCommentsWebhookSafely } from "@/features/comments/server/meta-webhook"
 import prisma from "@/lib/prisma"
@@ -18,6 +20,7 @@ import {
   ctwaToLeadData,
   captureMetaReferralForNewLead,
 } from "@/lib/lead-journey/ctwa"
+import { recordLeadOrigin } from "@/features/leads/lib/lead-origin/record-lead-origin"
 
 // Meta webhook verification
 export async function GET(request: NextRequest) {
@@ -176,6 +179,14 @@ export async function POST(request: NextRequest) {
             include: { conversation: true, leadTags: { include: { tag: true } } },
           })
 
+          // Origem real do lead (spec 0114): anúncio da Meta quando veio de um; senão, o próprio canal.
+          await recordLeadOrigin(
+            lead.id,
+            igReferral
+              ? { origin: "META_ADS", sourceName: igReferral.ref.metaHeadline ?? null, sourceId: igReferral.ref.metaAdId, channel: "INSTAGRAM", matchedBy: "meta_ad", confidence: "certain" }
+              : { origin: "INSTAGRAM_DIRECT", matchedBy: "entry", confidence: "certain" },
+          )
+
           try {
             await logActivity({
               organizationId: integration.organizationId,
@@ -269,11 +280,13 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        await applyInboundAutoTags({
+        await applyInboundAttendanceOutsidePipeline({
           organizationId: integration.organizationId,
           leadId: lead!.id,
           channel: "INSTAGRAM",
           wasAwaitingReply: awaitingState?.isAwaitingReply ?? false,
+          messageId: messageData.id,
+          messageText: text ?? null,
         }).catch((error) => console.error("[instagram-webhook] auto_tags_failed", error))
 
         await trackLeadEvent({
@@ -289,7 +302,7 @@ export async function POST(request: NextRequest) {
         await pusherServer.trigger(lead!.conversation!.id, "message:new", messageData)
         await pusherServer.trigger(trackingId, "message:new", messageData)
 
-        if (lead!.isActive && tracking.globalAiActive && text) {
+        if (!isLeadAiPaused(lead!) && tracking.globalAiActive && text) {
           await fetch(process.env.WEBHOOK_AI_AGENT_N8N!, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

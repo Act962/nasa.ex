@@ -77,6 +77,8 @@ import { syncCatalogOrderToNerp } from "@/inngest/functions/nerp-catalog/sync-or
 import { importErpCarteira } from "@/inngest/functions/erp-carteira/import-erp-carteira";
 import { sendEmailCampaign } from "@/inngest/functions/campanhas/send-email-campaign";
 import { awaitReplyTagCheck } from "@/inngest/functions/org-defaults/await-reply-tag";
+import { attendanceCheck } from "@/inngest/functions/org-defaults/attendance-check";
+import { appointmentWatch } from "@/inngest/functions/org-defaults/appointment-watch";
 import { astroBotInactivityNotice } from "@/inngest/functions/astro-bot/inactivity-notice";
 import { seedSampleContent } from "@/inngest/functions/org-defaults/seed-sample-content";
 import { watchCatalogOrderPayment } from "@/inngest/functions/nerp-catalog/watch-order-payment";
@@ -199,6 +201,8 @@ export const { GET, POST, PUT } = serve({
     importErpCarteira,
     sendEmailCampaign,
     awaitReplyTagCheck,
+    attendanceCheck,
+    appointmentWatch,
     astroBotInactivityNotice,
     seedSampleContent,
     // ── STAR FRIENDS: validade das stars ──

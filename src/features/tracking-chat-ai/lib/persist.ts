@@ -18,6 +18,11 @@ interface PersistArgs {
   // metadata JSON da mensagem — usado pra gravar buttonTagMap (buttonId→tagId)
   // quando um menu de botões é enviado, pra o webhook aplicar a tag no clique.
   metadata?: Prisma.InputJsonValue | null;
+  /**
+   * Resposta da IA ao cliente: encerra a espera dele (`Lead.awaitingSince`). Mensagem fixa, inatividade e
+   * avisos usam esta mesma função e não respondem o cliente.
+   */
+  isClientReply?: boolean;
 }
 
 export async function persistOutboundMessage(args: PersistArgs) {
@@ -58,6 +63,7 @@ export async function persistOutboundMessage(args: PersistArgs) {
         update: {
           updatedAt: now,
           lastOutboundAt: now,
+          ...(args.isClientReply ? { awaitingSince: null } : {}),
         },
       },
     },

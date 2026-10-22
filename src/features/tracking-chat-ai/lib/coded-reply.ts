@@ -24,6 +24,7 @@ export async function sendCodedReply(
   const persist = (body: string, externalMessageId: string, extraMetadata: Record<string, Prisma.InputJsonValue> = {}) => {
     const metadata = { ...extraMetadata, ...(reply.metadata ?? {}) };
     return persistOutboundMessage({
+      isClientReply: true,
       conversationId: ctx.conversation.id,
       leadId: ctx.lead.id,
       trackingId: ctx.trackingId,

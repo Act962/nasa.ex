@@ -1,10 +1,12 @@
 import "server-only";
+import { applyCompanyOpenedConversation } from "@/features/org-defaults/lib/attendance/state";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { Prisma } from "@/generated/prisma/client";
 import { LeadSource, MessageStatus } from "@/generated/prisma/enums";
 import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { renderTemplateText } from "../../lib/template-variables";
+import { recordLeadOrigin } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 /**
  * Espelha no chat do tracking o template que a campanha acabou de enviar
@@ -98,7 +100,7 @@ async function createBroadcastLead(
   });
 
   try {
-    return await prisma.lead.create({
+    const createdLead = await prisma.lead.create({
       data: {
         name: name?.trim() || waId,
         phone: waId,
@@ -110,6 +112,9 @@ async function createBroadcastLead(
       },
       select: leadSelect,
     });
+    // Origem real do lead (spec 0114): entrou pela lista de uma campanha.
+    await recordLeadOrigin(createdLead.id, { origin: "CAMPANHA", matchedBy: "entry", confidence: "certain" });
+    return createdLead;
   } catch (error) {
     // Resposta do contato criou o lead no meio do caminho — usa o dele.
     if (isUniqueViolation(error)) return findLeadByPhone(trackingId, waId);
@@ -150,9 +155,8 @@ export async function recordBroadcastChatMessage(
 ): Promise<void> {
   const { trackingId, sent } = input;
 
-  const lead =
-    (await findLeadByPhone(trackingId, sent.waId)) ??
-    (await createBroadcastLead(trackingId, sent.waId, input.recipient.name));
+  const existingLead = await findLeadByPhone(trackingId, sent.waId);
+  const lead = existingLead ?? (await createBroadcastLead(trackingId, sent.waId, input.recipient.name));
   if (!lead) {
     console.warn("[campanhas] chat: tracking sem status, mensagem não espelhada", {
       trackingId,
@@ -215,7 +219,11 @@ export async function recordBroadcastChatMessage(
 
   // Conversa finalizada fica fora da lista padrão do chat, e o client só a
   // reabre se já estiver no cache — reabre aqui pra mensagem aparecer.
-  if (lead.statusFlow === "FINISHED") {
+  // Com o estado de atendimento (spec 0113), a empresa abrindo a conversa deixa o lead em "Aguard." até o
+  // cliente responder; sem ele, segue como antes.
+  const isOpenedByCompany = !existingLead || lead.statusFlow === "FINISHED";
+  const isHandledByAttendance = isOpenedByCompany && (await applyCompanyOpenedConversation({ leadId: lead.id }));
+  if (!isHandledByAttendance && lead.statusFlow === "FINISHED") {
     await prisma.lead.update({
       where: { id: lead.id },
       data: { statusFlow: "ACTIVE" },

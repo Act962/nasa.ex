@@ -6,6 +6,50 @@ const TRACKING_SETTINGS_PATH = "^/tracking/[^/]+/settings";
 
 export const CHAT_GUIDES: GuideDef[] = [
   {
+    key: "chat.attendance-first-responder",
+    app: "chat",
+    title: "Configurar quem atende primeiro",
+    summary: "Escolha se a equipe ou a IA responde primeiro e os tempos da mensagem de espera e dos avisos.",
+    topicPattern:
+      /\b(quem (responde|atende) primeiro|equipe primeiro|ia primeiro|mensagem (fixa|de espera)|aguard\w* atendimento|em atendimento|tempo (de|da) (espera|ia)|avis\w* (ao|pro|para o) dono)\b/,
+    steps: [
+      {
+        anchor: "chatSettingsButton",
+        route: "/tracking-chat",
+        skipWhenPath: TRACKING_SETTINGS_PATH,
+        title: "Abra as configurações do funil",
+        message: "Cada funil tem a sua regra de atendimento. Clique na engrenagem.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "settingsChatbotTab",
+        title: "Vá em Fluxo de atendimento",
+        message: "Aqui ficam as regras da IA deste funil.",
+        position: "right",
+        advanceOn: "click",
+      },
+      {
+        anchor: "chatbotIaCapabilitiesTab",
+        title: "Abra \"O que o Astro pode fazer\"",
+        message: "A seção Atendimento fica nesta aba.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "attendanceSettingsSection",
+        title: "Escolha quem responde primeiro",
+        message: "Equipe primeiro: sai a mensagem fixa e a IA entra se ninguém responder. IA primeiro: a IA responde na hora. Ajuste os tempos e salve.",
+        position: "top",
+        advanceOn: "next",
+      },
+    ],
+    finish: {
+      title: "Atendimento configurado ✨",
+      message: "As etiquetas \"Aguard. atendimento\" e \"Em atendimento\" passam a seguir essa regra neste funil.",
+    },
+  },
+  {
     key: "chat.connect-whatsapp",
     app: "chat",
     title: "Conectar o WhatsApp",

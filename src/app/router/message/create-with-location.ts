@@ -145,6 +145,7 @@ export const createLocationMessage = base
           latitude: input.latitude,
           longitude: input.longitude,
           senderName: context.user.name,
+          senderId: context.user.id,
           viaInChat: inChatMode,
         },
         select: {

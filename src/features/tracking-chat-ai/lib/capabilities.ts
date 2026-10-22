@@ -8,6 +8,25 @@ const REMINDER_HOURS_OPTIONS = [0.5, 2, 24, 48] as const;
 export const MIN_VOICE_CALL_MINUTES = 1;
 export const MAX_VOICE_CALL_MINUTES = 10;
 
+export const DEFAULT_HOLDING_TEXT = "Opa, {{primeiro_nome}}, já respondemos, só finalizando uns atendimentos aqui.";
+export const DEFAULT_HANDOFF_TEXT = "{{primeiro_nome}}, assim que um dos nossos consultores desocupar, já te atende.";
+
+/** Estado de atendimento por funil (spec 0113, RF-7): quem responde primeiro, tempos e textos fixos. */
+/** Teto do "IA volta se o atendente sumir": quem agenda a checagem filtra por ele antes de ler a configuração. */
+export const MAX_IN_SERVICE_AI_MINUTES = 120;
+
+export const attendanceSettingsSchema = z.object({
+  firstResponder: z.enum(["AI", "TEAM"]).catch("AI").default("AI"),
+  holdingMinutes: z.number().int().min(1).max(30).catch(3).default(3),
+  aiStepInMinutes: z.number().int().min(1).max(60).catch(5).default(5),
+  inServiceAiMinutes: z.number().int().min(2).max(MAX_IN_SERVICE_AI_MINUTES).catch(10).default(10),
+  ownerNoticeMinutes: z.number().int().min(5).max(120).catch(10).default(10),
+  holdingText: z.string().trim().min(1).max(300).catch(DEFAULT_HOLDING_TEXT).default(DEFAULT_HOLDING_TEXT),
+  handoffText: z.string().trim().min(1).max(300).catch(DEFAULT_HANDOFF_TEXT).default(DEFAULT_HANDOFF_TEXT),
+});
+
+export type AttendanceSettings = z.infer<typeof attendanceSettingsSchema>;
+
 export const aiCapabilitiesSchema = z.object({
   understandAudio: z.boolean().default(false),
   /** Responde em nota de voz só quando o cliente manda áudio. */
@@ -68,6 +87,7 @@ export const aiCapabilitiesSchema = z.object({
   knowledgeIds: z.array(z.string()).max(10).default([]),
   /** Membro que salvou a configuração: é quem assina demandas e lembretes criados pelo agente. Definido pelo servidor. */
   configuredByUserId: z.string().nullable().default(null),
+  attendance: attendanceSettingsSchema.catch(attendanceSettingsSchema.parse({})).default(attendanceSettingsSchema.parse({})),
 });
 
 export { REMINDER_HOURS_OPTIONS };

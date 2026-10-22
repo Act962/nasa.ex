@@ -32,6 +32,7 @@ export const contactStrategy: ForwardStrategy<ContactPayload> = {
         fromMe: true,
         status: MessageStatus.SEEN,
         senderName: ctx.senderName,
+        senderId: ctx.senderId,
         mediaType: "contact",
         fileName: payload.contactPhone,
       },

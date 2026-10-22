@@ -1,3 +1,4 @@
+import { isLeadAiPaused } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import "server-only";
 import { z } from "zod";
 import type { ToolSet } from "ai";
@@ -14,6 +15,7 @@ import { buildAgentTools } from "@/features/tracking-chat-ai/server/tools";
 import { findBotVoice } from "../voice/voices";
 import { findOrCreateCallerLead } from "./call-record";
 import type { CallInstance, ClientCallPersona } from "./call-session";
+import { isHumanAttendingNow } from "@/features/org-defaults/lib/attendance/state";
 
 /**
  * Cliente liga e o Astro atende (spec 0087, Parte C). É o mesmo agente do atendimento por texto
@@ -151,7 +153,11 @@ export async function prepareClientCall(params: { instance: CallInstance; caller
   if (!agentContext.settings || !agentContext.capabilities.voiceCall) {
     return { canAnswer: false, reason: "voice_call_disabled", shouldSendTextOnlyNotice: true };
   }
-  if (!agentContext.lead.isActive || agentContext.lead.statusFlow === "FINISHED") {
+  // Com o estado de atendimento, a IA pausada na espera da equipe não impede a ligação: só humano na conversa.
+  const isHumanAttending = await isHumanAttendingNow(lead.id);
+  const isLeadWithHuman =
+    isHumanAttending ?? (isLeadAiPaused(agentContext.lead) || agentContext.lead.statusFlow === "FINISHED");
+  if (isLeadWithHuman) {
     return { canAnswer: false, reason: "lead_with_human", shouldSendTextOnlyNotice: true };
   }
   const recentCalls = await prisma.leadJourneyEvent.count({
@@ -179,6 +185,7 @@ export async function prepareClientCall(params: { instance: CallInstance; caller
       availableTags: agentContext.availableTags,
       availableButtonPresets: [],
       availableAgendas: agentContext.availableAgendas,
+      upcomingAppointments: agentContext.upcomingAppointments,
       availableForms: agentContext.availableForms,
       capabilities: agentContext.capabilities,
     }),

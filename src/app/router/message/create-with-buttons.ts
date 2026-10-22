@@ -9,7 +9,7 @@ import { pusherServer } from "@/lib/pusher";
 import { ORPCError } from "@orpc/server";
 import z from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { triggerFirstChatInteractionIfFirst } from "./utils";
+import { recordHumanReply, triggerFirstChatInteractionIfFirst } from "./utils";
 import { chargeMessageOutbound } from "@/features/stars/lib/charge-message-outbound";
 import { MessageChannel, WhatsAppProvider } from "@/generated/prisma/enums";
 import {
@@ -247,6 +247,7 @@ export const createButtonsMessage = base
         fromMe: true,
         status: MessageStatus.SENT,
         senderName: context.user.name,
+        senderId: context.user.id,
         ...(hasTagMap ? { metadata: { buttonTagMap } } : {}),
       },
       select: {
@@ -283,6 +284,11 @@ export const createButtonsMessage = base
     };
 
     await pusherServer.trigger(message.conversationId, "message:created", messageCreated);
+
+    // Menu enviado à mão é resposta humana, mas não toma o lead nem pausa a IA (spec 0113, RF-4).
+    await recordHumanReply(message.conversation.lead.id, { userId: context.user.id, isConversationReply: true }).catch(
+      (error: unknown) => console.warn("[createWithButtons] record human reply failed", error),
+    );
 
     await triggerFirstChatInteractionIfFirst({
       conversationId: input.conversationId,

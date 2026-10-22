@@ -132,6 +132,8 @@ export function PublicPageRenderer({
   const ctxValue = {
     organizationSlug,
     pageSlug: trackingSlug,
+    // Só na página publicada (há `trackingSlug`): o código de origem não vale no rascunho.
+    pageId: trackingSlug ? siblingPages?.find((siblingPage) => siblingPage.slug === trackingSlug)?.id : undefined,
     rootSlug,
     siblingPages,
     siteBasePath,

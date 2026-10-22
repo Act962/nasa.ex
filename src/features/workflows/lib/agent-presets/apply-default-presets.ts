@@ -21,6 +21,8 @@
  * derruba o caller (tracking.create).
  */
 import "server-only";
+import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
+import { ensureSystemTagId } from "@/features/org-defaults/lib/attendance/tags";
 import type { AppPrismaClient } from "@/lib/prisma";
 import {
   buildAgendamentoBlueprint,
@@ -43,6 +45,10 @@ import {
   type ComprovantePagamentoParams,
 } from "./comprovante-pagamento";
 import {
+  buildRecuperacaoCancelouBlueprint,
+  RECOVERY_TRIGGER_TAG_SLUG,
+} from "./recuperacao-cancelou";
+import {
   createWorkflowFromBlueprint,
   type Blueprint,
 } from "./create-from-blueprint";
@@ -52,7 +58,8 @@ export type PresetSlug =
   | "closer-followup"
   | "proposta-contrato"
   | "boas-vindas-nasa-route"
-  | "comprovante-pagamento";
+  | "comprovante-pagamento"
+  | "recuperacao-cancelou";
 
 type BlueprintBuilder = (params: {
   organizationId: string;
@@ -63,6 +70,10 @@ interface PresetSpec {
   slug: PresetSlug;
   builder: BlueprintBuilder;
   logName: string;
+  /** Só para empresas no estado de atendimento (spec 0113); fora dele, o modelo não teria gatilho. */
+  requiresAttendanceState?: boolean;
+  /** Etiquetas usadas pelo modelo, por slug (`{{TAG:slug}}`). */
+  resolveTagMap?: (organizationId: string) => Promise<Record<string, string>>;
 }
 
 const DEFAULT_PRESETS: PresetSpec[] = [
@@ -91,6 +102,16 @@ const DEFAULT_PRESETS: PresetSpec[] = [
     builder: buildComprovantePagamentoBlueprint as unknown as BlueprintBuilder,
     logName: "Comprovante de Pagamento — IA Lê o Arquivo",
   },
+  {
+    slug: "recuperacao-cancelou",
+    builder: buildRecuperacaoCancelouBlueprint,
+    logName: "Recuperar quem cancelou",
+    requiresAttendanceState: true,
+    resolveTagMap: async (organizationId): Promise<Record<string, string>> => {
+      const cancelledTagId = await ensureSystemTagId(organizationId, "cancelled");
+      return cancelledTagId ? { [RECOVERY_TRIGGER_TAG_SLUG]: cancelledTagId } : {};
+    },
+  },
 ];
 
 interface ApplyParams {
@@ -117,12 +138,13 @@ export async function applyDefaultAgentPresets({
   userId,
   slug,
 }: ApplyParams): Promise<Array<{ workflowId: string; name: string }>> {
-  const targets = slug
-    ? DEFAULT_PRESETS.filter((p) => p.slug === slug)
-    : DEFAULT_PRESETS;
+  const isAttendanceManaged = isAttendanceStateEnabled(organizationId);
+  const targets = (slug ? DEFAULT_PRESETS.filter((preset) => preset.slug === slug) : DEFAULT_PRESETS).filter(
+    (preset) => !preset.requiresAttendanceState || isAttendanceManaged,
+  );
 
   if (slug && targets.length === 0) {
-    console.warn(`[apply-default-presets] slug "${slug}" não encontrado`);
+    console.warn(`[apply-default-presets] slug "${slug}" não encontrado ou fora do estado de atendimento`);
     return [];
   }
 
@@ -131,6 +153,7 @@ export async function applyDefaultAgentPresets({
   for (const preset of targets) {
     try {
       const blueprint = preset.builder({ organizationId, trackingId });
+      const tagMap = (await preset.resolveTagMap?.(organizationId)) ?? {};
 
       const result = await prisma.$transaction(async (tx) => {
         const r = await createWorkflowFromBlueprint(tx, {
@@ -140,6 +163,7 @@ export async function applyDefaultAgentPresets({
           agentMode: true,
           isActive: false,
           maxRunsPerHour: 60,
+          tagMap,
         });
         return r;
       });
@@ -191,5 +215,11 @@ export const PRESET_CATALOG: Array<{
     name: "Comprovante de Pagamento — IA Lê o Arquivo",
     description:
       "Tag 'Proposta Aceita' → pede comprovante → WAIT_FOR_EVENT(message-incoming, 7d) com mídia → AI_VISION (foto) + READ_PDF (PDF) extraem valor → AI_DECISION valida → branches pago/divergente/sem_resposta. Tags 'Pago' + 'Aguardando Pagamento' criadas auto. 11 nós.",
+  },
+  {
+    slug: "recuperacao-cancelou",
+    name: "Recuperar quem cancelou",
+    description:
+      "Tag 'Cancelou' (cliente cancelou ou não veio ao agendamento) → WAIT até 1 h antes de fechar a janela de 24 h → AI_GENERATE_TEXT a partir do resumo do atendimento → SEND_MESSAGE oferecendo remarcar. 4 nós.",
   },
 ];

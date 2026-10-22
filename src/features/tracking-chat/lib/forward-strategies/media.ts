@@ -96,6 +96,7 @@ export const mediaStrategy: ForwardStrategy<MediaPayload> = {
         fromMe: true,
         status: MessageStatus.SEEN,
         senderName: ctx.senderName,
+        senderId: ctx.senderId,
       },
       select: MESSAGE_SELECT,
     });

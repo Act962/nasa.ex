@@ -5,6 +5,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
+import { loadAppointmentSnapshot, recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
 
 const MANAGER_ROLES = new Set(["owner", "admin", "moderador"]);
 
@@ -67,6 +68,7 @@ export const deleteAppointment = base
       });
     }
 
+    const snapshotBeforeDelete = await loadAppointmentSnapshot(appointmentId);
     const deletedAppointment = await prisma.appointment.delete({
       where: {
         id: appointmentId,
@@ -85,6 +87,13 @@ export const deleteAppointment = base
       resourceId: appointmentId,
       metadata: { previousStatus: appointment.status },
     });
+
+    await recordAppointmentChange({
+      appointmentId,
+      change: "deleted",
+      actorId: context.user.id,
+      snapshot: snapshotBeforeDelete,
+    }).catch((error: unknown) => console.warn("[agenda.delete] atendimento do agendamento falhou", error));
 
     return { appointment: deletedAppointment };
   });

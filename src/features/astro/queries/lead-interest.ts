@@ -1,5 +1,6 @@
 import "server-only";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import { plural, type AstroQuery } from "./types";
 
 // "Quais leads com interesse alto?" (spec 0085): lê a Visão do Lead já
@@ -23,9 +24,10 @@ const leadsByInterest: AstroQuery = {
     /\b(leads?|clientes?|contatos?)\b/.test(text) && /\b(interesse|potencial)\b/.test(text),
   run: async ({ ctx, text }) => {
     const interest = INTEREST_WORDS.find((word) => word.pattern.test(text)) ?? INTEREST_WORDS[0];
-    const where = {
+    const where: Prisma.LeadWhereInput = {
       tracking: { organizationId: ctx.organizationId },
-      isActive: true,
+      currentAction: "ACTIVE",
+      isArchived: false,
       metrics: { interestLevel: interest.level },
     };
     const [leads, totalLeads, auditedLeads] = await Promise.all([

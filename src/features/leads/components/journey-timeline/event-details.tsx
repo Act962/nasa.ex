@@ -3,6 +3,21 @@
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink } from "lucide-react";
 import { kindLabel } from "./event-icon";
+import {
+  APPOINTMENT_CHECK_ANSWER_LABEL,
+  ATTENDANCE_SCORE_REASON_LABEL,
+  SECTION_OUTCOME_LABEL,
+} from "@/features/org-defaults/lib/attendance/labels";
+
+function formatAppointmentTime(isoDate: string): string {
+  return new Date(isoDate).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 // Rótulo e prévia de cada evento da Jornada, por tipo.
 
@@ -58,7 +73,7 @@ export function EventMetadataPreview({
     return (
       <div className="text-xs mt-1 space-y-0.5">
         {Boolean(metadata.headline) && (
-          <div className="italic">"{String(metadata.headline)}"</div>
+          <div className="italic">&ldquo;{String(metadata.headline)}&rdquo;</div>
         )}
         {Boolean(metadata.metaCampaignId) && (
           <div className="text-muted-foreground">
@@ -214,6 +229,58 @@ export function EventMetadataPreview({
         Arquivo: <strong>{fileName}</strong>
       </div>
     );
+  }
+
+  if (kind === "attendance_section") {
+    const summary = typeof metadata.summary === "string" ? metadata.summary : null;
+    const outcome = typeof metadata.outcome === "string" ? SECTION_OUTCOME_LABEL[metadata.outcome] : null;
+    if (!summary && !outcome) return null;
+    return (
+      <div className="mt-1 space-y-1">
+        {outcome && <div className="text-xs text-muted-foreground">{outcome}</div>}
+        {summary && (
+          <div className="text-sm bg-muted/50 rounded-md px-3 py-1.5 max-w-xl line-clamp-4">{summary}</div>
+        )}
+      </div>
+    );
+  }
+
+  if (kind === "attendance_score") {
+    const points = Number(metadata.points ?? 0);
+    const reason = typeof metadata.reason === "string" ? metadata.reason : "";
+    return (
+      <div className="text-xs text-muted-foreground mt-1">
+        <strong className={points < 0 ? "text-destructive" : "text-foreground"}>
+          {points > 0 ? `+${points}` : points}
+        </strong>{" "}
+        · {ATTENDANCE_SCORE_REASON_LABEL[reason] ?? reason}
+      </div>
+    );
+  }
+
+  if (kind === "appointment_rescheduled") {
+    const previousStartsAt = typeof metadata.previousStartsAt === "string" ? metadata.previousStartsAt : null;
+    const startsAt = typeof metadata.startsAt === "string" ? metadata.startsAt : null;
+    if (!startsAt) return null;
+    return (
+      <div className="text-xs text-muted-foreground mt-1">
+        {previousStartsAt ? `${formatAppointmentTime(previousStartsAt)} → ` : "Novo horário: "}
+        <strong>{formatAppointmentTime(startsAt)}</strong>
+      </div>
+    );
+  }
+
+  if (kind === "appointment_cancelled") {
+    const cancelledLabel =
+      metadata.isDeleted === true ? "Excluído da agenda" : metadata.cancelledBy === "CLIENT" ? "Cancelado pelo cliente" : null;
+    if (!cancelledLabel) return null;
+    return <div className="text-xs text-muted-foreground mt-1">{cancelledLabel}</div>;
+  }
+
+  if (kind === "appointment_check") {
+    const answer = typeof metadata.status === "string" ? APPOINTMENT_CHECK_ANSWER_LABEL[metadata.status] : null;
+    if (!answer) return null;
+    return <div className="text-xs text-muted-foreground mt-1">{answer}</div>;
   }
 
   if (kind === "note") {

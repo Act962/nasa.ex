@@ -23,7 +23,12 @@
  *    identify quando phone novo.
  */
 
+import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
 import { applyInboundAutoTags, loadAwaitingState, removeAwaitingTagOnReply } from "@/features/org-defaults/lib/auto-tags";
+import { isAttendanceManagedChannel } from "@/features/org-defaults/lib/attendance/flag";
+import { applyClientMessageAttendance, applyHumanReplyAttendance, scheduleHumanAbsentCheck } from "@/features/org-defaults/lib/attendance/state";
+import { isHumanReplyRecent } from "@/features/org-defaults/lib/attendance/ai-hold";
+import { MAX_IN_SERVICE_AI_MINUTES } from "@/features/tracking-chat-ai/lib/capabilities";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { inngest } from "@/inngest/client";
@@ -34,6 +39,8 @@ import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { LeadSource } from "@/generated/prisma/enums";
 import type { WorkflowLeadMessage } from "@/features/tracking-executions/lib/lead-message";
 import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
+import { findActiveCampaign } from "@/features/star-friends/lib/campaign/campaign";
+import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -70,6 +77,10 @@ export interface FirePostInboundParams {
   leadMessage?: WorkflowLeadMessage;
   /** Toque em botão ou item de lista: mensagem completa, não espera o cliente terminar de digitar. */
   isButtonClick?: boolean;
+  /** Eco de mensagem que a própria plataforma enviou (IA, fluxo, mensagem fixa): não é fala de atendente. */
+  isPlatformEcho?: boolean;
+  /** Hora da mensagem no provedor; ausente usa a hora do processamento. */
+  messageAt?: Date;
   /** Dados serializáveis pro Pusher per-conversation event. */
   messagePayload: Record<string, any>;
   /** Dados serializáveis pro Pusher per-tracking event (lista de conversas). */
@@ -83,7 +94,7 @@ export interface FirePostInboundParams {
  *  2. trackLeadEvent (timeline da jornada)
  *  3. eventBus.publish "chat.message_received" (alert engine)
  *  4. Inngest "chat/ai.whatsapp-message-received" (IA — quando
- *     globalAiActive=true, lead ativo, fromMe=false)
+ *     globalAiActive=true, fromMe=false e a IA ativa no lead ou clique em menu)
  *     [NOTE] Mantemos o nome `whatsapp-message-received` por enquanto pra
  *     retro-compat com o listener existente. Em sprint futura renomear pra
  *     `chat/ai.message-received` (mais genérico) e adicionar canal no data.
@@ -110,42 +121,103 @@ export async function firePostInboundAutomations(
     : await loadAwaitingState(params.lead.id).catch(() => null);
 
   // ── 1. Update timestamps ─────────────────────────────────────────────
+  // Mensagem do cliente abre a espera (`awaitingSince`) no mesmo comando que grava o horário: é assim que o
+  // estado de atendimento custa uma ida ao banco por mensagem (spec 0113, revisão 9.1).
+  const isHumanPhoneReply = params.fromMe && !params.isPlatformEcho;
+  let inboundWait: { isFirstOfWait: boolean; awaitingSince: Date; lastHumanReplyAt: Date | null } | null = null;
   try {
-    await prisma.conversation.update({
-      where: {
-        leadId_trackingId: {
-          leadId: params.lead.id,
-          trackingId: params.trackingId,
-        },
-      },
-      data: {
-        lastMessage: { connect: { id: params.messageId } },
-        lead: {
-          update: {
-            updatedAt: now,
-            ...(params.fromMe
-              ? { lastOutboundAt: now }
-              : { lastInboundAt: now }),
-            ...(shouldSetFirstResponse ? { firstResponseAt: now } : {}),
+    if (params.fromMe) {
+      await prisma.conversation.update({
+        where: { leadId_trackingId: { leadId: params.lead.id, trackingId: params.trackingId } },
+        data: {
+          lastMessage: { connect: { id: params.messageId } },
+          lead: {
+            update: {
+              updatedAt: now,
+              lastOutboundAt: now,
+              ...(isHumanPhoneReply ? { lastHumanReplyAt: params.messageAt ?? now, awaitingSince: null } : {}),
+              ...(shouldSetFirstResponse ? { firstResponseAt: now } : {}),
+            },
           },
         },
-      },
-    });
+      });
+    } else {
+      await prisma.conversation.update({
+        where: { leadId_trackingId: { leadId: params.lead.id, trackingId: params.trackingId } },
+        data: { lastMessage: { connect: { id: params.messageId } } },
+      });
+      // A comparação e as datas saem do próprio banco (em ms): o driver lê `timestamp` sem fuso no fuso da máquina.
+      const [leadTimes] = await prisma.$queryRaw<
+        { is_first_of_wait: boolean; awaiting_since_ms: number; last_human_reply_ms: number | null }[]
+      >`
+        UPDATE leads
+        SET updated_at = ${now}, last_inbound_at = ${now}, awaiting_since = COALESCE(awaiting_since, ${now})
+        WHERE id = ${params.lead.id}
+        RETURNING
+          awaiting_since = ${now} AS is_first_of_wait,
+          (EXTRACT(EPOCH FROM awaiting_since) * 1000)::float8 AS awaiting_since_ms,
+          (EXTRACT(EPOCH FROM last_human_reply_at) * 1000)::float8 AS last_human_reply_ms
+      `;
+      if (leadTimes) {
+        inboundWait = {
+          isFirstOfWait: leadTimes.is_first_of_wait,
+          awaitingSince: new Date(leadTimes.awaiting_since_ms),
+          lastHumanReplyAt: leadTimes.last_human_reply_ms === null ? null : new Date(leadTimes.last_human_reply_ms),
+        };
+      }
+    }
   } catch (err) {
     console.error("[pipeline] update_timestamps_failed", err);
   }
 
-  // ── 1b. Tags automáticas da empresa (spec 0042) ─────────────────────
+  // A IA está calada porque um atendente falou há pouco: se ele sumir, uma checagem no fim do prazo a traz de
+  // volta. Só na primeira mensagem da espera, e só se a resposta humana pode estar dentro do prazo máximo.
+  if (
+    inboundWait?.isFirstOfWait &&
+    params.globalAiActive &&
+    isHumanReplyRecent(inboundWait.lastHumanReplyAt, now, MAX_IN_SERVICE_AI_MINUTES)
+  ) {
+    await scheduleHumanAbsentCheck({
+      organizationId: params.organizationId,
+      leadId: params.lead.id,
+      trackingId: params.trackingId,
+      awaitingSince: inboundWait.awaitingSince,
+      lastHumanReplyAt: inboundWait.lastHumanReplyAt,
+      messageId: params.messageId,
+    }).catch((error: unknown) => console.error("[pipeline] human_absent_schedule_failed", error));
+  }
+
+  // ── 1b. Tags automáticas da empresa (spec 0042) e estado de atendimento (spec 0113) ──
+  // Roda antes de acionar a IA: com o estado de atendimento, é aqui que se decide se ela responde agora.
+  const isAttendanceStateManaged = isAttendanceManagedChannel(params.organizationId, params.channel);
   try {
+    const messageAt = params.messageAt ?? now;
     if (params.fromMe) {
-      await removeAwaitingTagOnReply({ organizationId: params.organizationId, leadId: params.lead.id });
+      if (isAttendanceStateManaged) {
+        // Mensagem enviada à mão pelo atendente no celular. Eco do que a plataforma mandou não conta.
+        if (!params.isPlatformEcho) {
+          await applyHumanReplyAttendance({ leadId: params.lead.id, userId: null, at: messageAt });
+        }
+      } else {
+        await removeAwaitingTagOnReply({ organizationId: params.organizationId, leadId: params.lead.id });
+      }
     } else {
       await applyInboundAutoTags({
         organizationId: params.organizationId,
         leadId: params.lead.id,
         channel: params.channel,
         wasAwaitingReply: awaitingState?.isAwaitingReply ?? false,
+        isAttendanceStateManaged,
       });
+      if (isAttendanceStateManaged) {
+        await applyClientMessageAttendance({
+          leadId: params.lead.id,
+          messageId: params.messageId,
+          messageText: params.leadMessage?.text ?? null,
+          at: messageAt,
+          isFirstOfWait: inboundWait?.isFirstOfWait,
+        });
+      }
     }
   } catch (err) {
     console.error("[pipeline] auto_tags_failed", err);
@@ -220,11 +292,23 @@ export async function firePostInboundAutomations(
     }
   }
 
-  // ── 4. Inngest IA (só inbound + IA ativa + lead ativo) ───────────────
+  // ── 4. Inngest IA (só inbound + IA do funil conectada) ───────────────
+  // IA pausada no lead: só o clique em menu e a campanha acionam o agente, porque disparam fluxo (spec 0113,
+  // RF-3). Com o estado de atendimento, a pausa acabou de ser decidida no passo 1b: lê de novo.
+  const isLeadAiActiveNow = !IS_LEAD_AI_PAUSE_ENABLED
+    ? true
+    : isAttendanceStateManaged && !params.fromMe
+      ? ((await prisma.lead.findUnique({ where: { id: params.lead.id }, select: { isActive: true } }))?.isActive ?? false)
+      : params.lead.isActive;
+  // Campanha de sorteio ativa também vale com a IA pausada: a foto do cupom é resposta à campanha (RF-3).
+  const hasActiveCampaign =
+    !params.fromMe && params.globalAiActive && !isLeadAiActiveNow && !params.isButtonClick
+      ? Boolean(await findActiveCampaign(params.organizationId, params.trackingId).catch(() => null))
+      : false;
   if (
     !params.fromMe &&
-    params.lead.isActive &&
     params.globalAiActive &&
+    (isLeadAiActiveNow || params.isButtonClick || hasActiveCampaign) &&
     params.lead.conversation?.id
   ) {
     try {
@@ -444,6 +528,12 @@ export async function createInChatLead(
   if (!createdLead.conversation) {
     throw new Error("conversation_creation_failed");
   }
+
+  // Origem real do lead (spec 0114): pedido do catálogo ou a página In-Chat.
+  await recordLeadOriginFromLead(createdLead.id, {
+    origin: params.source === LeadSource.NERP_CATALOG ? "CATALOG" : "IN_CHAT",
+    sourceName: params.sourceLabel ?? null,
+  });
 
   // ── logActivity (best-effort) ──────────────────────────────────────
   try {

@@ -72,7 +72,7 @@ export const searchEntities = base
       case "lead": {
         const rows = await prisma.lead.findMany({
           where: {
-            isActive: true,
+            currentAction: { not: "DELETED" }, isArchived: false,
             tracking: { organizationId: orgId },
             ...(where ? { name: where } : {}),
           },

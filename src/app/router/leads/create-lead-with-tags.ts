@@ -9,6 +9,7 @@ import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { validWhatsappPhone } from "@/http/uazapi/valid-whatsapp-phone";
 import { ValidWhatsappPhoneResponse } from "@/http/uazapi/types";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
 export const createLeadWithTags = base
   .use(requiredAuthMiddleware)
@@ -28,7 +29,7 @@ export const createLeadWithTags = base
     }),
   )
   .handler(async ({ input, errors, context }) => {
-    return await prisma.$transaction(async (tx) => {
+    const created = await prisma.$transaction(async (tx) => {
       // Verificar se já existe
       const existingLead = await tx.lead.findUnique({
         where: {
@@ -196,4 +197,7 @@ export const createLeadWithTags = base
 
       return { lead };
     });
+    // Origem real do lead (spec 0114): cadastrado à mão. Depois da transação (regra 18).
+    await recordLeadOriginFromLead(created.lead.id, { origin: "MANUAL" });
+    return created;
   });

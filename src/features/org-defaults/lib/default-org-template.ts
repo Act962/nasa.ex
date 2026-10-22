@@ -69,18 +69,29 @@ export const AUTO_TAG_SLUGS = {
   siteChat: "chat-do-site",
   newLead: "novo-lead",
   paidTraffic: "trafego",
+  // Estado de atendimento e agendamento (spec 0113).
+  finished: "finalizado",
+  scheduled: "agendado",
+  cancelled: "cancelou",
 } as const;
 
 export type AutoTagKey = keyof typeof AUTO_TAG_SLUGS;
 
 export const DEFAULT_TAGS: { key: AutoTagKey; name: string; color: string; description: string }[] = [
   { key: "catalog", name: "Catálogo", color: "#10b981", description: "Comprou pelo catálogo online." },
-  { key: "inService", name: "Em atendimento", color: "#3b82f6", description: "Cliente mandou mensagem." },
-  { key: "awaitingReply", name: "Aguard. atendimento", color: "#f59e0b", description: "Cliente esperando resposta." },
+  { key: "inService", name: "Em atendimento", color: "#3b82f6", description: "Conversa em andamento com o cliente." },
+  { key: "awaitingReply", name: "Aguard. atendimento", color: "#f59e0b", description: "Cliente esperando atendimento." },
   { key: "whatsapp", name: "WhatsApp", color: "#22c55e", description: "Chegou pelo WhatsApp." },
-  { key: "instagram", name: "Instagram", color: "#e1306c", description: "Chegou pelo Instagram." },
+  { key: "instagram", name: "Instagram Direct", color: "#e1306c", description: "Chegou pelo Instagram Direct." },
   { key: "facebook", name: "Facebook", color: "#1877f2", description: "Chegou pelo Facebook." },
   { key: "siteChat", name: "Chat do site", color: "#8b5cf6", description: "Chegou pelo chat do site." },
   { key: "newLead", name: "Novo lead", color: "#06b6d4", description: "Primeiro contato do cliente." },
   { key: "paidTraffic", name: "Tráfego", color: "#f97316", description: "Chegou por anúncio." },
+];
+
+/** Etiquetas do estado de atendimento (spec 0113): criadas sob demanda, só nas empresas no modelo novo. */
+export const ATTENDANCE_TAGS: { key: AutoTagKey; name: string; color: string; description: string }[] = [
+  { key: "finished", name: "Finalizado", color: "#64748b", description: "Atendimento concluído." },
+  { key: "scheduled", name: "Agendado", color: "#0ea5e9", description: "Tem agendamento marcado." },
+  { key: "cancelled", name: "Cancelou", color: "#ef4444", description: "Desistiu do agendamento." },
 ];
