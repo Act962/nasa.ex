@@ -109,6 +109,7 @@ import {
   assignDunningRuleToEntry,
   listDunningExecutionsByEntry,
 } from "./dunning";
+import { getPaymentChargeLink } from "./charges";
 
 export const paymentRouter = {
   access: {
@@ -242,5 +243,9 @@ export const paymentRouter = {
     executions: {
       listByEntry: listDunningExecutionsByEntry,
     },
+  },
+  // ── Spec 0115: cobranças (link público com PIX) ───────────────────────
+  charges: {
+    getLink: getPaymentChargeLink,
   },
 };

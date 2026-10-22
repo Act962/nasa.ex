@@ -11,6 +11,7 @@ import {
   Bell,
   CheckCircle2,
   History,
+  Link2,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -40,6 +41,7 @@ export function EntryActionsMenu({
   onPay,
   onEdit,
   onAssignDunning,
+  onChargeLink,
   onDunningHistory,
   onCancel,
   onDelete,
@@ -49,6 +51,7 @@ export function EntryActionsMenu({
   onPay: () => void;
   onEdit: () => void;
   onAssignDunning: () => void;
+  onChargeLink: () => void;
   onDunningHistory: () => void;
   onCancel: () => void;
   onDelete: () => void;
@@ -86,6 +89,12 @@ export function EntryActionsMenu({
         </DropdownMenuItem>
         {entry.type === "RECEIVABLE" && (
           <>
+            {PAYABLE_STATUSES.includes(entry.status) && (
+              <DropdownMenuItem onClick={onChargeLink} className="gap-2">
+                <Link2 className="size-4 text-primary" />
+                Link de pagamento
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={onAssignDunning} className="gap-2">
               <Bell className="size-4 text-warning" />
               Atribuir régua de cobrança

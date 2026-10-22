@@ -59,7 +59,7 @@ export async function scheduleDunningForEntry(entryId: string) {
     .map((step) => {
       const fireAt = new Date(entry.dueDate);
       fireAt.setDate(fireAt.getDate() + step.daysOffset);
-      return { step, fireAtMs: fireAt.getTime() };
+      return { step, fireAtMs: moveIntoBusinessHours(fireAt).getTime() };
     })
     .filter((x) => x.fireAtMs > now);
 
@@ -81,6 +81,24 @@ export async function scheduleDunningForEntry(entryId: string) {
   );
 
   return { scheduled: events.length };
+}
+
+const BRAZIL_UTC_OFFSET_HOURS = 3;
+const FIRST_BUSINESS_HOUR = 8;
+const LAST_BUSINESS_HOUR = 20;
+const DEFAULT_SEND_HOUR = 9;
+
+/** Aviso ao cliente só entre 8h e 20h de Brasília; fora disso, às 9h seguintes (spec 0115, RNF-3). */
+export function moveIntoBusinessHours(fireAt: Date): Date {
+  const offsetMs = BRAZIL_UTC_OFFSET_HOURS * 60 * 60 * 1000;
+  // Relógio de Brasília lido pelos getters UTC.
+  const brazilClock = new Date(fireAt.getTime() - offsetMs);
+  const brazilHour = brazilClock.getUTCHours();
+  if (brazilHour >= FIRST_BUSINESS_HOUR && brazilHour < LAST_BUSINESS_HOUR) return fireAt;
+
+  if (brazilHour >= LAST_BUSINESS_HOUR) brazilClock.setUTCDate(brazilClock.getUTCDate() + 1);
+  brazilClock.setUTCHours(DEFAULT_SEND_HOUR, 0, 0, 0);
+  return new Date(brazilClock.getTime() + offsetMs);
 }
 
 /**

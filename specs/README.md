@@ -212,6 +212,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0075](form/0075-fichas-com-itens-calculo-e-fechamento.md) | form | Fichas com itens, cálculo e fechamento por cliente | em-revisao |
 | [0076](leads/0076-vinculados-do-lead.md) | leads | Vinculados do lead (dependentes, filiais) com cobrança pelo Financeiro | implementada |
 | [0077](workflows/0077-correcoes-api-oficial-e-gatilhos-orbita.md) | workflows | Correções API Oficial e Gatilhos ÓRBITA — jornada comentário → WhatsApp → curso → lead ganho | rascunho |
+| [0115](payment/0115-cobrancas-no-orbita-com-confirmacao-de-pagamento.md) | payment | Cobranças dentro do ÓRBITA, com confirmação do pagamento por várias fontes | em-revisao |
 
 ---
 

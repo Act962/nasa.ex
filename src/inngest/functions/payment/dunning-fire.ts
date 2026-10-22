@@ -2,9 +2,16 @@ import "server-only";
 
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { sendWhatsAppText } from "@/lib/whatsapp";
+import { sendOrganizationWhatsAppText } from "@/features/tracking-chat/lib/providers/send-org-document";
 import { resend } from "@/lib/email/resend";
 import { logActivity } from "@/features/admin/lib/activity-logger";
+import { buildChargeUrl } from "@/features/payment/lib/charge-link";
+import { formatCalendarDate } from "@/features/payment/lib/dates";
+import {
+  buildChargePixCode,
+  getOpenAmountCents,
+  sumOtherOverdueReceivablesCents,
+} from "@/features/payment/server/charges/charge-details";
 
 /**
  * Event-driven (sem cron). Disparado por `inngest.send("payment/dunning.fire", { ts })`.
@@ -45,6 +52,7 @@ export const paymentDunningFire = inngest.createFunction(
           where: { id: entryId },
           include: {
             contact: { select: { name: true, email: true, phone: true } },
+            lead: { select: { name: true, email: true, phone: true } },
             organization: { select: { name: true } },
           },
         }),
@@ -65,6 +73,22 @@ export const paymentDunningFire = inngest.createFunction(
       }
       if (existing && existing.status !== "PENDING") {
         return { skip: "already-executed" as const };
+      }
+      if (await wasCustomerNotifiedTodayForAnotherEntry(entry)) {
+        await prisma.paymentDunningExecution.upsert({
+          where:  { entryId_stepId: { entryId, stepId } },
+          create: {
+            entryId,
+            stepId,
+            scheduledFor: new Date(event.data.scheduledForMs as number),
+            status:       "SKIPPED",
+            channel:      dunStep.channel,
+            executedAt:   new Date(),
+            errorMessage: "customer-already-notified-today",
+          },
+          update: { status: "SKIPPED", executedAt: new Date(), errorMessage: "customer-already-notified-today" },
+        });
+        return { skip: "customer-already-notified-today" as const };
       }
 
       // Cria/atualiza execution(PENDING) — placeholder pra evitar dupes em race.
@@ -96,20 +120,37 @@ export const paymentDunningFire = inngest.createFunction(
     const { entry, step: dunStep, executionId } = guard;
 
     // ── 2) Render template com vars ─────────────────────────────────────
-    const valor = (entry.amount / 100).toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
+    // Contato do financeiro primeiro; sem e-mail ou telefone, os do lead (spec 0115, RF-12).
+    const recipientName = entry.contact?.name ?? entry.lead?.name ?? "Cliente";
+    const recipientEmail = entry.contact?.email || entry.lead?.email || null;
+    const recipientPhone = entry.contact?.phone || entry.lead?.phone || null;
+
+    const chargeVariables = await step.run("charge-variables", async () => {
+      const openAmountCents = getOpenAmountCents(entry);
+      const [pixCode, otherOverdueCents] = await Promise.all([
+        buildChargePixCode({ organizationId, entryId, amountCents: openAmountCents }),
+        sumOtherOverdueReceivablesCents(entry),
+      ]);
+      return {
+        chargeUrl: buildChargeUrl(organizationId, entryId),
+        pixCode: pixCode ?? "",
+        otherOverdue: otherOverdueCents > 0 ? formatBrl(otherOverdueCents) : "",
+      };
     });
-    const vencimento = new Date(entry.dueDate).toLocaleDateString("pt-BR");
-    const contatoNome = entry.contact?.name ?? "Cliente";
+
+    const valor = formatBrl(getOpenAmountCents(entry));
+    const vencimento = formatCalendarDate(entry.dueDate);
 
     function interpolate(template: string) {
       return template
-        .replace(/\{\{contato\}\}/g, contatoNome)
+        .replace(/\{\{contato\}\}/g, recipientName)
         .replace(/\{\{valor\}\}/g, valor)
         .replace(/\{\{vencimento\}\}/g, vencimento)
         .replace(/\{\{empresa\}\}/g, entry.organization?.name ?? "")
-        .replace(/\{\{descricao\}\}/g, entry.description);
+        .replace(/\{\{descricao\}\}/g, entry.description)
+        .replace(/\{\{(link_pagamento|boleto_link)\}\}/g, chargeVariables.chargeUrl)
+        .replace(/\{\{pix_copia_e_cola\}\}/g, chargeVariables.pixCode)
+        .replace(/\{\{outras_pendencias\}\}/g, chargeVariables.otherOverdue);
     }
 
     const body = interpolate(dunStep.templateBody);
@@ -124,13 +165,13 @@ export const paymentDunningFire = inngest.createFunction(
         return { status: "SKIPPED" as const, reason: "SMS not implemented", messageId: null };
       }
       if (dunStep.channel === "EMAIL") {
-        if (!entry.contact?.email) {
+        if (!recipientEmail) {
           return { status: "FAILED" as const, reason: "contact-no-email", messageId: null };
         }
         try {
           const result = await resend.emails.send({
             from:    process.env.RESEND_FROM ?? "ÓRBITA <no-reply@nasaagents.com>",
-            to:      entry.contact.email,
+            to:      recipientEmail,
             subject,
             html:    body.replace(/\n/g, "<br/>"),
           });
@@ -155,26 +196,20 @@ export const paymentDunningFire = inngest.createFunction(
         }
       }
       if (dunStep.channel === "WHATSAPP") {
-        if (!entry.contact?.phone) {
+        if (!recipientPhone) {
           return { status: "FAILED" as const, reason: "contact-no-phone", messageId: null };
         }
-        try {
-          const result = await sendWhatsAppText({
-            organizationId,
-            phone:   entry.contact.phone,
-            message: body,
-          });
-          if (!result) {
-            return { status: "FAILED" as const, reason: "no-connected-whatsapp-instance", messageId: null };
-          }
-          return { status: "SENT" as const, messageId: result.messageId, reason: null };
-        } catch (err) {
-          return {
-            status: "FAILED" as const,
-            reason: err instanceof Error ? err.message : "whatsapp-error",
-            messageId: null,
-          };
+        // Pelo número da própria empresa, em uazapi ou API oficial (fora da janela de 24h a
+        // Meta recusa texto livre e o motivo fica na execução).
+        const result = await sendOrganizationWhatsAppText({
+          organizationId,
+          phone:   recipientPhone,
+          message: body,
+        });
+        if (!result.isSent) {
+          return { status: "FAILED" as const, reason: result.reason, messageId: null };
         }
+        return { status: "SENT" as const, messageId: result.externalMessageId, reason: null };
       }
       return { status: "SKIPPED" as const, reason: "unknown-channel", messageId: null };
     });
@@ -225,3 +260,42 @@ export const paymentDunningFire = inngest.createFunction(
     };
   },
 );
+
+function formatBrl(cents: number): string {
+  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+const BRAZIL_UTC_OFFSET_HOURS = 3;
+const HOUR_MS = 60 * 60 * 1000;
+
+/** Um aviso por cliente por dia (spec 0115, RNF-2): outra cobrança dele já avisou hoje? */
+async function wasCustomerNotifiedTodayForAnotherEntry(entry: {
+  id: string;
+  organizationId: string;
+  contactId: string | null;
+  leadId: string | null;
+}): Promise<boolean> {
+  const customerFilters = [
+    ...(entry.contactId ? [{ contactId: entry.contactId }] : []),
+    ...(entry.leadId ? [{ leadId: entry.leadId }] : []),
+  ];
+  if (customerFilters.length === 0) return false;
+
+  const nowInBrazil = new Date(Date.now() - BRAZIL_UTC_OFFSET_HOURS * HOUR_MS);
+  nowInBrazil.setUTCHours(0, 0, 0, 0);
+  const startOfTodayInBrazil = new Date(nowInBrazil.getTime() + BRAZIL_UTC_OFFSET_HOURS * HOUR_MS);
+
+  const sentToday = await prisma.paymentDunningExecution.findFirst({
+    where: {
+      status: "SENT",
+      executedAt: { gte: startOfTodayInBrazil },
+      entry: {
+        organizationId: entry.organizationId,
+        id: { not: entry.id },
+        OR: customerFilters,
+      },
+    },
+    select: { id: true },
+  });
+  return sentToday !== null;
+}

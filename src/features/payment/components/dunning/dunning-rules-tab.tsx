@@ -195,7 +195,7 @@ function RuleAccordion({
         order:        rule.steps.length,
         daysOffset:   rule.steps.length === 0 ? -3 : 0,
         channel:      "WHATSAPP",
-        templateBody: "Olá {{contato}}, lembrete que o boleto de {{valor}} vence em {{vencimento}}.",
+        templateBody: "Olá {{contato}}, sua cobrança de {{valor}} vence em {{vencimento}}. Pague pelo link: {{link_pagamento}}\nSe já pagou, desconsidere.",
         enabled:      true,
       },
       { onSuccess: () => toast.success("Step adicionado") },
@@ -382,10 +382,10 @@ function StepEditor({
               rows={3}
               className="text-xs font-mono"
               maxLength={2000}
-              placeholder="Use {{contato}} {{valor}} {{vencimento}} {{empresa}} {{descricao}}"
+              placeholder="Use {{contato}} {{valor}} {{vencimento}} {{link_pagamento}}"
             />
             <p className="text-[10px] text-muted-foreground">
-              Variáveis: <code>{`{{contato}}`}</code> <code>{`{{valor}}`}</code> <code>{`{{vencimento}}`}</code> <code>{`{{empresa}}`}</code> <code>{`{{descricao}}`}</code>
+              Variáveis: <code>{`{{contato}}`}</code> <code>{`{{valor}}`}</code> <code>{`{{vencimento}}`}</code> <code>{`{{empresa}}`}</code> <code>{`{{descricao}}`}</code> <code>{`{{link_pagamento}}`}</code> <code>{`{{pix_copia_e_cola}}`}</code> <code>{`{{outras_pendencias}}`}</code>
             </p>
           </div>
         </div>
