@@ -27,6 +27,7 @@ import { quoteTrafego } from "@/features/trafego/lib/pricing-tiers";
 import { trafegoCheckoutBodySchema } from "@/features/trafego/schema/trafego-schemas";
 import { PLATFORM_SHORT_LABEL } from "@/features/trafego/lib/catalog-labels";
 import { TRAFEGO_TERMS_VERSION } from "@/features/trafego/lib/legal";
+import { resolveTrafegoBaseUrl } from "@/features/trafego/lib/urls";
 import { ensureTrafegoLeadForPending } from "@/features/trafego/server/lib/ensure-trafego-lead";
 import { loadTrafegoAsaasGateway } from "@/features/trafego/server/lib/asaas-gateway";
 import { createAsaasPixCharge } from "@/features/trafego/server/lib/create-asaas-pix-charge";
@@ -434,7 +435,8 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const origin = req.nextUrl.origin;
+  // Atrás do proxy de produção `req.nextUrl` é o endereço interno do container (0.0.0.0:3000).
+  const origin = resolveTrafegoBaseUrl() || req.nextUrl.origin;
   const platformLabel = PLATFORM_SHORT_LABEL[platform];
   const metadata = {
     kind: "trafego_order",

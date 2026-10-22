@@ -177,7 +177,10 @@ export async function POST(req: NextRequest) {
   });
 
   // ── 6. Cria Stripe Checkout Session ──────────────────────────────────────
-  const origin = req.nextUrl.origin;
+  // Atrás do proxy de produção `req.nextUrl` é o endereço interno do container (0.0.0.0:3000).
+  const origin =
+    (process.env.NEXT_PUBLIC_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? process.env.BETTER_AUTH_URL ?? "").replace(/\/$/, "") ||
+    req.nextUrl.origin;
   const successUrl = `${origin}/checkout/sucesso?token=${pending.id}&session_id={CHECKOUT_SESSION_ID}`;
   const cancelPath = `/c/${course.creatorOrg.slug}/${course.slug}`;
   const cancelUrl = `${origin}${cancelPath}`;
