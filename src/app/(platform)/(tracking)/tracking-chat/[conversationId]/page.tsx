@@ -162,7 +162,6 @@ export default function Page() {
             isAttendanceManaged={data.isAttendanceManaged}
             trackingId={data.conversation.trackingId}
             statusFlow={data.conversation.lead.statusFlow}
-            channel={data.conversation.channel}
             trackingName={(data.conversation as any).tracking?.name ?? null}
             statusName={(data.conversation.lead as any).status?.name ?? null}
             heat={
