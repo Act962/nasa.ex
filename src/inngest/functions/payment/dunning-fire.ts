@@ -2,12 +2,12 @@ import "server-only";
 
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
-import { sendOrganizationWhatsAppText } from "@/features/tracking-chat/lib/providers/send-org-document";
 import { resend } from "@/lib/email/resend";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { buildChargeUrl } from "@/features/payment/lib/charge-link";
 import { formatCalendarDate } from "@/features/payment/lib/dates";
-import { getPaymentSenderTrackingId } from "@/features/payment/server/messaging/sender-tracking";
+import { sendDunningWhatsApp } from "@/features/payment/server/messaging/send-dunning-whatsapp";
+import { moveIntoBusinessHours } from "@/features/payment/server/dunning/schedule";
 import {
   buildChargePixCode,
   getOpenAmountCents,
@@ -36,6 +36,9 @@ export const paymentDunningFire = inngest.createFunction(
     id: "payment-dunning-fire",
     // Limita 5 envios simultâneos por org pra não estourar rate limit do uazapi.
     concurrency: { limit: 5, key: "event.data.organizationId" },
+    // Ritmo por empresa (um número de cobranças por empresa): ~1 aviso a cada 3s. Sem isso, os
+    // vencimentos do dia saem todos às 9h juntos — padrão que leva a Meta a banir número não oficial.
+    throttle: { limit: 20, period: "1m", key: "event.data.organizationId" },
   },
   { event: "payment/dunning.fire" },
   async ({ event, step, logger }) => {
@@ -81,6 +84,10 @@ export const paymentDunningFire = inngest.createFunction(
       if (existing && existing.status !== "PENDING") {
         return { skip: "already-executed" as const };
       }
+      // Cliente prometeu pagar: o aviso volta para o fim da pausa em vez de sair agora.
+      if (entry.dunningPausedUntil && entry.dunningPausedUntil.getTime() > Date.now()) {
+        return { skip: "paused" as const, pausedUntilMs: entry.dunningPausedUntil.getTime() };
+      }
       if (await wasCustomerNotifiedTodayForAnotherEntry(entry)) {
         await prisma.paymentDunningExecution.upsert({
           where:  { entryId_stepId: { entryId, stepId } },
@@ -119,6 +126,17 @@ export const paymentDunningFire = inngest.createFunction(
       };
     });
 
+    if (guard.skip === "paused") {
+      const resumeAtMs = moveIntoBusinessHours(new Date(guard.pausedUntilMs)).getTime();
+      await step.sendEvent("reschedule-after-pause", {
+        name: "payment/dunning.fire",
+        id: `dunning-${entryId}-${stepId}-${dueDateMs ?? "legacy"}-paused-${guard.pausedUntilMs}`,
+        data: { entryId, stepId, organizationId, scheduledForMs: resumeAtMs, dueDateMs },
+        ts: resumeAtMs,
+      });
+      logger.info("[dunning] paused, rescheduled", { entryId, stepId, resumeAtMs });
+      return { skipped: "paused", resumeAtMs };
+    }
     if (guard.skip) {
       logger.info(`[dunning] skip ${guard.skip}`, { entryId, stepId });
       return { skipped: guard.skip };
@@ -206,13 +224,20 @@ export const paymentDunningFire = inngest.createFunction(
         if (!recipientPhone) {
           return { status: "FAILED" as const, reason: "contact-no-phone", messageId: null };
         }
-        // Pelo número do tracking escolhido nas configurações (ou o mais antigo da org), em uazapi ou
-        // API oficial (fora da janela de 24h a Meta recusa texto livre e o motivo fica na execução).
-        const result = await sendOrganizationWhatsAppText({
+        // Pelo número das cobranças: texto livre na Uazapi ou com a janela de 24h aberta; fora dela,
+        // no número oficial, o modelo aprovado do aviso (sem modelo, falha com o motivo).
+        const result = await sendDunningWhatsApp({
           organizationId,
-          phone:            recipientPhone,
-          message:          body,
-          senderTrackingId: await getPaymentSenderTrackingId(organizationId),
+          phone: recipientPhone,
+          text:  body,
+          template: dunStep.whatsappTemplateName && dunStep.whatsappTemplateLanguage
+            ? {
+                name:           dunStep.whatsappTemplateName,
+                language:       dunStep.whatsappTemplateLanguage,
+                // A Meta recusa parâmetro vazio.
+                bodyParameters: dunStep.whatsappTemplateParams.map((token) => interpolate(token).trim() || "-"),
+              }
+            : null,
         });
         if (!result.isSent) {
           return { status: "FAILED" as const, reason: result.reason, messageId: null };

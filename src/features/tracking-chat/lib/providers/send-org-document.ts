@@ -82,6 +82,37 @@ export async function sendOrganizationWhatsAppDocument(params: {
   }
 }
 
+/** Modelo aprovado da Meta (fora da janela de 24h). Só o número oficial envia modelo. */
+export async function sendOrganizationWhatsAppTemplate(params: {
+  organizationId: string;
+  phone: string;
+  templateName: string;
+  languageCode: string;
+  bodyParameters: string[];
+  senderTrackingId?: string | null;
+}): Promise<OrganizationWhatsAppSendResult> {
+  const recipientPhone = normalizePhoneToMetaE164(params.phone);
+  if (recipientPhone.length < 10) return { isSent: false, reason: "invalid_phone" };
+
+  try {
+    const resolved = await resolveOrganizationProvider(params.organizationId, params.senderTrackingId);
+    if (!resolved) return { isSent: false, reason: describeMissingInstance(params.senderTrackingId) };
+    if (resolved.providerId !== "meta-cloud") return { isSent: false, reason: "template_requires_official_number" };
+
+    const result = await resolved.provider.sendTemplate({
+      kind: "template",
+      to: recipientPhone,
+      templateName: params.templateName,
+      languageCode: params.languageCode,
+      bodyParameters: params.bodyParameters,
+      markPreviousAsRead: false,
+    });
+    return { isSent: true, externalMessageId: result.externalMessageId };
+  } catch (error) {
+    return { isSent: false, reason: describeSendError(error) };
+  }
+}
+
 export async function sendOrganizationWhatsAppText(params: {
   organizationId: string;
   phone: string;

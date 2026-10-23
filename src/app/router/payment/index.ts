@@ -109,7 +109,7 @@ import {
   assignDunningRuleToEntry,
   listDunningExecutionsByEntry,
 } from "./dunning";
-import { getPaymentChargeLink, listPaymentCharges } from "./charges";
+import { getPaymentChargeLink, listPaymentCharges, reopenCharge, setChargeDunningPause } from "./charges";
 import { searchCustomers } from "./customers";
 import { getPaymentMessagingSender, setPaymentMessagingSender } from "./messaging";
 
@@ -250,6 +250,8 @@ export const paymentRouter = {
   charges: {
     getLink: getPaymentChargeLink,
     list: listPaymentCharges,
+    setDunningPause: setChargeDunningPause,
+    reopen: reopenCharge,
   },
   // Cliente da cobrança: contatos do financeiro + leads do funil.
   customers: {

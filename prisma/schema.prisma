@@ -6354,6 +6354,9 @@ model PaymentEntry {
   // Régua atribuída a esta entry (só faz sentido em RECEIVABLE). Quando setado,
   // o cron `payment-dunning-runner` dispara steps conforme `dueDate + step.daysOffset`.
   dunningRuleId String? @map("dunning_rule_id")
+  // Avisos pausados até esta data (cliente prometeu pagar). Os avisos que caírem na pausa
+  // saem no fim dela — no máximo um por dia ao cliente.
+  dunningPausedUntil DateTime? @map("dunning_paused_until")
 
   createdById String?  @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -6605,6 +6608,11 @@ model PaymentDunningStep {
   templateSubject String?               @map("template_subject")
   templateBody    String                @map("template_body")
   enabled         Boolean               @default(true)
+  // Modelo aprovado da Meta usado fora da janela de 24h no número oficial (spec 0115, RF-13).
+  // `whatsappTemplateParams[i]` é a variável da régua (ex.: "{{valor}}") que preenche o {{i+1}} do corpo.
+  whatsappTemplateName     String?  @map("whatsapp_template_name")
+  whatsappTemplateLanguage String?  @map("whatsapp_template_language")
+  whatsappTemplateParams   String[] @default([]) @map("whatsapp_template_params")
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @updatedAt @map("updated_at")
 

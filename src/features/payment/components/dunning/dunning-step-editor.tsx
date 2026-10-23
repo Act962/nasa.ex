@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useDeleteDunningStep, useUpdateDunningStep } from "../../hooks/use-payment-dunning";
+import { usePaymentMessagingSender } from "../../hooks/use-payment-messaging";
+import { DunningTemplatePicker } from "./dunning-template-picker";
 import {
   DUNNING_MESSAGE_TEMPLATES,
   DUNNING_VARIABLES,
@@ -48,6 +50,9 @@ export type DunningStepData = {
   templateSubject: string | null;
   templateBody: string;
   enabled: boolean;
+  whatsappTemplateName: string | null;
+  whatsappTemplateLanguage: string | null;
+  whatsappTemplateParams: string[];
 };
 
 const CUSTOM_TIMING = "custom";
@@ -63,6 +68,10 @@ export function DunningStepEditor({
   const updateStep = useUpdateDunningStep();
   const deleteStep = useDeleteDunningStep();
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const { data: sender } = usePaymentMessagingSender();
+  const senderTrackingId = sender?.selectedTrackingId ?? sender?.fallbackTrackingId ?? null;
+  const isOfficialSender =
+    sender?.options.find((option) => option.trackingId === senderTrackingId)?.provider === "META_CLOUD";
 
   const [isCustomTiming, setIsCustomTiming] = useState(!TIMING_PRESETS.includes(step.daysOffset));
   const [customDays, setCustomDays] = useState(Math.max(Math.abs(step.daysOffset), 1));
@@ -302,6 +311,24 @@ export function DunningStepEditor({
           </p>
         )}
       </div>
+
+      {step.channel === "WHATSAPP" && isOfficialSender && senderTrackingId && (
+        <DunningTemplatePicker
+          senderTrackingId={senderTrackingId}
+          value={
+            step.whatsappTemplateName && step.whatsappTemplateLanguage
+              ? { name: step.whatsappTemplateName, language: step.whatsappTemplateLanguage, params: step.whatsappTemplateParams }
+              : null
+          }
+          onChange={(selection) =>
+            persist({
+              whatsappTemplateName: selection?.name ?? null,
+              whatsappTemplateLanguage: selection?.language ?? null,
+              whatsappTemplateParams: selection?.params ?? [],
+            })
+          }
+        />
+      )}
 
       <ConfirmDeleteDialog
         isOpen={isConfirmingDelete}

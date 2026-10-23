@@ -4,8 +4,10 @@
 // pagamento e o do envio dos avisos da régua, lado a lado.
 
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   AlertTriangle,
+  Ban,
   CalendarClock,
   CheckCircle2,
   History,
@@ -14,6 +16,9 @@ import {
   MessageSquare,
   MessageSquareText,
   MoreHorizontal,
+  PauseCircle,
+  PlayCircle,
+  RotateCcw,
   Receipt,
   Search,
   TriangleAlert,
@@ -28,12 +33,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import { cn } from "@/lib/utils";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
-import { usePaymentCharges } from "../../hooks/use-payment-charges";
+import { useReopenCharge, useSetChargeDunningPause, usePaymentCharges } from "../../hooks/use-payment-charges";
+import { useDeletePaymentEntry } from "../../hooks/use-payment";
+import { describePaymentError } from "../../lib/describe-error";
 import {
   usePaymentCategoryFilter,
   usePaymentPeriodIso,
@@ -50,6 +58,8 @@ import { ChargeLinkDialog } from "./charge-link-dialog";
 import { DunningHistoryDrawer } from "../dunning/dunning-history-drawer";
 import { DunningRulesTab } from "../dunning/dunning-rules-tab";
 import { PayEntryDialog } from "../entries/pay-entry-dialog";
+import { ConfirmDeleteDialog } from "../shared/confirm-delete-dialog";
+import { ChargePauseDialog } from "./charge-pause-dialog";
 
 const PAGE_SIZE = 20;
 
@@ -105,6 +115,11 @@ export function ChargesTab() {
   const [linkEntry, setLinkEntry] = useState<{ id: string; name: string } | null>(null);
   const [historyEntry, setHistoryEntry] = useState<{ id: string; name: string } | null>(null);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [pauseEntry, setPauseEntry] = useState<{ id: string; name: string } | null>(null);
+  const [cancelEntry, setCancelEntry] = useState<{ id: string; name: string } | null>(null);
+  const setDunningPause = useSetChargeDunningPause();
+  const reopenCharge = useReopenCharge();
+  const cancelCharge = useDeletePaymentEntry();
 
   const debouncedSearch = useDebouncedValue(search.trim(), PAYMENT_SEARCH_DEBOUNCE_MS);
 
@@ -144,6 +159,40 @@ export function ChargesTab() {
     { status: "overdue", label: "Atrasadas", hint: "inclui meses anteriores", Icon: AlertTriangle, iconClassName: "bg-destructive/15 text-destructive", value: summary?.overdue },
   ];
 
+  function handleResumeDunning(charge: ChargeRow) {
+    setDunningPause.mutate(
+      { entryId: charge.id, pausedUntil: null },
+      {
+        onSuccess: () => toast.success("Avisos retomados"),
+        onError: (error) => toast.error(describePaymentError(error, "Não foi possível retomar")),
+      },
+    );
+  }
+
+  function handleReopen(charge: ChargeRow) {
+    reopenCharge.mutate(
+      { entryId: charge.id },
+      {
+        onSuccess: () => toast.success("Cobrança reaberta"),
+        onError: (error) => toast.error(describePaymentError(error, "Não foi possível reabrir")),
+      },
+    );
+  }
+
+  function handleCancel() {
+    if (!cancelEntry) return;
+    cancelCharge.mutate(
+      { id: cancelEntry.id },
+      {
+        onSuccess: () => {
+          setCancelEntry(null);
+          toast.success("Cobrança cancelada");
+        },
+        onError: (error) => toast.error(describePaymentError(error, "Não foi possível cancelar")),
+      },
+    );
+  }
+
   function renderRowActions(charge: ChargeRow) {
     const name = charge.customer?.name ?? charge.description;
     return (
@@ -164,14 +213,42 @@ export function ChargesTab() {
                 onClick={() => setPayEntry({ id: charge.id, openAmountCents: charge.openAmountCents })}
               >
                 <CheckCircle2 className="size-4" />
-                Registrar pagamento
+                Marcar como paga
               </DropdownMenuItem>
+              {charge.rule &&
+                (charge.dunningPausedUntil ? (
+                  <DropdownMenuItem onClick={() => handleResumeDunning(charge)}>
+                    <PlayCircle className="size-4" />
+                    Retomar avisos
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => setPauseEntry({ id: charge.id, name: charge.description })}>
+                    <PauseCircle className="size-4" />
+                    Pausar avisos
+                  </DropdownMenuItem>
+                ))}
             </>
           )}
           <DropdownMenuItem onClick={() => setHistoryEntry({ id: charge.id, name })}>
             <History className="size-4" />
             Histórico de avisos
           </DropdownMenuItem>
+          {(charge.isOpen || charge.status === "CANCELLED") && <DropdownMenuSeparator />}
+          {charge.isOpen && (
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => setCancelEntry({ id: charge.id, name: charge.description })}
+            >
+              <Ban className="size-4" />
+              Cancelar cobrança
+            </DropdownMenuItem>
+          )}
+          {charge.status === "CANCELLED" && (
+            <DropdownMenuItem onClick={() => handleReopen(charge)}>
+              <RotateCcw className="size-4" />
+              Reabrir cobrança
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -184,6 +261,12 @@ export function ChargesTab() {
     const missingContact = findMissingContact(charge);
     return (
       <div className="min-w-0 space-y-1">
+        {charge.dunningPausedUntil && (
+          <p className="flex items-center gap-1 text-[11px] text-warning">
+            <PauseCircle className="size-3 shrink-0" />
+            Avisos pausados até {formatDate(charge.dunningPausedUntil)}
+          </p>
+        )}
         <div className="flex items-center gap-2">
           {charge.channels.length === 0 ? (
             <span className="text-xs text-muted-foreground">Régua sem avisos</span>
@@ -467,6 +550,16 @@ export function ChargesTab() {
         entryId={historyEntry?.id ?? null}
         entryName={historyEntry?.name ?? null}
         onClose={() => setHistoryEntry(null)}
+      />
+      <ChargePauseDialog entry={pauseEntry} onClose={() => setPauseEntry(null)} />
+      <ConfirmDeleteDialog
+        isOpen={cancelEntry !== null}
+        title="Cancelar cobrança"
+        description={`Cancelar "${cancelEntry?.name ?? ""}"? Os avisos param. Dá para reabrir depois.`}
+        isPending={cancelCharge.isPending}
+        confirmLabel="Cancelar cobrança"
+        onConfirm={handleCancel}
+        onClose={() => setCancelEntry(null)}
       />
       <Sheet open={isRulesOpen} onOpenChange={setIsRulesOpen}>
         <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-2xl">

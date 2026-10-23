@@ -16,6 +16,8 @@ interface ConfirmDeleteDialogProps {
   title: string;
   description: string;
   isPending: boolean;
+  /** Texto do botão de confirmar; padrão "Excluir". */
+  confirmLabel?: string;
   onConfirm: () => void;
   onClose: () => void;
 }
@@ -25,6 +27,7 @@ export function ConfirmDeleteDialog({
   title,
   description,
   isPending,
+  confirmLabel = "Excluir",
   onConfirm,
   onClose,
 }: ConfirmDeleteDialogProps) {
@@ -43,7 +46,7 @@ export function ConfirmDeleteDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
           <Button variant="destructive" disabled={isPending} onClick={onConfirm}>
-            {isPending ? "Excluindo..." : "Excluir"}
+            {isPending ? "Salvando..." : confirmLabel}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

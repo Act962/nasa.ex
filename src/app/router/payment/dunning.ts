@@ -32,7 +32,13 @@ const stepShape = z.object({
   templateSubject: z.string().nullable(),
   templateBody:    z.string(),
   enabled:         z.boolean(),
+  whatsappTemplateName:     z.string().nullable(),
+  whatsappTemplateLanguage: z.string().nullable(),
+  whatsappTemplateParams:   z.array(z.string()),
 });
+
+// Variável da régua que preenche cada {{n}} do modelo da Meta (ex.: "{{valor}}").
+const templateParamSchema = z.string().regex(/^\{\{[a-z_]+\}\}$/).max(40);
 
 const ruleShape = z.object({
   id:             z.string(),
@@ -229,6 +235,10 @@ export const updateDunningStep = base
     templateSubject: z.string().max(200).nullable().optional(),
     templateBody:    z.string().min(1).max(2000).optional(),
     enabled:         z.boolean().optional(),
+    // Modelo para fora da janela de 24h: `null` no nome tira o modelo do aviso.
+    whatsappTemplateName:     z.string().max(512).nullable().optional(),
+    whatsappTemplateLanguage: z.string().max(20).nullable().optional(),
+    whatsappTemplateParams:   z.array(templateParamSchema).max(20).optional(),
   }))
   .output(z.object({ step: stepShape }))
   .handler(async ({ input, context }) => {
@@ -248,6 +258,15 @@ export const updateDunningStep = base
         ...(input.templateSubject !== undefined ? { templateSubject: input.templateSubject } : {}),
         ...(input.templateBody    !== undefined ? { templateBody: input.templateBody } : {}),
         ...(input.enabled         !== undefined ? { enabled: input.enabled } : {}),
+        ...(input.whatsappTemplateName !== undefined
+          ? {
+              whatsappTemplateName:     input.whatsappTemplateName,
+              whatsappTemplateLanguage: input.whatsappTemplateName ? (input.whatsappTemplateLanguage ?? null) : null,
+              whatsappTemplateParams:   input.whatsappTemplateName ? (input.whatsappTemplateParams ?? []) : [],
+            }
+          : input.whatsappTemplateParams !== undefined
+            ? { whatsappTemplateParams: input.whatsappTemplateParams }
+            : {}),
       },
     });
     return { step: updated };

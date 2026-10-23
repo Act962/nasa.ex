@@ -13,6 +13,8 @@ const KNOWN_REASONS: Record<string, string> = {
   "unknown-channel": "canal desconhecido",
   "email-error": "o serviço de e-mail recusou o envio",
   "meta-failed": "a Meta informou que não entregou",
+  meta_outside_window_without_template: "fora da janela de 24h e o aviso não tem modelo aprovado",
+  template_requires_official_number: "modelo da Meta só sai pelo número oficial",
 };
 
 // Códigos de erro da API oficial (developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes).

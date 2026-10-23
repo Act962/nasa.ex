@@ -29,7 +29,7 @@ import {
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { MessagingSenderSelect } from "./messaging-sender-select";
 import { ConfirmDeleteDialog } from "../shared/confirm-delete-dialog";
-import { DunningStepEditor } from "./dunning-step-editor";
+import { DunningStepEditor, type DunningStepData } from "./dunning-step-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -153,15 +153,7 @@ interface RuleData {
   name: string;
   isActive: boolean;
   isDefault: boolean;
-  steps: Array<{
-    id: string;
-    order: number;
-    daysOffset: number;
-    channel: "EMAIL" | "WHATSAPP" | "SMS";
-    templateSubject: string | null;
-    templateBody: string;
-    enabled: boolean;
-  }>;
+  steps: Array<DunningStepData & { order: number }>;
 }
 
 function RuleAccordion({

@@ -318,6 +318,7 @@ export const payPaymentEntry = base
     paidAmount: z.number().int().positive("O valor pago precisa ser maior que zero"),
     paidAt: z.string().optional(),
     accountId: z.string().optional(),
+    paymentNote: z.string().max(300).optional(),
   }))
   .output(z.object({ entry: entryShape }))
   .handler(async ({ input, context, errors }) => {
@@ -330,6 +331,7 @@ export const payPaymentEntry = base
         paidAmountCents: input.paidAmount,
         paidAt: input.paidAt,
         accountId: input.accountId,
+        paymentNote: input.paymentNote,
       });
     } catch (err) {
       console.error("[payment/entries pay]", err);

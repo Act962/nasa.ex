@@ -133,6 +133,7 @@ export async function listCharges(input: ListChargesInput) {
           status: true,
           installmentCurrent: true,
           installmentTotal: true,
+          dunningPausedUntil: true,
           contact: { select: { id: true, name: true, email: true, phone: true } },
           lead: { select: { id: true, name: true, email: true, phone: true } },
           dunningRule: {
@@ -219,6 +220,8 @@ export async function listCharges(input: ListChargesInput) {
             }
           : null,
         isOpen: (OPEN_STATUSES as readonly string[]).includes(entry.status),
+        dunningPausedUntil:
+          entry.dunningPausedUntil && entry.dunningPausedUntil.getTime() > Date.now() ? entry.dunningPausedUntil : null,
       };
     }),
     total,
