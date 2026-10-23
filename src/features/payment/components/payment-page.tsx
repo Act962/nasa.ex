@@ -81,8 +81,8 @@ import { AppReportButton } from "@/features/insights/components/app-report-butto
 const MAIN_TABS: PaymentTab[] = [
   { value: "dashboard", label: "Painel", icon: LayoutDashboard },
   { value: "receivables", label: "Receita", icon: ArrowUpFromLine },
-  { value: "charges", label: "Cobranças", icon: BellRing },
   { value: "payables", label: "Despesa", icon: ArrowDownToLine },
+  { value: "charges", label: "Cobranças", icon: BellRing },
   { value: "cashflow", label: "Fluxo de Caixa", icon: TrendingUp, hasChildren: true },
   { value: "reconciliation", label: "Conciliação", icon: ArrowLeftRight },
   { value: "accounts", label: "Contas", icon: Landmark },
@@ -104,8 +104,8 @@ const CASHFLOW_VIEW_VALUES = new Set<string>(CASHFLOW_VIEWS.map((view) => view.v
 const MOBILE_TABS: PaymentTabItem[] = [
   { value: "dashboard", label: "Painel", emoji: "📊" },
   { value: "receivables", label: "Receita", emoji: "💚" },
-  { value: "charges", label: "Cobranças", emoji: "🔔" },
   { value: "payables", label: "Despesa", emoji: "🔴" },
+  { value: "charges", label: "Cobranças", emoji: "🔔" },
   { value: "cashflow", label: "Fluxo de Caixa", emoji: "📈" },
   { value: "projection", label: "Projeção", emoji: "🔭" },
   { value: "dre", label: "DRE", emoji: "📄" },
@@ -263,15 +263,6 @@ export function PaymentPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="hidden size-8 sm:inline-flex"
-            onClick={() => setSettingsOpen(true)}
-            title="Configurações do Payment"
-          >
-            <Settings className="size-4" />
-          </Button>
           <PaymentMobileMenu
             className="sm:hidden"
             tabs={tabs}
