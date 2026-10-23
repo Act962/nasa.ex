@@ -4,7 +4,7 @@
  * DunningRulesTab — lista + editor de Réguas de Cobrança.
  *
  * UX: lista no topo (cards), editor expansível quando uma régua é selecionada.
- * Steps são ordenados por `daysOffset` ASC e desenhados como timeline visual.
+ * Avisos ordenados por `daysOffset` ASC; o card de cada um mora em `dunning-step-editor.tsx`.
  *
  * Comportamento defensivo:
  *   - Régua nasce com `isActive=false` (criação backend) — user revisa antes
@@ -20,51 +20,52 @@ import { toast } from "sonner";
 import {
   Plus,
   Trash2,
-  Mail,
-  MessageSquare,
-  Smartphone,
   ToggleLeft,
   ToggleRight,
   ChevronRight,
+  ShieldCheck,
   Star,
 } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { MessagingSenderSelect } from "./messaging-sender-select";
 import { ConfirmDeleteDialog } from "../shared/confirm-delete-dialog";
+import { DunningStepEditor } from "./dunning-step-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   useDunningRules,
   useCreateDunningRule,
   useUpdateDunningRule,
   useDeleteDunningRule,
   useCreateDunningStep,
-  useUpdateDunningStep,
-  useDeleteDunningStep,
 } from "../../hooks/use-payment-dunning";
+import {
+  DEFAULT_RULE_STEPS,
+  MAX_DAYS_AFTER,
+  TIMING_PRESETS,
+  defaultTemplateFor,
+} from "../../lib/dunning-presets";
 
-const CHANNEL_ICONS = {
-  EMAIL:    Mail,
-  WHATSAPP: MessageSquare,
-  SMS:      Smartphone,
-} as const;
+function buildDefaultStep(daysOffset: number, order: number) {
+  const template = defaultTemplateFor(daysOffset);
+  return {
+    order,
+    daysOffset,
+    channel: "WHATSAPP" as const,
+    templateSubject: template.subject,
+    templateBody: template.body,
+    enabled: true,
+  };
+}
 
-const CHANNEL_LABELS = {
-  EMAIL:    "Email",
-  WHATSAPP: "WhatsApp",
-  SMS:      "SMS (em breve)",
-} as const;
+/** Próximo prazo pronto que a régua ainda não usa; sem nenhum livre, um dia depois do último. */
+function nextFreeOffset(usedOffsets: number[]): number {
+  const free = TIMING_PRESETS.find((offset) => !usedOffsets.includes(offset));
+  if (free !== undefined) return free;
+  return Math.min(Math.max(...usedOffsets) + 1, MAX_DAYS_AFTER);
+}
 
 export function DunningRulesTab() {
   const { data, isLoading } = useDunningRules();
@@ -73,11 +74,15 @@ export function DunningRulesTab() {
 
   function handleCreate() {
     createRule.mutate(
-      { name: "Nova régua", isDefault: false, steps: [] },
+      {
+        name: "Nova régua",
+        isDefault: false,
+        steps: DEFAULT_RULE_STEPS.map((step, index) => buildDefaultStep(step.daysOffset, index)),
+      },
       {
         onSuccess: ({ rule }) => {
           setSelectedId(rule.id);
-          toast.success("Régua criada — adicione os avisos");
+          toast.success("Régua criada com 3 avisos prontos — revise e ligue quando quiser");
         },
         onError: (err) => toast.error(err.message ?? "Erro"),
       },
@@ -106,6 +111,19 @@ export function DunningRulesTab() {
       </div>
 
       <MessagingSenderSelect />
+
+      <div className="flex items-start gap-3 rounded-2xl border border-success/30 bg-success/5 p-3">
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" />
+        <div className="space-y-1 text-xs">
+          <p className="font-medium">Cobrança ética, aplicada automaticamente</p>
+          <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
+            <li>Avisos só saem entre 8h e 20h (horário de Brasília).</li>
+            <li>No máximo um aviso por dia para o mesmo cliente, mesmo com várias cobranças.</li>
+            <li>Pagou ou cancelou, os avisos param na hora.</li>
+            <li>Os modelos têm tom respeitoso; termos que soam como ameaça geram alerta (CDC, art. 42).</li>
+          </ul>
+        </div>
+      </div>
 
       {rules.length === 0 ? (
         <Card className="p-8 text-center">
@@ -199,15 +217,9 @@ function RuleAccordion({
     );
   }
   function handleAddStep() {
+    const daysOffset = nextFreeOffset(rule.steps.map((step) => step.daysOffset));
     createStep.mutate(
-      {
-        ruleId:       rule.id,
-        order:        rule.steps.length,
-        daysOffset:   rule.steps.length === 0 ? -3 : 0,
-        channel:      "WHATSAPP",
-        templateBody: "Olá {{contato}}, sua cobrança de {{valor}} vence em {{vencimento}}. Pague pelo link: {{link_pagamento}}\nSe já pagou, desconsidere.",
-        enabled:      true,
-      },
+      { ruleId: rule.id, ...buildDefaultStep(daysOffset, rule.steps.length) },
       { onSuccess: () => toast.success("Aviso adicionado") },
     );
   }
@@ -275,7 +287,15 @@ function RuleAccordion({
                 Sem avisos. Adicione o primeiro para começar.
               </p>
             ) : (
-              sortedSteps.map((step) => <StepEditor key={step.id} step={step} />)
+              sortedSteps.map((step) => (
+                <DunningStepEditor
+                  key={step.id}
+                  step={step}
+                  hasSameDayStep={sortedSteps.some(
+                    (other) => other.id !== step.id && other.enabled && other.daysOffset === step.daysOffset,
+                  )}
+                />
+              ))
             )}
             <Button
               onClick={handleAddStep}
@@ -297,146 +317,6 @@ function RuleAccordion({
         description={`Excluir a régua "${rule.name}"? Os avisos já enviados não são desfeitos.`}
         isPending={deleteRule.isPending}
         onConfirm={handleDelete}
-        onClose={() => setIsConfirmingDelete(false)}
-      />
-    </Card>
-  );
-}
-
-function StepEditor({
-  step,
-}: {
-  step: RuleData["steps"][number];
-}) {
-  const updateStep = useUpdateDunningStep();
-  const deleteStep = useDeleteDunningStep();
-
-  const [daysOffset, setDaysOffset] = useState(step.daysOffset);
-  const [channel, setChannel] = useState<"EMAIL" | "WHATSAPP" | "SMS">(step.channel);
-  const [subject, setSubject] = useState(step.templateSubject ?? "");
-  const [body, setBody] = useState(step.templateBody);
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-  const Icon = CHANNEL_ICONS[channel] ?? Mail;
-
-  function persist(patch: Partial<{
-    daysOffset: number;
-    channel: "EMAIL" | "WHATSAPP" | "SMS";
-    templateSubject: string | null;
-    templateBody: string;
-    enabled: boolean;
-  }>) {
-    updateStep.mutate({ id: step.id, ...patch });
-  }
-
-  function offsetLabel(d: number) {
-    if (d === 0) return "no dia do vencimento";
-    if (d < 0) return `${Math.abs(d)} dias antes do vencimento`;
-    return `${d} dias após o vencimento`;
-  }
-
-  return (
-    <Card className="p-3 bg-background">
-      <div className="flex items-start gap-3">
-        <div className={`size-8 rounded-md flex items-center justify-center shrink-0 ${
-          channel === "EMAIL" ? "bg-info/15 text-info"
-          : channel === "WHATSAPP" ? "bg-success/15 text-success"
-          : "bg-muted text-muted-foreground"
-        }`}>
-          <Icon className="size-4" />
-        </div>
-
-        <div className="flex-1 min-w-0 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <Label className="text-[10px] uppercase">Quando</Label>
-              <Input
-                type="number"
-                value={daysOffset}
-                onChange={(e) => setDaysOffset(parseInt(e.target.value || "0", 10))}
-                onBlur={() => daysOffset !== step.daysOffset && persist({ daysOffset })}
-                min={-30}
-                max={60}
-                className="h-8 text-xs"
-              />
-              <p className="text-[10px] text-muted-foreground">{offsetLabel(daysOffset)}</p>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] uppercase">Canal</Label>
-              <Select
-                value={channel}
-                onValueChange={(v) => {
-                  setChannel(v as "EMAIL" | "WHATSAPP" | "SMS");
-                  persist({ channel: v as "EMAIL" | "WHATSAPP" | "SMS" });
-                }}
-              >
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(["EMAIL", "WHATSAPP", "SMS"] as const).map((c) => (
-                    <SelectItem key={c} value={c} className="text-xs">{CHANNEL_LABELS[c]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {channel === "EMAIL" && (
-            <div className="space-y-1">
-              <Label className="text-[10px] uppercase">Assunto do email</Label>
-              <Input
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                onBlur={() => subject !== (step.templateSubject ?? "") && persist({ templateSubject: subject || null })}
-                placeholder="Cobrança — {{descricao}}"
-                className="h-8 text-xs"
-                maxLength={200}
-              />
-            </div>
-          )}
-
-          <div className="space-y-1">
-            <Label className="text-[10px] uppercase">Mensagem</Label>
-            <Textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              onBlur={() => body !== step.templateBody && persist({ templateBody: body })}
-              rows={3}
-              className="text-xs font-mono"
-              maxLength={2000}
-              placeholder="Use {{contato}} {{valor}} {{vencimento}} {{link_pagamento}}"
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Variáveis: <code>{`{{contato}}`}</code> <code>{`{{valor}}`}</code> <code>{`{{vencimento}}`}</code> <code>{`{{empresa}}`}</code> <code>{`{{descricao}}`}</code> <code>{`{{link_pagamento}}`}</code> <code>{`{{pix_copia_e_cola}}`}</code> <code>{`{{outras_pendencias}}`}</code>
-            </p>
-          </div>
-        </div>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          title="Excluir aviso"
-          onClick={() => setIsConfirmingDelete(true)}
-        >
-          <Trash2 className="size-3.5 text-destructive" />
-        </Button>
-      </div>
-
-      <ConfirmDeleteDialog
-        isOpen={isConfirmingDelete}
-        title="Excluir aviso"
-        description={`Excluir o aviso enviado ${offsetLabel(step.daysOffset)}? As cobranças que já usam esta régua deixam de receber esse aviso.`}
-        isPending={deleteStep.isPending}
-        onConfirm={() =>
-          deleteStep.mutate(
-            { id: step.id },
-            {
-              onSuccess: () => {
-                setIsConfirmingDelete(false);
-                toast.success("Aviso excluído");
-              },
-              onError: (err) => toast.error(err.message ?? "Erro ao excluir aviso"),
-            },
-          )
-        }
         onClose={() => setIsConfirmingDelete(false)}
       />
     </Card>
