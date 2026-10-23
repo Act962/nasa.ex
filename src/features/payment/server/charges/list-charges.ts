@@ -147,7 +147,7 @@ export async function listCharges(input: ListChargesInput) {
             where: { status: { in: ["SENT", "FAILED"] } },
             orderBy: { executedAt: "desc" },
             take: 1,
-            select: { status: true, channel: true, executedAt: true, errorMessage: true },
+            select: { status: true, channel: true, executedAt: true, errorMessage: true, deliveredAt: true, readAt: true },
           },
         },
       }),
@@ -214,6 +214,8 @@ export async function listCharges(input: ListChargesInput) {
               channel: lastNotice.channel,
               executedAt: lastNotice.executedAt,
               errorMessage: lastNotice.errorMessage,
+              deliveredAt: lastNotice.deliveredAt,
+              readAt: lastNotice.readAt,
             }
           : null,
         isOpen: (OPEN_STATUSES as readonly string[]).includes(entry.status),

@@ -37,6 +37,8 @@ import {
   usePaymentPeriodIso,
 } from "../../store/use-payment-filters-store";
 import { formatCurrency, formatDate, formatTimestampDate } from "../../lib/format";
+import { describeDunningFailure } from "../../lib/dunning-failure";
+import { phoneMaskFull } from "@/utils/format-phone";
 import {
   PAYMENT_SEARCH_DEBOUNCE_MS,
   PaymentPagination,
@@ -66,13 +68,6 @@ const CHANNEL_META = {
   SMS: { label: "SMS", Icon: MessageSquare, className: "text-muted-foreground" },
 } as const;
 
-const FAILURE_REASONS: Record<string, string> = {
-  "contact-no-phone": "cliente sem telefone",
-  "contact-no-email": "cliente sem e-mail",
-  sender_tracking_not_connected: "o número escolhido está desconectado",
-  no_connected_whatsapp_instance: "nenhum WhatsApp conectado",
-};
-
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function describeDueDate(dueDate: Date, status: ChargeRow["status"]): string | null {
@@ -86,11 +81,6 @@ function describeDueDate(dueDate: Date, status: ChargeRow["status"]): string | n
   if (days === 1) return "vence amanhã";
   if (days > 1) return `em ${days} dias`;
   return days === -1 ? "há 1 dia" : `há ${Math.abs(days)} dias`;
-}
-
-function describeFailure(reason: string | null): string {
-  if (!reason) return "motivo não informado";
-  return FAILURE_REASONS[reason] ?? reason;
 }
 
 /** Cliente sem o dado que o canal da régua precisa: o aviso vai falhar na hora de sair. */
@@ -216,13 +206,17 @@ export function ChargesTab() {
         {charge.lastNotice ? (
           charge.lastNotice.status === "SENT" ? (
             <p className="text-[11px] text-muted-foreground">
-              Último aviso enviado em {formatTimestampDate(charge.lastNotice.executedAt)}
+              Último aviso {charge.lastNotice.readAt
+                ? `lido em ${formatTimestampDate(charge.lastNotice.readAt)}`
+                : charge.lastNotice.deliveredAt
+                  ? `entregue em ${formatTimestampDate(charge.lastNotice.deliveredAt)}`
+                  : `enviado em ${formatTimestampDate(charge.lastNotice.executedAt)}`}
             </p>
           ) : (
             <p className="flex items-center gap-1 text-[11px] text-destructive">
               <XCircle className="size-3 shrink-0" />
               <span className="truncate">
-                Falhou em {formatTimestampDate(charge.lastNotice.executedAt)}: {describeFailure(charge.lastNotice.errorMessage)}
+                Falhou em {formatTimestampDate(charge.lastNotice.executedAt)}: {describeDunningFailure(charge.lastNotice.errorMessage)}
               </span>
             </p>
           )
@@ -410,7 +404,7 @@ export function ChargesTab() {
                       <td className="max-w-56 px-4 py-3">
                         <p className="truncate font-medium">{charge.customer?.name ?? "—"}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {charge.customer?.phone ?? charge.customer?.email ?? "Sem contato"}
+                          {charge.customer?.phone ? phoneMaskFull(charge.customer.phone) : charge.customer?.email ?? "Sem contato"}
                         </p>
                       </td>
                       <td className="max-w-56 px-4 py-3">

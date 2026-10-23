@@ -329,6 +329,8 @@ export const listDunningExecutionsByEntry = base
       channel:      channelEnum,
       errorMessage: z.string().nullable(),
       messageId:    z.string().nullable(),
+      deliveredAt:  z.date().nullable(),
+      readAt:       z.date().nullable(),
     })),
   }))
   .handler(async ({ input, context }) => {

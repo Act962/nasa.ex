@@ -110,6 +110,7 @@ import {
   listDunningExecutionsByEntry,
 } from "./dunning";
 import { getPaymentChargeLink, listPaymentCharges } from "./charges";
+import { searchCustomers } from "./customers";
 import { getPaymentMessagingSender, setPaymentMessagingSender } from "./messaging";
 
 export const paymentRouter = {
@@ -249,6 +250,10 @@ export const paymentRouter = {
   charges: {
     getLink: getPaymentChargeLink,
     list: listPaymentCharges,
+  },
+  // Cliente da cobrança: contatos do financeiro + leads do funil.
+  customers: {
+    search: searchCustomers,
   },
   // Número (tracking) que envia a régua e os lembretes do financeiro.
   messaging: {

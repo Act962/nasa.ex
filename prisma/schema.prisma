@@ -6627,6 +6627,9 @@ model PaymentDunningExecution {
   channel      PaymentDunningChannel
   errorMessage String?                       @map("error_message")
   messageId    String?                       @map("message_id") // id retornado pelo provider (email message-id, WA msg id)
+  // Confirmações do WhatsApp oficial (webhook de status da Meta). Uazapi não manda.
+  deliveredAt  DateTime?                     @map("delivered_at")
+  readAt       DateTime?                     @map("read_at")
   createdAt    DateTime                      @default(now()) @map("created_at")
   updatedAt    DateTime                      @updatedAt @map("updated_at")
 
@@ -6635,6 +6638,7 @@ model PaymentDunningExecution {
 
   @@unique([entryId, stepId])
   @@index([status, scheduledFor])
+  @@index([messageId])
   @@map("payment_dunning_executions")
 }
 

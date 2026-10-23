@@ -29,6 +29,8 @@ import {
   type EntryFieldErrors,
 } from "../../schemas/entry-form-schema";
 import { AttachmentUploader } from "../attachments/attachment-uploader";
+import { CustomerPicker, type PaymentCustomer } from "./customer-picker";
+import { describeWhatsappPhoneProblem } from "@/utils/format-phone";
 import { FieldError, fieldErrorClass } from "../shared/field-error";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
@@ -41,6 +43,7 @@ interface EntryFormProps {
     dueDate: string;
     categoryId?: string;
     contactId?: string;
+    leadId?: string;
     accountId?: string;
     notes?: string;
     documentNumber?: string;
@@ -99,6 +102,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
   const [dueDate, setDueDate] = useState(todayAsDateInput());
   const [categoryId, setCategoryId] = useState<string>("__none__");
   const [contactId, setContactId] = useState<string>("__none__");
+  const [customer, setCustomer] = useState<PaymentCustomer | null>(null);
   const [accountId, setAccountId] = useState<string>("__none__");
   const [notes, setNotes] = useState("");
   const [documentNumber, setDocumentNumber] = useState("");
@@ -138,7 +142,17 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
     setDunningRuleId(defaultRule.id);
   }
   const selectedRule = availableRules.find((rule) => rule.id === dunningRuleId);
-  const selectedContact = contactsData?.contacts.find((contact) => contact.id === contactId);
+  const ruleUsesWhatsapp = !!selectedRule?.steps.some((step) => step.enabled && step.channel === "WHATSAPP");
+  const ruleUsesEmail = !!selectedRule?.steps.some((step) => step.enabled && step.channel === "EMAIL");
+  const customerWarning = !customer
+    ? "Escolha o cliente: sem ele os avisos não têm para quem ir."
+    : ruleUsesWhatsapp && !customer.phone
+      ? "Este cliente não tem telefone: os avisos por WhatsApp vão falhar."
+      : ruleUsesWhatsapp && describeWhatsappPhoneProblem(customer.phone)
+        ? `Telefone do cliente: ${describeWhatsappPhoneProblem(customer.phone)}`
+        : ruleUsesEmail && !customer.email
+          ? "Este cliente não tem e-mail: os avisos por e-mail vão falhar."
+          : null;
 
   function handleRuleChange(ruleId: string) {
     setHasPickedRule(true);
@@ -169,7 +183,12 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
       amount: parsed.data.amount,
       dueDate,
       categoryId: categoryId === "__none__" ? undefined : categoryId,
-      contactId: contactId === "__none__" ? undefined : contactId,
+      ...(type === "RECEIVABLE"
+        ? {
+            contactId: customer?.kind === "contact" ? customer.id : undefined,
+            leadId: customer?.kind === "lead" ? customer.id : undefined,
+          }
+        : { contactId: contactId === "__none__" ? undefined : contactId }),
       accountId: accountId === "__none__" ? undefined : accountId,
       notes: notes || undefined,
       documentNumber: documentNumber || undefined,
@@ -289,15 +308,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Cliente</Label>
-              <Select value={contactId} onValueChange={setContactId}>
-                <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                <SelectContent position="popper" className={dropdownContentClass}>
-                  <SelectItem value="__none__">Sem contato</SelectItem>
-                  {contactsData?.contacts.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CustomerPicker value={customer} onChange={setCustomer} />
             </div>
             <div className="space-y-2">
               <Label>Régua de cobrança</Label>
@@ -325,17 +336,12 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
                 <span>·</span>
                 {describeRuleTiming(selectedRule.steps)}
               </p>
-              {contactId === "__none__" ? (
-                <p className="flex items-center gap-1 text-[11px] text-warning">
-                  <TriangleAlert className="size-3" />
-                  Escolha o cliente: sem ele os avisos não têm para quem ir.
+              {customerWarning && (
+                <p className="flex items-start gap-1 text-[11px] text-warning">
+                  <TriangleAlert className="mt-px size-3 shrink-0" />
+                  {customerWarning}
                 </p>
-              ) : selectedContact && !selectedContact.phone && selectedRule.steps.some((step) => step.enabled && step.channel === "WHATSAPP") ? (
-                <p className="flex items-center gap-1 text-[11px] text-warning">
-                  <TriangleAlert className="size-3" />
-                  Este cliente não tem telefone: os avisos por WhatsApp vão falhar.
-                </p>
-              ) : null}
+              )}
             </div>
           ) : null}
         </div>
