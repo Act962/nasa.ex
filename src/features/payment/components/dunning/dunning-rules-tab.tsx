@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { MessagingSenderSelect } from "./messaging-sender-select";
+import { ConfirmDeleteDialog } from "../shared/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -160,6 +161,7 @@ function RuleAccordion({
 
   const [name, setName] = useState(rule.name);
   const [savingName, setSavingName] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   function handleToggleActive() {
     updateRule.mutate(
@@ -185,10 +187,15 @@ function RuleAccordion({
     );
   }
   function handleDelete() {
-    if (!confirm(`Excluir régua "${rule.name}"? Não desfaz envios já feitos.`)) return;
     deleteRule.mutate(
       { id: rule.id },
-      { onSuccess: () => toast.success("Régua excluída") },
+      {
+        onSuccess: () => {
+          setIsConfirmingDelete(false);
+          toast.success("Régua excluída");
+        },
+        onError: (err) => toast.error(err.message ?? "Erro ao excluir régua"),
+      },
     );
   }
   function handleAddStep() {
@@ -256,7 +263,7 @@ function RuleAccordion({
             <Button variant="outline" size="sm" onClick={handleToggleDefault} title={rule.isDefault ? "Remover padrão" : "Marcar como padrão"}>
               <Star className={`size-4 ${rule.isDefault ? "fill-warning text-warning" : ""}`} />
             </Button>
-            <Button variant="outline" size="sm" onClick={handleDelete} title="Excluir régua">
+            <Button variant="outline" size="sm" onClick={() => setIsConfirmingDelete(true)} title="Excluir régua">
               <Trash2 className="size-4 text-destructive" />
             </Button>
           </div>
@@ -283,6 +290,15 @@ function RuleAccordion({
           </div>
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        isOpen={isConfirmingDelete}
+        title="Excluir régua"
+        description={`Excluir a régua "${rule.name}"? Os avisos já enviados não são desfeitos.`}
+        isPending={deleteRule.isPending}
+        onConfirm={handleDelete}
+        onClose={() => setIsConfirmingDelete(false)}
+      />
     </Card>
   );
 }
@@ -299,6 +315,7 @@ function StepEditor({
   const [channel, setChannel] = useState<"EMAIL" | "WHATSAPP" | "SMS">(step.channel);
   const [subject, setSubject] = useState(step.templateSubject ?? "");
   const [body, setBody] = useState(step.templateBody);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const Icon = CHANNEL_ICONS[channel] ?? Mail;
 
   function persist(patch: Partial<{
@@ -396,13 +413,32 @@ function StepEditor({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => {
-            if (confirm("Excluir esse step?")) deleteStep.mutate({ id: step.id });
-          }}
+          title="Excluir aviso"
+          onClick={() => setIsConfirmingDelete(true)}
         >
           <Trash2 className="size-3.5 text-destructive" />
         </Button>
       </div>
+
+      <ConfirmDeleteDialog
+        isOpen={isConfirmingDelete}
+        title="Excluir aviso"
+        description={`Excluir o aviso enviado ${offsetLabel(step.daysOffset)}? As cobranças que já usam esta régua deixam de receber esse aviso.`}
+        isPending={deleteStep.isPending}
+        onConfirm={() =>
+          deleteStep.mutate(
+            { id: step.id },
+            {
+              onSuccess: () => {
+                setIsConfirmingDelete(false);
+                toast.success("Aviso excluído");
+              },
+              onError: (err) => toast.error(err.message ?? "Erro ao excluir aviso"),
+            },
+          )
+        }
+        onClose={() => setIsConfirmingDelete(false)}
+      />
     </Card>
   );
 }

@@ -54,6 +54,7 @@ import {
   PaymentPagination,
   PaymentPaginationNav,
 } from "../shared/payment-pagination";
+import { ConfirmDeleteDialog } from "../shared/confirm-delete-dialog";
 import { InboxSection } from "../inbox/inbox-section";
 import { RemindersPanel } from "../reminders/reminders-panel";
 
@@ -97,6 +98,7 @@ export function DocumentsTab() {
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<EditableAttachment | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; fileName: string } | null>(null);
 
   // Debounce pra não disparar uma query por tecla digitada.
   useEffect(() => {
@@ -137,12 +139,15 @@ export function DocumentsTab() {
     setPage(1);
   }
 
-  function handleDelete(attachmentId: string, fileName: string) {
-    if (!confirm(`Excluir "${fileName}"? O arquivo é removido definitivamente.`)) return;
+  function handleDelete() {
+    if (!deleteTarget) return;
     deleteAttachment.mutate(
-      { id: attachmentId },
+      { id: deleteTarget.id },
       {
-        onSuccess: () => toast.success("Documento excluído"),
+        onSuccess: () => {
+          setDeleteTarget(null);
+          toast.success("Documento excluído");
+        },
         onError: (error) =>
           toast.error(describePaymentError(error, "Não foi possível excluir o documento")),
       },
@@ -399,7 +404,7 @@ export function DocumentsTab() {
                   size="icon"
                   className="size-7 text-destructive hover:text-destructive"
                   title="Excluir"
-                  onClick={() => handleDelete(attachment.id, attachment.fileName)}
+                  onClick={() => setDeleteTarget({ id: attachment.id, fileName: attachment.fileName })}
                 >
                   <Trash2 className="size-3.5" />
                 </Button>
@@ -480,6 +485,15 @@ export function DocumentsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        isOpen={deleteTarget !== null}
+        title="Excluir documento"
+        description={`Excluir "${deleteTarget?.fileName ?? ""}"? O arquivo é removido definitivamente.`}
+        isPending={deleteAttachment.isPending}
+        onConfirm={handleDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
