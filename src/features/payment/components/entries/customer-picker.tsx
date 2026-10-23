@@ -55,7 +55,9 @@ export function CustomerPicker({ value, onChange }: CustomerPickerProps) {
   }
 
   return (
-    <Popover open={isOpen} onOpenChange={handleOpenChange}>
+    // `modal`: o Dialog da Nova Receita trava a rolagem fora dele, e a lista é renderizada
+    // num portal fora do Dialog; como modal, o Popover libera a rolagem do próprio conteúdo.
+    <Popover open={isOpen} onOpenChange={handleOpenChange} modal>
       <PopoverTrigger asChild>
         <button
           type="button"
