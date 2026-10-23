@@ -228,7 +228,7 @@ export function PaymentPage() {
   }
 
   return (
-    <div className="h-full w-full flex flex-col">
+    <div className="h-full w-full min-w-0 flex flex-col">
       {/* Header */}
       <HeaderTracking
         title="Payment"
