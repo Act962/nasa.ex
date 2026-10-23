@@ -47,7 +47,7 @@ export function CampaignManager({ canEdit, canApprove }: { canEdit: boolean; can
   const exportNumbers = useExportStarFriendsCampaignNumbers();
 
   if (campaignQuery.isLoading) return <OrbitaSpinner className="mx-auto my-10 size-6" />;
-  const { campaign, stats, winner, trackings } = campaignQuery.data ?? { campaign: null, stats: null, winner: null, trackings: [] };
+  const { campaign, stats, winners, trackings } = campaignQuery.data ?? { campaign: null, stats: null, winners: [], trackings: [] };
 
   const handleExport = (campaignId: string) =>
     exportNumbers.mutate(campaignId, {
@@ -81,15 +81,21 @@ export function CampaignManager({ canEdit, canApprove }: { canEdit: boolean; can
     <div className="flex flex-col gap-5">
       {campaign && stats && (
         <>
-          {winner && (
-            <div className="flex items-center gap-3 rounded-[20px] border border-warning/40 bg-warning/10 p-4">
-              <Trophy className="size-6 shrink-0 text-warning" />
+          {winners.length > 0 && (
+            <div className="flex items-start gap-3 rounded-[20px] border border-warning/40 bg-warning/10 p-4">
+              <Trophy className="mt-0.5 size-6 shrink-0 text-warning" />
               <div className="min-w-0 text-sm">
-                <p className="font-bold">Número sorteado: {winner.code}</p>
-                <p className="truncate text-muted-foreground">
-                  {winner.name} · {winner.phone}
-                  {campaign.drawnAt ? ` · ${format(new Date(campaign.drawnAt), "dd/MM/yyyy HH:mm")}` : ""}
+                <p className="font-bold">
+                  {winners.length === 1 ? "Número sorteado" : `${winners.length} números sorteados`}
+                  {campaign.drawnAt ? ` em ${format(new Date(campaign.drawnAt), "dd/MM/yyyy HH:mm")}` : ""}
                 </p>
+                <ol className="mt-1 flex flex-col gap-0.5">
+                  {winners.map((winner) => (
+                    <li key={winner.code} className="truncate text-muted-foreground">
+                      {winner.position}º · <span className="font-mono font-semibold text-foreground">{winner.code}</span> · {winner.name} · {winner.phone}
+                    </li>
+                  ))}
+                </ol>
               </div>
             </div>
           )}
@@ -134,7 +140,7 @@ export function CampaignManager({ canEdit, canApprove }: { canEdit: boolean; can
                   <AlertDialogHeader>
                     <AlertDialogTitle>Sortear agora?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      O sorteio escolhe um entre {stats.validNumbers} números válidos, encerra a campanha e não pode ser refeito.
+                      O sorteio tira {campaign.prizeCount} número(s) entre {stats.validNumbers} válidos, um prêmio por cliente, encerra a campanha e não pode ser refeito.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -144,7 +150,7 @@ export function CampaignManager({ canEdit, canApprove }: { canEdit: boolean; can
                         draw.mutate(
                           { campaignId: campaign.id },
                           {
-                            onSuccess: (result) => toast.success(`Número sorteado: ${result.winnerCode} (${result.winnerName})`),
+                            onSuccess: (result) => toast.success(`Sorteados: ${result.winners.map((winner) => winner.code).join(", ")}`),
                             onError: (error) => toast.error(error.message),
                           },
                         )

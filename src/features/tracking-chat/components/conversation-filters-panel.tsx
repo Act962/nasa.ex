@@ -13,9 +13,15 @@ import { ParticipantsSwitcher } from "@/features/trackings/components/filters/pa
 import { StatusFlowFilter } from "@/features/trackings/components/filters/status-flow-filter";
 import { TemperatureFilter } from "@/features/trackings/components/filters/temperature-filter";
 import { ConversationSorter } from "./conversation-sorter";
+import { ConversationTagFilter } from "./conversation-tag-filter";
 import { useConversationFilters } from "../hooks/use-conversation-filters";
 
-interface ConversationFiltersPanelProps {
+interface ConversationTagSelection {
+  selectedTagIds: string[];
+  onSelectedTagIdsChange: (tagIds: string[]) => void;
+}
+
+interface ConversationFiltersPanelProps extends ConversationTagSelection {
   trackingId: string | null;
   /** Botão que abre o painel — pill no desktop, tab no mobile. */
   trigger: ReactNode;
@@ -38,6 +44,8 @@ interface ConversationFiltersPanelProps {
 export function ConversationFiltersPanel({
   trackingId,
   trigger,
+  selectedTagIds,
+  onSelectedTagIdsChange,
 }: ConversationFiltersPanelProps) {
   return (
     <Popover modal={false}>
@@ -48,14 +56,26 @@ export function ConversationFiltersPanel({
         collisionPadding={12}
         className="w-64 p-2"
       >
-        <ConversationFiltersContent trackingId={trackingId} />
+        <ConversationFiltersContent
+          trackingId={trackingId}
+          tagSelection={{ selectedTagIds, onSelectedTagIdsChange }}
+        />
       </PopoverContent>
     </Popover>
   );
 }
 
-/** Conteúdo dos filtros avançados, sem invólucro: popover no desktop, gaveta no celular. */
-export function ConversationFiltersContent({ trackingId }: { trackingId: string | null }) {
+/**
+ * Conteúdo dos filtros avançados, sem invólucro: popover no desktop, gaveta no celular.
+ * Sem `tagSelection` a linha de Tags some: a gaveta do celular tem a própria lista de etiquetas.
+ */
+export function ConversationFiltersContent({
+  trackingId,
+  tagSelection,
+}: {
+  trackingId: string | null;
+  tagSelection?: ConversationTagSelection;
+}) {
   const {
     sortBy,
     sortDirection,
@@ -66,6 +86,7 @@ export function ConversationFiltersContent({ trackingId }: { trackingId: string 
     activeCount,
     clearAll,
   } = useConversationFilters();
+  const hasTagSelection = (tagSelection?.selectedTagIds.length ?? 0) > 0;
 
   return (
     <>
@@ -73,10 +94,13 @@ export function ConversationFiltersContent({ trackingId }: { trackingId: string 
         <span className="text-xs font-medium text-muted-foreground">
           Filtrar conversas
         </span>
-        {activeCount > 0 && (
+        {(activeCount > 0 || hasTagSelection) && (
           <button
             type="button"
-            onClick={clearAll}
+            onClick={() => {
+              clearAll();
+              tagSelection?.onSelectedTagIdsChange([]);
+            }}
             className="flex items-center gap-1 rounded-sm px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <XIcon className="size-3" />
@@ -91,6 +115,14 @@ export function ConversationFiltersContent({ trackingId }: { trackingId: string 
         <ParticipantsSwitcher trackingId={trackingId} />
         <TemperatureFilter />
         <StatusFlowFilter />
+        {tagSelection && (
+          <ConversationTagFilter
+            variant="row"
+            trackingId={trackingId}
+            selectedTagIds={tagSelection.selectedTagIds}
+            onSelectedTagIdsChange={tagSelection.onSelectedTagIdsChange}
+          />
+        )}
         <Button
           variant="outline"
           size="sm"
