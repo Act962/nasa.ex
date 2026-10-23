@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { parseCalendarDate } from "@/features/payment/lib/dates";
 import { ENTRY_INCLUDE, formatCents } from "./entry-include";
 import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
+import { scheduleDunningForEntry } from "@/features/payment/server/dunning/schedule";
 
 // Edição de lançamento com o estado de caixa revalidado (spec 0023): `amount`,
 // `paidAmount` e `status` só são gravados juntos se descreverem o mesmo fato.
@@ -80,7 +81,7 @@ export async function updatePaymentEntryRecord(params: {
 }): Promise<UpdateEntryResult> {
   const existing = await prisma.paymentEntry.findFirst({
     where: { id: params.entryId, organizationId: params.organizationId },
-    select: { id: true, amount: true, paidAmount: true, status: true },
+    select: { id: true, amount: true, paidAmount: true, status: true, dueDate: true },
   });
   if (!existing) {
     return { ok: false, reason: "not_found", message: "Lançamento não encontrado" };
@@ -124,5 +125,12 @@ export async function updatePaymentEntryRecord(params: {
       : {}),
   });
   await queueJournalSync(params.organizationId, [entry.id]);
+
+  // Avisos agendados para o vencimento antigo são descartados no disparo; aqui saem os do novo.
+  if (entry.dunningRuleId && entry.dueDate.getTime() !== existing.dueDate.getTime()) {
+    await scheduleDunningForEntry(entry.id).catch((error) => {
+      console.error("[payment/entries update] dunning reschedule failed:", error);
+    });
+  }
   return { ok: true, entry };
 }

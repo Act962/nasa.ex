@@ -12,17 +12,19 @@ import { inngest } from "@/inngest/client";
  *     Inngest "dorme" até o timestamp e dispara o handler 1 vez.
  *   - Se `fireAt <= now`, ignora (não vamos disparar steps retroativos sem
  *     ação explícita do user — evita inundar contato com mensagens passadas).
- *   - Idempotência via `id` único derivado de (entryId, stepId): se mesmo
- *     evento for enviado de novo (re-atribuição), Inngest deduplica.
+ *   - Idempotência via `id` único derivado de (entryId, stepId, vencimento): se o
+ *     mesmo evento for enviado de novo (re-atribuição), Inngest deduplica.
  *
  * Chamado em:
  *   - `createPaymentEntry` quando `dunningRuleId` é setado E `type=RECEIVABLE`.
  *   - `assignDunningRule` quando o user atribui régua a entry existente.
  *
- * Quando o entry é UPDATED com novo `dunningRuleId` ou `dueDate`:
- *   - Re-chama essa função (eventos novos com IDs diferentes pra cada step).
- *   - Eventos antigos ainda chegam mas o handler é idempotente (vê que tem
- *     `PaymentDunningExecution` com `(entryId, stepId)` ou status final → skip).
+ *   - `updatePaymentEntryRecord` e `generateEntryInstallments` (vencimento mudou,
+ *     parcelas novas que herdam a régua).
+ *
+ * Vencimento alterado: o vencimento entra no `id` (eventos novos não são
+ * deduplicados pelos antigos) e vai em `dueDateMs`; os eventos antigos ainda
+ * chegam, e o handler os descarta por não baterem com o vencimento atual.
  */
 export async function scheduleDunningForEntry(entryId: string) {
   const entry = await prisma.paymentEntry.findUnique({
@@ -68,13 +70,14 @@ export async function scheduleDunningForEntry(entryId: string) {
   await inngest.send(
     events.map(({ step, fireAtMs }) => ({
       name: "payment/dunning.fire",
-      // Dedup key: mesmo entry+step nunca agenda 2 vezes no Inngest.
-      id: `dunning-${entry.id}-${step.id}`,
+      // Dedup key: mesmo entry+step+vencimento nunca agenda 2 vezes no Inngest.
+      id: `dunning-${entry.id}-${step.id}-${entry.dueDate.getTime()}`,
       data: {
         entryId:        entry.id,
         stepId:         step.id,
         organizationId: entry.organizationId,
         scheduledForMs: fireAtMs,
+        dueDateMs:      entry.dueDate.getTime(),
       },
       ts: fireAtMs,
     })),

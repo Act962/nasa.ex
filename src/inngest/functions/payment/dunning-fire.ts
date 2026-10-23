@@ -39,11 +39,13 @@ export const paymentDunningFire = inngest.createFunction(
   },
   { event: "payment/dunning.fire" },
   async ({ event, step, logger }) => {
-    const { entryId, stepId, organizationId } = event.data as {
+    const { entryId, stepId, organizationId, dueDateMs } = event.data as {
       entryId:        string;
       stepId:         string;
       organizationId: string;
       scheduledForMs: number;
+      /** Ausente nos eventos agendados antes de o reagendamento existir. */
+      dueDateMs?:     number;
     };
 
     // ── 1) Guard: ainda faz sentido disparar? ─────────────────────────────
@@ -71,6 +73,10 @@ export const paymentDunningFire = inngest.createFunction(
       if (!dunStep.rule.isActive) return { skip: "rule-inactive" as const };
       if (["PAID", "CANCELLED"].includes(entry.status)) {
         return { skip: "entry-terminal" as const };
+      }
+      // O vencimento mudou depois do agendamento: o evento das datas novas já foi enviado.
+      if (dueDateMs !== undefined && entry.dueDate.getTime() !== dueDateMs) {
+        return { skip: "due-date-changed" as const };
       }
       if (existing && existing.status !== "PENDING") {
         return { skip: "already-executed" as const };
