@@ -32,7 +32,6 @@ import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
 import { ApprovalsTab } from "./approvals/approvals-tab";
 import { GovernanceSettingsTab } from "./governance/governance-settings-tab";
-import { DunningRulesTab } from "./dunning/dunning-rules-tab";
 import { AccountingTab } from "@/features/accounting/components/accounting-tab";
 import { NerpFinancialToggle } from "./governance/nerp-financial-toggle";
 import {
@@ -420,12 +419,6 @@ export function PaymentPage() {
                 Governança e Aprovações
               </h3>
               <GovernanceSettingsTab />
-            </section>
-            <section className="space-y-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
-                Régua de Cobrança
-              </h3>
-              <DunningRulesTab />
             </section>
             <section className="space-y-4">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">

@@ -77,7 +77,7 @@ export function DunningRulesTab() {
       {
         onSuccess: ({ rule }) => {
           setSelectedId(rule.id);
-          toast.success("Régua criada — adicione steps");
+          toast.success("Régua criada — adicione os avisos");
         },
         onError: (err) => toast.error(err.message ?? "Erro"),
       },
@@ -96,7 +96,7 @@ export function DunningRulesTab() {
         <div>
           <h2 className="text-sm font-semibold">Réguas de cobrança</h2>
           <p className="text-xs text-muted-foreground">
-            Steps disparam via Inngest event-driven (sem cron). Idempotente.
+            Cada régua é um roteiro de avisos ao cliente, contado a partir do vencimento.
           </p>
         </div>
         <Button onClick={handleCreate} disabled={createRule.isPending} size="sm">
@@ -208,7 +208,7 @@ function RuleAccordion({
         templateBody: "Olá {{contato}}, sua cobrança de {{valor}} vence em {{vencimento}}. Pague pelo link: {{link_pagamento}}\nSe já pagou, desconsidere.",
         enabled:      true,
       },
-      { onSuccess: () => toast.success("Step adicionado") },
+      { onSuccess: () => toast.success("Aviso adicionado") },
     );
   }
 
@@ -235,7 +235,7 @@ function RuleAccordion({
             <Badge variant="outline" className="text-[10px]">Desligada</Badge>
           )}
           <span className="text-[11px] text-muted-foreground ml-1">
-            {rule.steps.length} step{rule.steps.length === 1 ? "" : "s"}
+            {rule.steps.length} aviso{rule.steps.length === 1 ? "" : "s"}
           </span>
         </div>
       </button>
@@ -272,7 +272,7 @@ function RuleAccordion({
           <div className="space-y-2">
             {sortedSteps.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-4">
-                Sem steps. Adicione o primeiro pra começar.
+                Sem avisos. Adicione o primeiro para começar.
               </p>
             ) : (
               sortedSteps.map((step) => <StepEditor key={step.id} step={step} />)
@@ -285,7 +285,7 @@ function RuleAccordion({
               disabled={createStep.isPending}
             >
               <Plus className="size-3.5 mr-1" />
-              Adicionar step
+              Adicionar aviso
             </Button>
           </div>
         </div>

@@ -327,7 +327,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
           </div>
           {availableRules.length === 0 ? (
             <p className="text-[11px] text-muted-foreground">
-              Nenhuma régua ativa. Crie uma em Configurações → Régua de Cobrança para avisar o cliente sozinho.
+              Nenhuma régua ativa. Crie uma em Cobranças → Réguas e mensagens para avisar o cliente sozinho.
             </p>
           ) : selectedRule ? (
             <div className="space-y-1">

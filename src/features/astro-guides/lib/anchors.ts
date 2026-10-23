@@ -449,7 +449,11 @@ export const GUIDE_ANCHORS = {
   },
   paymentMessagingSender: {
     id: "payment.messaging-sender",
-    description: "Escolha do tracking (número de WhatsApp) que envia as cobranças, nas Configurações do Financeiro",
+    description: "Escolha do tracking (número de WhatsApp) que envia as cobranças, em Cobranças → Réguas e mensagens",
+  },
+  paymentDunningMessagesButton: {
+    id: "payment.dunning-messages-button",
+    description: "Botão \"Réguas e mensagens\" da aba Cobranças: edita os avisos e o texto enviado ao cliente",
   },
   paymentChargesView: {
     id: "payment.charges-view",

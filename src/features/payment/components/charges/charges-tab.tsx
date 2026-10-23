@@ -12,6 +12,7 @@ import {
   Link2,
   Mail,
   MessageSquare,
+  MessageSquareText,
   MoreHorizontal,
   Receipt,
   Search,
@@ -22,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +48,7 @@ import {
 } from "../shared/payment-pagination";
 import { ChargeLinkDialog } from "./charge-link-dialog";
 import { DunningHistoryDrawer } from "../dunning/dunning-history-drawer";
+import { DunningRulesTab } from "../dunning/dunning-rules-tab";
 import { PayEntryDialog } from "../entries/pay-entry-dialog";
 
 const PAGE_SIZE = 20;
@@ -101,6 +104,7 @@ export function ChargesTab() {
   const [payEntry, setPayEntry] = useState<{ id: string; openAmountCents: number } | null>(null);
   const [linkEntry, setLinkEntry] = useState<{ id: string; name: string } | null>(null);
   const [historyEntry, setHistoryEntry] = useState<{ id: string; name: string } | null>(null);
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
 
   const debouncedSearch = useDebouncedValue(search.trim(), PAYMENT_SEARCH_DEBOUNCE_MS);
 
@@ -327,13 +331,23 @@ export function ChargesTab() {
             <option value="none">Sem cobrança automática</option>
           </select>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 gap-1.5 sm:ml-auto"
+          onClick={() => setIsRulesOpen(true)}
+          data-guide={GUIDE_ANCHORS.paymentDunningMessagesButton.id}
+        >
+          <MessageSquareText className="size-4" />
+          Réguas e mensagens
+        </Button>
         <PaymentPaginationNav
           page={page}
           total={total}
           perPage={PAGE_SIZE}
           onPageChange={setPage}
           isLoading={isLoading}
-          className="sm:ml-auto"
         />
       </div>
 
@@ -454,6 +468,20 @@ export function ChargesTab() {
         entryName={historyEntry?.name ?? null}
         onClose={() => setHistoryEntry(null)}
       />
+      <Sheet open={isRulesOpen} onOpenChange={setIsRulesOpen}>
+        <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-2xl">
+          <SheetHeader className="sticky top-0 z-10 border-b bg-background px-6 pb-4 pt-6">
+            <SheetTitle>Réguas e mensagens</SheetTitle>
+            <p className="text-xs text-muted-foreground">
+              Quando cada aviso sai, por qual canal e o texto que o cliente recebe. Mudanças valem para os
+              próximos envios, inclusive das cobranças que já existem.
+            </p>
+          </SheetHeader>
+          <div className="px-6 py-5">
+            <DunningRulesTab />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
