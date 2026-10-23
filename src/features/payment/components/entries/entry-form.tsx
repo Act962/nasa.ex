@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown } from "lucide-react";
+import { BellRing, ChevronDown, Mail, MessageSquare, TriangleAlert } from "lucide-react";
 import {
   usePaymentCategories,
   usePaymentContacts,
@@ -65,6 +65,32 @@ const dropdownContentClass =
 // pra que o valor selecionado longo trunque com line-clamp-1 em vez de vazar.
 const selectTriggerClass = "w-full min-w-0";
 
+type RuleStep = { daysOffset: number; channel: "EMAIL" | "WHATSAPP" | "SMS"; enabled: boolean };
+
+function describeRuleChannels(steps: RuleStep[]) {
+  const channels = new Set(steps.filter((step) => step.enabled).map((step) => step.channel));
+  return (
+    <span className="inline-flex items-center gap-2">
+      {channels.has("WHATSAPP") && (
+        <span className="inline-flex items-center gap-1 text-success"><MessageSquare className="size-3" />WhatsApp</span>
+      )}
+      {channels.has("EMAIL") && (
+        <span className="inline-flex items-center gap-1 text-info"><Mail className="size-3" />E-mail</span>
+      )}
+      {channels.size === 0 && <span>Régua sem avisos ligados</span>}
+    </span>
+  );
+}
+
+function describeRuleTiming(steps: RuleStep[]) {
+  const offsets = [...new Set(steps.filter((step) => step.enabled).map((step) => step.daysOffset))].sort((a, b) => a - b);
+  const labels = offsets.map((offset) => {
+    if (offset === 0) return "no vencimento";
+    return offset < 0 ? `${Math.abs(offset)}d antes` : `${offset}d depois`;
+  });
+  return <span>{labels.join(", ")}</span>;
+}
+
 export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProps) {
   const [description, setDescription] = useState("");
   const [amountStr, setAmountStr] = useState("");
@@ -79,6 +105,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
   const [installments, setInstallments] = useState(1);
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [dunningRuleId, setDunningRuleId] = useState<string>("__none__");
+  const [hasPickedRule, setHasPickedRule] = useState(false);
   const [attachmentIds, setAttachmentIds] = useState<string[]>([]);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<EntryFieldErrors>({});
@@ -104,6 +131,19 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
   const availableRules = type === "RECEIVABLE"
     ? (dunningData?.rules ?? []).filter((r) => r.isActive)
     : [];
+
+  // A régua marcada com estrela vem sugerida; continua opcional ("Sem cobrança automática").
+  const defaultRule = availableRules.find((rule) => rule.isDefault);
+  if (!hasPickedRule && defaultRule && dunningRuleId === "__none__") {
+    setDunningRuleId(defaultRule.id);
+  }
+  const selectedRule = availableRules.find((rule) => rule.id === dunningRuleId);
+  const selectedContact = contactsData?.contacts.find((contact) => contact.id === contactId);
+
+  function handleRuleChange(ruleId: string) {
+    setHasPickedRule(true);
+    setDunningRuleId(ruleId);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -236,6 +276,71 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         </div>
       </div>
 
+      {type === "RECEIVABLE" && (
+        <div
+          className="space-y-3 rounded-lg border border-border/60 p-3"
+          data-guide={GUIDE_ANCHORS.paymentEntryChargeSettings.id}
+        >
+          <div className="flex items-center gap-2">
+            <BellRing className="size-4 text-muted-foreground" />
+            <p className="text-sm font-medium">Cobrança automática</p>
+            <span className="text-[11px] text-muted-foreground">opcional</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Cliente</Label>
+              <Select value={contactId} onValueChange={setContactId}>
+                <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                <SelectContent position="popper" className={dropdownContentClass}>
+                  <SelectItem value="__none__">Sem contato</SelectItem>
+                  {contactsData?.contacts.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Régua de cobrança</Label>
+              <Select value={dunningRuleId} onValueChange={handleRuleChange}>
+                <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                <SelectContent position="popper" className={dropdownContentClass}>
+                  <SelectItem value="__none__">Sem cobrança automática</SelectItem>
+                  {availableRules.map((rule) => (
+                    <SelectItem key={rule.id} value={rule.id}>
+                      {rule.name}{rule.isDefault ? " (padrão)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {availableRules.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground">
+              Nenhuma régua ativa. Crie uma em Configurações → Régua de Cobrança para avisar o cliente sozinho.
+            </p>
+          ) : selectedRule ? (
+            <div className="space-y-1">
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                {describeRuleChannels(selectedRule.steps)}
+                <span>·</span>
+                {describeRuleTiming(selectedRule.steps)}
+              </p>
+              {contactId === "__none__" ? (
+                <p className="flex items-center gap-1 text-[11px] text-warning">
+                  <TriangleAlert className="size-3" />
+                  Escolha o cliente: sem ele os avisos não têm para quem ir.
+                </p>
+              ) : selectedContact && !selectedContact.phone && selectedRule.steps.some((step) => step.enabled && step.channel === "WHATSAPP") ? (
+                <p className="flex items-center gap-1 text-[11px] text-warning">
+                  <TriangleAlert className="size-3" />
+                  Este cliente não tem telefone: os avisos por WhatsApp vão falhar.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
+
       <div className="rounded-lg border border-border/60">
         <button
           type="button"
@@ -254,18 +359,20 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         {showMoreOptions && (
           <div className="space-y-3 border-t p-3">
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>{type === "RECEIVABLE" ? "Cliente" : "Fornecedor"}</Label>
-                <Select value={contactId} onValueChange={setContactId}>
-                  <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                  <SelectContent position="popper" className={dropdownContentClass}>
-                    <SelectItem value="__none__">Sem contato</SelectItem>
-                    {contactsData?.contacts.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {type === "PAYABLE" && (
+                <div className="space-y-2">
+                  <Label>Fornecedor</Label>
+                  <Select value={contactId} onValueChange={setContactId}>
+                    <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                    <SelectContent position="popper" className={dropdownContentClass}>
+                      <SelectItem value="__none__">Sem contato</SelectItem>
+                      {contactsData?.contacts.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Parcelas</Label>
                 <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v))}>
@@ -301,26 +408,6 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
           className="max-h-32 overflow-y-auto scroll-cols-tracking resize-none"
         />
       </div>
-
-      {type === "RECEIVABLE" && availableRules.length > 0 && (
-        <div className="space-y-2">
-          <Label>Régua de cobrança</Label>
-          <Select value={dunningRuleId} onValueChange={setDunningRuleId}>
-            <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-            <SelectContent position="popper" className={dropdownContentClass}>
-              <SelectItem value="__none__">Sem régua</SelectItem>
-              {availableRules.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.name}{r.isDefault ? " (padrão)" : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-[11px] text-muted-foreground">
-            Steps disparam via Inngest event-driven nos dias configurados em Settings → Régua de Cobrança.
-          </p>
-        </div>
-      )}
 
       <label
         className="flex items-start gap-3 rounded-md border border-warning/30 bg-warning/5 p-3 cursor-pointer hover:bg-warning/10 transition-colors"

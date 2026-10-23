@@ -451,6 +451,14 @@ export const GUIDE_ANCHORS = {
     id: "payment.messaging-sender",
     description: "Escolha do tracking (número de WhatsApp) que envia as cobranças, nas Configurações do Financeiro",
   },
+  paymentChargesView: {
+    id: "payment.charges-view",
+    description: "Aba Cobranças do Financeiro: cada receita com cliente, o status do pagamento e o envio dos avisos",
+  },
+  paymentEntryChargeSettings: {
+    id: "payment.entry-charge-settings",
+    description: "Bloco opcional \"Cobrança automática\" no formulário de nova receita (escolha da régua)",
+  },
   paymentEntryDescription: {
     id: "payment.entry.description",
     description: "Campo de descrição no formulário de lançamento",

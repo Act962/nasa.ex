@@ -22,6 +22,7 @@ import { ReconciliationTab } from "./reconciliation/reconciliation-tab";
 import { ContactsTab } from "./contacts/contacts-tab";
 import { ContractsTab } from "./contracts/contracts-tab";
 import { DocumentsTab } from "./attachments/documents-tab";
+import { ChargesTab } from "./charges/charges-tab";
 import { ProjectionTab } from "./projection/projection-tab";
 import { AccountsTab } from "./accounts/accounts-tab";
 import { DreTab } from "./reports/dre-tab";
@@ -67,6 +68,7 @@ import {
   FileText,
   Factory,
   Scale,
+  BellRing,
 } from "lucide-react";
 import { AppReportButton } from "@/features/insights/components/app-report-button";
 
@@ -79,6 +81,7 @@ import { AppReportButton } from "@/features/insights/components/app-report-butto
 const MAIN_TABS: PaymentTab[] = [
   { value: "dashboard", label: "Painel", icon: LayoutDashboard },
   { value: "receivables", label: "Receita", icon: ArrowUpFromLine },
+  { value: "charges", label: "Cobranças", icon: BellRing },
   { value: "payables", label: "Despesa", icon: ArrowDownToLine },
   { value: "cashflow", label: "Fluxo de Caixa", icon: TrendingUp, hasChildren: true },
   { value: "reconciliation", label: "Conciliação", icon: ArrowLeftRight },
@@ -101,6 +104,7 @@ const CASHFLOW_VIEW_VALUES = new Set<string>(CASHFLOW_VIEWS.map((view) => view.v
 const MOBILE_TABS: PaymentTabItem[] = [
   { value: "dashboard", label: "Painel", emoji: "📊" },
   { value: "receivables", label: "Receita", emoji: "💚" },
+  { value: "charges", label: "Cobranças", emoji: "🔔" },
   { value: "payables", label: "Despesa", emoji: "🔴" },
   { value: "cashflow", label: "Fluxo de Caixa", emoji: "📈" },
   { value: "projection", label: "Projeção", emoji: "🔭" },
@@ -119,6 +123,7 @@ const MOBILE_TABS: PaymentTabItem[] = [
 const FILTERED_TABS = new Set([
   "dashboard",
   "receivables",
+  "charges",
   "payables",
   "cashflow",
   "projection",
@@ -333,6 +338,9 @@ export function PaymentPage() {
           </TabsContent>
           <TabsContent value="receivables" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <EntriesTable type="RECEIVABLE" />
+          </TabsContent>
+          <TabsContent value="charges" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
+            <ChargesTab />
           </TabsContent>
           <TabsContent value="payables" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <EntriesTable type="PAYABLE" />

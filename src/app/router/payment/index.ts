@@ -109,7 +109,7 @@ import {
   assignDunningRuleToEntry,
   listDunningExecutionsByEntry,
 } from "./dunning";
-import { getPaymentChargeLink } from "./charges";
+import { getPaymentChargeLink, listPaymentCharges } from "./charges";
 import { getPaymentMessagingSender, setPaymentMessagingSender } from "./messaging";
 
 export const paymentRouter = {
@@ -248,6 +248,7 @@ export const paymentRouter = {
   // ── Spec 0115: cobranças (link público com PIX) ───────────────────────
   charges: {
     getLink: getPaymentChargeLink,
+    list: listPaymentCharges,
   },
   // Número (tracking) que envia a régua e os lembretes do financeiro.
   messaging: {

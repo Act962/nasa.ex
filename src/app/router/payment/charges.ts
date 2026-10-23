@@ -7,6 +7,7 @@ import { z } from "zod";
 import { buildChargeUrl } from "@/features/payment/lib/charge-link";
 import { buildChargePixCode, getOpenAmountCents } from "@/features/payment/server/charges/charge-details";
 import { PENDING_ENTRY_STATUSES } from "@/features/payment/server/entries/entry-include";
+import { listCharges } from "@/features/payment/server/charges/list-charges";
 
 // Spec 0115: link de pagamento de uma conta a receber (página pública com o PIX).
 
@@ -39,3 +40,23 @@ export const getPaymentChargeLink = base
       openAmountCents,
     };
   });
+
+// Visão "Cobranças" (RF-16): contas a receber com cliente, com status do pagamento e do envio.
+export const listPaymentCharges = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "view"))
+  .route({ method: "GET", summary: "List receivables as charges", tags: ["Payment"] })
+  .input(
+    z.object({
+      dateFrom: z.string().optional(),
+      dateTo: z.string().optional(),
+      categoryIds: z.array(z.string()).max(50).optional(),
+      status: z.enum(["all", "open", "overdue", "paid", "cancelled"]).default("all"),
+      channel: z.enum(["all", "WHATSAPP", "EMAIL", "none"]).default("all"),
+      search: z.string().max(120).optional(),
+      page: z.number().int().min(1).default(1),
+      perPage: z.number().int().min(1).max(100).default(20),
+    }),
+  )
+  .handler(async ({ input, context }) => listCharges({ organizationId: context.org.id, ...input }));
