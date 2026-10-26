@@ -254,7 +254,20 @@ export async function listCharges(input: ListChargesInput) {
     };
   };
 
-  const charges = pageRowKeys.flatMap((rowKey) => {
+  type ChargeItem = ReturnType<typeof toChargeRow>;
+  type ChargeListRow = ChargeItem & {
+    rowKey: string;
+    group: {
+      installmentTotal: number;
+      paidCount: number;
+      openCount: number;
+      paidAmountCents: number;
+      openAmountCents: number;
+    } | null;
+    installments: ChargeItem[];
+  };
+
+  const charges = pageRowKeys.flatMap((rowKey): ChargeListRow[] => {
     const matchIds = matchIdsByRow.get(rowKey) ?? new Set<string>();
     if (matchIds.has(rowKey)) {
       const entry = pageEntries.find((candidate) => candidate.id === rowKey);
