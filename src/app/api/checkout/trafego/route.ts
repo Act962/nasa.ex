@@ -18,6 +18,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 import { auth } from "@/lib/auth";
 import type { Prisma } from "@/generated/prisma/client";
 import { getStripe } from "@/lib/stripe";
@@ -434,7 +435,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const origin = req.nextUrl.origin;
+  const origin = resolvePublicOrigin(req.headers);
   const platformLabel = PLATFORM_SHORT_LABEL[platform];
   const metadata = {
     kind: "trafego_order",

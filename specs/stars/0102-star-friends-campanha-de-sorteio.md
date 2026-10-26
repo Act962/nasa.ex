@@ -30,6 +30,7 @@ Uma empresa com STAR FRIENDS cria uma campanha de sorteio, o cliente participa s
 - Hash perceptual da imagem (D-5).
 - Autorização legal do sorteio (SPA/Ministério da Fazenda): é responsabilidade da empresa; o regulamento tem campo para o número do certificado.
 - Aviso do resultado fora da janela de 24 h (exige template aprovado; fica para depois).
+- Prêmios diferentes entre si (1º, 2º lugar com valores distintos): todos os sorteados ganham o mesmo prêmio; a ordem fica registrada.
 - Mais de uma campanha ativa ao mesmo tempo na mesma empresa.
 
 ## 3. Requisitos
@@ -49,6 +50,7 @@ Uma empresa com STAR FRIENDS cria uma campanha de sorteio, o cliente participa s
 | RF-9 | Leitura duvidosa (sem número e sem chave, confiança baixa, CNPJ ilegível) é aceita e marcada com alerta, para a varredura. |
 | RF-10 | A varredura trata como a mesma compra dois cupons aceitos com o mesmo número de cupom, ou com o mesmo emissor, dia e total (a hora só separa os dois quando foi lida em ambos e difere em mais de 2 minutos; números de cupom diferentes lidos em ambos provam compras distintas). Mantém o mais antigo e anula os números dos demais, com registro de auditoria. |
 | RF-11 | O sorteio só roda depois de uma varredura feita após o último cupom, escolhe entre números válidos e grava ganhador e semente. |
+| RF-16 | A campanha tem uma quantidade de prêmios (padrão 1). O sorteio tira um número para cada prêmio e cada cliente ganha no máximo um: depois de cada sorteado, os outros números dele saem da lista. Com menos clientes do que prêmios, sorteia quantos houver. |
 | RF-12 | O menu do atendimento responde por código, sem IA, às opções `info:ofertas` (stories do Instagram cadastrado), `info:instagram` (perfil) e `info:endereco` (endereço da empresa com link do mapa). |
 | RF-13 | A mídia recebida pelo WhatsApp oficial passa a guardar `sha256`, tamanho e `mediaId` em `Message.metadata`. |
 | RF-15 | Cupom que a leitura não resolveu (é um cupom, mas o valor total não foi lido; ou a leitura por IA está indisponível) fica **em conferência** em vez de ser recusado. O cliente é avisado na hora de que o cupom foi recebido. Na aba "Campanha", quem tem a permissão de "Aprovar" vê a foto, informa o valor total (data e número são opcionais) e aprova, ou recusa com motivo. A aprovação segue as mesmas regras do cupom aceito na hora: período, repetição e cálculo dos números. O cliente é avisado do resultado na conversa quando a janela de 24 h está aberta. |
@@ -201,3 +203,4 @@ Uma empresa com STAR FRIENDS cria uma campanha de sorteio, o cliente participa s
 | 2026-10-13 | João Gabriel | CB-17: no teste real o `gpt-4o-mini` leu 13/10/2026 como 2023 e o cupom legítimo foi recusado. O ano errado passa a ser corrigido com alerta; a instrução de leitura informa a data de hoje e pede o ano, a hora e a chave de acesso como impressos. |
 | 2026-10-13 | João Gabriel | CB-18 e modelo de leitura: no teste real a mesma foto foi lida com CNPJ 23198522000148 e recusada. CNPJ e chave passam pelo dígito verificador. Medição com a foto, duas leituras por modelo: só o gpt-4o acertou o CNPJ nas duas; gpt-4o-mini, gpt-4.1-mini e gpt-4.1 erraram. A leitura do cupom passa a usar gpt-4o na OpenAI (custo de imagem equivalente ao do mini). Nenhum modelo leu a chave de acesso de 44 dígitos. |
 | 2026-10-13 | João Gabriel | RF-15 e CA-11 a CA-14: conferência manual do cupom que a leitura não resolveu, com aviso ao cliente dentro da janela de 24 h. D-4 revista. CB-3 e CB-5 mudam (conferência em vez de recusa); CB-19 a CB-21 novos. |
+| 2026-10-14 | Weydson | RF-16: vários prêmios por campanha, um por pessoa (o Mercadinho sorteia 5 carrinhos). Frase livre sobre a promoção abre a campanha sem depender do menu (CB-19). |

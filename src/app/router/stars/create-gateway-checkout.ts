@@ -11,6 +11,7 @@ import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 import Stripe from "stripe";
 import {
   findOrCreateCustomer,
@@ -25,7 +26,6 @@ import {
 } from "@/features/partner/lib/partner-service";
 import { PartnerStatus, Prisma } from "@/generated/prisma/client";
 
-const ORIGIN = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
 // Asaas billing type per payment method
 const ASAAS_BILLING: Record<string, "PIX" | "BOLETO" | "CREDIT_CARD" | "UNDEFINED"> = {
@@ -145,8 +145,8 @@ export const createGatewayCheckout = base
       },
     });
 
-    const successUrl = `${ORIGIN}/settings/stars?payment=success&pid=${payment.id}`;
-    const cancelUrl  = `${ORIGIN}/settings/stars?payment=cancelled`;
+    const successUrl = `${resolvePublicOrigin()}/settings/stars?payment=success&pid=${payment.id}`;
+    const cancelUrl  = `${resolvePublicOrigin()}/settings/stars?payment=cancelled`;
 
     // ─────────────────────────────────────────────────────────────────────────
     // STRIPE  (credit_card)

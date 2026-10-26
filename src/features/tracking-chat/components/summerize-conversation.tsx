@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
@@ -26,21 +27,17 @@ interface Props {
   conversationId: string;
   /**
    * Quando setado, o Popover vira CONTROLADO — pai gerencia open/close.
-   * Usado pra disparar o resumo a partir do dropdown "..." em mobile,
-   * onde o botão visível "Resumo" fica escondido (`hideTrigger`).
+   * O resumo é aberto pelo item "Resumo" do menu "..." do cabeçalho; o
+   * painel se prende ao lugar onde este componente está montado.
    */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Esconde o botão "Resumo" (trigger) — útil em mobile onde o trigger
-   * mora dentro do dropdown e o estado vem de fora. */
-  hideTrigger?: boolean;
 }
 
 export function SummerizeConversation({
   conversationId,
   open: openProp,
   onOpenChange,
-  hideTrigger = false,
 }: Props) {
   const [openInternal, setOpenInternal] = useState(false);
   // Modo controlado vs não-controlado — padrão React clássico
@@ -99,14 +96,7 @@ export function SummerizeConversation({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      {!hideTrigger && (
-        <PopoverTrigger asChild>
-          <Button size="sm">
-            <SparklesIcon className="size-4" />
-            Resumo
-          </Button>
-        </PopoverTrigger>
-      )}
+      <PopoverAnchor className="size-0" />
       <PopoverContent className="w-100 p-0" align="end">
         <div className="p-4 space-y-4">
           <div>

@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Usado em DESKTOP (lg+) na sidebar do /tracking-chat — row de "channel
- * circles + filter pills" abaixo do search input. Em MOBILE, esses
+ * Usado em DESKTOP (lg+) na sidebar do /tracking-chat — círculos dos canais
+ * + menu "Filtros rápidos" e botão de filtros, abaixo do search input. Em MOBILE, esses
  * filtros migraram pro dock em órbita (`chat-orbit-dock.tsx`) e a gaveta
  * `chat-mobile-filters-sheet.tsx` + dropdown "..." do header — o componente é
  * renderizado com `hidden lg:flex` no `conversations-list.tsx`.
@@ -10,26 +10,17 @@
 
 import { Button } from "@/components/ui/button";
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDownIcon,
   EllipsisIcon,
   ListFilterIcon,
-  SearchIcon,
   ShoppingBasket,
 } from "lucide-react";
 import { useUnansweredCounts } from "../hooks/use-unanswered-counts";
@@ -38,6 +29,7 @@ import {
   useLeadEmailThreads,
 } from "../hooks/use-tracking-chat-email";
 import { ConversationFiltersPanel } from "./conversation-filters-panel";
+import { ConversationTagFilter } from "./conversation-tag-filter";
 import { useConversationFilters } from "../hooks/use-conversation-filters";
 import { DEFAULT_CONVERSATION_SORT_BY } from "../lib/conversation-filters-state";
 import Link from "next/link";
@@ -51,6 +43,9 @@ import {
   CATALOG_CHANNEL_LABEL,
   type ChannelFilter,
 } from "../utils/channel-filter";
+
+// Marcar um filtro rápido não fecha o menu: dá para escolher vários de uma vez.
+const keepMenuOpen = (event: Event) => event.preventDefault();
 
 interface ConversationFiltersProps {
   trackingId: string | null;
@@ -78,36 +73,13 @@ export function ConversationFilters({
   const { statusFlows, toggleStatusFlow, activeCount, sortBy, setSortBy } =
     useConversationFilters();
   const isAwaitingReplyFirst = sortBy === "awaitingReply";
-
-  const { data, isLoading } = useQuery({
-    ...orpc.tags.listTags.queryOptions({
-      input: {
-        query: {
-          trackingId: trackingId ?? undefined,
-        },
-      },
-    }),
-    enabled: !!trackingId,
-  });
-
-  const tags = data?.tags ?? [];
-  const [tagSearch, setTagSearch] = useState("");
-  const normalizedTagSearch = normalizeSearchText(tagSearch.trim());
-  const filteredTags = normalizedTagSearch
-    ? tags.filter((tag) =>
-        normalizeSearchText(tag.name).includes(normalizedTagSearch),
-      )
-    : tags;
-
-  const toggleTag = (tagId: string) => {
-    onSelectedTagIdsChange(
-      selectedTagIds.includes(tagId)
-        ? selectedTagIds.filter((id) => id !== tagId)
-        : [...selectedTagIds, tagId],
-    );
-  };
-
-  const hasTagSelection = selectedTagIds.length > 0;
+  const quickFilterCount = [
+    statusFlows.includes("FINISHED"),
+    statusFlows.includes("ACTIVE"),
+    isAwaitingReplyFirst,
+    archivedOnly,
+    selectedTagIds.length > 0,
+  ].filter(Boolean).length;
 
   return (
     <div className="space-y-3 rounded-2xl border border-border/60 bg-accent-foreground/5 p-3">
@@ -115,144 +87,78 @@ export function ConversationFilters({
         trackingId={trackingId}
         selectedChannel={selectedChannel}
         onChannelChange={onChannelChange}
+        hasMoreChannelsLink={false}
       />
 
-      {/* Duas linhas de três, todos do mesmo tamanho, abaixo dos canais. */}
-      <div className="grid grid-cols-3 gap-1.5 pt-1">
-        {/* Atalhos do MESMO estado do filtro "Status" do painel — marcar
-            aqui reflete lá e vice-versa (spec 0011, RF-4). */}
-        <QuickFilterButton
-          label="Finalizados"
-          active={statusFlows.includes("FINISHED")}
-          onClick={() => toggleStatusFlow("FINISHED")}
-        />
-        <QuickFilterButton
-          label="Em atendimento"
-          active={statusFlows.includes("ACTIVE")}
-          onClick={() => toggleStatusFlow("ACTIVE")}
-        />
-        {/* Atalho da ordenação "Sem resposta primeiro" do painel Ordenar. */}
-        <QuickFilterButton
-          label="Sem resposta"
-          active={isAwaitingReplyFirst}
-          onClick={() =>
-            setSortBy(
-              isAwaitingReplyFirst
-                ? DEFAULT_CONVERSATION_SORT_BY
-                : "awaitingReply",
-            )
-          }
-        />
-        {/* "Arquivados" é exclusivo — quando ativo, mostra SÓ leads
-            arquivados (sai do tracking padrão). UI fica amarela pra
-            destacar o modo especial. */}
-        <QuickFilterButton
-          label="Arquivados"
-          active={archivedOnly}
-          onClick={() => onArchivedOnlyChange(!archivedOnly)}
-        />
-
-        <DropdownMenu
-          onOpenChange={(isOpen) => {
-            if (!isOpen) setTagSearch("");
-          }}
-        >
+      <div className="flex items-center gap-1.5 pt-1">
+        <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              variant={hasTagSelection ? "default" : "outline"}
+              variant={quickFilterCount > 0 ? "default" : "outline"}
               size="sm"
-              className="h-8 w-full min-w-0 gap-0.5 rounded-full px-2 text-[11px]"
+              className="h-8 min-w-0 flex-1 justify-between rounded-full px-3 text-xs"
             >
-              Etiquetas
-              {hasTagSelection ? ` (${selectedTagIds.length})` : ""}
-              <ChevronDownIcon className="size-3" />
+              <span className="truncate">
+                Filtros rápidos{quickFilterCount > 0 ? ` (${quickFilterCount})` : ""}
+              </span>
+              <ChevronDownIcon className="size-3.5 shrink-0" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64">
-            <DropdownMenuLabel>Filtrar por etiquetas</DropdownMenuLabel>
-            {trackingId && tags.length > 0 && (
-              <InputGroup className="mb-1 h-8">
-                <InputGroupAddon>
-                  <SearchIcon />
-                </InputGroupAddon>
-                <InputGroupInput
-                  autoFocus
-                  value={tagSearch}
-                  onChange={(event) => setTagSearch(event.target.value)}
-                  // O typeahead do Radix roubaria as letras; a seta para baixo
-                  // leva o foco às etiquetas, e dali a navegação do menu segue.
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") return;
-                    event.stopPropagation();
-                    if (event.key !== "ArrowDown") return;
-                    event.preventDefault();
-                    event.currentTarget
-                      .closest<HTMLElement>('[role="menu"]')
-                      ?.querySelector<HTMLElement>('[role="menuitemcheckbox"]')
-                      ?.focus();
-                  }}
-                  placeholder="Buscar etiqueta..."
-                  aria-label="Buscar etiqueta"
-                  className="text-xs"
-                />
-              </InputGroup>
-            )}
+          <DropdownMenuContent align="start" className="w-56">
+            {/* Atalhos do MESMO estado do filtro "Status" do painel — marcar
+                aqui reflete lá e vice-versa (spec 0011, RF-4). O menu fica
+                aberto a cada toque para dar para marcar mais de um. */}
+            <DropdownMenuCheckboxItem
+              checked={statusFlows.includes("FINISHED")}
+              onCheckedChange={() => toggleStatusFlow("FINISHED")}
+              onSelect={keepMenuOpen}
+            >
+              Finalizados
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={statusFlows.includes("ACTIVE")}
+              onCheckedChange={() => toggleStatusFlow("ACTIVE")}
+              onSelect={keepMenuOpen}
+            >
+              Em atendimento
+            </DropdownMenuCheckboxItem>
+            {/* Atalho da ordenação "Sem resposta primeiro" do painel Ordenar. */}
+            <DropdownMenuCheckboxItem
+              checked={isAwaitingReplyFirst}
+              onCheckedChange={() =>
+                setSortBy(isAwaitingReplyFirst ? DEFAULT_CONVERSATION_SORT_BY : "awaitingReply")
+              }
+              onSelect={keepMenuOpen}
+            >
+              Sem resposta
+            </DropdownMenuCheckboxItem>
+            {/* "Arquivados" é exclusivo: mostra SÓ leads arquivados. */}
+            <DropdownMenuCheckboxItem
+              checked={archivedOnly}
+              onCheckedChange={() => onArchivedOnlyChange(!archivedOnly)}
+              onSelect={keepMenuOpen}
+            >
+              Arquivados
+            </DropdownMenuCheckboxItem>
             <DropdownMenuSeparator />
-            {!trackingId ? (
-              <div className="px-2 py-3 text-xs text-muted-foreground">
-                Selecione um tracking para ver as etiquetas.
-              </div>
-            ) : isLoading ? (
-              <div className="px-2 py-3 text-xs text-muted-foreground">
-                Carregando etiquetas...
-              </div>
-            ) : tags.length === 0 ? (
-              <div className="px-2 py-3 text-xs text-muted-foreground">
-                Nenhuma etiqueta encontrada.
-              </div>
-            ) : filteredTags.length === 0 ? (
-              <div className="px-2 py-3 text-xs text-muted-foreground">
-                Nenhuma etiqueta para &quot;{tagSearch.trim()}&quot;.
-              </div>
-            ) : (
-              <div className="max-h-64 overflow-y-auto">
-                {filteredTags.map((tag) => (
-                  <DropdownMenuCheckboxItem
-                    key={tag.id}
-                    checked={selectedTagIds.includes(tag.id)}
-                    onCheckedChange={() => toggleTag(tag.id)}
-                  >
-                    <span
-                      className="size-2 rounded-full"
-                      style={{ backgroundColor: tag.color ?? "currentColor" }}
-                    />
-                    <span className="truncate">{tag.name}</span>
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </div>
-            )}
-            {hasTagSelection && (
-              <>
-                <DropdownMenuSeparator />
-                <button
-                  type="button"
-                  onClick={() => onSelectedTagIdsChange([])}
-                  className="w-full rounded-sm px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  Limpar etiquetas
-                </button>
-              </>
-            )}
+            <ConversationTagFilter
+              variant="submenu"
+              trackingId={trackingId}
+              selectedTagIds={selectedTagIds}
+              onSelectedTagIdsChange={onSelectedTagIdsChange}
+            />
           </DropdownMenuContent>
         </DropdownMenu>
 
         <ConversationFiltersPanel
           trackingId={trackingId}
+          selectedTagIds={selectedTagIds}
+          onSelectedTagIdsChange={onSelectedTagIdsChange}
           trigger={
             <Button
               variant={activeCount > 0 ? "default" : "outline"}
               size="sm"
-              className="relative h-8 w-full min-w-0 rounded-full px-2"
+              className="relative h-8 w-10 shrink-0 rounded-full px-2"
               aria-label={
                 activeCount > 0 ? `Filtros (${activeCount} ativos)` : "Filtros"
               }
@@ -277,6 +183,8 @@ interface ConversationChannelCirclesProps {
   selectedChannel: ChannelFilter;
   onChannelChange: (channel: ChannelFilter) => void;
   className?: string;
+  /** "Todos os canais" (leva às integrações). A barra do desktop não mostra; a gaveta do celular mostra. */
+  hasMoreChannelsLink?: boolean;
 }
 
 /** Círculos dos canais com contador de "sem resposta": fileira no desktop, aba do dock no celular. */
@@ -285,6 +193,7 @@ export function ConversationChannelCircles({
   selectedChannel,
   onChannelChange,
   className,
+  hasMoreChannelsLink = true,
 }: ConversationChannelCirclesProps) {
   const { installedSlugs } = useMarketplace();
   // Só canais que o Tracking Chat recebe de verdade. O catálogo tem Telegram,
@@ -318,7 +227,8 @@ export function ConversationChannelCircles({
   );
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+    // Cinco colunas: WhatsApp, Instagram, ASTRO, E-mail e Catálogo cabem numa linha só.
+    <div className={cn("grid grid-cols-5 justify-items-center gap-1.5", className)}>
       {messengerIntegrations.map((integration) => {
         const mapping = getChannelMappingFromSlug(integration.slug);
         const channelId = mapping?.id ?? "ALL";
@@ -458,50 +368,23 @@ export function ConversationChannelCircles({
         />
       </span>
 
-      <Link href="/integrations?category=mensageiros">
-        <button
-          type="button"
-          title="Todos os canais"
-          className={cn(
-            "flex size-11 items-center justify-center rounded-full border transition-colors",
-            selectedChannel === "ALL"
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border/70 text-muted-foreground hover:bg-accent",
-          )}
-        >
-          <MoreChannelsIcon className="size-5" />
-        </button>
-      </Link>
+      {hasMoreChannelsLink && (
+        <Link href="/integrations?category=mensageiros">
+          <button
+            type="button"
+            title="Todos os canais"
+            className={cn(
+              "flex size-11 items-center justify-center rounded-full border transition-colors",
+              selectedChannel === "ALL"
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border/70 text-muted-foreground hover:bg-accent",
+            )}
+          >
+            <MoreChannelsIcon className="size-5" />
+          </button>
+        </Link>
+      )}
     </div>
-  );
-}
-
-function normalizeSearchText(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
-}
-
-function QuickFilterButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      type="button"
-      variant={active ? "default" : "outline"}
-      size="sm"
-      onClick={onClick}
-      className="h-8 w-full min-w-0 truncate rounded-full px-2 text-[11px]"
-    >
-      {label}
-    </Button>
   );
 }
 

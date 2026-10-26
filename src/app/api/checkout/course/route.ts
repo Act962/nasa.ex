@@ -19,6 +19,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 import { z } from "zod";
 import { getStripe } from "@/lib/stripe";
 import { getStarPriceBrl } from "@/features/nasa-route/lib/pricing";
@@ -177,7 +178,7 @@ export async function POST(req: NextRequest) {
   });
 
   // ── 6. Cria Stripe Checkout Session ──────────────────────────────────────
-  const origin = req.nextUrl.origin;
+  const origin = resolvePublicOrigin(req.headers);
   const successUrl = `${origin}/checkout/sucesso?token=${pending.id}&session_id={CHECKOUT_SESSION_ID}`;
   const cancelPath = `/c/${course.creatorOrg.slug}/${course.slug}`;
   const cancelUrl = `${origin}${cancelPath}`;

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckIcon, Search, UserIcon } from "lucide-react";
+import { CheckIcon, Search, UserIcon, UserRoundPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { useQueryLeadsWithoutConversation } from "../hooks/use-leads-conversation";
 import { useCreateConversation } from "../hooks/use-conversation";
@@ -19,12 +19,15 @@ interface CreateChatProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trackingId: string;
+  /** Abre o "Novo Lead" para cadastrar quem ainda não está no tracking. */
+  onCreateContact?: () => void;
 }
 
 export function CreateChatDialog({
   isOpen,
   onOpenChange,
   trackingId,
+  onCreateContact,
 }: CreateChatProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<string[]>([]);
@@ -73,6 +76,27 @@ export function CreateChatDialog({
             importe todas as conversas existentes do seu WhatsApp.
           </DialogDescription>
         </DialogHeader>
+        {onCreateContact && (
+          <div className="rounded-lg border bg-muted/30 px-3 py-2.5 flex items-center justify-between gap-3">
+            <div className="text-xs leading-relaxed">
+              <p className="font-semibold">Novo contato</p>
+              <p className="text-muted-foreground">
+                Cadastre nome e telefone de quem ainda não está aqui.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => {
+                onOpenChange(false);
+                onCreateContact();
+              }}
+            >
+              <UserRoundPlusIcon className="size-4" />
+              Novo contato
+            </Button>
+          </div>
+        )}
         {/* Atalho pra importar conversas existentes do WhatsApp via uazapi.
             Útil quando o usuário acaba de conectar a instância e quer
             puxar o histórico de uma vez (independe de webhook). */}

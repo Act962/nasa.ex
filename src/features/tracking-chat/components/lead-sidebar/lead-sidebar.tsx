@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeftIcon,
   ChevronLeft,
-  LayoutGridIcon,
 } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,6 +27,7 @@ import {
   type LeadSidebarItemId,
 } from "./sidebar-items";
 import { LeadAuditButton } from "@/features/leads/components/lead-audit/lead-audit-button";
+import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
 import { LeadSidebarOverview } from "./lead-sidebar-overview";
 import { LightRunBorder } from "@/features/leads/components/lead-triggers/light-run-border";
 import { TriggerIcon } from "@/features/leads/components/lead-triggers/trigger-icon";
@@ -60,10 +60,21 @@ function writeCollapsed(isCollapsed: boolean): void {
   }
 }
 
-function CountBadge({ count }: { count?: number }) {
+// Mesmo canto do cartão de Valor/Etapa (`lead-sidebar-deal.tsx`), para a lateral ler como um bloco só.
+// `justify-evenly` sem padding vertical: o mesmo espaço acima do ícone, entre ícone e nome, e abaixo do nome.
+const MODULE_TILE_CLASSES =
+  "relative flex aspect-square flex-col items-center justify-evenly rounded-[1.15rem] border px-2 text-center text-foreground outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.97]";
+const MODULE_TILE_LABEL_CLASSES = "max-w-full text-xs leading-tight break-normal hyphens-none";
+
+function CountBadge({ count, className }: { count?: number; className?: string }) {
   if (!count) return null;
   return (
-    <span className="absolute top-2 right-2 flex min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-5 text-white">
+    <span
+      className={cn(
+        "absolute top-2 right-2 flex min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-5 text-white",
+        className,
+      )}
+    >
       {count > 99 ? "99+" : count}
     </span>
   );
@@ -105,13 +116,16 @@ function TriggerTile({
     <button
       type="button"
       onClick={onOpen}
-      className="relative flex flex-col gap-2 rounded-xl border border-info/70 bg-gradient-to-br from-info/50 to-info/30 p-3 text-left text-foreground shadow-[0_0_0_1px_rgba(14,165,233,.15)] outline-none transition-all hover:border-info hover:from-info/60 hover:to-info/40 focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.97]"
+      className={cn(
+        MODULE_TILE_CLASSES,
+        "border-info/70 bg-gradient-to-br from-info/50 to-info/30 shadow-[0_0_0_1px_rgba(14,165,233,.15)] hover:border-info hover:from-info/60 hover:to-info/40",
+      )}
     >
       <TriggerIcon
         className={cn("size-7", isActive ? "text-info" : "text-foreground")}
         isSpinning={isActive}
       />
-      <span className="text-xs leading-tight [overflow-wrap:anywhere]">Gatilho do lead</span>
+      <span className={MODULE_TILE_LABEL_CLASSES}>Gatilho do lead</span>
     </button>
   );
 }
@@ -131,11 +145,13 @@ function ItemTile({
     <button
       type="button"
       onClick={onOpen}
-      className="group relative flex flex-col gap-2 rounded-xl border border-line bg-card p-3 text-left text-foreground outline-none transition-all hover:border-input hover:bg-accent/60 focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.97]"
+      className={cn(MODULE_TILE_CLASSES, "group border-line bg-card hover:border-input hover:bg-accent/60")}
     >
-      <CountBadge count={count} />
-      <item.icon className="size-7 text-muted-foreground transition-colors group-hover:text-foreground" />
-      <span className="text-xs leading-tight [overflow-wrap:anywhere]">{item.label}</span>
+      <span className="relative">
+        <item.icon className="size-7 text-muted-foreground transition-colors group-hover:text-foreground" />
+        <CountBadge count={count} className="-top-2 -right-3" />
+      </span>
+      <span className={MODULE_TILE_LABEL_CLASSES}>{item.label}</span>
     </button>
   );
 }
@@ -222,11 +238,11 @@ export function LeadSidebar({
 
   const renderDetails = (onBack: () => void) => (
     <div className="flex h-full flex-col overflow-y-auto">
-      <div className="flex items-center gap-2 border-b px-3 py-3">
+      <div className="flex items-center gap-1.5 border-b px-3 py-3">
         <Button
           size="icon"
           variant="ghost"
-          className="rounded-full"
+          className="size-8 shrink-0 rounded-full"
           onClick={onBack}
           title="Voltar"
         >
@@ -236,6 +252,9 @@ export function LeadSidebar({
           Detalhes do Lead
         </h2>
         {lead && <LeadAuditButton leadId={lead.id} />}
+        {/* Lateral aberta: a tela cheia sai do topo da conversa e vem para cá.
+            Dentro do tracking a barra dele (NavTracking) já tem o botão. */}
+        {!pathname.startsWith("/tracking/") && <FullscreenControls />}
       </div>
       {isLoading || !lead ? (
         <div className="flex flex-1 items-center justify-center">
@@ -245,10 +264,7 @@ export function LeadSidebar({
         <>
           <LeadSidebarProfile lead={lead} />
           {lead.metrics && <LeadSidebarOverview metrics={lead.metrics} />}
-          <section className="@container flex flex-col gap-3 p-4 pb-20">
-            <h3 className="flex items-center gap-3 text-sm font-light tracking-wide">
-              <LayoutGridIcon className="size-5 fill-current" /> Módulos do Lead
-            </h3>
+          <section className="@container flex flex-col gap-3 px-4 pt-2 pb-20">
             <div className="grid grid-cols-2 gap-2.5 @[17.5rem]:grid-cols-3">
               {LEAD_SIDEBAR_ITEMS.map((item) => (
                 <ItemTile

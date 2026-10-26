@@ -84,7 +84,6 @@ import {
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
-import { AppReportButton } from "@/features/insights/components/app-report-button";
 
 const LAST_TRACKING_STORAGE_KEY = "tracking-chat:last-tracking-id";
 
@@ -389,19 +388,12 @@ export function ConversationsList() {
       )}
       <aside className="lg:flex w-full px-5 flex flex-col h-full overflow-hidden">
         {/* ── Header DESKTOP (lg+): mantém UX original "Tracking Chat" ── */}
-        <div className="hidden lg:flex justify-between mb-4 pt-4 shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="hidden lg:flex justify-between gap-2 mb-4 pt-4 shrink-0">
+          <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger className="shrink-0" />
-            <div className="min-w-0">
-              <div className="text-lg leading-tight font-medium">Chat</div>
-              {activeOrganization?.name && (
-                <div key={activeOrganization.id} className="truncate text-xs text-muted-foreground animate-in fade-in-0 slide-in-from-left-1">
-                  {activeOrganization.name}
-                </div>
-              )}
-            </div>
+            <div className="min-w-0 text-lg leading-tight font-medium">Chat</div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             <LeadTriggersHeaderButton trackingId={selectedTracking} leadId={openLead?.id} leadName={openLead?.name} />
             {!noInstance && !instanceDisconnected && !isLoadingTrackings && (
               <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
@@ -416,7 +408,6 @@ export function ConversationsList() {
             >
               <SettingsIcon className="size-4" />
             </Button>
-            <AppReportButton appModule="chat" variant="ghost" className="px-2" />
           </div>
         </div>
 
@@ -692,6 +683,7 @@ export function ConversationsList() {
         trackingId={selectedTracking}
         isOpen={open}
         onOpenChange={setOpen}
+        onCreateContact={() => setIsAddLeadOpen(true)}
       />
     </>
   );

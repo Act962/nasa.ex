@@ -12,6 +12,9 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useRef } from "react";
 
 const CHAT_LIST_WIDTH_VARIABLE = "--chat-list-width";
+// Largura em que o topo da lista (Gatilhos, novo contato, configurações) cabe sem cortar.
+const CHAT_LIST_DEFAULT_WIDTH_PX = 340;
+const CHAT_LIST_MIN_WIDTH_PX = 300;
 
 /**
  * Publica a largura da lista de conversas numa variável CSS: a lateral
@@ -71,7 +74,7 @@ export default function Layout({ children }: LayoutProps) {
         <ResizablePanelGroup>
           {!isMobile && (
             <>
-              <ResizablePanel defaultSize={"15%"} minSize={250} maxSize={"30%"}>
+              <ResizablePanel defaultSize={CHAT_LIST_DEFAULT_WIDTH_PX} minSize={CHAT_LIST_MIN_WIDTH_PX} maxSize={"40%"}>
                 {/* Blocos em cartão, com cantos arredondados e respiro entre eles. */}
                 <div ref={listPanelRef} className="h-full overflow-hidden rounded-2xl border bg-background">
                   <ConversationsList />
@@ -83,12 +86,7 @@ export default function Layout({ children }: LayoutProps) {
               />
             </>
           )}
-          <ResizablePanel
-            className="flex-1"
-            defaultSize={"85%"}
-            minSize={"50%"}
-            maxSize={"80%"}
-          >
+          <ResizablePanel className="flex-1" minSize={"50%"} maxSize={"80%"}>
             {children}
           </ResizablePanel>
         </ResizablePanelGroup>

@@ -39,9 +39,9 @@ export const getStarFriendsCampaign = starFriendsWith("canView")
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     });
-    if (!campaign) return { campaign: null, stats: null, winner: null, trackings };
+    if (!campaign) return { campaign: null, stats: null, winners: [], trackings };
 
-    const [participants, receiptsByStatus, flaggedReceipts, validNumbers, voidedNumbers, receiptsAfterSweep, winner] = await Promise.all([
+    const [participants, receiptsByStatus, flaggedReceipts, validNumbers, voidedNumbers, receiptsAfterSweep, winners] = await Promise.all([
       prisma.loyaltyCampaignEntry.count({ where: { campaignId: campaign.id } }),
       prisma.loyaltyReceipt.groupBy({ by: ["status"], where: { campaignId: campaign.id }, _count: { _all: true }, _sum: { totalCents: true } }),
       prisma.loyaltyReceipt.count({ where: { campaignId: campaign.id, status: "ACCEPTED", isFlagged: true } }),
@@ -50,12 +50,11 @@ export const getStarFriendsCampaign = starFriendsWith("canView")
       prisma.loyaltyReceipt.count({
         where: { campaignId: campaign.id, status: "ACCEPTED", ...(campaign.lastSweepAt ? { createdAt: { gt: campaign.lastSweepAt } } : {}) },
       }),
-      campaign.winnerNumberId
-        ? prisma.loyaltyLuckyNumber.findUnique({
-            where: { id: campaign.winnerNumberId },
-            select: { code: true, member: { select: { name: true, phone: true } } },
-          })
-        : Promise.resolve(null),
+      prisma.loyaltyLuckyNumber.findMany({
+        where: { campaignId: campaign.id, drawPosition: { not: null } },
+        orderBy: { drawPosition: "asc" },
+        select: { code: true, drawPosition: true, member: { select: { name: true, phone: true } } },
+      }),
     ]);
     const countOf = (status: string) => receiptsByStatus.find((row) => row.status === status)?._count._all ?? 0;
     return {
@@ -74,7 +73,7 @@ export const getStarFriendsCampaign = starFriendsWith("canView")
         voidedNumbers,
         receiptsAfterSweep,
       },
-      winner: winner ? { code: winner.code, name: winner.member.name, phone: winner.member.phone } : null,
+      winners: winners.map((winner) => ({ position: winner.drawPosition ?? 0, code: winner.code, name: winner.member.name, phone: winner.member.phone })),
     };
   });
 
@@ -93,6 +92,7 @@ export const upsertStarFriendsCampaign = starFriendsWith("canEdit")
         rulesUrl: z.string().trim().url().max(300).nullable(),
         trackingId: z.string().nullable(),
         maxReceiptsPerDay: z.number().int().min(1).max(50),
+        prizeCount: z.number().int().min(1).max(100),
       })
       .refine((campaign) => campaign.endsAt > campaign.startsAt, { message: "O fim precisa ser depois do início." }),
   )
@@ -120,6 +120,7 @@ export const upsertStarFriendsCampaign = starFriendsWith("canEdit")
       rulesVersion: rulesVersionOf(input.rulesSummary, input.rulesUrl),
       trackingId: input.trackingId,
       maxReceiptsPerDay: input.maxReceiptsPerDay,
+      prizeCount: input.prizeCount,
     };
     const saved = await prisma.$transaction(async (tx) => {
       // Uma campanha ativa por empresa: o atendimento precisa saber, sem dúvida, qual é a do cupom.

@@ -7,6 +7,7 @@ export function useTags({
   tagGroupId,
   includeArchived,
   onlyArchived,
+  enabled = true,
 }: {
   trackingId?: string;
   /** `null` explícito = "Sem categoria". `undefined` = sem filtro. */
@@ -15,9 +16,11 @@ export function useTags({
   includeArchived?: boolean;
   /** Só arquivadas (exclusivo). Default false. */
   onlyArchived?: boolean;
+  /** `false` adia a busca (ex.: tela ainda sem tracking escolhido). Default true. */
+  enabled?: boolean;
 } = {}) {
-  const { data, isLoading } = useQuery(
-    orpc.tags.listTags.queryOptions({
+  const { data, isLoading } = useQuery({
+    ...orpc.tags.listTags.queryOptions({
       input: {
         query: {
           trackingId: trackingId === "ALL" ? undefined : trackingId,
@@ -27,7 +30,8 @@ export function useTags({
         },
       },
     }),
-  );
+    enabled,
+  });
 
   return {
     tags: data?.tags || [],

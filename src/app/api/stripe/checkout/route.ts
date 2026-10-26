@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 import { createCheckoutSession } from "@/lib/stripe";
 import { z } from "zod";
 import { getPostHogClient } from "@/lib/posthog-server";
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
   const { priceId, mode, itemType, itemSlug, cancelPath } = body.data;
 
   // ── Build URLs ──────────────────────────────────────────────────────────────
-  const origin = req.nextUrl.origin;
+  const origin = resolvePublicOrigin(req.headers);
   const successUrl = `${origin}/integrations?topup=1&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${origin}${cancelPath ?? "/integrations"}`;
 
