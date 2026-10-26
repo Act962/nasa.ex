@@ -32,6 +32,7 @@ import { AttachmentUploader } from "../attachments/attachment-uploader";
 import { CustomerPicker, type PaymentCustomer } from "./customer-picker";
 import { describeWhatsappPhoneProblem } from "@/utils/format-phone";
 import { FieldError, fieldErrorClass } from "../shared/field-error";
+import { DateField } from "../shared/date-field";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 interface EntryFormProps {
@@ -254,13 +255,12 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         </div>
         <div className="space-y-2">
           <Label>Vencimento *</Label>
-          <Input
-            type="date"
+          <DateField
             value={dueDate}
-            aria-invalid={!!fieldErrors.dueDate}
+            isInvalid={!!fieldErrors.dueDate}
             className={fieldErrors.dueDate ? fieldErrorClass : undefined}
-            onChange={(e) => {
-              setDueDate(e.target.value);
+            onChange={(value) => {
+              setDueDate(value);
               clearFieldError("dueDate");
             }}
           />
@@ -347,7 +347,7 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
         </div>
       )}
 
-      <div className="rounded-lg border border-border/60">
+      <div className="overflow-hidden rounded-lg border border-border/60">
         <button
           type="button"
           onClick={() => setShowMoreOptions((open) => !open)}

@@ -55,6 +55,7 @@ import {
   PaymentPaginationNav,
 } from "../shared/payment-pagination";
 import { ConfirmDeleteDialog } from "../shared/confirm-delete-dialog";
+import { DateField } from "../shared/date-field";
 import { InboxSection } from "../inbox/inbox-section";
 import { RemindersPanel } from "../reminders/reminders-panel";
 
@@ -262,22 +263,24 @@ export function DocumentsTab() {
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1.5">
             <Label className="text-xs">De</Label>
-            <Input
-              type="date"
+            <DateField
               value={dateFrom}
-              onChange={(event) => {
-                setDateFrom(event.target.value);
+              placeholder="Qualquer data"
+              isClearable
+              onChange={(value) => {
+                setDateFrom(value);
                 setPage(1);
               }}
             />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Até</Label>
-            <Input
-              type="date"
+            <DateField
               value={dateTo}
-              onChange={(event) => {
-                setDateTo(event.target.value);
+              placeholder="Qualquer data"
+              isClearable
+              onChange={(value) => {
+                setDateTo(value);
                 setPage(1);
               }}
             />

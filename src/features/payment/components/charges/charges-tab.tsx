@@ -29,6 +29,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   DropdownMenu,
@@ -442,29 +449,29 @@ export function ChargesTab() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            className="h-9 min-w-32 flex-1 rounded-lg border border-border bg-muted px-2.5 text-xs focus:outline-none sm:flex-none"
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-            aria-label="Status da cobrança"
-          >
-            <option value="all">Todos os status</option>
-            <option value="open">A vencer</option>
-            <option value="overdue">Atrasadas</option>
-            <option value="paid">Pagas</option>
-            <option value="cancelled">Canceladas</option>
-          </select>
-          <select
-            className="h-9 min-w-36 flex-1 rounded-lg border border-border bg-muted px-2.5 text-xs focus:outline-none sm:flex-none"
-            value={channelFilter}
-            onChange={(event) => setChannelFilter(event.target.value as ChannelFilter)}
-            aria-label="Método de envio"
-          >
-            <option value="all">Todos os métodos</option>
-            <option value="WHATSAPP">WhatsApp</option>
-            <option value="EMAIL">E-mail</option>
-            <option value="none">Sem cobrança automática</option>
-          </select>
+          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+            <SelectTrigger className="h-9 min-w-36 flex-1 text-xs sm:flex-none" aria-label="Status da cobrança">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">Todos os status</SelectItem>
+              <SelectItem value="open" className="text-xs">A vencer</SelectItem>
+              <SelectItem value="overdue" className="text-xs">Atrasadas</SelectItem>
+              <SelectItem value="paid" className="text-xs">Pagas</SelectItem>
+              <SelectItem value="cancelled" className="text-xs">Canceladas</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={channelFilter} onValueChange={(value) => setChannelFilter(value as ChannelFilter)}>
+            <SelectTrigger className="h-9 min-w-44 flex-1 text-xs sm:flex-none" aria-label="Método de envio">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">Todos os métodos</SelectItem>
+              <SelectItem value="WHATSAPP" className="text-xs">WhatsApp</SelectItem>
+              <SelectItem value="EMAIL" className="text-xs">E-mail</SelectItem>
+              <SelectItem value="none" className="text-xs">Sem cobrança automática</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <Button
           type="button"

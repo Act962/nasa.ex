@@ -38,6 +38,7 @@ import {
 } from "../../schemas/entry-form-schema";
 import { EntryAttachmentsSection } from "../attachments/entry-attachments-section";
 import { FieldError, fieldErrorClass } from "../shared/field-error";
+import { DateField } from "../shared/date-field";
 import { toast } from "sonner";
 
 interface EditableEntry {
@@ -218,13 +219,12 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
             </div>
             <div className="space-y-2">
               <Label>Vencimento *</Label>
-              <Input
-                type="date"
+              <DateField
                 value={dueDate}
-                aria-invalid={!!fieldErrors.dueDate}
+                isInvalid={!!fieldErrors.dueDate}
                 className={fieldErrors.dueDate ? fieldErrorClass : undefined}
-                onChange={(event) => {
-                  setDueDate(event.target.value);
+                onChange={(value) => {
+                  setDueDate(value);
                   clearFieldError("dueDate");
                 }}
               />
@@ -259,7 +259,7 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
             </div>
           </div>
 
-          <div className="rounded-lg border border-border/60">
+          <div className="overflow-hidden rounded-lg border border-border/60">
             <button
               type="button"
               onClick={() => setShowMoreOptions((open) => !open)}

@@ -7,9 +7,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSetChargeDunningPause } from "../../hooks/use-payment-charges";
+import { DateField } from "../shared/date-field";
 import { toDateInputValue } from "../../lib/dates";
 
 const QUICK_PAUSE_DAYS = [3, 7, 15, 30] as const;
@@ -70,7 +70,7 @@ export function ChargePauseDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Pausar até</Label>
-            <Input type="date" value={pausedUntil} min={daysFromToday(1)} onChange={(event) => setPausedUntil(event.target.value)} />
+            <DateField value={pausedUntil} min={daysFromToday(1)} onChange={setPausedUntil} />
           </div>
           <div className="flex gap-2 pt-1">
             <Button variant="ghost" className="flex-1" onClick={onClose}>Cancelar</Button>

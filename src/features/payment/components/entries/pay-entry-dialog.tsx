@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 import { emitTourResult } from "@/features/tour/store";
@@ -13,10 +20,13 @@ import { usePayEntry, usePaymentAccounts } from "../../hooks/use-payment";
 import { todayAsDateInput } from "../../lib/dates";
 import { describePaymentError } from "../../lib/describe-error";
 import { formatCurrency, parseCurrencyToCents } from "../../lib/format";
+import { DateField } from "../shared/date-field";
 
 // Forma do pagamento registrado à mão — vai para as observações do lançamento, junto com a
 // observação livre. Cobre o "cliente pagou por fora" (PIX direto, dinheiro) que para a régua.
 const PAYMENT_METHODS = ["PIX direto", "Dinheiro", "Transferência", "Cartão", "Boleto", "Outro"] as const;
+/** Radix não aceita valor vazio no Select: marca "não informar" / "sem conta". */
+const NOT_INFORMED = "__none__";
 
 interface PayEntryDialogProps {
   /** `openAmountCents` é o saldo que falta receber/pagar. */
@@ -93,34 +103,38 @@ export function PayEntryDialog({ entry, onClose }: PayEntryDialogProps) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Data do pagamento</Label>
-              <Input type="date" value={paidAt} onChange={(event) => setPaidAt(event.target.value)} />
+              <DateField value={paidAt} onChange={setPaidAt} />
             </div>
             <div className="space-y-2">
               <Label>Forma</Label>
-              <select
-                value={method}
-                onChange={(event) => setMethod(event.target.value)}
-                className="h-9 w-full rounded-lg border border-border bg-muted px-3 text-sm focus:outline-none"
+              <Select
+                value={method || NOT_INFORMED}
+                onValueChange={(value) => setMethod(value === NOT_INFORMED ? "" : value)}
               >
-                <option value="">Não informar</option>
-                {PAYMENT_METHODS.map((paymentMethod) => (
-                  <option key={paymentMethod} value={paymentMethod}>{paymentMethod}</option>
-                ))}
-              </select>
+                <SelectTrigger className="h-9 w-full text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NOT_INFORMED}>Não informar</SelectItem>
+                  {PAYMENT_METHODS.map((paymentMethod) => (
+                    <SelectItem key={paymentMethod} value={paymentMethod}>{paymentMethod}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="space-y-2">
             <Label>Conta bancária</Label>
-            <select
-              value={accountId}
-              onChange={(event) => setAccountId(event.target.value)}
-              className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 focus:outline-none"
+            <Select
+              value={accountId || NOT_INFORMED}
+              onValueChange={(value) => setAccountId(value === NOT_INFORMED ? "" : value)}
             >
-              <option value="">Selecionar...</option>
-              {accountsData?.accounts.map((account) => (
-                <option key={account.id} value={account.id}>{account.name}</option>
-              ))}
-            </select>
+              <SelectTrigger className="h-9 w-full text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NOT_INFORMED}>Sem conta</SelectItem>
+                {accountsData?.accounts.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Observação</Label>

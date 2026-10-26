@@ -12,8 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/features/actions/components/data-picker";
 import {
   Select,
   SelectContent,
@@ -126,12 +126,12 @@ export function ReminderCreateDialog({ open, onOpenChange, entryId }: ReminderCr
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="reminder-remind-at">Quando enviar</Label>
-            <Input
-              id="reminder-remind-at"
-              type="datetime-local"
-              value={remindAtLocal}
-              onChange={(event) => setRemindAtLocal(event.target.value)}
+            <Label>Quando enviar</Label>
+            <DatePicker
+              value={remindAtLocal ? new Date(remindAtLocal) : undefined}
+              onChange={(date) => setRemindAtLocal(toLocalDateTimeInputValue(date))}
+              fromDate={new Date()}
+              placeholder="Escolha dia e horário"
             />
           </div>
 

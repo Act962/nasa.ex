@@ -20,6 +20,13 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   CheckCircle2,
@@ -75,6 +82,8 @@ interface EntriesTableProps {
 }
 
 const PENDING_STATUS_FILTERS = new Set(["PENDING", "PARTIAL", "OVERDUE"]);
+/** Valor do Select para "todos os status" (o filtro em si fica vazio). */
+const ALL_STATUSES = "__all__";
 
 // Colunas ordenáveis: o id casa com o `orderBy` do procedure (`<campo>_asc|desc`).
 type SortField =
@@ -353,30 +362,34 @@ export function EntriesTable({ type }: EntriesTableProps) {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            className="h-9 flex-1 min-w-32 rounded-lg border border-border bg-muted px-2.5 text-xs focus:outline-none sm:flex-none"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+          {/* Radix não aceita valor vazio: "__all__" representa "Todos" (filtro vazio). */}
+          <Select
+            value={statusFilter || ALL_STATUSES}
+            onValueChange={(value) => setStatusFilter(value === ALL_STATUSES ? "" : value)}
           >
-            <option value="">Todos</option>
-            {Object.entries(STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
+            <SelectTrigger className="h-9 min-w-36 flex-1 text-xs sm:flex-none" aria-label="Status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_STATUSES} className="text-xs">Todos os status</SelectItem>
+              {Object.entries(STATUS_LABELS).map(([statusValue, statusLabel]) => (
+                <SelectItem key={statusValue} value={statusValue} className="text-xs">{statusLabel}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            className="h-9 flex-1 min-w-36 rounded-lg border border-border bg-muted px-2.5 text-xs focus:outline-none sm:flex-none"
-            value={sort}
-            onChange={(e) => setSort(e.target.value as EntriesOrderBy)}
-            aria-label="Ordenar"
-            title="Ordenar lançamentos"
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                Ordenar: {option.label}
-              </option>
-            ))}
-          </select>
+          <Select value={sort} onValueChange={(value) => setSort(value as EntriesOrderBy)}>
+            <SelectTrigger className="h-9 min-w-44 flex-1 text-xs sm:flex-none" aria-label="Ordenar" title="Ordenar lançamentos">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value} className="text-xs">
+                  Ordenar: {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {isSearching && (
             <Button
