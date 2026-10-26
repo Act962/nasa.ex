@@ -3,6 +3,11 @@ import { base } from "@/app/middlewares/base";
 import { optionalAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
 import { mintLiveKitToken, isLiveKitConfigured } from "@/lib/livekit/server";
+import {
+  canGuestEnterWorld,
+  GUEST_WORLD_ID_PATTERN,
+  resolveWorldAccess,
+} from "@/features/space-station/lib/world-access";
 import z from "zod";
 
 /**
@@ -45,7 +50,7 @@ export const joinWorld = base
       // convidado não conseguir mintar um token com a identity de outra pessoa.
       guestId: z
         .string()
-        .regex(/^guest[a-zA-Z0-9_-]*$/)
+        .regex(GUEST_WORLD_ID_PATTERN)
         .max(64)
         .optional(),
       guestName: z.string().max(80).optional(),
@@ -93,7 +98,7 @@ export const joinWorld = base
       // Convidado só entra em station OPEN e pública. Qualquer outro modo
       // (privada / MEMBERS_ONLY / REQUEST) exige login — espelha o gate
       // `checkStationAccess` pra não-donos.
-      if (!station.isPublic || station.accessMode !== "OPEN") {
+      if (!canGuestEnterWorld(station)) {
         throw errors.FORBIDDEN({
           message: "Entre na sua conta para acessar o mundo desta station.",
         });
@@ -151,62 +156,13 @@ export const joinWorld = base
     const activeOrgId = session?.activeOrganizationId ?? null;
 
     // ── Autorização (mesma lógica do checkStationAccess) ───────────────────
-    const isUserOwner = station.type === "USER" && station.userId === userId;
-    let isOrgMember = false;
-    if (station.type === "ORG" && station.orgId) {
-      const member = await prisma.member.findUnique({
-        where: {
-          userId_organizationId: {
-            userId,
-            organizationId: station.orgId,
-          },
-        },
-        select: { id: true },
-      });
-      isOrgMember = Boolean(member);
-    }
-    const isOwner = isUserOwner || isOrgMember;
-
-    // Estação privada (isPublic=false) não é acessível a não-donos — espelha o
-    // gate `checkStationAccess`, que só encontra a station com isPublic:true.
-    // Sem isso, uma station oculta com accessMode OPEN entregaria token de
-    // publicação a qualquer logado que soubesse o stationId.
-    if (!isOwner && !station.isPublic) {
+    const access = await resolveWorldAccess(station, userId);
+    if (!access.isAllowed) {
       throw errors.FORBIDDEN({
         message: "Você não tem acesso ao mundo desta station.",
       });
     }
-
-    if (!isOwner && station.accessMode !== "OPEN") {
-      // MEMBERS_ONLY / REQUEST: precisa ser membro/conectado/aprovado.
-      let allowed = false;
-      if (station.type === "USER" && station.userId) {
-        const connection = await prisma.userConnection.findUnique({
-          where: {
-            userId_connectedId: {
-              userId,
-              connectedId: station.userId,
-            },
-          },
-          select: { id: true },
-        });
-        if (connection) allowed = true;
-      }
-      if (!allowed && station.accessMode === "REQUEST") {
-        const accessRequest = await prisma.stationAccessRequest.findUnique({
-          where: {
-            stationId_userId: { stationId: station.id, userId },
-          },
-          select: { status: true },
-        });
-        if (accessRequest?.status === "APPROVED") allowed = true;
-      }
-      if (!allowed) {
-        throw errors.FORBIDDEN({
-          message: "Você não tem acesso ao mundo desta station.",
-        });
-      }
-    }
+    const isOwner = access.isOwner;
 
     // ── Role ────────────────────────────────────────────────────────────────
     const role: "speaker" | "audience" | "moderator" = isOwner

@@ -66,6 +66,7 @@ export function useWorldPresence({ stationId, userId, userName, userNick, sprite
     fetch("/api/pusher/world", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
+      // O servidor usa o id da sessão; `userId` só vale para convidado (guest*).
       body:    JSON.stringify({
         type, stationId, userId, name: userName,
         nick:      userNickRef.current  ?? null,

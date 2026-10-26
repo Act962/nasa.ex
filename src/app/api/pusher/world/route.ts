@@ -1,45 +1,109 @@
 import { NextRequest, NextResponse } from "next/server";
+import z from "zod";
+import { auth } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
+import {
+  canGuestEnterWorld,
+  GUEST_WORLD_ID_PATTERN,
+  resolveWorldAccess,
+} from "@/features/space-station/lib/world-access";
 
 /**
  * POST /api/pusher/world
  * Server-side trigger for world presence events.
  * Avoids the need for "Enable client events" in the Pusher dashboard.
  *
- * Body: { type: "join" | "move", stationId, userId, name, spriteUrl?, x, y }
+ * Quem publica vem da sessão (better-auth), nunca do body. Sem sessão só
+ * convidado (`guest*`) em station aberta e pública, como no join-world.
  */
+
+// Teto defensivo: o tamanho exato do mapa "tiled" só existe no cliente, e ler
+// o mapData a cada movimento (~8/s por jogador) custaria caro.
+const WORLD_MAX_PX = 16384;
+
+const overlaySchema = z
+  .object({
+    eyes: z.string().nullish(),
+    hair: z.string().nullish(),
+    clothes: z.string().nullish(),
+    hat: z.string().nullish(),
+    accessory: z.string().nullish(),
+  })
+  .nullish();
+
+const bodySchema = z.object({
+  type: z.enum([
+    "join",
+    "move",
+    "screen",
+    "follow-request",
+    "follow-accept",
+    "follow-reject",
+    "connected",
+  ]),
+  stationId: z.string().min(1),
+  userId: z.string().optional(),
+  name: z.string().max(120).optional(),
+  nick: z.string().max(120).nullish(),
+  spriteUrl: z.string().nullish(),
+  overlays: overlaySchema,
+  x: z.number().optional(),
+  y: z.number().optional(),
+  screenOn: z.boolean().optional(),
+  fromName: z.string().max(120).optional(),
+  toUserId: z.string().optional(),
+});
+
+function clampToWorld(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value)) return undefined;
+  return Math.min(Math.max(value, 0), WORLD_MAX_PX);
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json() as {
-      type:       "join" | "move" | "screen" | "follow-request" | "follow-accept" | "follow-reject" | "connected";
-      stationId:  string;
-      userId:     string;
-      name?:      string;
-      nick?:      string | null;
-      spriteUrl?: string | null;
-      overlays?:  {
-        eyes?:      string | null;
-        hair?:      string | null;
-        clothes?:   string | null;
-        hat?:       string | null;
-        accessory?: string | null;
-      } | null;
-      x?:         number;
-      y?:         number;
-      screenOn?:  boolean;
-      // follow-request / follow-accept / follow-reject
-      fromUserId?: string;
-      fromName?:   string;
-      toUserId?:   string;
-    };
+    const parsed = bodySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    }
+    const { type, stationId, name, nick, spriteUrl, overlays, screenOn, fromName, toUserId } =
+      parsed.data;
+    const x = clampToWorld(parsed.data.x);
+    const y = clampToWorld(parsed.data.y);
 
-    const {
-      type, stationId, userId, name, nick, spriteUrl, overlays, x, y, screenOn,
-      fromUserId, fromName, toUserId,
-    } = body;
+    const station = await prisma.spaceStation.findUnique({
+      where: { id: stationId },
+      select: {
+        id: true,
+        type: true,
+        userId: true,
+        orgId: true,
+        accessMode: true,
+        isPublic: true,
+      },
+    });
 
-    if (!type || !stationId || !userId) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    const session = await auth.api.getSession({ headers: req.headers });
+    let userId: string;
+    if (session) {
+      if (!station) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      const access = await resolveWorldAccess(station, session.user.id);
+      if (!access.isAllowed) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      userId = session.user.id;
+    } else {
+      const guestId = parsed.data.userId ?? "";
+      if (
+        !station ||
+        !canGuestEnterWorld(station) ||
+        !GUEST_WORLD_ID_PATTERN.test(guestId)
+      ) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      userId = guestId;
     }
 
     const channel = `presence-world-${stationId}`;
@@ -63,7 +127,7 @@ export async function POST(req: NextRequest) {
     } else if (type === "follow-request") {
       // Broadcast to everyone — each client filters by toUserId
       await pusherServer.trigger(channel, "world:follow-request", {
-        fromUserId, fromName, toUserId,
+        fromUserId: userId, fromName, toUserId,
         // requester's current position (so accepter knows where to go)
         x, y,
       });
@@ -71,17 +135,17 @@ export async function POST(req: NextRequest) {
       // fromUserId = who accepted; toUserId = original requester
       // x,y = accepter's current position (requester teleports here)
       await pusherServer.trigger(channel, "world:follow-accept", {
-        fromUserId, toUserId, x, y,
+        fromUserId: userId, toUserId, x, y,
       });
     } else if (type === "follow-reject") {
       await pusherServer.trigger(channel, "world:follow-reject", {
-        fromUserId, toUserId,
+        fromUserId: userId, toUserId,
       });
     } else if (type === "connected") {
       // Broadcast sem filtro — ambos os lados atualizam o estado "Conectados"
       await pusherServer.trigger(channel, "world:connected", {
-        userId1: fromUserId,  // quem aceitou
-        userId2: toUserId,    // quem enviou o pedido
+        userId1: userId,    // quem aceitou
+        userId2: toUserId,  // quem enviou o pedido
       });
     }
 

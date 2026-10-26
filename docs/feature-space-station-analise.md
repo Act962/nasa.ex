@@ -155,7 +155,7 @@ src/features/space-station/
 
 3. **Overlays Woka persistidos mas nunca compostos visualmente** — `wokaEyesUrl`, `wokaHairUrl`, `wokaClothesUrl`, `wokaHatUrl`, `wokaAccessoryUrl` em `types.ts:40–48` são salvos no DB e em `localStorage`, mas o sprite remoto/local ignora overlays. UX promete customização que não aparece para os peers.
 
-4. **Ausência de validação server-side de posição/identidade** — endpoints `/api/pusher/world` e `/api/pusher/rtc` aceitam `userId` e `{x, y}` vindos do cliente sem verificar contra a sessão (better-auth). Vide bug B1 abaixo.
+4. **Ausência de validação server-side de posição/identidade** — endpoints `/api/pusher/world` e `/api/pusher/rtc` aceitam `userId` e `{x, y}` vindos do cliente sem verificar contra a sessão (better-auth). Vide bug B1 abaixo. **Corrigido em 2026-10-26** (B1/B9).
 
 5. **Sem spatial partitioning** — detecção de áreas/proximidade é O(n) por frame via `Phaser.Physics.Arcade.overlap`. Performance degrada com 50+ áreas ou muitos peers.
 
@@ -177,7 +177,7 @@ src/features/space-station/
 
 | ID | Sev. | Local | Descrição | Status |
 | --- | --- | --- | --- | --- |
-| B1 | 🔴 | `app/api/pusher/world/route.ts`, `app/api/pusher/rtc/route.ts` | **Sem auth middleware**: cliente envia `userId` arbitrário; user A pode fingir ser user B em presença e em sinalização WebRTC. Mitigação parcial só existe no endpoint que assina o token Pusher. | Confirmado |
+| B1 | 🔴 | `app/api/pusher/world/route.ts`, `app/api/pusher/rtc/route.ts` | **Sem auth middleware**: cliente envia `userId` arbitrário; user A pode fingir ser user B em presença e em sinalização WebRTC. Mitigação parcial só existe no endpoint que assina o token Pusher. | ✅ Corrigido (2026-10-26): `/api/pusher/world` lê a sessão (better-auth), publica sempre com o `userId` dela e confere o acesso à station (regra única em `features/space-station/lib/world-access.ts`, também usada pelo `join-world`). Sem sessão: 401, exceto convidado `guest*` em station aberta e pública. `/api/pusher/rtc` já tinha sido removido na migração para o LiveKit. |
 | B2 | 🟡 | `world-scene.ts` (listener `pointermove` para pinch, ~linhas 453–467) | Listener nunca é removido no `shutdown` da scene. Abrir/fechar o editor várias vezes acumula handlers → leak gradual. | Suspeita forte |
 | B3 | 🟡 | `use-webrtc.ts` (~linhas 77–87 e bloco `acquireStream`) | Race entre `setSelectedAudio/Video` (assíncrono via `useEffect`) e `acquireStream` lendo a ref. Clicar duas vezes rápido na troca de device pode adquirir o device anterior. | Suspeita |
 | B4 | 🟡 | `use-webrtc.ts:220–244` (handler `onPeerSprite`) | Eventos `world:joined` (já traz `spriteUrl`) e `space-station:peer-sprite` podem chegar fora de ordem. Sem `loadGen` tracking (que existe em `WorldScene`), o sprite remoto pode renderizar stale por 1–2 frames. | Suspeita |
@@ -185,7 +185,7 @@ src/features/space-station/
 | B6 | 🟡 | `world-scene.ts` (`loadLpcSpritesheet`, ~linha 333+) | Re-chamada não destrói sprite anterior nem limpa physics body antigo. Mudar avatar N vezes deixa objetos órfãos. | Suspeita |
 | B7 | 🟡 | `world-scene.ts` (`_tileSyncTimer`, ~linha 205 + `syncTileRendering`) | Editor fecha enquanto timer está pendente: timer não recebe `clearTimeout` antes de nullify; callback executa em scene destruída (silenciosamente engolido pelo try/catch). | Suspeita |
 | B8 | 🟠 | `space-game.tsx:176–191` (`renderTiledMapToCanvas`) | Fetch externo sem timeout/retry/fallback. CDN fora → loading infinito. | Confirmado |
-| B9 | 🟠 | `use-world-presence.ts` + `/api/pusher/world` | Posição enviada sem clamp/validação de bounds. Não é exploit imediato (apenas visual), mas falta defensiva. | Confirmado |
+| B9 | 🟠 | `use-world-presence.ts` + `/api/pusher/world` | Posição enviada sem clamp/validação de bounds. Não é exploit imediato (apenas visual), mas falta defensiva. | ✅ Corrigido em parte (2026-10-26): o servidor descarta valor não numérico e limita `x`/`y` a 0–16384 px. Limite exato por mapa não foi feito: o tamanho do mapa "tiled" só existe no cliente e ler o `mapData` a cada movimento custaria uma consulta pesada ~8 vezes por segundo por jogador. |
 | B10 | 🔵 | `types.ts:40–48`, `update-world.ts:26–30` | Overlays Woka salvos mas nunca compostos no sprite final. | Dívida confirmada |
 | B11 | 🔵 | `world-scene.ts` (~4.2k LOC) | God object — refator urgente em submódulos (`EditorManager`, `PhysicsManager`, `ProximityManager`). | Dívida confirmada |
 | B12 | 🟠 | `use-webrtc.ts` (`closePeer`) | Peer sai durante screen share: PC é fechado, mas `screenSendersRef.current` pode ficar com senders pendurados. | Suspeita |
@@ -257,7 +257,7 @@ Ordem proposta, do maior impacto/menor custo para o oposto:
 
 ### 9.1 — Bloco de segurança (P0)
 
-#### 9.1.1 — Autenticar endpoints de sinalização (B1)
+#### 9.1.1 — Autenticar endpoints de sinalização (B1) — ✅ feito em 2026-10-26 (ver tabela da seção 5)
 - **Objetivo**: garantir que `userId` enviado nas APIs de Pusher venha da sessão, não do body.
 - **Arquivos**:
   - `src/app/api/pusher/world/route.ts`
@@ -272,7 +272,7 @@ Ordem proposta, do maior impacto/menor custo para o oposto:
 - **Critério de pronto**: tentar `POST /api/pusher/world` com `userId` diferente da sessão (via DevTools) retorna 401 ou substitui silenciosamente. Manual QA com 2 contas confirma que ninguém consegue impersonar.
 - **Risco**: baixo. Pode quebrar clientes desatualizados se houver alguma chamada pública não autenticada — improvável aqui.
 
-#### 9.1.2 — Validar bounds de posição (B9)
+#### 9.1.2 — Validar bounds de posição (B9) — ✅ feito em parte em 2026-10-26 (teto fixo, não por mapa; ver tabela da seção 5)
 - **Objetivo**: rejeitar `{x, y}` fora do mapa.
 - **Arquivos**: mesmos do 9.1.1.
 - **Passos**:
