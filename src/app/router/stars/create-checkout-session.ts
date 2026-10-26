@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { STRIPE_PRICE_IDS } from "@/lib/stripe";
+import { isOrgOwnerOrAdmin } from "@/features/permissions/server/is-org-admin";
 import { z } from "zod";
 
 // Restrito a topup. Subscriptions de plano vivem no fluxo do better-auth
@@ -26,7 +27,11 @@ export const createCheckoutSession = base
       sessionId: z.string(),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
+    if (!(await isOrgOwnerOrAdmin(context.org.id, context.user.id))) {
+      throw errors.FORBIDDEN({ message: "Só o Master ou um Adm da empresa pode comprar Stars." });
+    }
+
     const topupPrices = STRIPE_PRICE_IDS.topups as Record<string, string>;
     const priceId = topupPrices[input.itemSlug];
     if (!priceId) throw new Error(`Pacote inválido: ${input.itemSlug}`);

@@ -12,6 +12,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
 import { resolvePublicOrigin } from "@/lib/public-origin";
+import { isOrgOwnerOrAdmin } from "@/features/permissions/server/is-org-admin";
 import Stripe from "stripe";
 import {
   findOrCreateCustomer,
@@ -48,10 +49,13 @@ export const createGatewayCheckout = base
     pixQrCode:   z.string().nullable(),   // base64 image (PIX inline)
     pixPayload:  z.string().nullable(),   // copy-paste PIX code
   }))
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     const { user, session } = context;
     const orgId = session.activeOrganizationId;
     if (!orgId) throw new Error("Nenhuma organização ativa.");
+    if (!(await isOrgOwnerOrAdmin(orgId, user.id))) {
+      throw errors.FORBIDDEN({ message: "Só o Master ou um Adm da empresa pode comprar Stars." });
+    }
 
     // ── Load package ───────────────────────────────────────────────────────────
     const pkg = await prisma.starPackage.findUniqueOrThrow({

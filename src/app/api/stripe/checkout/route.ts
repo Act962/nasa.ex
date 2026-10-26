@@ -17,6 +17,7 @@ import { resolvePublicOrigin } from "@/lib/public-origin";
 import { createCheckoutSession } from "@/lib/stripe";
 import { z } from "zod";
 import { getPostHogClient } from "@/lib/posthog-server";
+import { isOrgOwnerOrAdmin } from "@/features/permissions/server/is-org-admin";
 
 const BodySchema = z.object({
   priceId:    z.string(),
@@ -45,6 +46,9 @@ export async function POST(req: NextRequest) {
   });
   if (!org) {
     return NextResponse.json({ error: "Organização não encontrada." }, { status: 404 });
+  }
+  if (!(await isOrgOwnerOrAdmin(org.id, session.user.id))) {
+    return NextResponse.json({ error: "Só o Master ou um Adm da empresa pode comprar Stars." }, { status: 403 });
   }
 
   // ── Body ────────────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { hasOrgRole, ORG_PROFILE_EDITOR_ROLES } from "@/features/permissions/server/is-org-admin";
 import { z } from "zod";
 
 const SwotSchema = z.object({
@@ -24,7 +25,11 @@ export const updateOrgBrand = base
     brandAiInstructions: z.string().nullable().optional(),
     brandSwot:           SwotSchema.optional(),
   }))
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
+    if (!(await hasOrgRole(context.org.id, context.user.id, ORG_PROFILE_EDITOR_ROLES))) {
+      throw errors.FORBIDDEN({ message: "Só Master, Adm ou Moderador podem editar a marca da empresa." });
+    }
+
     const org = await prisma.organization.update({
       where: { id: context.org.id },
       data: {

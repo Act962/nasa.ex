@@ -19,6 +19,7 @@ import {
   useStarsPricing,
   useCreateStarsCheckout,
 } from "../hooks/use-stars-purchase";
+import { useCanManageBilling } from "@/features/billing/hooks/use-can-manage-billing";
 
 interface StarsPurchaseModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
   const { data: balanceData } = useStarsBalance();
   const { data: pricing, isLoading: pricingLoading } = useStarsPricing();
   const { mutate: createCheckout, isPending } = useCreateStarsCheckout();
+  const canManageBilling = useCanManageBilling();
 
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
   const [customRaw, setCustomRaw] = useState("");
@@ -49,7 +51,8 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
   const totalBrl = stars * starPriceBrl;
   const belowMin = stars > 0 && stars < minStars;
   const aboveMax = stars > maxStars;
-  const canBuy = stars >= minStars && stars <= maxStars && !isPending;
+  const canBuy =
+    canManageBilling && stars >= minStars && stars <= maxStars && !isPending;
 
   const handleClose = () => {
     onClose();
@@ -193,6 +196,12 @@ export function StarsPurchaseModal({ open, onClose }: StarsPurchaseModalProps) {
             <Ticket className="size-3.5 shrink-0" />
             Tem um cupom? Aplique na etapa de pagamento.
           </p>
+
+          {!canManageBilling && (
+            <p className="text-center text-[11px] text-muted-foreground">
+              Só o Master ou um Adm da empresa pode comprar Stars.
+            </p>
+          )}
 
           <Button
             onClick={handleBuy}

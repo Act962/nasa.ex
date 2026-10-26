@@ -66,6 +66,7 @@ import {
 import type { Device, ElementBase } from "../../types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useCanManageBilling } from "@/features/billing/hooks/use-can-manage-billing";
 
 const FONT_FAMILIES = [
   "Inter", "Roboto", "Poppins", "Montserrat", "Open Sans",
@@ -3773,6 +3774,7 @@ function OrgSlugSetup({ orgName }: { orgName: string }) {
     suggestSlug(orgName) || `org-${Math.random().toString(36).slice(2, 8)}`;
   const [slug, setSlug] = useState(initialSuggestion);
   const [error, setError] = useState<string | null>(null);
+  const canSetSlug = useCanManageBilling();
 
   const { mutate, isPending } = useMutation({
     mutationFn: (s: string) => client.orgs.setSlug({ slug: s }),
@@ -3830,11 +3832,16 @@ function OrgSlugSetup({ orgName }: { orgName: string }) {
       <Button
         size="sm"
         className="w-full text-xs h-8"
-        disabled={!isValid || isPending}
+        disabled={!canSetSlug || !isValid || isPending}
         onClick={() => mutate(slug)}
       >
         {isPending ? "Salvando…" : `Usar "${slug}" como slug`}
       </Button>
+      {!canSetSlug && (
+        <p className="text-[10px] text-muted-foreground">
+          Só o Master ou um Adm da empresa pode definir o slug.
+        </p>
+      )}
       <p className="text-[10px] text-muted-foreground leading-relaxed">
         ⚠ Slug é definitivo — não pode trocar depois sem suporte.
       </p>

@@ -15,6 +15,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import prisma from "@/lib/prisma";
 import { resolvePublicOrigin } from "@/lib/public-origin";
 import { getStripe } from "@/lib/stripe";
+import { isOrgOwnerOrAdmin } from "@/features/permissions/server/is-org-admin";
 import { getStarPriceBrl, starsToBrlCents } from "@/features/nasa-route/lib/pricing";
 import {
   getDiscountRateForTier,
@@ -57,10 +58,13 @@ export const createStarsCheckout = base
       paymentId: z.string(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     const { user, session } = context;
     const orgId = session.activeOrganizationId;
     if (!orgId) throw new Error("Nenhuma organização ativa.");
+    if (!(await isOrgOwnerOrAdmin(orgId, user.id))) {
+      throw errors.FORBIDDEN({ message: "Só o Master ou um Adm da empresa pode comprar Stars." });
+    }
 
     // ── Preço + validação de limites ────────────────────────────────────────
     const starPriceBrl = await getStarPriceBrl();

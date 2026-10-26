@@ -255,6 +255,15 @@ Bloco comentado como `// TEMP debug: log raw body for /api/rpc/nerp/* mutations.
 
 ---
 
+### S9 — `stars.purchasePackage` creditava Stars sem pagamento
+
+| | |
+| --- | --- |
+| **Status** | ✅ corrigido em `feature/stars-papel-compras-config-org-20261026` (procedure apagada) |
+| **Arquivo** | `src/app/router/stars/purchase-package.ts` |
+| **Impacto** | **Perda financeira direta.** Qualquer membro logado chamava a procedure com um `packageId` e recebia as Stars do pacote na hora, sem cobrança |
+| **Correção** | Procedure removida (nenhuma tela usava). `purchaseTopUp` segue só no webhook, depois do pagamento confirmado |
+
 ## 🟠 Altos
 
 ### A1 — 228 `throw errors.X;` sem invocação
@@ -396,6 +405,15 @@ implementação correspondente.
 | **Impacto** | **Alteração entre empresas.** Qualquer usuário logado listava, criava, editava, ligava ou apagava o menu salvo de qualquer funil pelo id; esse menu é o texto enviado aos clientes da empresa no WhatsApp |
 | **Correção** | `canAccessTrackingMenus` / `canAccessMenu` (`src/app/router/ia/button-preset-access.ts`): só membro da empresa dona do funil. Quem não é membro recebe a mesma resposta de id inexistente; a listagem devolve vazio |
 
+### A9 — Papel Single comprava pela empresa e alterava a configuração dela
+
+| | |
+| --- | --- |
+| **Status** | ✅ corrigido em `feature/stars-papel-compras-config-org-20261026` |
+| **Arquivos** | `src/app/router/stars/{create-stars-checkout,create-gateway-checkout,create-checkout-session}.ts`, `src/app/api/stripe/checkout/route.ts`, `src/app/router/org/{update-brand,update-company-details,set-slug}.ts` |
+| **Impacto** | Um `member` (Single) abria cobrança em nome da empresa e editava marca, dados cadastrais e o slug público, porque as procedures só conferiam login e empresa |
+| **Correção** | `hasOrgRole` / `isOrgOwnerOrAdmin` (`src/features/permissions/server/is-org-admin.ts`), com FORBIDDEN: compras e slug só Master/Adm; marca e dados da empresa Master/Adm/Moderador (mesma regra de `update-company-profile`). Botões correspondentes desabilitados no front. `plans.createPlanCheckout` (desativada e fora do router) apagada |
+
 ## 🟡 Médios
 
 | # | Item | Arquivo | Ação |
@@ -439,4 +457,5 @@ Registrados para não serem re-auditados sem motivo:
 | 2026-09-29 | S8 corrigido: bloco de debug removido depois de gravar em log a API key do Asaas de uma loja durante teste de PIX real. Pendentes: logging com redação e rotação das chaves expostas. |
 | 2026-09-26 | M6 adicionado e corrigido (vazamento do Financeiro pelo ASTRO para membro sem acesso), achado pela bateria de testes do ASTRO. |
 | 2026-10-01 | A7 adicionado e corrigido (Insights lia dados de qualquer empresa pelo ID), achado ao auditar os filtros do Insights. |
+| 2026-10-26 | S9 e A9 adicionados e corrigidos (Stars de graça por `purchasePackage`; Single comprando e editando a empresa), achados no levantamento de papéis da spec 0115 (Órbita Station). |
 | 2026-10-11 | A8 adicionado e corrigido (menus de botões do atendimento sem conferência de empresa), achado ao implementar a trava do modelo de atendimento (spec 0097). |

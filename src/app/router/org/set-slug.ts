@@ -2,6 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { isOrgOwnerOrAdmin } from "@/features/permissions/server/is-org-admin";
 import { z } from "zod";
 
 /**
@@ -34,6 +35,10 @@ export const setOrgSlug = base
     }),
   )
   .handler(async ({ input, context, errors }) => {
+    if (!(await isOrgOwnerOrAdmin(context.org.id, context.user.id))) {
+      throw errors.FORBIDDEN({ message: "Só o Master ou um Adm da empresa pode definir o endereço (slug)." });
+    }
+
     const currentSlug = (context.org as { slug?: string | null }).slug;
     if (currentSlug) {
       throw errors.BAD_REQUEST({

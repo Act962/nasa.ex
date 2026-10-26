@@ -28,6 +28,7 @@ import { CATEGORY_LABELS, CATEGORY_ICONS } from "@/types/integration";
 import { useMarketplace } from "@/features/integrations/context/marketplace-context";
 import { CredentialForm } from "./credential-form";
 import { orpc } from "@/lib/orpc";
+import { useCanManageBilling } from "@/features/billing/hooks/use-can-manage-billing";
 import { StarIcon } from "@/features/stars/components/star-icon";
 
 interface InstallModalProps {
@@ -153,6 +154,7 @@ function PaymentChoice({
   onBack: () => void;
 }) {
   const [cardLoading, setCardLoading] = useState(false);
+  const canManageBilling = useCanManageBilling();
 
   const { data: costData } = useQuery({
     ...orpc.stars.getAppCost.queryOptions({
@@ -172,6 +174,7 @@ function PaymentChoice({
   const balance = balanceData?.balance ?? 0;
   const hasEnough = balance >= totalCost;
   const hasPlan = balanceData && balanceData.planSlug !== "free";
+  const isCardBlockedByRole = !!priceBrl && !canManageBilling;
 
   const handleCard = async () => {
     if (!priceBrl) {
@@ -262,8 +265,8 @@ function PaymentChoice({
         {/* ── Cartão (Stripe) ── */}
         <button
           onClick={handleCard}
-          disabled={cardLoading}
-          className="w-full flex items-start gap-3 p-4 rounded-xl border-2 border-info/30 bg-info/5 hover:border-info hover:bg-info/10 transition-all text-left"
+          disabled={cardLoading || isCardBlockedByRole}
+          className="w-full flex items-start gap-3 p-4 rounded-xl border-2 border-info/30 bg-info/5 hover:border-info hover:bg-info/10 transition-all text-left disabled:opacity-50 disabled:pointer-events-none"
         >
           <div className="size-9 rounded-lg bg-info/10 flex items-center justify-center shrink-0">
             {cardLoading ? (
@@ -275,7 +278,9 @@ function PaymentChoice({
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold">Pagar com cartão</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              {priceBrl
+              {isCardBlockedByRole
+                ? "Só o Master ou um Adm da empresa pode pagar"
+                : priceBrl
                 ? `R$ ${priceBrl}/mês · Renovação automática via Stripe`
                 : "Checkout seguro via Stripe"}
             </p>

@@ -126,7 +126,9 @@ Preço **uniforme** R$/★ (`RouterPaymentSettings.starPriceBrl`, default R$0,15
 
 > **Cupom:** o Checkout habilita `allow_promotion_codes` — o cliente pode aplicar um **Promotion Code** (criado no Stripe Dashboard) na própria página de pagamento. O desconto reduz o `amount_total` pago, mas as **Stars creditadas continuam cheias** (o cupom é um benefício de preço, não reduz a quantidade). Cupom e desconto de parceiro podem coexistir (ambos reduzem o valor pago).
 
-> Existem fluxos legacy preservados (não usados pelo modal novo): `createGatewayCheckout` (multi-gateway, base do PIX/Asaas futuro) e `createCheckoutSession` + `purchasePackage` (Stripe legado por `StarPackage`).
+> Existem fluxos legacy preservados (não usados pelo modal novo): `createGatewayCheckout` (multi-gateway, base do PIX/Asaas futuro) e `createCheckoutSession` (Stripe legado por `StarPackage`). `purchasePackage` foi apagada: creditava Stars sem pagamento.
+>
+> **Quem compra:** todo checkout de Stars (`createStarsCheckout`, `createGatewayCheckout`, `createCheckoutSession` e `/api/stripe/checkout`) exige papel Master ou Adm (`isOrgOwnerOrAdmin`); os demais recebem FORBIDDEN.
 
 ### 5.2. Plano mensal
 1. `orpc.stars.listPlans` retorna planos ativos.
@@ -163,7 +165,6 @@ Todas em [src/app/router/stars/](../src/app/router/stars/):
 | `getBalance` | Saldo + metadados de plano + ciclo |
 | `listTransactions` | Histórico paginado |
 | `listPackages` | Pacotes ativos de top-up |
-| `purchasePackage` | Compra direta (legacy) |
 | `getAppCost` | Custo de uma action key |
 | `updateAlertConfig` | Customiza thresholds de alerta |
 | `listPlans` | Planos de assinatura |

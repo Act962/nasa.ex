@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
+import { useOrgRole } from "@/hooks/use-org-role";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -137,6 +138,8 @@ export function BrandTab({ entity, projectId }: Props) {
   );
 
   const isSaving = updateOrgBrand.isPending || updateProjectBrand.isPending;
+  const { isSingle } = useOrgRole();
+  const canSave = entity !== "org" || !isSingle;
 
   function onSubmit(data: BrandForm) {
     const swot = {
@@ -334,12 +337,18 @@ export function BrandTab({ entity, projectId }: Props) {
         </div>
       </Section>
 
-      <SettingsStickySave>
-        <Button type="submit" disabled={isSaving} className="gap-2">
-          {isSaving && <OrbitaSpinner className="size-4" />}
-          Salvar marca
-        </Button>
-      </SettingsStickySave>
+      {canSave ? (
+        <SettingsStickySave>
+          <Button type="submit" disabled={isSaving} className="gap-2">
+            {isSaving && <OrbitaSpinner className="size-4" />}
+            Salvar marca
+          </Button>
+        </SettingsStickySave>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Só Master, Adm ou Moderador podem editar a marca da empresa.
+        </p>
+      )}
     </form>
   );
 }
