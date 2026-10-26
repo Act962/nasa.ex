@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { invalidateOutboundProvider } from "@/features/tracking-chat/lib/providers";
@@ -6,9 +7,11 @@ import { WhatsAppInstanceStatus } from "@/generated/prisma/enums";
 import { disconnectInstance } from "@/http/uazapi/disconnect-instance";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { findOrganizationInstanceByInstanceId } from "./owned-instance";
 
 export const disconnectInstanceUazapi = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     summary: "Create a new instance",
@@ -22,8 +25,12 @@ export const disconnectInstanceUazapi = base
       baseUrl: z.string(),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     const { instanceId, status, token, baseUrl } = input;
+
+    if (!(await findOrganizationInstanceByInstanceId(instanceId, context.org.id))) {
+      throw errors.NOT_FOUND({ message: "Instância não encontrada." });
+    }
 
     const result = await disconnectInstance(token, baseUrl);
 
