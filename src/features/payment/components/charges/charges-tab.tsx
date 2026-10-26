@@ -3,12 +3,13 @@
 // Aba "Cobranças" (spec 0115, RF-16): cada conta a receber com cliente, com o status do
 // pagamento e o do envio dos avisos da régua, lado a lado.
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
   Ban,
   CalendarClock,
+  ChevronDown,
   CheckCircle2,
   History,
   Link2,
@@ -66,6 +67,8 @@ const PAGE_SIZE = 20;
 type StatusFilter = "all" | "open" | "overdue" | "paid" | "cancelled";
 type ChannelFilter = "all" | "WHATSAPP" | "EMAIL" | "none";
 type ChargeRow = NonNullable<ReturnType<typeof usePaymentCharges>["data"]>["charges"][number];
+/** Uma parcela (ou cobrança avulsa) — o que os helpers de linha precisam. */
+type ChargeItem = Omit<ChargeRow, "rowKey" | "group" | "installments">;
 
 const STATUS_META: Record<ChargeRow["status"], { label: string; className: string }> = {
   OPEN: { label: "A vencer", className: "border-warning/40 bg-warning/10 text-warning" },
@@ -83,7 +86,7 @@ const CHANNEL_META = {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-function describeDueDate(dueDate: Date, status: ChargeRow["status"]): string | null {
+function describeDueDate(dueDate: Date, status: ChargeItem["status"]): string | null {
   if (status !== "OPEN" && status !== "OVERDUE") return null;
   const today = new Date();
   const startOfToday = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
@@ -97,7 +100,7 @@ function describeDueDate(dueDate: Date, status: ChargeRow["status"]): string | n
 }
 
 /** Cliente sem o dado que o canal da régua precisa: o aviso vai falhar na hora de sair. */
-function findMissingContact(charge: ChargeRow): string | null {
+function findMissingContact(charge: ChargeItem): string | null {
   if (!charge.isOpen || !charge.customer) return null;
   if (charge.channels.includes("WHATSAPP") && !charge.customer.phone) return "Cliente sem telefone para o WhatsApp";
   if (charge.channels.includes("EMAIL") && !charge.customer.email) return "Cliente sem e-mail";
@@ -115,6 +118,7 @@ export function ChargesTab() {
   const [linkEntry, setLinkEntry] = useState<{ id: string; name: string } | null>(null);
   const [historyEntry, setHistoryEntry] = useState<{ id: string; name: string } | null>(null);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [expandedRowKeys, setExpandedRowKeys] = useState<Set<string>>(new Set());
   const [pauseEntry, setPauseEntry] = useState<{ id: string; name: string } | null>(null);
   const [cancelEntry, setCancelEntry] = useState<{ id: string; name: string } | null>(null);
   const setDunningPause = useSetChargeDunningPause();
@@ -159,7 +163,7 @@ export function ChargesTab() {
     { status: "overdue", label: "Atrasadas", hint: "inclui meses anteriores", Icon: AlertTriangle, iconClassName: "bg-destructive/15 text-destructive", value: summary?.overdue },
   ];
 
-  function handleResumeDunning(charge: ChargeRow) {
+  function handleResumeDunning(charge: ChargeItem) {
     setDunningPause.mutate(
       { entryId: charge.id, pausedUntil: null },
       {
@@ -169,7 +173,7 @@ export function ChargesTab() {
     );
   }
 
-  function handleReopen(charge: ChargeRow) {
+  function handleReopen(charge: ChargeItem) {
     reopenCharge.mutate(
       { entryId: charge.id },
       {
@@ -193,7 +197,55 @@ export function ChargesTab() {
     );
   }
 
-  function renderRowActions(charge: ChargeRow) {
+  function toggleSeries(rowKey: string) {
+    setExpandedRowKeys((current) => {
+      const next = new Set(current);
+      if (next.has(rowKey)) next.delete(rowKey);
+      else next.add(rowKey);
+      return next;
+    });
+  }
+
+  function renderSeriesSummary(charge: ChargeRow) {
+    if (!charge.group) return null;
+    const isExpanded = expandedRowKeys.has(charge.rowKey);
+    return (
+      <button
+        type="button"
+        onClick={() => toggleSeries(charge.rowKey)}
+        aria-expanded={isExpanded}
+        className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+      >
+        <ChevronDown className={cn("size-3 transition-transform", isExpanded && "rotate-180")} />
+        {charge.group.installmentTotal} parcelas · {charge.group.paidCount} paga{charge.group.paidCount === 1 ? "" : "s"} ·{" "}
+        {charge.group.openCount} em aberto
+      </button>
+    );
+  }
+
+  /** Parcelas da série que não estão em destaque, em ordem; cada uma com o próprio menu. */
+  function renderSeriesInstallments(charge: ChargeRow) {
+    return (
+      <div className="divide-y divide-border/40 rounded-lg border border-border/40 bg-muted/20">
+        {charge.installments.map((installment) => (
+          <div key={installment.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-xs">
+            <span className="w-24 shrink-0 font-medium">Parcela {installment.installmentLabel ?? "—"}</span>
+            <span className="w-28 shrink-0 text-muted-foreground">
+              {installment.status === "PAID" && installment.paidAt
+                ? `Paga em ${formatTimestampDate(installment.paidAt)}`
+                : `Vence ${formatDate(installment.dueDate)}`}
+            </span>
+            <span className="w-24 shrink-0">{renderAmount(installment)}</span>
+            <span className="min-w-0 flex-1">{renderDelivery(installment)}</span>
+            {renderStatus(installment)}
+            {renderRowActions(installment)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  function renderRowActions(charge: ChargeItem) {
     const name = charge.customer?.name ?? charge.description;
     return (
       <DropdownMenu>
@@ -254,7 +306,7 @@ export function ChargesTab() {
     );
   }
 
-  function renderDelivery(charge: ChargeRow) {
+  function renderDelivery(charge: ChargeItem) {
     if (!charge.rule) {
       return <span className="text-xs text-muted-foreground">Sem cobrança automática</span>;
     }
@@ -314,7 +366,7 @@ export function ChargesTab() {
     );
   }
 
-  function renderAmount(charge: ChargeRow) {
+  function renderAmount(charge: ChargeItem) {
     return (
       <>
         <span className="font-semibold">{formatCurrency(charge.amountCents)}</span>
@@ -327,7 +379,7 @@ export function ChargesTab() {
     );
   }
 
-  function renderStatus(charge: ChargeRow) {
+  function renderStatus(charge: ChargeItem) {
     const meta = STATUS_META[charge.status];
     return (
       <Badge variant="outline" className={cn("text-[11px]", meta.className)}>
@@ -442,14 +494,15 @@ export function ChargesTab() {
           <p className="py-12 text-center text-sm text-muted-foreground">{emptyMessage}</p>
         ) : (
           charges.map((charge) => (
-            <div key={charge.id} className="space-y-2 rounded-xl border border-border/50 bg-card p-3">
+            <div key={charge.rowKey} className="space-y-2 rounded-xl border border-border/50 bg-card p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{charge.customer?.name ?? "—"}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {charge.description}
-                    {charge.installmentLabel && ` · ${charge.installmentLabel}`}
+                    {charge.installmentLabel && ` · Parcela ${charge.installmentLabel}`}
                   </p>
+                  {renderSeriesSummary(charge)}
                 </div>
                 {renderRowActions(charge)}
               </div>
@@ -464,6 +517,7 @@ export function ChargesTab() {
                 </div>
               </div>
               <div className="border-t border-border/40 pt-2">{renderDelivery(charge)}</div>
+              {charge.group && expandedRowKeys.has(charge.rowKey) && renderSeriesInstallments(charge)}
             </div>
           ))
         )}
@@ -497,7 +551,8 @@ export function ChargesTab() {
                 charges.map((charge) => {
                   const dueHint = describeDueDate(charge.dueDate, charge.status);
                   return (
-                    <tr key={charge.id} className="border-b border-border/30 transition-colors hover:bg-muted/20">
+                    <Fragment key={charge.rowKey}>
+                    <tr className="border-b border-border/30 transition-colors hover:bg-muted/20">
                       <td className="max-w-56 px-4 py-3">
                         <p className="truncate font-medium">{charge.customer?.name ?? "—"}</p>
                         <p className="truncate text-xs text-muted-foreground">
@@ -509,6 +564,7 @@ export function ChargesTab() {
                         {charge.installmentLabel && (
                           <p className="text-xs text-muted-foreground">Parcela {charge.installmentLabel}</p>
                         )}
+                        {renderSeriesSummary(charge)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">{renderAmount(charge)}</td>
                       <td className="whitespace-nowrap px-4 py-3">
@@ -523,6 +579,12 @@ export function ChargesTab() {
                       <td className="px-4 py-3 text-center">{renderStatus(charge)}</td>
                       <td className="px-2 py-3 text-right">{renderRowActions(charge)}</td>
                     </tr>
+                    {charge.group && expandedRowKeys.has(charge.rowKey) && (
+                      <tr className="border-b border-border/30 bg-muted/10">
+                        <td colSpan={7} className="px-4 py-3">{renderSeriesInstallments(charge)}</td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })
               )}
