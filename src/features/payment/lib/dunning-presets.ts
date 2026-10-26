@@ -24,6 +24,23 @@ export function describeTiming(daysOffset: number): string {
 
 export const TIMING_PRESETS: ReadonlyArray<number> = [-7, -5, -3, -1, 0, 1, 3, 5, 7, 15, 30];
 
+// RNF-4: régua enxuta. Depois do vencimento o cliente já está em atraso; avisos colados
+// soam como pressão (e o CDC proíbe constranger na cobrança).
+export const MAX_RULE_STEPS = 10;
+export const MIN_DAYS_BETWEEN_AFTER_DUE = 2;
+
+/** Problema dos prazos de uma régua inteira (null = ok). Vale no editor e no servidor. */
+export function describeRuleLimitProblem(daysOffsets: ReadonlyArray<number>): string | null {
+  if (daysOffsets.length > MAX_RULE_STEPS) return `Uma régua tem no máximo ${MAX_RULE_STEPS} avisos.`;
+  const fromDueDate = daysOffsets.filter((offset) => offset >= 0).sort((a, b) => a - b);
+  for (let i = 1; i < fromDueDate.length; i++) {
+    if (fromDueDate[i] - fromDueDate[i - 1] < MIN_DAYS_BETWEEN_AFTER_DUE) {
+      return `A partir do vencimento, deixe pelo menos ${MIN_DAYS_BETWEEN_AFTER_DUE} dias entre um aviso e outro.`;
+    }
+  }
+  return null;
+}
+
 export type DunningVariable = { token: string; label: string; example: string };
 
 export const DUNNING_VARIABLES: ReadonlyArray<DunningVariable> = [

@@ -44,8 +44,10 @@ import {
 import {
   DEFAULT_RULE_STEPS,
   MAX_DAYS_AFTER,
+  MAX_RULE_STEPS,
   TIMING_PRESETS,
   defaultTemplateFor,
+  describeRuleLimitProblem,
 } from "../../lib/dunning-presets";
 
 function buildDefaultStep(daysOffset: number, order: number) {
@@ -60,11 +62,16 @@ function buildDefaultStep(daysOffset: number, order: number) {
   };
 }
 
-/** Próximo prazo pronto que a régua ainda não usa; sem nenhum livre, um dia depois do último. */
-function nextFreeOffset(usedOffsets: number[]): number {
-  const free = TIMING_PRESETS.find((offset) => !usedOffsets.includes(offset));
-  if (free !== undefined) return free;
-  return Math.min(Math.max(...usedOffsets) + 1, MAX_DAYS_AFTER);
+/** Próximo prazo que a régua aceita (sem repetir e respeitando os limites); null se não houver. */
+function nextFreeOffset(usedOffsets: number[]): number | null {
+  const fitsRule = (offset: number) =>
+    !usedOffsets.includes(offset) && describeRuleLimitProblem([...usedOffsets, offset]) === null;
+  const preset = TIMING_PRESETS.find(fitsRule);
+  if (preset !== undefined) return preset;
+  for (let offset = Math.max(0, ...usedOffsets) + 1; offset <= MAX_DAYS_AFTER; offset++) {
+    if (fitsRule(offset)) return offset;
+  }
+  return null;
 }
 
 export function DunningRulesTab() {
@@ -210,9 +217,13 @@ function RuleAccordion({
   }
   function handleAddStep() {
     const daysOffset = nextFreeOffset(rule.steps.map((step) => step.daysOffset));
+    if (daysOffset === null) return toast.error("Não há prazo livre que respeite os limites da régua.");
     createStep.mutate(
       { ruleId: rule.id, ...buildDefaultStep(daysOffset, rule.steps.length) },
-      { onSuccess: () => toast.success("Aviso adicionado") },
+      {
+        onSuccess: () => toast.success("Aviso adicionado"),
+        onError: (error) => toast.error(error.message ?? "Não foi possível adicionar o aviso"),
+      },
     );
   }
 
@@ -286,6 +297,7 @@ function RuleAccordion({
                   hasSameDayStep={sortedSteps.some(
                     (other) => other.id !== step.id && other.enabled && other.daysOffset === step.daysOffset,
                   )}
+                  otherOffsets={sortedSteps.filter((other) => other.id !== step.id).map((other) => other.daysOffset)}
                 />
               ))
             )}
@@ -294,10 +306,11 @@ function RuleAccordion({
               variant="outline"
               size="sm"
               className="w-full"
-              disabled={createStep.isPending}
+              disabled={createStep.isPending || rule.steps.length >= MAX_RULE_STEPS}
+              title={rule.steps.length >= MAX_RULE_STEPS ? `Limite de ${MAX_RULE_STEPS} avisos por régua` : undefined}
             >
               <Plus className="size-3.5 mr-1" />
-              Adicionar aviso
+              {rule.steps.length >= MAX_RULE_STEPS ? `Limite de ${MAX_RULE_STEPS} avisos` : "Adicionar aviso"}
             </Button>
           </div>
         </div>

@@ -20,6 +20,7 @@ import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { scheduleDunningForEntry } from "@/features/payment/server/dunning/schedule";
+import { describeRuleLimitProblem } from "@/features/payment/lib/dunning-presets";
 
 const channelEnum = z.enum(["EMAIL", "WHATSAPP", "SMS"]);
 
@@ -87,6 +88,9 @@ export const createDunningRule = base
   }))
   .output(z.object({ rule: ruleShape }))
   .handler(async ({ input, context }) => {
+    const limitProblem = describeRuleLimitProblem(input.steps.map((step) => step.daysOffset));
+    if (limitProblem) throw new ORPCError("BAD_REQUEST", { message: limitProblem });
+
     // Garante apenas 1 rule default por org.
     if (input.isDefault) {
       await prisma.paymentDunningRule.updateMany({
@@ -206,8 +210,11 @@ export const createDunningStep = base
   .handler(async ({ input, context }) => {
     const rule = await prisma.paymentDunningRule.findFirst({
       where: { id: input.ruleId, organizationId: context.org.id },
+      include: { steps: { select: { daysOffset: true } } },
     });
     if (!rule) throw new ORPCError("NOT_FOUND", { message: "Régua não encontrada" });
+    const limitProblem = describeRuleLimitProblem([...rule.steps.map((step) => step.daysOffset), input.daysOffset]);
+    if (limitProblem) throw new ORPCError("BAD_REQUEST", { message: limitProblem });
 
     const step = await prisma.paymentDunningStep.create({
       data: {
@@ -248,6 +255,14 @@ export const updateDunningStep = base
     });
     if (!step || step.rule.organizationId !== context.org.id) {
       throw new ORPCError("NOT_FOUND", { message: "Step não encontrado" });
+    }
+    if (input.daysOffset !== undefined && input.daysOffset !== step.daysOffset) {
+      const siblings = await prisma.paymentDunningStep.findMany({
+        where: { ruleId: step.ruleId, id: { not: step.id } },
+        select: { daysOffset: true },
+      });
+      const limitProblem = describeRuleLimitProblem([...siblings.map((sibling) => sibling.daysOffset), input.daysOffset]);
+      if (limitProblem) throw new ORPCError("BAD_REQUEST", { message: limitProblem });
     }
     const updated = await prisma.paymentDunningStep.update({
       where: { id: input.id },

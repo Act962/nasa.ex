@@ -34,6 +34,7 @@ import {
   MAX_DAYS_AFTER,
   MAX_DAYS_BEFORE,
   TIMING_PRESETS,
+  describeRuleLimitProblem,
   describeTiming,
   findRiskyTerms,
   phaseOf,
@@ -60,10 +61,13 @@ const CUSTOM_TIMING = "custom";
 export function DunningStepEditor({
   step,
   hasSameDayStep,
+  otherOffsets,
 }: {
   step: DunningStepData;
   /** Outro aviso da régua cai no mesmo dia: só um sai (máximo de um aviso por dia ao cliente). */
   hasSameDayStep: boolean;
+  /** Prazos dos outros avisos da régua, para travar o que quebraria os limites (RNF-4). */
+  otherOffsets: number[];
 }) {
   const updateStep = useUpdateDunningStep();
   const deleteStep = useDeleteDunningStep();
@@ -167,11 +171,16 @@ export function DunningStepEditor({
           >
             <SelectTrigger className="h-9 w-full text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {TIMING_PRESETS.map((offset) => (
-                <SelectItem key={offset} value={String(offset)} className="text-sm">
-                  {describeTiming(offset)}
-                </SelectItem>
-              ))}
+              {TIMING_PRESETS.map((offset) => {
+                const breaksRule =
+                  offset !== step.daysOffset && describeRuleLimitProblem([...otherOffsets, offset]) !== null;
+                return (
+                  <SelectItem key={offset} value={String(offset)} className="text-sm" disabled={breaksRule}>
+                    {describeTiming(offset)}
+                    {breaksRule ? " · muito perto de outro aviso" : ""}
+                  </SelectItem>
+                );
+              })}
               <SelectItem value={CUSTOM_TIMING} className="text-sm">Personalizado…</SelectItem>
             </SelectContent>
           </Select>
