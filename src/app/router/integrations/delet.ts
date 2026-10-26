@@ -73,6 +73,8 @@ export const deleteInstanceUazapi = base
         });
       }
     } catch (error) {
-      console.log(error);
+      // Antes o erro era engolido e a tela mostrava "excluída" com a instância ainda no banco.
+      console.error("[integrations/delete]", error);
+      throw errors.INTERNAL_SERVER_ERROR({ message: "Não foi possível excluir a instância." });
     }
   });

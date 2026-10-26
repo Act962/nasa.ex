@@ -127,7 +127,12 @@ export async function updatePaymentEntryRecord(params: {
   await queueJournalSync(params.organizationId, [entry.id]);
 
   // Avisos agendados para o vencimento antigo são descartados no disparo; aqui saem os do novo.
-  if (entry.dunningRuleId && entry.dueDate.getTime() !== existing.dueDate.getTime()) {
+  // Cobrança reaberta (cancelada ou paga voltando a ter saldo) também precisa dos avisos futuros.
+  const hasDueDateChanged = entry.dueDate.getTime() !== existing.dueDate.getTime();
+  const wasReopened =
+    (currentStatus === "CANCELLED" || currentStatus === "PAID") &&
+    (nextStatus === "PENDING" || nextStatus === "PARTIAL" || nextStatus === "OVERDUE");
+  if (entry.dunningRuleId && (hasDueDateChanged || wasReopened)) {
     await scheduleDunningForEntry(entry.id).catch((error) => {
       console.error("[payment/entries update] dunning reschedule failed:", error);
     });

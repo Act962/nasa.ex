@@ -74,6 +74,8 @@ export const paymentDunningFire = inngest.createFunction(
       if (!entry) return { skip: "entry-not-found" as const };
       if (!dunStep || !dunStep.enabled) return { skip: "step-disabled" as const };
       if (!dunStep.rule.isActive) return { skip: "rule-inactive" as const };
+      // Régua trocada ou removida depois do agendamento: o evento da régua antiga não vale mais.
+      if (entry.dunningRuleId !== dunStep.ruleId) return { skip: "rule-changed" as const };
       if (["PAID", "CANCELLED"].includes(entry.status)) {
         return { skip: "entry-terminal" as const };
       }

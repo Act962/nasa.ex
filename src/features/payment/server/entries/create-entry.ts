@@ -38,14 +38,14 @@ export interface CreatePaymentEntryInput {
 }
 
 /**
- * Cliente, lead e régua vêm do client e de vários chamadores (Astro, Forms, chat). Um id
+ * Cliente, lead, régua e tracking vêm do client e de vários chamadores (Astro, Forms, chat). Um id
  * de outra empresa faria a régua mandar mensagem para o cliente dela: fica de fora.
  */
 async function dropForeignReferences(
   organizationId: string,
   input: CreatePaymentEntryInput,
 ): Promise<CreatePaymentEntryInput> {
-  const [contact, lead, rule] = await Promise.all([
+  const [contact, lead, rule, tracking] = await Promise.all([
     input.contactId
       ? prisma.paymentContact.findFirst({ where: { id: input.contactId, organizationId }, select: { id: true } })
       : null,
@@ -58,20 +58,29 @@ async function dropForeignReferences(
     input.dunningRuleId
       ? prisma.paymentDunningRule.findFirst({ where: { id: input.dunningRuleId, organizationId }, select: { id: true } })
       : null,
+    input.trackingId
+      ? prisma.tracking.findFirst({ where: { id: input.trackingId, organizationId }, select: { id: true } })
+      : null,
   ]);
-  if ((input.contactId && !contact) || (input.leadId && !lead) || (input.dunningRuleId && !rule)) {
+  if (
+    (input.contactId && !contact) ||
+    (input.leadId && !lead) ||
+    (input.dunningRuleId && !rule) ||
+    (input.trackingId && !tracking)
+  ) {
     console.warn("[payment/entries create] referência de outra organização ignorada", {
       organizationId,
       contactId: input.contactId && !contact ? input.contactId : undefined,
       leadId: input.leadId && !lead ? input.leadId : undefined,
       dunningRuleId: input.dunningRuleId && !rule ? input.dunningRuleId : undefined,
+      trackingId: input.trackingId && !tracking ? input.trackingId : undefined,
     });
   }
   return {
     ...input,
     contactId: contact?.id,
     leadId: lead?.id,
-    trackingId: input.trackingId ?? lead?.trackingId,
+    trackingId: tracking?.id ?? lead?.trackingId,
     dunningRuleId: rule?.id,
   };
 }
