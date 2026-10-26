@@ -162,6 +162,10 @@ export default function AddLeadSheet({
         if (shouldAskTracking) {
           queryClient.invalidateQueries({ queryKey: orpc.leads.key() });
         }
+        // Com o número validado o lead já nasce com conversa: o Chat precisa listá-la.
+        if (validateNumber) {
+          queryClient.invalidateQueries({ queryKey: ["conversations.list"] });
+        }
         toast.success("Lead criado com sucesso");
         earn("create_lead", "Lead criado 🎯");
         emitTourResult({ kind: GUIDE_RESULT_KINDS.leadCreated, href: `/contatos/${data.lead.id}` });

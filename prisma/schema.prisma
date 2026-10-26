@@ -3778,25 +3778,26 @@ enum LoyaltyLuckyNumberStatus {
 }
 
 model LoyaltyCampaign {
-  id                   String    @id @default(cuid())
-  organizationId       String    @map("organization_id")
-  trackingId           String?   @map("tracking_id")
-  name                 String
-  isActive             Boolean   @default(false) @map("is_active")
-  startsAt             DateTime  @map("starts_at")
-  endsAt               DateTime  @map("ends_at")
-  amountPerNumberCents Int       @default(10000) @map("amount_per_number_cents")
-  issuerDocuments      String[]  @default([]) @map("issuer_documents")
-  rulesSummary         String    @map("rules_summary")
-  rulesUrl             String?   @map("rules_url")
-  rulesVersion         String    @map("rules_version")
-  maxReceiptsPerDay    Int       @default(5) @map("max_receipts_per_day")
-  lastSweepAt          DateTime? @map("last_sweep_at")
-  drawnAt              DateTime? @map("drawn_at")
-  drawSeed             String?   @map("draw_seed")
-  winnerNumberId       String?   @map("winner_number_id")
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
+  id                    String    @id @default(cuid())
+  organizationId        String    @map("organization_id")
+  trackingId            String?   @map("tracking_id")
+  name                  String
+  isActive              Boolean   @default(false) @map("is_active")
+  startsAt              DateTime  @map("starts_at")
+  endsAt                DateTime  @map("ends_at")
+  amountPerNumberCents  Int       @default(10000) @map("amount_per_number_cents")
+  issuerDocuments       String[]  @default([]) @map("issuer_documents")
+  rulesSummary          String    @map("rules_summary")
+  rulesUrl              String?   @map("rules_url")
+  rulesVersion          String    @map("rules_version")
+  maxReceiptsPerDay     Int       @default(5) @map("max_receipts_per_day")
+  prizeCount            Int       @default(1) @map("prize_count")
+  lastSweepAt           DateTime? @map("last_sweep_at")
+  drawnAt               DateTime? @map("drawn_at")
+  drawSeed              String?   @map("draw_seed")
+  winnerNumberId        String?   @map("winner_number_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   entries      LoyaltyCampaignEntry[]
@@ -3876,6 +3877,7 @@ model LoyaltyLuckyNumber {
   code       String
   status     LoyaltyLuckyNumberStatus @default(VALID)
   voidReason String?                  @map("void_reason")
+  drawPosition Int?                   @map("draw_position")
   createdAt  DateTime                 @default(now()) @map("created_at")
 
   campaign LoyaltyCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)

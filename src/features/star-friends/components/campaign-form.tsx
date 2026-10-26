@@ -31,6 +31,7 @@ const campaignSchema = z.object({
   rulesUrl: z.string().trim(),
   trackingId: z.string(),
   maxReceiptsPerDay: z.number().int().min(1).max(50),
+  prizeCount: z.number().int().min(1).max(100),
 });
 
 type CampaignValues = z.infer<typeof campaignSchema>;
@@ -47,6 +48,7 @@ export type CampaignFormSource = {
   rulesUrl: string | null;
   trackingId: string | null;
   maxReceiptsPerDay: number;
+  prizeCount: number;
 };
 
 const DEFAULT_RULES =
@@ -71,6 +73,7 @@ function toValues(campaign: CampaignFormSource | null): CampaignValues {
     rulesUrl: campaign?.rulesUrl ?? "",
     trackingId: campaign?.trackingId ?? ANY_FUNNEL,
     maxReceiptsPerDay: campaign?.maxReceiptsPerDay ?? 5,
+    prizeCount: campaign?.prizeCount ?? 1,
   };
 }
 
@@ -100,6 +103,7 @@ export function CampaignForm({ campaign, trackings }: { campaign: CampaignFormSo
             rulesUrl: values.rulesUrl || null,
             trackingId: values.trackingId === ANY_FUNNEL ? null : values.trackingId,
             maxReceiptsPerDay: values.maxReceiptsPerDay,
+            prizeCount: values.prizeCount,
           },
           {
             onSuccess: () => {
@@ -181,6 +185,17 @@ export function CampaignForm({ campaign, trackings }: { campaign: CampaignFormSo
             )}
           />
         </div>
+        <Controller
+          control={form.control}
+          name="prizeCount"
+          render={({ field }) => (
+            <Field>
+              <FieldLabel htmlFor="campaign-prizes">Quantidade de prêmios</FieldLabel>
+              <Input id="campaign-prizes" type="number" min={1} max={100} value={field.value} onChange={(event) => field.onChange(Number(event.target.value))} />
+              <FieldDescription>O sorteio tira um número para cada prêmio. Cada cliente ganha no máximo um.</FieldDescription>
+            </Field>
+          )}
+        />
         <Controller
           control={form.control}
           name="issuerDocuments"

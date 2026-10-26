@@ -32,7 +32,7 @@ export default function Layout({ children }: LayoutProps) {
       <ResizablePanelGroup>
         {!isMobile && (
           <>
-            <ResizablePanel defaultSize={"15%"} minSize={250} maxSize={"30%"}>
+            <ResizablePanel defaultSize={340} minSize={300} maxSize={"40%"}>
               <ConversationsList />
             </ResizablePanel>
             <ResizableHandle
@@ -41,12 +41,7 @@ export default function Layout({ children }: LayoutProps) {
             />
           </>
         )}
-        <ResizablePanel
-          className="flex-1"
-          defaultSize={"85%"}
-          minSize={"50%"}
-          maxSize={"80%"}
-        >
+        <ResizablePanel className="flex-1" minSize={"50%"} maxSize={"80%"}>
           {children}
         </ResizablePanel>
       </ResizablePanelGroup>
