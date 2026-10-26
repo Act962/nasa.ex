@@ -2,6 +2,7 @@
 // sem coluna nova: o token é recalculado a cada envio e conferido na página.
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 
 function getSecret(): string {
   const secret = process.env.BETTER_AUTH_SECRET;
@@ -28,7 +29,8 @@ export function readChargeToken(token: string): { organizationId: string; entryI
   return organizationId && entryId ? { organizationId, entryId } : null;
 }
 
+// Sai do servidor (Inngest, procedure) e vai para o cliente: precisa do endereço público,
+// com o mesmo fallback de env dos outros links externos do app.
 export function buildChargeUrl(organizationId: string, entryId: string): string {
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
-  return `${baseUrl}/cobranca/${createChargeToken(organizationId, entryId)}`;
+  return `${resolvePublicOrigin()}/cobranca/${createChargeToken(organizationId, entryId)}`;
 }
