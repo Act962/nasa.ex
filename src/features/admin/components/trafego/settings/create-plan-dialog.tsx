@@ -29,11 +29,15 @@ import {
   PLATFORM_SHORT_LABEL,
 } from "@/features/trafego/lib/catalog-labels";
 import {
-  computeTrafegoPrice,
+  computeLegacyPlanPrice,
   formatBrlFromCents,
 } from "@/features/trafego/lib/pricing";
-import { SettingsDivider, SettingsField, SettingsGrid } from "./settings-primitives";
-import { cn } from "@/lib/utils";
+import {
+  ChoiceChip,
+  SettingsDivider,
+  SettingsField,
+  SettingsGrid,
+} from "./settings-primitives";
 
 const PLATFORMS = Object.keys(PLATFORM_SHORT_LABEL) as TrafegoPlatform[];
 
@@ -48,7 +52,7 @@ export function CreatePlanDialog({
   const [form, setForm] = useState(emptyPlanForm);
 
   const adBudgetBrlCents = Math.round(Number(form.adBudgetBrl || 0) * 100);
-  const preview = computeTrafegoPrice({
+  const preview = computeLegacyPlanPrice({
     adBudgetBrlCents,
     serviceFeePercent: Number(form.serviceFeePercent || 0),
   });
@@ -343,32 +347,6 @@ const emptyPlanForm = {
   isDefault: false,
   isSlugManual: false,
 };
-
-function ChoiceChip({
-  isOn,
-  onClick,
-  children,
-}: {
-  isOn: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={isOn}
-      className={cn(
-        "rounded-full border px-2.5 py-1 text-xs transition",
-        isOn
-          ? "border-primary bg-primary/10 text-primary"
-          : "text-muted-foreground hover:border-foreground/30",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
 
 function toggle<T>(list: T[], item: T): T[] {
   return list.includes(item)

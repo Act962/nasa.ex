@@ -56,6 +56,15 @@ export const useUpdateTrafegoOrderStatus = () => {
   );
 };
 
+export const useCreateManualTrafegoOrder = () => {
+  const invalidate = useAdminOrderInvalidation();
+  return useMutation(
+    orpc.trafego.admin.orders.createManual.mutationOptions({
+      onSuccess: () => invalidate(),
+    }),
+  );
+};
+
 export const useAssignTrafegoOrder = () => {
   const invalidate = useAdminOrderInvalidation();
   return useMutation(

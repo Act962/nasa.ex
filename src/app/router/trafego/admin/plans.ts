@@ -3,7 +3,7 @@ import { requireAdminMiddleware } from "@/app/middlewares/admin";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
-import { computeTrafegoPrice } from "@/features/trafego/lib/pricing";
+import { computeLegacyPlanPrice } from "@/features/trafego/lib/pricing";
 import { trafegoPlanInputSchema } from "@/features/trafego/schema/trafego-schemas";
 
 export const listTrafegoPlansAdmin = base
@@ -16,7 +16,7 @@ export const listTrafegoPlansAdmin = base
     });
 
     return plans.map((plan) => {
-      const price = computeTrafegoPrice({
+      const price = computeLegacyPlanPrice({
         adBudgetBrlCents: plan.adBudgetBrlCents,
         serviceFeePercent: Number(plan.serviceFeePercent),
         serviceFeeBrlCents: plan.serviceFeeBrlCents,

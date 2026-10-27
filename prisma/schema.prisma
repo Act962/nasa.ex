@@ -10292,7 +10292,7 @@ enum TrafegoTopUpStatus {
 /// Catálogo público de planos. O preço é COMPOSTO: `adBudgetBrlCents` é a verba
 /// que vai pro anúncio e a taxa de serviço é derivada de `serviceFeePercent`
 /// (ou fixada por `serviceFeeBrlCents`). O total nunca é armazenado aqui — é
-/// calculado por `computeTrafegoPrice()` para que mudar o percentual não exija
+/// calculado por `computeLegacyPlanPrice()` para que mudar o percentual não exija
 /// backfill. O pedido guarda o snapshot dos três valores.
 model TrafegoPlan {
   id            String                @id @default(cuid())

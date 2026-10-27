@@ -14,6 +14,8 @@ interface PostCreationInput {
     email?: string | null;
     phone?: string | null;
   };
+  /** Pedido avulso cuja venda a equipe já lançou à mão (spec 0116 RF-6). */
+  skipFinance?: boolean;
 }
 
 /**
@@ -39,9 +41,11 @@ export async function runTrafegoOrderPostCreation(input: PostCreationInput): Pro
 
   await step("lead", () => ensureTrafegoLeadForOrder(input.orderId));
   await step("briefing", () => upsertBriefingResponseForOrder(input.orderId));
-  await step("financeiro", () =>
-    createTrafegoSaleSideEffects({ orderId: input.orderId, buyer: input.buyer }),
-  );
+  if (!input.skipFinance) {
+    await step("financeiro", () =>
+      createTrafegoSaleSideEffects({ orderId: input.orderId, buyer: input.buyer }),
+    );
+  }
 
   const order = await prisma.trafegoOrder.findUnique({
     where: { id: input.orderId },

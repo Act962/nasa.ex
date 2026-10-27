@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, ChevronLeft, ChevronRight, Settings2 } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Plus, Settings2 } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -30,6 +30,7 @@ import { PLATFORM_SHORT_LABEL } from "@/features/trafego/lib/catalog-labels";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { OrderStatusBadge } from "@/features/trafego/components/panel/order-status-badge";
 import { useAdminPath } from "@/features/trafego/lib/base-path";
+import { CreateManualOrderDialog } from "./create-manual-order-dialog";
 
 const ALL = "__all__";
 
@@ -38,6 +39,7 @@ export function TrafegoOrdersTable() {
   const [platform, setPlatform] = useState<string>(ALL);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [isManualOrderOpen, setIsManualOrderOpen] = useState(false);
   const adminPath = useAdminPath();
 
   const { data, isLoading } = useTrafegoAdminOrders({
@@ -58,13 +60,24 @@ export function TrafegoOrdersTable() {
             Fila de campanhas contratadas pelos clientes.
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`${adminPath}/settings`}>
-            <Settings2 className="mr-1.5 size-4" />
-            Ajustes
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setIsManualOrderOpen(true)}>
+            <Plus className="mr-1.5 size-4" />
+            Pedido avulso
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`${adminPath}/settings`}>
+              <Settings2 className="mr-1.5 size-4" />
+              Ajustes
+            </Link>
+          </Button>
+        </div>
       </div>
+
+      <CreateManualOrderDialog
+        open={isManualOrderOpen}
+        onOpenChange={setIsManualOrderOpen}
+      />
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <Input
@@ -118,7 +131,7 @@ export function TrafegoOrdersTable() {
         </Select>
       </div>
 
-      <div className="mt-5 rounded-lg border">
+      <div className="mt-5 overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>

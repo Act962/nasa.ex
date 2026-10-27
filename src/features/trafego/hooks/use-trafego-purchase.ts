@@ -7,7 +7,7 @@ import type { TrafegoCheckoutBody } from "@/features/trafego/schema/trafego-sche
  * Stripe é assíncrono, então o retorno do checkout chega antes da confirmação.
  */
 export const useTrafegoPendingPurchase = (
-  input: { pendingId?: string; signupToken?: string },
+  input: { pendingId?: string; signupToken?: string; checkoutSessionId?: string },
   options?: { enabled?: boolean; refetchInterval?: number | false },
 ) => {
   return useQuery({
