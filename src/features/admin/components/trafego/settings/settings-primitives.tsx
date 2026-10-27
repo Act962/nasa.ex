@@ -116,3 +116,29 @@ export function SettingsNotice({
     </p>
   );
 }
+
+export function ChoiceChip({
+  isOn,
+  onClick,
+  children,
+}: {
+  isOn: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={isOn}
+      className={cn(
+        "rounded-full border px-2.5 py-1 text-xs transition",
+        isOn
+          ? "border-primary bg-primary/10 text-primary"
+          : "text-muted-foreground hover:border-foreground/30",
+      )}
+    >
+      {children}
+    </button>
+  );
+}

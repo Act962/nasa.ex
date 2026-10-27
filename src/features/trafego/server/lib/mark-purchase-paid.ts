@@ -6,6 +6,7 @@ import { getPostHogClient } from "@/lib/posthog-server";
 import type { TrafegoPendingPurchaseStatus } from "@/generated/prisma/enums";
 import { createTrafegoOrderFromPurchaseInTx } from "./create-order-from-purchase";
 import { runTrafegoOrderPostCreation } from "./create-order-and-side-effects";
+import { notifyTrafegoAdmins } from "./trafego-alerts";
 
 const SIGNUP_TOKEN_TTL_DAYS = 7;
 
@@ -22,6 +23,11 @@ export interface MarkPurchasePaidInput {
   paymentSource: "stripe" | "pix";
   /** Valor efetivamente recebido; null quando o provedor não informa. */
   amountTotalCents: number | null;
+  /**
+   * Desconto de cupom do Stripe. Pago + desconto = contratado não é
+   * divergência: sem isso toda compra com cupom virava `amountMismatch` (P-9).
+   */
+  discountCents?: number | null;
   /** Stripe preenche; PIX não. */
   stripe?: {
     paymentIntentId?: string | null;
@@ -89,7 +95,8 @@ export async function markTrafegoPurchasePaid(
   // em silêncio seria pior — ela é dinheiro que vai ser investido no anúncio
   // (spec 0008 CA-14).
   const hasMismatch =
-    amountTotalCents !== null && amountTotalCents !== pending.amountBrlCents;
+    amountTotalCents !== null &&
+    amountTotalCents + (input.discountCents ?? 0) !== pending.amountBrlCents;
   if (hasMismatch) {
     console.warn(
       `[trafego/paid] divergência em ${pendingId}: esperado=${pending.amountBrlCents} recebido=${amountTotalCents}`,
@@ -130,7 +137,10 @@ export async function markTrafegoPurchasePaid(
     // Cartão caindo depois de um PIX já confirmado = cobrança em duplicidade.
     // Ninguém repara nisso sozinho; a equipe precisa ser avisada para estornar.
     if (paymentSource === "stripe" && via === "pix") {
-      await notifyDuplicatePayment(pendingId, pending.email).catch((error) =>
+      await notifyTrafegoAdmins({
+        title: "trafeGO: cobrança em duplicidade",
+        body: `O cartão de ${pending.email} foi aprovado depois do PIX já confirmado. Verifique e estorne uma das cobranças.`,
+      }).catch((error) =>
         console.error("[trafego/paid] aviso de duplicidade falhou:", error),
       );
     }
@@ -254,26 +264,4 @@ function capture(
   } catch (error) {
     console.error("[trafego/paid] posthog falhou:", error);
   }
-}
-
-async function notifyDuplicatePayment(
-  pendingId: string,
-  email: string,
-): Promise<void> {
-  const admins = await prisma.user.findMany({
-    where: { isSystemAdmin: true, isActive: true },
-    select: { id: true },
-  });
-  if (admins.length === 0) return;
-
-  await prisma.userNotification.createMany({
-    data: admins.map((admin) => ({
-      userId: admin.id,
-      type: "CUSTOM" as const,
-      title: "trafeGO: cobrança em duplicidade",
-      body: `O cartão de ${email} foi aprovado depois do PIX já confirmado. Verifique e estorne uma das cobranças.`,
-      appKey: "trafego",
-      actionUrl: "/admin/trafego",
-    })),
-  });
 }

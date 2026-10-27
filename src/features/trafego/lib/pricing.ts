@@ -23,7 +23,12 @@ export interface TrafegoPrice {
 /** Mínimo aceito pelo Stripe em BRL. */
 export const STRIPE_MIN_BRL_CENTS = 50;
 
-export function computeTrafegoPrice(input: TrafegoPriceInput): TrafegoPrice {
+/**
+ * Preço dos planos fixos (`TrafegoPlan`), mostrados no catálogo e no admin.
+ * NÃO é o preço do checkout: esse sai de `quoteTrafego` (pricing-tiers.ts),
+ * com as faixas de verba. Nome explícito para ninguém chamar a errada (P-7).
+ */
+export function computeLegacyPlanPrice(input: TrafegoPriceInput): TrafegoPrice {
   const adBudgetBrlCents = Math.max(0, Math.round(input.adBudgetBrlCents));
 
   const serviceFeeBrlCents =

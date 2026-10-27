@@ -25,7 +25,12 @@ import {
 } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
 import { markTrafegoPurchasePaid } from "@/features/trafego/server/lib/mark-purchase-paid";
-import { transitionTrafegoOrder } from "@/features/trafego/server/lib/transition-order";
+import {
+  flagTrafegoPaymentIssue,
+  revokeTrafegoPurchase,
+} from "@/features/trafego/server/lib/revoke-purchase";
+import { fetchTrafegoStripeDiscountCents } from "@/features/trafego/server/lib/stripe-discount";
+import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 
 export async function POST(req: NextRequest) {
   // Fail-closed: exigimos o secret dedicado. Passar `undefined` adiante faria
@@ -76,6 +81,7 @@ export async function POST(req: NextRequest) {
         await processTrafegoPurchasePaid({
           pendingId: metadata.pendingId,
           amountTotalCents: session.amount_total,
+          discountCents: session.total_details?.amount_discount ?? 0,
           paymentIntentId:
             typeof session.payment_intent === "string" ? session.payment_intent : null,
           checkoutSessionId: session.id,
@@ -104,6 +110,10 @@ export async function POST(req: NextRequest) {
         await processTrafegoPurchasePaid({
           pendingId,
           amountTotalCents: paymentIntent.amount_received ?? paymentIntent.amount ?? null,
+          // O PaymentIntent não carrega o cupom; a sessão que o gerou, sim.
+          discountCents: await fetchTrafegoStripeDiscountCents({
+            paymentIntentId: paymentIntent.id,
+          }),
           paymentIntentId: paymentIntent.id,
           checkoutSessionId: null,
           source: "payment_intent.succeeded",
@@ -143,22 +153,40 @@ export async function POST(req: NextRequest) {
               : null;
         if (!pending) break;
 
-        // Reembolso parcial não revoga a campanha — a equipe decide no painel.
+        // Reembolso parcial não revoga a campanha — a equipe decide no painel
+        // se o valor sai da taxa ou da verba.
         const isFullRefund = charge.amount_refunded >= charge.amount;
         if (!isFullRefund) {
-          console.warn(
-            `[trafego/webhook] reembolso parcial em ${pending.id} — nenhuma ação automática.`,
-          );
+          await flagTrafegoPaymentIssue({
+            pendingId: pending.id,
+            title: "Reembolso parcial",
+            detail: `${formatBrlFromCents(charge.amount_refunded)} de ${formatBrlFromCents(charge.amount)} reembolsados no cartão. Nada foi revertido sozinho: ajuste o pedido e o financeiro à mão.`,
+          });
           break;
         }
 
-        await revokeTrafegoPurchase(pending.id);
+        await revokeTrafegoPurchase(pending.id, "Stripe");
         break;
       }
 
       case "charge.dispute.created": {
-        // Só registra: disputa não revoga acesso automaticamente.
-        console.warn("[trafego/webhook] disputa aberta:", event.data.object.id);
+        // Disputa não revoga acesso: o cliente pode perder a contestação.
+        const dispute = event.data.object;
+        const paymentIntentId =
+          typeof dispute.payment_intent === "string" ? dispute.payment_intent : null;
+        const pending = paymentIntentId
+          ? await prisma.trafegoPendingPurchase.findFirst({
+              where: { stripePaymentIntentId: paymentIntentId },
+              select: { id: true },
+            })
+          : null;
+        if (!pending) break;
+
+        await flagTrafegoPaymentIssue({
+          pendingId: pending.id,
+          title: "Disputa aberta",
+          detail: `O cliente contestou ${formatBrlFromCents(dispute.amount)} no cartão (motivo: ${dispute.reason}). Responda no Stripe antes do prazo e decida se a campanha pausa.`,
+        });
         break;
       }
 
@@ -178,6 +206,7 @@ export async function POST(req: NextRequest) {
 interface ProcessPaidOptions {
   pendingId: string;
   amountTotalCents: number | null;
+  discountCents: number | null;
   paymentIntentId: string | null;
   checkoutSessionId: string | null;
   source: string;
@@ -193,6 +222,7 @@ async function processTrafegoPurchasePaid(options: ProcessPaidOptions): Promise<
     pendingId: options.pendingId,
     paymentSource: "stripe",
     amountTotalCents: options.amountTotalCents,
+    discountCents: options.discountCents,
     stripe: {
       paymentIntentId: options.paymentIntentId,
       checkoutSessionId: options.checkoutSessionId,
@@ -200,28 +230,5 @@ async function processTrafegoPurchasePaid(options: ProcessPaidOptions): Promise<
     // Stripe só confirma pendência ainda aberta. Compra expirada que recebe
     // pagamento tardio é caso de conferência humana, não de crédito automático.
     claimFromStatuses: ["PENDING"],
-  });
-}
-
-async function revokeTrafegoPurchase(pendingId: string): Promise<void> {
-  await prisma.trafegoPendingPurchase.update({
-    where: { id: pendingId },
-    data: { status: "REFUNDED" },
-  });
-
-  const order = await prisma.trafegoOrder.findUnique({
-    where: { pendingPurchaseId: pendingId },
-    select: { id: true },
-  });
-  if (!order) return;
-
-  // Criativos e histórico ficam — o cliente pode contestar, e a equipe precisa
-  // do rastro. O card vira perdido pela própria transição.
-  await transitionTrafegoOrder({
-    orderId: order.id,
-    toStatus: "REFUNDED",
-    source: "SYSTEM",
-    title: "Pagamento reembolsado",
-    clientNote: "O pagamento desta campanha foi reembolsado integralmente.",
   });
 }

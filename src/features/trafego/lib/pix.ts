@@ -5,9 +5,9 @@ const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export const PIX_REFERENCE_PREFIX = "TGP-";
 
-export function generatePixReference(): string {
+export function generatePixReference(length = 4): string {
   let suffix = "";
-  for (let index = 0; index < 4; index += 1) {
+  for (let index = 0; index < length; index += 1) {
     suffix += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
   }
   return `${PIX_REFERENCE_PREFIX}${suffix}`;

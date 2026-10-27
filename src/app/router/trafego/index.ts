@@ -63,6 +63,7 @@ import {
   replyTrafegoMessageAdmin,
   listTrafegoMessagesAdmin,
 } from "./admin/orders";
+import { createManualTrafegoOrderProcedure } from "./admin/create-manual-order";
 import {
   getTrafegoSettings,
   updateTrafegoSettings,
@@ -149,6 +150,7 @@ export const trafegoRouter = {
     orders: {
       list: listTrafegoOrdersAdmin,
       get: getTrafegoOrderAdmin,
+      createManual: createManualTrafegoOrderProcedure,
       updateStatus: updateTrafegoOrderStatus,
       assign: assignTrafegoOrder,
       linkMetaCampaign: linkTrafegoMetaCampaign,

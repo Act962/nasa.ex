@@ -1,7 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { computeTrafegoPrice } from "@/features/trafego/lib/pricing";
+import { computeLegacyPlanPrice } from "@/features/trafego/lib/pricing";
 import { trafegoPlatformSchema } from "@/features/trafego/schema/trafego-schemas";
 
 /**
@@ -43,7 +43,7 @@ export const listPublicTrafegoPlans = base
     });
 
     return plans.map((plan) => {
-      const price = computeTrafegoPrice({
+      const price = computeLegacyPlanPrice({
         adBudgetBrlCents: plan.adBudgetBrlCents,
         serviceFeePercent: Number(plan.serviceFeePercent),
         serviceFeeBrlCents: plan.serviceFeeBrlCents,
