@@ -145,7 +145,7 @@ export const PAYMENT_GUIDES: GuideDef[] = [
       {
         anchor: "paymentEntrySave",
         title: "Clique em Salvar",
-        message: "Cliente, categoria e parcelas são opcionais (ficam em \"Mais opções\").",
+        message: "Categoria, parcelas e a cobrança automática (cliente e régua) são opcionais.",
         position: "top",
         advanceOn: "result",
         resultKind: GUIDE_RESULT_KINDS.receivableCreated,

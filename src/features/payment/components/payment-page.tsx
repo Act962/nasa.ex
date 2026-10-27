@@ -22,6 +22,7 @@ import { ReconciliationTab } from "./reconciliation/reconciliation-tab";
 import { ContactsTab } from "./contacts/contacts-tab";
 import { ContractsTab } from "./contracts/contracts-tab";
 import { DocumentsTab } from "./attachments/documents-tab";
+import { ChargesTab } from "./charges/charges-tab";
 import { ProjectionTab } from "./projection/projection-tab";
 import { AccountsTab } from "./accounts/accounts-tab";
 import { DreTab } from "./reports/dre-tab";
@@ -31,7 +32,6 @@ import { HeaderTracking } from "@/features/leads/components/header-tracking";
 import { ASTRO_COMMAND_EXAMPLES } from "@/features/astro-commander/lib/command-examples";
 import { ApprovalsTab } from "./approvals/approvals-tab";
 import { GovernanceSettingsTab } from "./governance/governance-settings-tab";
-import { DunningRulesTab } from "./dunning/dunning-rules-tab";
 import { AccountingTab } from "@/features/accounting/components/accounting-tab";
 import { NerpFinancialToggle } from "./governance/nerp-financial-toggle";
 import {
@@ -67,6 +67,7 @@ import {
   FileText,
   Factory,
   Scale,
+  BellRing,
 } from "lucide-react";
 import { AppReportButton } from "@/features/insights/components/app-report-button";
 
@@ -80,6 +81,7 @@ const MAIN_TABS: PaymentTab[] = [
   { value: "dashboard", label: "Painel", icon: LayoutDashboard },
   { value: "receivables", label: "Receita", icon: ArrowUpFromLine },
   { value: "payables", label: "Despesa", icon: ArrowDownToLine },
+  { value: "charges", label: "Cobranças", icon: BellRing },
   { value: "cashflow", label: "Fluxo de Caixa", icon: TrendingUp, hasChildren: true },
   { value: "reconciliation", label: "Conciliação", icon: ArrowLeftRight },
   { value: "accounts", label: "Contas", icon: Landmark },
@@ -102,6 +104,7 @@ const MOBILE_TABS: PaymentTabItem[] = [
   { value: "dashboard", label: "Painel", emoji: "📊" },
   { value: "receivables", label: "Receita", emoji: "💚" },
   { value: "payables", label: "Despesa", emoji: "🔴" },
+  { value: "charges", label: "Cobranças", emoji: "🔔" },
   { value: "cashflow", label: "Fluxo de Caixa", emoji: "📈" },
   { value: "projection", label: "Projeção", emoji: "🔭" },
   { value: "dre", label: "DRE", emoji: "📄" },
@@ -119,6 +122,7 @@ const MOBILE_TABS: PaymentTabItem[] = [
 const FILTERED_TABS = new Set([
   "dashboard",
   "receivables",
+  "charges",
   "payables",
   "cashflow",
   "projection",
@@ -228,7 +232,7 @@ export function PaymentPage() {
   }
 
   return (
-    <div className="h-full w-full flex flex-col">
+    <div className="h-full w-full min-w-0 flex flex-col">
       {/* Header */}
       <HeaderTracking
         title="Payment"
@@ -258,15 +262,6 @@ export function PaymentPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="hidden size-8 sm:inline-flex"
-            onClick={() => setSettingsOpen(true)}
-            title="Configurações do Payment"
-          >
-            <Settings className="size-4" />
-          </Button>
           <PaymentMobileMenu
             className="sm:hidden"
             tabs={tabs}
@@ -333,6 +328,9 @@ export function PaymentPage() {
           </TabsContent>
           <TabsContent value="receivables" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <EntriesTable type="RECEIVABLE" />
+          </TabsContent>
+          <TabsContent value="charges" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
+            <ChargesTab />
           </TabsContent>
           <TabsContent value="payables" className="px-4 sm:px-6 py-5 sm:py-6 mt-0">
             <EntriesTable type="PAYABLE" />
@@ -421,12 +419,6 @@ export function PaymentPage() {
                 Governança e Aprovações
               </h3>
               <GovernanceSettingsTab />
-            </section>
-            <section className="space-y-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">
-                Régua de Cobrança
-              </h3>
-              <DunningRulesTab />
             </section>
             <section className="space-y-4">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pb-2 border-b border-border/40">

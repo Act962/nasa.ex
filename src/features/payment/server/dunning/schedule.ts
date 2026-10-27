@@ -12,17 +12,19 @@ import { inngest } from "@/inngest/client";
  *     Inngest "dorme" até o timestamp e dispara o handler 1 vez.
  *   - Se `fireAt <= now`, ignora (não vamos disparar steps retroativos sem
  *     ação explícita do user — evita inundar contato com mensagens passadas).
- *   - Idempotência via `id` único derivado de (entryId, stepId): se mesmo
- *     evento for enviado de novo (re-atribuição), Inngest deduplica.
+ *   - Idempotência via `id` único derivado de (entryId, stepId, vencimento): se o
+ *     mesmo evento for enviado de novo (re-atribuição), Inngest deduplica.
  *
  * Chamado em:
  *   - `createPaymentEntry` quando `dunningRuleId` é setado E `type=RECEIVABLE`.
  *   - `assignDunningRule` quando o user atribui régua a entry existente.
  *
- * Quando o entry é UPDATED com novo `dunningRuleId` ou `dueDate`:
- *   - Re-chama essa função (eventos novos com IDs diferentes pra cada step).
- *   - Eventos antigos ainda chegam mas o handler é idempotente (vê que tem
- *     `PaymentDunningExecution` com `(entryId, stepId)` ou status final → skip).
+ *   - `updatePaymentEntryRecord` e `generateEntryInstallments` (vencimento mudou,
+ *     parcelas novas que herdam a régua).
+ *
+ * Vencimento alterado: o vencimento entra no `id` (eventos novos não são
+ * deduplicados pelos antigos) e vai em `dueDateMs`; os eventos antigos ainda
+ * chegam, e o handler os descarta por não baterem com o vencimento atual.
  */
 export async function scheduleDunningForEntry(entryId: string) {
   const entry = await prisma.paymentEntry.findUnique({
@@ -59,7 +61,7 @@ export async function scheduleDunningForEntry(entryId: string) {
     .map((step) => {
       const fireAt = new Date(entry.dueDate);
       fireAt.setDate(fireAt.getDate() + step.daysOffset);
-      return { step, fireAtMs: fireAt.getTime() };
+      return { step, fireAtMs: moveIntoBusinessHours(fireAt).getTime() };
     })
     .filter((x) => x.fireAtMs > now);
 
@@ -68,19 +70,38 @@ export async function scheduleDunningForEntry(entryId: string) {
   await inngest.send(
     events.map(({ step, fireAtMs }) => ({
       name: "payment/dunning.fire",
-      // Dedup key: mesmo entry+step nunca agenda 2 vezes no Inngest.
-      id: `dunning-${entry.id}-${step.id}`,
+      // Dedup key: mesmo entry+step+vencimento nunca agenda 2 vezes no Inngest.
+      id: `dunning-${entry.id}-${step.id}-${entry.dueDate.getTime()}`,
       data: {
         entryId:        entry.id,
         stepId:         step.id,
         organizationId: entry.organizationId,
         scheduledForMs: fireAtMs,
+        dueDateMs:      entry.dueDate.getTime(),
       },
       ts: fireAtMs,
     })),
   );
 
   return { scheduled: events.length };
+}
+
+const BRAZIL_UTC_OFFSET_HOURS = 3;
+const FIRST_BUSINESS_HOUR = 8;
+const LAST_BUSINESS_HOUR = 20;
+const DEFAULT_SEND_HOUR = 9;
+
+/** Aviso ao cliente só entre 8h e 20h de Brasília; fora disso, às 9h seguintes (spec 0115, RNF-3). */
+export function moveIntoBusinessHours(fireAt: Date): Date {
+  const offsetMs = BRAZIL_UTC_OFFSET_HOURS * 60 * 60 * 1000;
+  // Relógio de Brasília lido pelos getters UTC.
+  const brazilClock = new Date(fireAt.getTime() - offsetMs);
+  const brazilHour = brazilClock.getUTCHours();
+  if (brazilHour >= FIRST_BUSINESS_HOUR && brazilHour < LAST_BUSINESS_HOUR) return fireAt;
+
+  if (brazilHour >= LAST_BUSINESS_HOUR) brazilClock.setUTCDate(brazilClock.getUTCDate() + 1);
+  brazilClock.setUTCHours(DEFAULT_SEND_HOUR, 0, 0, 0);
+  return new Date(brazilClock.getTime() + offsetMs);
 }
 
 /**

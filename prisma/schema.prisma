@@ -673,6 +673,9 @@ model Tracking {
   astroBotEnabledOn AstroBotTracking[]
   astroChatSites    AstroChatSite[]
 
+  // Tracking cujo número envia a régua e os lembretes do financeiro (spec 0115).
+  paymentMessagingFor PaymentGovernanceConfig[]
+
   @@map("tracking")
 }
 
@@ -6353,6 +6356,9 @@ model PaymentEntry {
   // Régua atribuída a esta entry (só faz sentido em RECEIVABLE). Quando setado,
   // o cron `payment-dunning-runner` dispara steps conforme `dueDate + step.daysOffset`.
   dunningRuleId String? @map("dunning_rule_id")
+  // Avisos pausados até esta data (cliente prometeu pagar). Os avisos que caírem na pausa
+  // saem no fim dela — no máximo um por dia ao cliente.
+  dunningPausedUntil DateTime? @map("dunning_paused_until")
 
   createdById String?  @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -6496,11 +6502,15 @@ model PaymentGovernanceConfig {
   sessionTimeoutMinutes      Int      @default(30) @map("session_timeout_minutes")
   // A cada N sessões abertas, exige OTP novo via WhatsApp (em vez de só senha).
   otpEveryNSessions          Int      @default(10) @map("otp_every_n_sessions")
+  // Tracking cujo número de WhatsApp envia a régua e os lembretes (spec 0115). null = número mais antigo da org.
+  messagingTrackingId        String?  @map("messaging_tracking_id")
   createdAt                  DateTime @default(now()) @map("created_at")
   updatedAt                  DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  messagingTracking Tracking?    @relation(fields: [messagingTrackingId], references: [id], onDelete: SetNull)
 
+  @@index([messagingTrackingId])
   @@map("payment_governance_config")
 }
 
@@ -6600,6 +6610,11 @@ model PaymentDunningStep {
   templateSubject String?               @map("template_subject")
   templateBody    String                @map("template_body")
   enabled         Boolean               @default(true)
+  // Modelo aprovado da Meta usado fora da janela de 24h no número oficial (spec 0115, RF-13).
+  // `whatsappTemplateParams[i]` é a variável da régua (ex.: "{{valor}}") que preenche o {{i+1}} do corpo.
+  whatsappTemplateName     String?  @map("whatsapp_template_name")
+  whatsappTemplateLanguage String?  @map("whatsapp_template_language")
+  whatsappTemplateParams   String[] @default([]) @map("whatsapp_template_params")
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @updatedAt @map("updated_at")
 
@@ -6622,6 +6637,9 @@ model PaymentDunningExecution {
   channel      PaymentDunningChannel
   errorMessage String?                       @map("error_message")
   messageId    String?                       @map("message_id") // id retornado pelo provider (email message-id, WA msg id)
+  // Confirmações do WhatsApp oficial (webhook de status da Meta). Uazapi não manda.
+  deliveredAt  DateTime?                     @map("delivered_at")
+  readAt       DateTime?                     @map("read_at")
   createdAt    DateTime                      @default(now()) @map("created_at")
   updatedAt    DateTime                      @updatedAt @map("updated_at")
 
@@ -6630,6 +6648,7 @@ model PaymentDunningExecution {
 
   @@unique([entryId, stepId])
   @@index([status, scheduledFor])
+  @@index([messageId])
   @@map("payment_dunning_executions")
 }
 

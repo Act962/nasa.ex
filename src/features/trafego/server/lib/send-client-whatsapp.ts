@@ -1,6 +1,6 @@
 import "server-only";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
-import { normalizeWhatsappPhoneBr } from "@/features/trafego/lib/phone";
+import { normalizeWhatsappPhoneBr } from "@/utils/format-phone";
 import { loadTrafegoSettings } from "./trafego-settings";
 import { persistTrafegoOutboundMessage } from "./conversation-bridge";
 

@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
-import { normalizeWhatsappPhoneBr } from "@/features/trafego/lib/phone";
+import { normalizeWhatsappPhoneBr } from "@/utils/format-phone";
 import { waIdLookupVariants } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 import { PLATFORM_SHORT_LABEL } from "@/features/trafego/lib/catalog-labels";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";

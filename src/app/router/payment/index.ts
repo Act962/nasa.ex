@@ -109,6 +109,9 @@ import {
   assignDunningRuleToEntry,
   listDunningExecutionsByEntry,
 } from "./dunning";
+import { getPaymentChargeLink, listPaymentCharges, reopenCharge, setChargeDunningPause } from "./charges";
+import { searchCustomers } from "./customers";
+import { getPaymentMessagingSender, setPaymentMessagingSender } from "./messaging";
 
 export const paymentRouter = {
   access: {
@@ -242,5 +245,21 @@ export const paymentRouter = {
     executions: {
       listByEntry: listDunningExecutionsByEntry,
     },
+  },
+  // ── Spec 0115: cobranças (link público com PIX) ───────────────────────
+  charges: {
+    getLink: getPaymentChargeLink,
+    list: listPaymentCharges,
+    setDunningPause: setChargeDunningPause,
+    reopen: reopenCharge,
+  },
+  // Cliente da cobrança: contatos do financeiro + leads do funil.
+  customers: {
+    search: searchCustomers,
+  },
+  // Número (tracking) que envia a régua e os lembretes do financeiro.
+  messaging: {
+    getSender: getPaymentMessagingSender,
+    setSender: setPaymentMessagingSender,
   },
 };

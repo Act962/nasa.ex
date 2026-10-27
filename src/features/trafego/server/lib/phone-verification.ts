@@ -1,6 +1,6 @@
 import "server-only";
 import prisma from "@/lib/prisma";
-import { normalizeWhatsappPhoneBr } from "@/features/trafego/lib/phone";
+import { normalizeWhatsappPhoneBr } from "@/utils/format-phone";
 import { loadTrafegoSettings } from "./trafego-settings";
 import { sendTrafegoClientWhatsapp } from "./send-client-whatsapp";
 

@@ -2,7 +2,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { validWhatsappPhone } from "@/http/uazapi/valid-whatsapp-phone";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
-import { normalizeWhatsappPhoneBr } from "@/features/trafego/lib/phone";
+import { normalizeWhatsappPhoneBr } from "@/utils/format-phone";
 import { loadTrafegoSettings } from "./trafego-settings";
 
 /**

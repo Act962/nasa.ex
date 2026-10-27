@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { invalidateOutboundProvider } from "@/features/tracking-chat/lib/providers";
@@ -6,9 +7,11 @@ import { listInstances } from "@/http/uazapi/admin/list-instances";
 import { deleteInstance } from "@/http/uazapi/delete-instance";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { findOrganizationInstanceByInstanceId } from "./owned-instance";
 
 export const deleteInstanceUazapi = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     summary: "Delete a instance",
@@ -21,23 +24,15 @@ export const deleteInstanceUazapi = base
       id: z.string().min(1, "ID é obrigatório"),
     }),
   )
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
+    // Fora do try: o catch abaixo engole erro, e a recusa precisa chegar ao client.
+    // Também serve de snapshot para o log e para invalidar o cache outbound por trackingId.
+    const instance = await findOrganizationInstanceByInstanceId(input.id, context.org.id);
+    if (!instance) throw errors.NOT_FOUND({ message: "Instância não encontrada." });
+
     try {
       const adminToken = process.env.UAZAPI_TOKEN!;
       const { apiKey, baseUrl, id } = input;
-
-      // Snapshot da instância ANTES do delete pra ter dados no log e
-      // pra conseguir invalidar o cache outbound por trackingId.
-      const instance = await prisma.whatsAppInstance.findUnique({
-        where: { instanceId: id },
-        select: {
-          id: true,
-          instanceName: true,
-          phoneNumber: true,
-          organizationId: true,
-          trackingId: true,
-        },
-      });
 
       const instances = await listInstances(adminToken);
       const hasApiKey = instances.find((key) => key.token === apiKey);
@@ -78,6 +73,8 @@ export const deleteInstanceUazapi = base
         });
       }
     } catch (error) {
-      console.log(error);
+      // Antes o erro era engolido e a tela mostrava "excluída" com a instância ainda no banco.
+      console.error("[integrations/delete]", error);
+      throw errors.INTERNAL_SERVER_ERROR({ message: "Não foi possível excluir a instância." });
     }
   });

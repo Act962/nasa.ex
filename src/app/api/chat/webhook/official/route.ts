@@ -63,6 +63,7 @@ import { createProvider } from "@/features/tracking-chat/lib/providers";
 import { persistCanonicalInbound } from "@/features/tracking-chat/lib/inbound/persist-canonical-inbound";
 import { applyStatusUpdates } from "@/features/tracking-chat/lib/inbound/apply-status-updates";
 import { applyBroadcastStatusUpdates } from "@/features/campanhas/server/lib/apply-broadcast-status-updates";
+import { applyDunningStatusUpdates } from "@/features/payment/server/dunning/apply-dunning-status-updates";
 import {
   buildMetaDownloadInboundMedia,
   buildMetaFetchProfilePicture,
@@ -318,6 +319,13 @@ export async function POST(request: NextRequest) {
     // é de chat OU de disparo — cada handler ignora o que não é seu.
     await applyBroadcastStatusUpdates(normalized.statusUpdates).catch((error) => {
       console.error("[webhook:official:POST] apply_broadcast_status_failed", {
+        phoneNumberId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+    // E os avisos da régua de cobrança do financeiro (entregue/lido/falhou).
+    await applyDunningStatusUpdates(normalized.statusUpdates).catch((error) => {
+      console.error("[webhook:official:POST] apply_dunning_status_failed", {
         phoneNumberId,
         error: error instanceof Error ? error.message : String(error),
       });

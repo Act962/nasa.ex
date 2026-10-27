@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { updateConversationLastMessage } from "@/app/router/message/utils";
-import { normalizeWhatsappPhoneBr } from "@/features/trafego/lib/phone";
+import { normalizeWhatsappPhoneBr } from "@/utils/format-phone";
 
 /** Garante a Conversation canônica do lead usado pela operação trafeGO. */
 export async function ensureTrafegoConversation({
