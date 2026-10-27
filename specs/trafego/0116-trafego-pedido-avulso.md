@@ -7,7 +7,7 @@ autor: João Gabriel
 criada: 2026-10-27
 atualizada: 2026-10-27
 branch: claude/trafego-features-review-e7832d
-pr:
+pr: 481
 peso: leve
 ---
 
