@@ -53,7 +53,14 @@ async function reverseTrafegoSaleEntries(
       type: { in: ["RECEIVABLE", "PAYABLE"] },
       status: { not: "CANCELLED" },
     },
-    select: { id: true, type: true, status: true, notes: true, paidAmount: true },
+    select: {
+      id: true,
+      type: true,
+      status: true,
+      notes: true,
+      amount: true,
+      paidAmount: true,
+    },
   });
 
   // Verba já repassada à plataforma não volta sozinha: cancelar o lançamento
@@ -70,6 +77,25 @@ async function reverseTrafegoSaleEntries(
       data: {
         status: "CANCELLED",
         notes: [entry.notes, reversalNote].filter(Boolean).join("\n"),
+      },
+    });
+  }
+
+  // Repasse pago em parte: a parte paga fica registrada, o saldo deixa de ser
+  // devido — a campanha foi reembolsada, não há mais verba a repassar.
+  for (const entry of alreadyPaidOut) {
+    if (entry.status !== "PARTIAL") continue;
+    await prisma.paymentEntry.update({
+      where: { id: entry.id },
+      data: {
+        status: "PAID",
+        amount: entry.paidAmount,
+        notes: [
+          entry.notes,
+          `${reversalNote} Saldo não repassado de ${formatBrlFromCents(entry.amount - entry.paidAmount)} baixado.`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
       },
     });
   }
