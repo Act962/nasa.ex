@@ -11,6 +11,7 @@
 
 import prisma from "@/lib/prisma";
 import { StarTransactionType } from "@/generated/prisma/client";
+import { lockOrganizationsForStars } from "./lock-organizations";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -171,6 +172,7 @@ export async function debitStars(
 
   // ── 1. Debitar dentro de uma transação atômica ────────────────────────────
   const result = await prisma.$transaction(async (tx) => {
+    await lockOrganizationsForStars(tx, [organizationId]);
     const org = await tx.organization.findUniqueOrThrow({
       where: { id: organizationId },
       select: { starsBalance: true, starsBonusBalance: true },
@@ -443,6 +445,7 @@ async function creditStars(
   packageId?: string,
 ): Promise<number> {
   const result = await prisma.$transaction(async (tx) => {
+    await lockOrganizationsForStars(tx, [organizationId]);
     const org = await tx.organization.findUniqueOrThrow({
       where: { id: organizationId },
       select: { starsBalance: true },

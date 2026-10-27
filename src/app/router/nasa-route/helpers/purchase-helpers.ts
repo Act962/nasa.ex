@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { StarTransactionType } from "@/generated/prisma/enums";
 import type { Prisma } from "@/generated/prisma/client";
+import { lockOrganizationsForStars } from "@/features/stars/lib/lock-organizations";
 import { PLATFORM_FEE_PCT } from "../utils";
 
 type Tx = Prisma.TransactionClient;
@@ -55,6 +56,7 @@ export async function executeCoursePurchaseInTx(
   } = opts;
 
   // ── Debit comprador (apenas starsBalance gastável) ─────────────────────
+  await lockOrganizationsForStars(tx, [buyerOrgId, creatorOrgId]);
   const buyer = await tx.organization.findUniqueOrThrow({
     where: { id: buyerOrgId },
     select: { starsBalance: true, starsBonusBalance: true },

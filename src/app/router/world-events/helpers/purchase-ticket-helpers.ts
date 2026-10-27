@@ -2,6 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { StarTransactionType } from "@/generated/prisma/enums";
 import type { Prisma } from "@/generated/prisma/client";
 import { randomBytes } from "node:crypto";
+import { lockOrganizationsForStars } from "@/features/stars/lib/lock-organizations";
 
 /**
  * Helper de compra de ingresso de WorldEvent — padrão espelhado de
@@ -59,6 +60,7 @@ export async function executeTicketPurchaseInTx(
   } = opts;
 
   // ── 1. Debit comprador (apenas starsBalance gastável) ─────────────────────
+  await lockOrganizationsForStars(tx, [buyerOrgId, hostOrgId]);
   const buyer = await tx.organization.findUniqueOrThrow({
     where: { id: buyerOrgId },
     select: { starsBalance: true, starsBonusBalance: true },
