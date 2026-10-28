@@ -75,6 +75,25 @@ room:
   empty_timeout: 300
 ```
 
+## LiveKit na máquina de desenvolvimento
+
+Para testar a presença ao vivo localmente, o próprio LiveKit tem um modo de desenvolvimento que roda num container só, com chaves de teste públicas (`devkey` / `secret`):
+
+```bash
+docker run -d --name orbita-livekit-dev --restart unless-stopped -p 7880:7880 -p 7881:7881 -p 7882:7882/udp livekit/livekit-server:v1.8.4 --dev --bind 0.0.0.0 --node-ip 127.0.0.1
+```
+
+No `.env.local`:
+
+```
+LIVEKIT_API_KEY=devkey
+LIVEKIT_API_SECRET=secret
+LIVEKIT_WS_URL=ws://localhost:7880
+NEXT_PUBLIC_LIVEKIT_URL=ws://localhost:7880
+```
+
+Reinicie o `pnpm dev` depois de mudar o `.env.local`, porque a variável `NEXT_PUBLIC_*` só é lida na partida. `http://localhost:7880` deve responder `OK`. Essas chaves valem **só** para desenvolvimento: em produção, gere as suas (passo 2 acima).
+
 ## Como conferir que funcionou
 
 1. `https://livekit.<domínio>` responde `OK` no navegador.
