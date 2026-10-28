@@ -1,0 +1,66 @@
+# Órbita Station 3D — visão geral
+
+Escritório virtual em 3D em que cada sala corresponde a um módulo da plataforma. É um produto **novo**, sem relação com a Space Station 2D (`src/features/space-station/`, em Phaser). Os dois não compartilham código, dados nem specs.
+
+| Item | Onde |
+| --- | --- |
+| Rota | `/orbita-station`, em `src/app/(platform)/orbita-station/page.tsx`. Exige login e não aparece no menu até a etapa 2. |
+| Domínio | `src/features/orbita-station/` |
+| Modelos 3D | `public/orbita-station/models/` (créditos e licenças em `CREDITS.txt`, todos CC0) |
+| Specs | [0117 — etapa 1](../specs/orbita-station/0117-orbita-station-3d-etapa-1.md) · [0116 — loja](../specs/orbita-station/0116-loja-orbita-itens-na-estacao.md) |
+
+## Etapas
+
+| Etapa | O que entra | Status |
+| --- | --- | --- |
+| 1 (spec 0117) | Estação do protótipo como código do app, sem banco: modelos de estação, personagem, câmera, acabamento | 🚧 em construção |
+| 2 (sem spec) | Estação da empresa no banco, presença, permissões, editor de decoração, link no menu | ⬜ |
+| Loja (spec 0116) | Comprar itens com STARS e posicioná-los | ⬜ depende da etapa 2 |
+
+## Estrutura
+
+```
+src/features/orbita-station/
+├── layout/      # funções puras (sem Three.js nem DOM): modelos de estação, tipos de sala, montagem e colisão
+├── engine/      # Three.js puro: StationEngine, estrutura, móveis, personagem, acabamento, biblioteca de modelos
+├── components/  # React: canvas, interface, joystick
+├── store/       # Zustand da interface
+└── lib/         # preferências no navegador (Zod), visual do avatar
+```
+
+## API do motor (`engine/station-engine.ts`)
+
+A interface só fala com o motor por estes métodos e eventos. O motor não importa React.
+
+| Método | O que faz |
+| --- | --- |
+| `start()` | Baixa os modelos, monta a estação e começa o loop. |
+| `setTemplate(key)` | Remonta as salas com outro modelo de estação. |
+| `setLook(look)` | Troca o visual do personagem. |
+| `setQuality("medio" \| "leve")` | Liga ou desliga o brilho. |
+| `setMoveInput(x, y)` | Joystick de toque, de -1 a 1. |
+| `zoomBy(factor)` | Aproxima ou afasta a câmera, dentro do limite. |
+| `captureImage()` | PNG da tela atual. |
+| `dispose()` | Libera tudo: GPU, contexto WebGL, eventos. |
+
+| Evento (`onEvent`) | Quando |
+| --- | --- |
+| `ready` | A estação está montada e o personagem nasceu. |
+| `roomChange` | O personagem entrou numa sala ou no corredor (`room: null`). |
+| `qualityChange` | O nível gráfico mudou (inclusive a queda automática para "leve"). |
+| `error` | Os modelos 3D não carregaram. |
+
+## Decisões que não devem ser revertidas sem argumento novo
+
+- **Three.js puro, não `@react-three/fiber`** (0117, D-2): portar a lógica validada custa menos que reescrever tudo em formato declarativo.
+- **Modelos como arquivos estáticos** (0117, D-4), carregados uma vez. Os móveis da cena são clones que dividem a geometria (`userData.sharesGeometry`), então `disposeObject` não libera a geometria deles.
+- **Luzes multiplicadas por π** em relação ao protótipo: desde a r155 o Three.js usa unidades físicas.
+- **Reflexo pela cena com `scene.environmentIntensity = 0,22`**: desde a r163 o `envMapIntensity` do material é ignorado quando o reflexo vem de `scene.environment`. Material que precisa de outra intensidade recebe o mapa direto (`bindEnvironment` no motor). Sem isso, a cena fica ~4,5x mais clara.
+- **Tamanho zero do canvas é ignorado** até ele ganhar tamanho. No protótipo isso deixava a tela preta para sempre (0117, CB-2).
+
+## Changelog
+
+| Data | Mudança |
+| --- | --- |
+| 2026-10-27 | Criado com a primeira parte da etapa 1: estrutura, móveis, personagem, câmera, acabamento e rota. |
+| 2026-10-28 | Estúdio do personagem (prévia em `engine/studio-preview.ts`, abre sozinho na primeira visita) e modo mapa (tecla M, clique na sala leva o personagem até ela). Novos métodos do motor: `setMode`, `setPaused`, `walkToRoom`, `roomLabels`, `openStudio`. |
