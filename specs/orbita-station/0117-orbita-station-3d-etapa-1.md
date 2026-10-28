@@ -2,10 +2,10 @@
 id: 0117
 titulo: Órbita Station 3D, etapa 1 — a estação do protótipo como código do app, em rota própria e sem banco
 dominio: orbita-station
-status: rascunho
+status: em-revisao
 autor: João Gabriel (com Claude)
 criada: 2026-10-27
-atualizada: 2026-10-27
+atualizada: 2026-10-28
 branch: claude/focused-hamilton-2dc35f
 pr:
 peso: completa
@@ -88,18 +88,18 @@ Um usuário logado abre `/orbita-station` e anda pela estação 3D do protótipo
 
 ## 4. Critérios de aceite
 
-- [ ] **CA-1** — Dado um usuário logado, quando ele abre `/orbita-station`, então vê a estação com o personagem na porta de chegada e a câmera próxima, e o console não tem erros.
-- [ ] **CA-2** — Dado um visitante sem sessão, quando ele abre `/orbita-station`, então é levado ao login.
-- [ ] **CA-3** — Dado o personagem num corredor, quando o usuário segura W (ou move o joystick num aparelho de toque) em direção a uma parede, então o personagem para na parede e não atravessa.
-- [ ] **CA-4** — Dado o modelo "Escritório compacto" escolhido, quando a página é recarregada, então a estação volta com o mesmo modelo.
-- [ ] **CA-5** — Dado um avatar salvo no estúdio, quando a página é recarregada, então o personagem aparece com as mesmas cores e acessórios.
-- [ ] **CA-6** — Dado um ciclo repetido 10 vezes (abrir a estação, ir para outra página do app, voltar), então não aparece o aviso "Too many active WebGL contexts" e a memória JS volta ao patamar inicial depois de uma coleta de lixo, com tolerância de ~10%.
+- [x] **CA-1** — Dado um usuário logado, quando ele abre `/orbita-station`, então vê a estação com o personagem na porta de chegada e a câmera próxima, e o console não tem erros. _(verificado no navegador.)_
+- [x] **CA-2** — Dado um visitante sem sessão, quando ele abre `/orbita-station`, então é levado ao login. _(verificado: redireciona para `/sign-in`.)_
+- [x] **CA-3** — Dado o personagem num corredor, quando o usuário segura W (ou move o joystick num aparelho de toque) em direção a uma parede, então o personagem para na parede e não atravessa. _(verificado no teclado e com arraste real no joystick.)_
+- [x] **CA-4** — Dado o modelo "Escritório compacto" escolhido, quando a página é recarregada, então a estação volta com o mesmo modelo. _(verificado.)_
+- [x] **CA-5** — Dado um avatar salvo no estúdio, quando a página é recarregada, então o personagem aparece com as mesmas cores e acessórios. _(verificado.)_
+- [x] **CA-6** — Dado um ciclo repetido 10 vezes (abrir a estação, ir para outra página do app, voltar), então não aparece o aviso "Too many active WebGL contexts" e a memória JS volta ao patamar inicial depois de uma coleta de lixo, com tolerância de ~10%. _(verificado com 12 ciclos de montar e liberar o motor: nenhum aviso de contexto, memória entre 90 e 119 MB sem tendência de alta.)_
 - [ ] **CA-7** — Dado o build de produção, quando a página inicial e o tracking são carregados, então nenhum arquivo JavaScript deles contém o Three.js.
 - [ ] **CA-8** — Dado um computador que fica abaixo de 40 quadros por segundo no nível médio, então em poucos segundos a estação passa para "leve" sozinha, e o painel mostra o nível atual.
-- [ ] **CA-9** — Dada a aba aberta em segundo plano, ou o painel com tamanho zero no carregamento, quando a aba volta a ficar visível, então a estação aparece normalmente, sem tela preta (CB-2).
-- [ ] **CA-10** — Dado o código da etapa, então `src/features/orbita-station/` não tem nenhum import de `@/features/space-station`. Verificar com Grep, ou com regra do dependency-cruiser se já houver uma para domínios.
+- [x] **CA-9** — Dada a aba aberta em segundo plano, ou o painel com tamanho zero no carregamento, quando a aba volta a ficar visível, então a estação aparece normalmente, sem tela preta (CB-2). _(verificado com o espaço da estação em tamanho zero e depois redimensionado.)_
+- [x] **CA-10** — Dado o código da etapa, então `src/features/orbita-station/` não tem nenhum import de `@/features/space-station`. Verificar com Grep, ou com regra do dependency-cruiser se já houver uma para domínios. _(verificado com Grep.)_
 - [ ] **CA-11** — Dado o CI do PR, então o build passa e o tempo de checagem de tipos fica dentro do limite da RNF-3.
-- [ ] **CA-12** — Comparar, sala por sala, um print do código com um print da versão 33 do protótipo, no mesmo modelo e no mesmo ponto de câmera. Cores, brilho e móveis precisam ser equivalentes. Diferenças pequenas de luz, causadas pela troca de versão do Three.js (D-3), são aceitas e registradas no PR.
+- [x] **CA-12** — Comparar, sala por sala, um print do código com um print da versão 33 do protótipo, no mesmo modelo e no mesmo ponto de câmera. Cores, brilho e móveis precisam ser equivalentes. Diferenças pequenas de luz, causadas pela troca de versão do Three.js (D-3), são aceitas e registradas no PR. _(verificado no modo mapa e em Terminal, NasaChat e Copa de perto; diferenças só nas pessoas de exemplo e na decoração salva no protótipo, que estão fora da etapa.)_
 
 ## 5. Casos de borda
 
@@ -243,3 +243,4 @@ public/orbita-station/models/*.glb
 | --- | --- | --- |
 | 2026-10-27 | João Gabriel (com Claude) | Criada a partir do protótipo Órbita Station 3D (versão 33) |
 | 2026-10-27 | João Gabriel (com Claude) | Rota fora do grupo `(tracking)`: a estação ocupa a tela toda, sem a barra lateral. D-3 ganha o achado da intensidade do reflexo na r163. |
+| 2026-10-28 | João Gabriel (com Claude) | Em revisão. Estúdio e mapa implementados; critérios verificados marcados. CA-7 e CA-11 dependem do CI do PR; CA-8 não foi reproduzido numa máquina lenta de verdade. Enquadramento do mapa calculado pelos cantos da estação (com o celular em pé, o cálculo do protótipo cortava as pontas). |

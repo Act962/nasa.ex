@@ -82,7 +82,7 @@ export function AvatarStudio({ engine, initialLook, onSave, onClose }: AvatarStu
       <div className="relative min-h-[40dvh]">
         <div ref={stageRef} className="absolute inset-0" />
         <p className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-white/60">
-          Arraste para girar · roda do mouse para aproximar · dois cliques para voltar
+          Arraste para girar o personagem
         </p>
       </div>
       <div className="flex min-h-0 flex-col border-white/10 bg-black/60 md:border-l">

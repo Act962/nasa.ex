@@ -213,7 +213,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0076](leads/0076-vinculados-do-lead.md) | leads | Vinculados do lead (dependentes, filiais) com cobrança pelo Financeiro | implementada |
 | [0077](workflows/0077-correcoes-api-oficial-e-gatilhos-orbita.md) | workflows | Correções API Oficial e Gatilhos ÓRBITA — jornada comentário → WhatsApp → curso → lead ganho | rascunho |
 | [0116](orbita-station/0116-loja-orbita-itens-na-estacao.md) | orbita-station | Loja Órbita — comprar itens com STARS e posicioná-los na Órbita Station 3D | rascunho |
-| [0117](orbita-station/0117-orbita-station-3d-etapa-1.md) | orbita-station | Órbita Station 3D, etapa 1 — a estação do protótipo como código do app, em rota própria e sem banco | rascunho |
+| [0117](orbita-station/0117-orbita-station-3d-etapa-1.md) | orbita-station | Órbita Station 3D, etapa 1 — a estação do protótipo como código do app, em rota própria e sem banco | em-revisao |
 
 ---
 

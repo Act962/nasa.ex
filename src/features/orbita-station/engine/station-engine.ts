@@ -4,9 +4,8 @@ import * as THREE from "three";
 import type { AvatarLook } from "../lib/avatar-look";
 import {
   DOOR_WIDTH,
-  HALL_WIDTH,
   ROOM_DEPTH,
-  ROOM_GAP_Z,
+  ROOM_OFFSET_Z,
   moveWithCollision,
   planRouteToRoom,
   resolveLayout,
@@ -351,9 +350,26 @@ export class StationEngine {
     });
   }
 
+  // A câmera olha a estação na diagonal: o enquadramento sai dos cantos da estação vistos por ela,
+  // não só do comprimento do corredor. Com o celular em pé, as pontas cortavam.
   private mapHeight() {
     const aspect = this.viewWidth / Math.max(this.viewHeight, 1);
-    return Math.max(30, ((this.layout.hallLength + 8) / aspect) * 0.95, (HALL_WIDTH + ROOM_DEPTH * 2 + ROOM_GAP_Z * 2) * 1.1);
+    const halfLength = this.layout.hallLength / 2 + 1;
+    const halfDepth = ROOM_OFFSET_Z + ROOM_DEPTH / 2 + 0.5;
+    const view = new THREE.Matrix4().lookAt(CAMERA_OFFSET, new THREE.Vector3(), THREE.Object3D.DEFAULT_UP).setPosition(CAMERA_OFFSET).invert();
+    let maxRight = 0;
+    let maxUp = 0;
+    const corner = new THREE.Vector3();
+    [-halfLength, halfLength].forEach((x) =>
+      [-halfDepth, halfDepth].forEach((z) =>
+        [-2, 3].forEach((y) => {
+          corner.set(x, y, z).applyMatrix4(view);
+          maxRight = Math.max(maxRight, Math.abs(corner.x));
+          maxUp = Math.max(maxUp, Math.abs(corner.y));
+        }),
+      ),
+    );
+    return Math.max(maxUp * 2, (maxRight * 2) / aspect) * 1.08;
   }
 
   private playHeight() {

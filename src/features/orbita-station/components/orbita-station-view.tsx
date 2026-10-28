@@ -169,9 +169,9 @@ export function OrbitaStationView({ userId }: { userId: string }) {
                 </>
               )}
             </div>
-            <div className="pointer-events-auto flex items-center gap-2">
+            <div className="pointer-events-auto flex w-full min-w-0 items-center gap-2 sm:w-auto">
               <Select value={templateKey} onValueChange={changeTemplate}>
-                <SelectTrigger aria-label="Modelo da estação" className="w-56 border-white/20 bg-black/40 text-white backdrop-blur">
+                <SelectTrigger aria-label="Modelo da estação" className="min-w-0 flex-1 border-white/20 bg-black/40 text-white backdrop-blur sm:w-56 sm:flex-none">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
