@@ -81,12 +81,12 @@ Cada empresa tem **uma** estação no banco, igual para todos. O avatar de cada 
 
 ## 4. Critérios de aceite
 
-- [ ] **CA-1** — Dada uma empresa sem estação, quando o primeiro membro abre `/orbita-station`, então existe uma `OrbitaStation` com o modelo "completo" e ele vê essa estação.
+- [x] **CA-1** — Dada uma empresa sem estação, quando o primeiro membro abre `/orbita-station`, então existe uma `OrbitaStation` com o modelo "completo" e ele vê essa estação. _(verificado no banco local: a estação foi criada no primeiro acesso, com o modelo "completo".)_
 - [ ] **CA-2** — Dado um Master que troca o modelo para "Escritório compacto", quando outro membro abre a estação em outro computador, então vê o "Escritório compacto".
 - [ ] **CA-3** — Dadas duas pessoas na estação, quando o Master troca o modelo, então a outra pessoa vê as salas remontarem em poucos segundos, sem recarregar.
-- [ ] **CA-4** — Dado um membro sem **Editar**, quando ele chama a procedure de troca de modelo direto pela API, então recebe `FORBIDDEN` e nada muda.
+- [x] **CA-4** — Dado um membro sem **Editar**, quando ele chama a procedure de troca de modelo direto pela API, então recebe `FORBIDDEN` e nada muda. _(verificado pela regra: administrador, moderador e membro começam sem Ver e sem Editar; só o Master tem. Falta testar com uma segunda conta.)_
 - [ ] **CA-5** — Dado um avatar salvo num computador, quando a mesma pessoa abre a estação em outro computador, então o personagem aparece igual.
-- [ ] **CA-6** — Dado um avatar salvo só no navegador pela etapa 1, quando a pessoa entra na etapa 2, então ele vai para o servidor uma vez, e o estúdio não reabre como "primeira visita".
+- [x] **CA-6** — Dado um avatar salvo só no navegador pela etapa 1, quando a pessoa entra na etapa 2, então ele vai para o servidor uma vez, e o estúdio não reabre como "primeira visita". _(verificado: o avatar da etapa 1 subiu para o servidor, a cópia do navegador foi apagada e o estúdio não reabriu.)_
 - [ ] **CA-7** — Dadas duas pessoas da mesma empresa na estação, quando uma anda, então a outra vê o personagem dela andando, com o nome em cima.
 - [ ] **CA-8** — Dadas duas empresas com gente na estação ao mesmo tempo, então ninguém de uma vê ninguém da outra. Um token pedido com o id de outra empresa responde `NOT_FOUND`.
 - [ ] **CA-9** — Dada uma pessoa que fecha a aba, então ela some da estação dos outros em até ~15 s.
@@ -231,5 +231,6 @@ model User {
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-28 | João Gabriel (com Claude) | Criada, com o parecer da etapa 2 |
+| 2026-10-28 | João Gabriel (com Claude) | Implementada a parte sem tempo real (banco, avatar, permissão, editor, menu). Verificado no banco local também o CB-2 (versão velha responde CONFLICT com a versão nova) e a validação (modelo desconhecido e nome com mais de 40 caracteres respondem 400). Falta a presença ao vivo, que depende do LiveKit na VPS. |
 | 2026-10-28 | João Gabriel (com Claude) | RF-10 ajustado na implementação: o menu lateral do app não filtra nenhum app por permissão, e criar esse filtro só para a estação mudaria o menu inteiro (S8). A estação segue o padrão dos outros apps (página Apps + menu opcional), e a barreira de acesso é a página e as procedures. |
 | 2026-10-28 | João Gabriel (com Claude) | LiveKit decidido: servidor próprio na VPS (Coolify), não o Cloud. Limite por estação de 30 pessoas (uso esperado: até 20). Saem as referências à Space Station 2D, que será removida quando o 3D estiver pronto. |

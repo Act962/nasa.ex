@@ -14,7 +14,7 @@ Escritório virtual em 3D em que cada sala corresponde a um módulo da plataform
 | Etapa | O que entra | Status |
 | --- | --- | --- |
 | 1 (spec 0117) | Estação do protótipo como código do app, sem banco: modelos de estação, personagem, câmera, acabamento | 🚧 em construção |
-| 2 (spec 0119) | Estação da empresa no banco, avatar no servidor, colegas ao vivo (LiveKit), permissões, link no menu | ⬜ spec em rascunho |
+| 2 (spec 0119) | Estação da empresa no banco, avatar no servidor, colegas ao vivo (LiveKit), permissões, link no menu | 🚧 banco, avatar, permissão e editor prontos; falta a presença ao vivo |
 | 3 (sem spec) | Editor de decoração, junto com a loja | ⬜ |
 | Final | Remover a Space Station 2D (`src/features/space-station/`, rotas, permissão `space-station` e, em migration separada depois do deploy, as tabelas `SpaceStation*` e afins) | ⬜ quando o 3D estiver pronto |
 
@@ -68,3 +68,4 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | --- | --- |
 | 2026-10-27 | Criado com a primeira parte da etapa 1: estrutura, móveis, personagem, câmera, acabamento e rota. |
 | 2026-10-28 | Estúdio do personagem (prévia em `engine/studio-preview.ts`, abre sozinho na primeira visita) e modo mapa (tecla M, clique na sala leva o personagem até ela). Novos métodos do motor: `setMode`, `setPaused`, `walkToRoom`, `roomLabels`, `openStudio`. |
+| 2026-10-28 | Etapa 2, parte sem tempo real: tabela `orbita_stations`, coluna `user.orbita_avatar`, procedures `orbitaStation.getStation` / `updateStation` / `avatar.save`, app `orbita-station` na matriz (só o Master por padrão), editor da estação e app na página Apps. |
