@@ -96,7 +96,7 @@ export function DunningAssignDialog({ entryId, initialRuleId, entryName, onClose
             </Select>
             {activeRules.length === 0 && !isLoading && (
               <p className="text-[11px] text-muted-foreground">
-                Nenhuma régua ativa. Crie e ative em Settings → Régua de Cobrança.
+                Nenhuma régua ativa. Crie e ative em Cobranças → Réguas e mensagens.
               </p>
             )}
             <p className="text-[11px] text-muted-foreground">

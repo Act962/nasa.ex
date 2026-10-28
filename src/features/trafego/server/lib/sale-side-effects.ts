@@ -2,7 +2,10 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { PLATFORM_SHORT_LABEL } from "@/features/trafego/lib/catalog-labels";
+import { allocateTrafegoDiscount } from "@/features/trafego/lib/pricing-tiers";
 import { loadTrafegoSettings } from "./trafego-settings";
+import { fetchTrafegoStripeDiscountCents } from "./stripe-discount";
+import { notifyTrafegoAdmins, recordTrafegoInternalEvent } from "./trafego-alerts";
 
 interface SaleSideEffectsInput {
   orderId: string;
@@ -20,9 +23,13 @@ interface SaleSideEffectsInput {
  * confirmado (CLAUDE.md regra 18).
  *
  * Dois lançamentos, porque as parcelas têm naturezas diferentes:
- *  - taxa de serviço + setup são RECEITA (decisão do dono — spec 0009 D-5);
+ *  - taxa de serviço + setup + criativos extras são RECEITA (spec 0009 D-5);
  *  - a verba é REPASSE — entra como despesa a pagar, já que sai para a plataforma.
  * Somar as duas num lançamento só inflaria o faturamento.
+ *
+ * Valores líquidos do cupom: o desconto é lido do Stripe e distribuído por
+ * `allocateTrafegoDiscount` (P-9). Sem isso, um cupom de 100% lançava a venda
+ * cheia como recebida.
  *
  * Idempotente por (org, tipo, documentNumber = código do pedido): os três
  * caminhos de pagamento (público, autenticado, PIX) chamam isto sem medo.
@@ -44,6 +51,8 @@ export async function createTrafegoSaleSideEffects(
       totalBrlCents: true,
       businessName: true,
       leadId: true,
+      stripeSessionId: true,
+      stripePaymentIntentId: true,
     },
   });
   if (!order) return;
@@ -59,11 +68,60 @@ export async function createTrafegoSaleSideEffects(
     return;
   }
 
+  const discountBrlCents = await fetchTrafegoStripeDiscountCents({
+    checkoutSessionId: order.stripeSessionId,
+    paymentIntentId: order.stripePaymentIntentId,
+  });
+  // Sem saber o desconto, lançar o contratado poderia registrar dinheiro que
+  // não entrou. Melhor não lançar e pedir conferência.
+  if (discountBrlCents === null) {
+    await notifyTrafegoAdmins({
+      title: `trafeGO ${order.code}: financeiro não lançado`,
+      body: "Não foi possível ler o desconto do Stripe. Lance a venda à mão depois de conferir o valor pago.",
+    });
+    return;
+  }
+
+  // Criativos extras não têm coluna própria no pedido: são o que sobra do total.
+  const extraCreativesBrlCents = Math.max(
+    0,
+    order.totalBrlCents -
+      order.adBudgetBrlCents -
+      order.serviceFeeBrlCents -
+      order.setupFeeBrlCents,
+  );
+  const net = allocateTrafegoDiscount(
+    {
+      serviceFeeBrlCents: order.serviceFeeBrlCents,
+      setupBrlCents: order.setupFeeBrlCents,
+      extraCreativesBrlCents,
+      adBudgetBrlCents: order.adBudgetBrlCents,
+    },
+    discountBrlCents,
+  );
+
+  if (net.touchesAdBudget) {
+    const detail = `O cupom de ${formatBrlFromCents(net.discountBrlCents)} reduziu a verba de ${formatBrlFromCents(order.adBudgetBrlCents)} para ${formatBrlFromCents(net.adBudgetBrlCents)}.`;
+    await recordTrafegoInternalEvent({
+      orderId: order.id,
+      title: "Cupom atingiu a verba",
+      detail,
+    });
+    await notifyTrafegoAdmins({
+      title: `trafeGO ${order.code}: cupom atingiu a verba`,
+      body: `${detail} Confira o que vai ser investido no anúncio.`,
+      actionUrl: `/admin/trafego/${order.id}`,
+    });
+  }
+
   const organizationId = settings.agencyOrganizationId;
   const trackingId = settings.operationsTrackingId ?? settings.salesTrackingId ?? null;
   const platformLabel = PLATFORM_SHORT_LABEL[order.platform];
   const now = new Date();
-  const revenueBrlCents = order.serviceFeeBrlCents + order.setupFeeBrlCents;
+  const revenueBrlCents =
+    net.serviceFeeBrlCents + net.setupBrlCents + net.extraCreativesBrlCents;
+  const discountNote =
+    net.discountBrlCents > 0 ? ` · cupom ${formatBrlFromCents(net.discountBrlCents)}` : "";
 
   const revenueExists = await prisma.paymentEntry.count({
     where: { organizationId, type: "RECEIVABLE", documentNumber: order.code },
@@ -75,7 +133,7 @@ export async function createTrafegoSaleSideEffects(
           organizationId,
           type: "RECEIVABLE",
           status: "PAID",
-          description: `trafeGO ${order.code} — taxa de serviço${order.setupFeeBrlCents > 0 ? " + setup" : ""} (${order.planNameSnapshot})`,
+          description: `trafeGO ${order.code} — taxa de serviço${order.setupFeeBrlCents > 0 ? " + setup" : ""}${extraCreativesBrlCents > 0 ? " + criativos extras" : ""} (${order.planNameSnapshot})`,
           amount: revenueBrlCents,
           paidAmount: revenueBrlCents,
           dueDate: now,
@@ -86,7 +144,7 @@ export async function createTrafegoSaleSideEffects(
           categoryId: settings.financeRevenueCategoryId ?? undefined,
           trackingId,
           leadId: order.leadId,
-          notes: `Pedido ${order.code} · ${platformLabel} · Total pago ${formatBrlFromCents(order.totalBrlCents)} (verba ${formatBrlFromCents(order.adBudgetBrlCents)} + taxa ${formatBrlFromCents(order.serviceFeeBrlCents)}${order.setupFeeBrlCents > 0 ? ` + setup ${formatBrlFromCents(order.setupFeeBrlCents)}` : ""})`,
+          notes: `Pedido ${order.code} · ${platformLabel} · Total contratado ${formatBrlFromCents(order.totalBrlCents)} (verba ${formatBrlFromCents(order.adBudgetBrlCents)} + taxa ${formatBrlFromCents(order.serviceFeeBrlCents)}${order.setupFeeBrlCents > 0 ? ` + setup ${formatBrlFromCents(order.setupFeeBrlCents)}` : ""}${extraCreativesBrlCents > 0 ? ` + extras ${formatBrlFromCents(extraCreativesBrlCents)}` : ""})${discountNote}`,
           createdById: input.buyer.userId,
         },
       });
@@ -98,7 +156,7 @@ export async function createTrafegoSaleSideEffects(
   const passthroughExists = await prisma.paymentEntry.count({
     where: { organizationId, type: "PAYABLE", documentNumber: order.code },
   });
-  if (passthroughExists === 0 && order.adBudgetBrlCents > 0) {
+  if (passthroughExists === 0 && net.adBudgetBrlCents > 0) {
     try {
       await prisma.paymentEntry.create({
         data: {
@@ -106,7 +164,7 @@ export async function createTrafegoSaleSideEffects(
           type: "PAYABLE",
           status: "PENDING",
           description: `trafeGO ${order.code} — verba de tráfego a investir (${platformLabel})`,
-          amount: order.adBudgetBrlCents,
+          amount: net.adBudgetBrlCents,
           paidAmount: 0,
           dueDate: now,
           competenceDate: now,
@@ -115,7 +173,7 @@ export async function createTrafegoSaleSideEffects(
           categoryId: settings.financePassthroughCategoryId ?? undefined,
           trackingId,
           leadId: order.leadId,
-          notes: `Repasse da verba do pedido ${order.code}${order.businessName ? ` · ${order.businessName}` : ""}`,
+          notes: `Repasse da verba do pedido ${order.code}${order.businessName ? ` · ${order.businessName}` : ""}${discountNote}`,
           createdById: input.buyer.userId,
         },
       });

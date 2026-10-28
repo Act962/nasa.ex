@@ -1,5 +1,5 @@
 // Montagem da estação e regras de onde o personagem pode pisar. Sem Three.js e sem DOM: roda no
-// navegador e no servidor (a validação de posição da loja, spec 0116, usa as mesmas funções).
+// navegador e no servidor (a validação de posição da loja, spec 0118, usa as mesmas funções).
 import { ROOM_KINDS, type RoomKindKey } from "./room-kinds";
 import { findTemplate, type StationTemplate } from "./station-templates";
 

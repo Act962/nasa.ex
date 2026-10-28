@@ -77,7 +77,13 @@ numa campanha real) **não** deve ser emitido nesse estado.
 
 ---
 
-## 5. Fase B — rastrear o desconto (⬜ proposta)
+## 5. Fase B — rastrear o desconto (✅ sem migration, 2026-10-27)
+
+> **Implementado pela alternativa sem migration de §5.2**: o desconto é lido do Stripe na hora
+> de lançar (`server/lib/stripe-discount.ts`) e distribuído por `allocateTrafegoDiscount`
+> (`lib/pricing-tiers.ts`), conferido contra a tabela de §5.1. `amountMismatch` soma o desconto
+> antes de comparar. Não há `discountBrlCents` nem `promotionCode` no banco: "por que a receita
+> deste pedido foi menor?" se responde pela nota do lançamento ou no Stripe.
 
 ### 5.1 Regra de alocação — o núcleo da proposta
 
@@ -189,3 +195,4 @@ Depois do teste: cancele o pedido e **apague os dois `PaymentEntry`** criados na
 | Data | Mudança |
 | --- | --- |
 | 2026-09-17 | Spec criada. Fase A (`allow_promotion_codes: true`) implementada. Fase B desenhada, implementada e **revertida** por decisão do dono: a migration não se justificava para destravar o teste. Desenho preservado aqui; pendência registrada como P-9. |
+| 2026-10-27 | Fase B entregue pela alternativa **sem migration** (§5.2): desconto lido do Stripe no lançamento e no webhook, alocado taxa → setup → extras → verba, aviso quando chega na verba. A regra operacional de "cupom só em teste" deixa de ser necessária. |

@@ -7,7 +7,7 @@ Escritório virtual em 3D em que cada sala corresponde a um módulo da plataform
 | Rota | `/orbita-station`, em `src/app/(platform)/orbita-station/page.tsx`. Exige login e não aparece no menu até a etapa 2. |
 | Domínio | `src/features/orbita-station/` |
 | Modelos 3D | `public/orbita-station/models/` (créditos e licenças em `CREDITS.txt`, todos CC0) |
-| Specs | [0117 — etapa 1](../specs/orbita-station/0117-orbita-station-3d-etapa-1.md) · [0116 — loja](../specs/orbita-station/0116-loja-orbita-itens-na-estacao.md) |
+| Specs | [0117 — etapa 1](../specs/orbita-station/0117-orbita-station-3d-etapa-1.md) · [0118 — loja](../specs/orbita-station/0118-loja-orbita-itens-na-estacao.md) |
 
 ## Etapas
 
@@ -15,7 +15,7 @@ Escritório virtual em 3D em que cada sala corresponde a um módulo da plataform
 | --- | --- | --- |
 | 1 (spec 0117) | Estação do protótipo como código do app, sem banco: modelos de estação, personagem, câmera, acabamento | 🚧 em construção |
 | 2 (sem spec) | Estação da empresa no banco, presença, permissões, editor de decoração, link no menu | ⬜ |
-| Loja (spec 0116) | Comprar itens com STARS e posicioná-los | ⬜ depende da etapa 2 |
+| Loja (spec 0118) | Comprar itens com STARS e posicioná-los | ⬜ depende da etapa 2 |
 
 ## Estrutura
 

@@ -4,6 +4,10 @@ import { getPayment } from "@/lib/asaas";
 import { loadTrafegoAsaasGateway } from "@/features/trafego/server/lib/asaas-gateway";
 import { ASAAS_PAID_STATUSES } from "@/features/trafego/server/lib/asaas-events";
 import { markTrafegoPurchasePaid } from "@/features/trafego/server/lib/mark-purchase-paid";
+import {
+  flagTrafegoPaymentIssue,
+  revokeTrafegoPurchase,
+} from "@/features/trafego/server/lib/revoke-purchase";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 
 /**
@@ -112,39 +116,27 @@ export const trafegoAsaasPaymentEvent = inngest.createFunction(
       return { cancelled: cancelled.count };
     }
 
-    // Estorno e chargeback: avisamos e paramos por aqui. Reverter receita e
-    // repasse sozinho é o P-4/P-5/P-6 do backlog, e reverter errado é pior do
-    // que não reverter.
-    await step.run("notify-reversal", () =>
-      notifyAdmins({
-        title: "trafeGO: estorno ou chargeback no PIX",
-        body: `A cobrança ${paymentId} de ${pending.email} recebeu ${asaasEvent} (${formatBrlFromCents(receivedBrlCents)}). Confira o pedido e o financeiro à mão.`,
+    // Estorno total confirmado na cobrança relida: reverte compra, pedido e
+    // financeiro. Parcial e chargeback ficam com a equipe (quanto sai da taxa
+    // e quanto sai da verba é decisão humana).
+    if (asaasEvent === "PAYMENT_REFUNDED" && payment.status === "REFUNDED") {
+      await step.run("revoke-purchase", () =>
+        revokeTrafegoPurchase(pending.id, "Asaas"),
+      );
+      return { revoked: pending.id };
+    }
+
+    await step.run("flag-payment-issue", () =>
+      flagTrafegoPaymentIssue({
+        pendingId: pending.id,
+        title:
+          asaasEvent === "PAYMENT_CHARGEBACK_REQUESTED"
+            ? "Chargeback no PIX"
+            : "Estorno parcial no PIX",
+        detail: `A cobrança ${paymentId} de ${pending.email} recebeu ${asaasEvent} (${formatBrlFromCents(receivedBrlCents)}). Nada foi revertido sozinho: confira o pedido e o financeiro à mão.`,
       }),
     );
 
-    return { notified: asaasEvent };
+    return { flagged: asaasEvent };
   },
 );
-
-async function notifyAdmins(params: {
-  title: string;
-  body: string;
-}): Promise<{ notified: number }> {
-  const admins = await prisma.user.findMany({
-    where: { isSystemAdmin: true, isActive: true },
-    select: { id: true },
-  });
-  if (admins.length === 0) return { notified: 0 };
-
-  await prisma.userNotification.createMany({
-    data: admins.map((admin) => ({
-      userId: admin.id,
-      type: "CUSTOM" as const,
-      title: params.title,
-      body: params.body,
-      appKey: "trafego",
-      actionUrl: "/admin/trafego",
-    })),
-  });
-  return { notified: admins.length };
-}

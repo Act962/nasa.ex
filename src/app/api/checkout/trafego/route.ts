@@ -20,7 +20,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { resolvePublicOrigin } from "@/lib/public-origin";
 import { auth } from "@/lib/auth";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
+import { clientIpFromHeaders, takeRateLimit } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe";
 import { getPostHogClient } from "@/lib/posthog-server";
 import { STRIPE_MIN_BRL_CENTS } from "@/features/trafego/lib/pricing";
@@ -60,7 +61,27 @@ function toJsonSnapshot(value: unknown): Prisma.InputJsonValue | undefined {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
+// Cada chamada cria pendência, card no CRM, briefing e sessão no Stripe: sem
+// limite, um script enche o kanban da operação (P-2). Em memória, por
+// instância — freio de abuso, não cota exata.
+const CHECKOUT_LIMIT_BY_IP = { max: 10, windowMs: 10 * 60 * 1000 };
+const CHECKOUT_LIMIT_BY_EMAIL = { max: 5, windowMs: 30 * 60 * 1000 };
+
+function tooManyRequests(retryAfterSeconds: number) {
+  return NextResponse.json(
+    { error: `Muitas tentativas. Tente de novo em ${Math.ceil(retryAfterSeconds / 60)} min.` },
+    { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } },
+  );
+}
+
 export async function POST(req: NextRequest) {
+  const ipLimit = takeRateLimit(
+    "trafego-checkout-ip",
+    clientIpFromHeaders(req.headers),
+    CHECKOUT_LIMIT_BY_IP,
+  );
+  if (!ipLimit.allowed) return tooManyRequests(ipLimit.retryAfterSeconds);
+
   const parsed = trafegoCheckoutBodySchema.safeParse(
     await req.json().catch(() => null),
   );
@@ -109,6 +130,13 @@ export async function POST(req: NextRequest) {
   const buyerEmail = isAuthenticatedFlow ? session!.user.email : email;
   const buyerUserId = isAuthenticatedFlow ? session!.user.id : null;
   const flow = isAuthenticatedFlow ? "authenticated" : "public";
+
+  const emailLimit = takeRateLimit(
+    "trafego-checkout-email",
+    buyerEmail.trim().toLowerCase(),
+    CHECKOUT_LIMIT_BY_EMAIL,
+  );
+  if (!emailLimit.allowed) return tooManyRequests(emailLimit.retryAfterSeconds);
 
   const isPix = paymentMethod === "PIX";
 
@@ -348,14 +376,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const reference = await claimPixReference(pending.id);
     const expiresAt = new Date(
       Date.now() + freshSettings.pixExpiryMinutes * 60 * 1000,
     );
-    await prisma.trafegoPendingPurchase.update({
-      where: { id: pending.id },
-      data: { pixReference: reference, pixExpiresAt: expiresAt },
-    });
+    let reference: string;
+    try {
+      reference = await assignPixReference(pending.id, expiresAt);
+    } catch (error) {
+      console.error("[checkout/trafego] referência PIX falhou:", error);
+      await prisma.trafegoPendingPurchase.update({
+        where: { id: pending.id },
+        data: { status: "CANCELLED" },
+      });
+      return NextResponse.json(
+        { error: "Não foi possível gerar o PIX agora. Tente de novo ou use cartão." },
+        { status: 503 },
+      );
+    }
 
     // Com o gateway ligado, a cobrança nasce no Asaas e o webhook confirma
     // sozinho. Sem ele, cai no fluxo manual de sempre — chave estática e
@@ -592,13 +629,27 @@ export async function POST(req: NextRequest) {
  * `@unique` — em vez de confiar na sorte, tentamos algumas vezes e caímos num
  * sufixo derivado do id da pendência, que é único por construção.
  */
-async function claimPixReference(pendingId: string): Promise<string> {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const candidate = generatePixReference();
-    const taken = await prisma.trafegoPendingPurchase.count({
-      where: { pixReference: candidate },
-    });
-    if (taken === 0) return candidate;
+/**
+ * Grava a referência sorteada na pendência. A unicidade é do banco
+ * (`pixReference @unique`): sortear, checar e gravar em passos separados
+ * deixava duas compras simultâneas com o mesmo código estourarem 500 (P-1).
+ * Depois de 5 colisões a referência cresce para 6 caracteres, no mesmo
+ * alfabeto que o cliente consegue ditar.
+ */
+async function assignPixReference(pendingId: string, expiresAt: Date): Promise<string> {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const candidate = generatePixReference(attempt < 5 ? 4 : 6);
+    try {
+      await prisma.trafegoPendingPurchase.update({
+        where: { id: pendingId },
+        data: { pixReference: candidate, pixExpiresAt: expiresAt },
+      });
+      return candidate;
+    } catch (error) {
+      const isTaken =
+        error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+      if (!isTaken) throw error;
+    }
   }
-  return `TGP-${pendingId.slice(-6).toUpperCase()}`;
+  throw new Error(`Sem referência PIX livre para ${pendingId}.`);
 }

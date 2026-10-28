@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import { createInstance } from "@/http/uazapi/admin/create-instance";
 import { configureWebhook } from "@/http/uazapi/configure-webhook";
@@ -6,9 +7,11 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { WhatsAppProvider } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import z from "zod";
+import { isTrackingOfOrganization } from "./owned-instance";
 
 export const createInstanceUazapi = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     summary: "Create a new instance",
@@ -37,10 +40,10 @@ export const createInstanceUazapi = base
   .handler(async ({ input, context, errors }) => {
     const { name, systemName, provider, trackingId } = input;
 
-    if (!context.session.activeOrganizationId) {
-      throw new Error("Organization ID not found");
+    const organizationId = context.org.id;
+    if (!(await isTrackingOfOrganization(trackingId, organizationId))) {
+      throw errors.NOT_FOUND({ message: "Tracking não encontrado." });
     }
-    const organizationId = context.session.activeOrganizationId;
 
     // Guard 1:1 — um tracking só pode ter uma instância. O @unique no
     // schema já barra no banco, mas devolvemos um erro claro antes.

@@ -1,5 +1,5 @@
 ---
-id: 0116
+id: 0118
 titulo: Loja Órbita — comprar itens com STARS e posicioná-los na Órbita Station 3D
 dominio: orbita-station
 status: rascunho
@@ -11,7 +11,7 @@ pr: 482
 peso: completa
 ---
 
-# 0116 — Loja Órbita: itens comprados com STARS e posicionados na estação 3D
+# 0118 — Loja Órbita: itens comprados com STARS e posicionados na estação 3D
 
 > **Depende de:**
 > - [0117](0117-orbita-station-3d-etapa-1.md): a estação como código do app.
@@ -217,7 +217,7 @@ A empresa compra objetos da Loja Órbita com STARS reais. Cada unidade comprada 
 ```prisma
 enum StarTransactionType {
   // … valores atuais …
-  STATION_ITEM_PURCHASE // débito ao comprar item da Loja Órbita (spec 0116)
+  STATION_ITEM_PURCHASE // débito ao comprar item da Loja Órbita (spec 0118)
 }
 
 model OrbitaStationItem {
@@ -310,3 +310,4 @@ Os nomes seguem a dedução de ação da matriz de permissões: `list*` é Ver; 
 | --- | --- | --- |
 | 2026-10-27 | João Gabriel (com Claude) | Criada a partir do protótipo Órbita Station 3D (versão 29) |
 | 2026-10-27 | João Gabriel (com Claude) | Refeita para o produto novo: sai a Space Station 2D (`WorldGameAsset`, `mapData`, Phaser). O catálogo vai para o código, a posição passa a ser 3D (`x`, `z`, giro), a validação usa a função pura da 0117, e a spec agora depende da 0117 e da etapa 2. Domínio movido para `orbita-station`. |
+| 2026-10-28 | João Gabriel (com Claude) | Renumerada de 0116 para 0118: a spec 0116 do trafeGO (PR #481) entrou na `main` antes. |

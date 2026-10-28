@@ -447,6 +447,22 @@ export const GUIDE_ANCHORS = {
     id: "payment.new-payable",
     description: "Botão \"Nova Despesa\" na aba Despesa do Financeiro",
   },
+  paymentMessagingSender: {
+    id: "payment.messaging-sender",
+    description: "Escolha do tracking (número de WhatsApp) que envia as cobranças, em Cobranças → Réguas e mensagens",
+  },
+  paymentDunningMessagesButton: {
+    id: "payment.dunning-messages-button",
+    description: "Botão \"Réguas e mensagens\" da aba Cobranças: edita os avisos e o texto enviado ao cliente",
+  },
+  paymentChargesView: {
+    id: "payment.charges-view",
+    description: "Aba Cobranças do Financeiro: cada receita com cliente, o status do pagamento e o envio dos avisos",
+  },
+  paymentEntryChargeSettings: {
+    id: "payment.entry-charge-settings",
+    description: "Bloco opcional \"Cobrança automática\" no formulário de nova receita (escolha da régua)",
+  },
   paymentEntryDescription: {
     id: "payment.entry.description",
     description: "Campo de descrição no formulário de lançamento",

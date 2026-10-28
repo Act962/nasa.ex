@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,10 +36,9 @@ import {
   IS_LEAD_AI_PAUSE_ENABLED,
   isLeadAiPaused,
 } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
-import { MessageChannel, StatusFlow } from "@/generated/prisma/enums";
+import { StatusFlow } from "@/generated/prisma/enums";
 import { useMutationRodizio } from "../hooks/use-rodizio";
 import { SyncMessagesButton } from "./sync-messages-button";
-import { FacebookIcon, InstagramIcon } from "./icons";
 import { InChatStatusBadge } from "./in-chat-status-badge";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -61,7 +60,6 @@ interface HeaderProps {
   statusFlow: StatusFlow;
   /** Estado de atendimento automático (spec 0113): mostra o estado no lugar do botão da IA. */
   isAttendanceManaged?: boolean;
-  channel?: MessageChannel;
   /** Nome do tracking (ex: "2. Orçamento") — exibido como breadcrumb no
    *  header, ao lado do nome do lead. */
   trackingName?: string | null;
@@ -69,30 +67,6 @@ interface HeaderProps {
   statusName?: string | null;
   /** Temperatura do lead para o anel da foto (mesmo da lista de conversas). */
   heat?: { score: number; level: HeatLevel } | null;
-}
-
-function ChannelBadge({ channel }: { channel: MessageChannel }) {
-  if (channel === MessageChannel.INSTAGRAM) {
-    return (
-      <span
-        title="Instagram DM"
-        className="flex items-center justify-center size-6 rounded-full bg-linear-to-tr from-warning via-info to-info text-white shrink-0"
-      >
-        <InstagramIcon className="size-3.5" />
-      </span>
-    );
-  }
-  if (channel === MessageChannel.FACEBOOK) {
-    return (
-      <span
-        title="Facebook Messenger"
-        className="flex items-center justify-center size-6 rounded-full bg-brand-messenger text-white shrink-0"
-      >
-        <FacebookIcon className="size-3.5" />
-      </span>
-    );
-  }
-  return null;
 }
 
 export function Header({
@@ -105,7 +79,6 @@ export function Header({
   isAttendanceManaged = false,
   trackingId,
   statusFlow,
-  channel,
   trackingName,
   statusName,
   heat,
@@ -118,14 +91,17 @@ export function Header({
   const mutation = useMutationRodizio(conversationId);
   const qc = useQueryClient();
   const [syncOpen, setSyncOpen] = useState(false);
-  // Estado controlado do Resumo — em desktop o componente tem seu próprio
-  // PopoverTrigger; em mobile o trigger fica no dropdown "..." e abre o
-  // mesmo Popover via essa state (modo controlado externamente).
+  // Estado controlado do Resumo: o item "Resumo" do dropdown "..." abre o Popover.
   const [summaryOpen, setSummaryOpen] = useState(false);
+  // Aberto com o menu ainda montado, o painel perde o foco para ele e fecha na hora:
+  // o item só marca o pedido, e o painel abre quando o menu termina de fechar.
+  const shouldOpenSummaryRef = useRef(false);
   const [seiOpen, setSeiOpen] = useState(false);
 
   const backHref = withSearchParams(`/tracking-chat`, searchParams);
   const openLeadDetails = useLeadDetailsStore((state) => state.requestOpen);
+  // Com a lateral do lead aberta, a tela cheia mora no topo dela.
+  const isLeadDetailsCollapsed = useLeadDetailsStore((state) => state.isDesktopCollapsed);
 
   const onCloseChat = () => {
     router.push(backHref);
@@ -236,11 +212,6 @@ export function Header({
               <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </HeatRing>
-          {channel && channel !== MessageChannel.WHATSAPP && (
-            <span className="absolute -bottom-1 -right-1">
-              <ChannelBadge channel={channel} />
-            </span>
-          )}
         </button>
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-2 min-w-0">
@@ -280,7 +251,7 @@ export function Header({
         {/* Os ícones de ligação (telefone + vídeo) saíram da barra
             principal e foram pro dropdown "..." abaixo — alinhado à UX
             mais clean do WhatsApp Web, e libera espaço pra ações
-            primárias (Finalizar, IA, Resumo). */}
+            primárias (Finalizar, IA). O Resumo também mora no "...". */}
 
         {/* Desktop only: standalone buttons */}
         <div className="hidden lg:flex items-center gap-4">
@@ -311,25 +282,13 @@ export function Header({
           </Button>
         </div>
 
-        {/* Desktop (lg+): botão "Resumo" visível na barra.
-            Mobile/tablet (<lg): botão escondido; popover continua montado
-            pra ser disparado pelo item "Resumo" no dropdown "..." abaixo
-            (open controlado externamente). */}
-        <div className="hidden lg:block">
-          <SummerizeConversation
-            conversationId={conversationId}
-            open={summaryOpen}
-            onOpenChange={setSummaryOpen}
-          />
-        </div>
-        <div className="lg:hidden">
-          <SummerizeConversation
-            conversationId={conversationId}
-            open={summaryOpen}
-            onOpenChange={setSummaryOpen}
-            hideTrigger
-          />
-        </div>
+        {/* Painel do Resumo, aberto pelo item "Resumo" do menu "...".
+            Fica montado ao lado do "..." para o painel abrir ali. */}
+        <SummerizeConversation
+          conversationId={conversationId}
+          open={summaryOpen}
+          onOpenChange={setSummaryOpen}
+        />
 
         {/* Always visible: DropdownMenu — substitui o XIcon */}
         <DropdownMenu>
@@ -338,7 +297,25 @@ export function Header({
               <EllipsisVerticalIcon className="size-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-48">
+          <DropdownMenuContent
+            align="end"
+            className="min-w-48"
+            onCloseAutoFocus={(event) => {
+              if (!shouldOpenSummaryRef.current) return;
+              shouldOpenSummaryRef.current = false;
+              event.preventDefault();
+              setSummaryOpen(true);
+            }}
+          >
+            <DropdownMenuItem
+              onSelect={() => {
+                shouldOpenSummaryRef.current = true;
+              }}
+            >
+              <SparklesIcon className="size-4" />
+              Resumo
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             {/* Ações de ligação — telefone (tel: link nativo do SO) +
                 vídeo (LiveKit). Antes ficavam como ícones na barra,
                 agora dentro do dropdown pra a UI ficar mais limpa
@@ -410,17 +387,6 @@ export function Header({
                 <CheckIcon className="size-4" />
                 Finalizar atendimento
               </DropdownMenuItem>
-              {/* Resumo — só aqui em mobile/tablet. Em lg+ o botão fica
-                  na barra. Abre o mesmo Popover via state controlado. */}
-              <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault();
-                  setSummaryOpen(true);
-                }}
-              >
-                <SparklesIcon className="size-4" />
-                Resumo
-              </DropdownMenuItem>
             </div>
 
             <DropdownMenuSeparator />
@@ -436,7 +402,7 @@ export function Header({
           open={seiOpen}
           onOpenChange={setSeiOpen}
         />
-        {!isInsideTrackingNav && <FullscreenControls />}
+        {!isInsideTrackingNav && isLeadDetailsCollapsed && <FullscreenControls />}
       </div>
     </div>
   );

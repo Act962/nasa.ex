@@ -20,7 +20,13 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   CheckCircle2,
@@ -44,11 +50,11 @@ import {
 import { EntryActionsMenu } from "./entry-actions-menu";
 import { EntryDetailsDialog } from "./entry-details-dialog";
 import { DunningAssignDialog } from "../dunning/dunning-assign-dialog";
+import { ChargeLinkDialog } from "../charges/charge-link-dialog";
 import { DunningHistoryDrawer } from "../dunning/dunning-history-drawer";
 import {
   usePaymentEntries,
   useCreatePaymentEntry,
-  usePayEntry,
   useDeletePaymentEntry,
   useRemovePaymentEntry,
 } from "../../hooks/use-payment";
@@ -58,12 +64,11 @@ import {
   formatDate,
   STATUS_LABELS,
   STATUS_COLORS,
-  parseCurrencyToCents,
 } from "../../lib/format";
 import { EntryForm } from "./entry-form";
+import { PayEntryDialog } from "./pay-entry-dialog";
 import { toast } from "sonner";
 import { describePaymentError } from "../../lib/describe-error";
-import { usePaymentAccounts } from "../../hooks/use-payment";
 import {
   usePaymentPeriodIso,
   usePaymentCategoryFilter,
@@ -77,6 +82,8 @@ interface EntriesTableProps {
 }
 
 const PENDING_STATUS_FILTERS = new Set(["PENDING", "PARTIAL", "OVERDUE"]);
+/** Valor do Select para "todos os status" (o filtro em si fica vazio). */
+const ALL_STATUSES = "__all__";
 
 // Colunas ordenáveis: o id casa com o `orderBy` do procedure (`<campo>_asc|desc`).
 type SortField =
@@ -117,8 +124,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
   // digitado, o usuário pode estender a busca para todo o histórico.
   const [searchAllPeriods, setSearchAllPeriods] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [payDialog, setPayDialog] = useState<{ id: string; amount: number } | null>(null);
-  const [payAmount, setPayAmount] = useState("");
+  const [payDialog, setPayDialog] = useState<{ id: string; openAmountCents: number } | null>(null);
   // Edição de valores + confirmação de cancelar (soft) / excluir (hard).
   const [editEntry, setEditEntry] = useState<PaymentEntryRow | null>(null);
   const [detailsEntry, setDetailsEntry] = useState<PaymentEntryRow | null>(null);
@@ -128,6 +134,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
   // ── Dunning (Fase 2) — atribuir régua + ver histórico de execuções.
   const [assignDunning, setAssignDunning] = useState<{ id: string; ruleId: string | null; name: string } | null>(null);
   const [historyDunning, setHistoryDunning] = useState<{ id: string; name: string } | null>(null);
+  const [chargeLinkEntry, setChargeLinkEntry] = useState<{ id: string; name: string } | null>(null);
 
   // Período em ISO (e não como `Date`): o seletor de `Date` devolve objetos
   // novos a cada render, e o reset de página abaixo compara por valor.
@@ -181,9 +188,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
     perPage: PAYMENT_PAGE_SIZE,
   });
 
-  const { data: accountsData } = usePaymentAccounts();
   const createEntry = useCreatePaymentEntry();
-  const payEntry = usePayEntry();
   const deleteEntry = useDeletePaymentEntry();
   const removeEntry = useRemovePaymentEntry();
 
@@ -200,21 +205,6 @@ export function EntriesTable({ type }: EntriesTableProps) {
       });
     } catch (error) {
       toast.error(describePaymentError(error, "Não foi possível criar o lançamento"));
-    }
-  }
-
-  async function handlePay() {
-    if (!payDialog) return;
-    const amount = parseCurrencyToCents(payAmount);
-    if (!amount) return toast.error("Valor inválido");
-    try {
-      await payEntry.mutateAsync({ id: payDialog.id, paidAmount: amount });
-      setPayDialog(null);
-      setPayAmount("");
-      toast.success("Pagamento registrado!");
-      emitTourResult({ kind: GUIDE_RESULT_KINDS.paymentRegistered });
-    } catch (error) {
-      toast.error(describePaymentError(error, "Não foi possível registrar o pagamento"));
     }
   }
 
@@ -237,8 +227,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
   }
 
   function openPayDialog(entry: PaymentEntryRow) {
-    setPayDialog({ id: entry.id, amount: entry.amount - entry.paidAmount });
-    setPayAmount("");
+    setPayDialog({ id: entry.id, openAmountCents: entry.amount - entry.paidAmount });
   }
 
   function openAssignDunning(entry: PaymentEntryRow) {
@@ -373,30 +362,34 @@ export function EntriesTable({ type }: EntriesTableProps) {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            className="h-9 flex-1 min-w-32 rounded-lg border border-border bg-muted px-2.5 text-xs focus:outline-none sm:flex-none"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+          {/* Radix não aceita valor vazio: "__all__" representa "Todos" (filtro vazio). */}
+          <Select
+            value={statusFilter || ALL_STATUSES}
+            onValueChange={(value) => setStatusFilter(value === ALL_STATUSES ? "" : value)}
           >
-            <option value="">Todos</option>
-            {Object.entries(STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
+            <SelectTrigger className="h-9 min-w-36 flex-1 text-xs sm:flex-none" aria-label="Status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_STATUSES} className="text-xs">Todos os status</SelectItem>
+              {Object.entries(STATUS_LABELS).map(([statusValue, statusLabel]) => (
+                <SelectItem key={statusValue} value={statusValue} className="text-xs">{statusLabel}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            className="h-9 flex-1 min-w-36 rounded-lg border border-border bg-muted px-2.5 text-xs focus:outline-none sm:flex-none"
-            value={sort}
-            onChange={(e) => setSort(e.target.value as EntriesOrderBy)}
-            aria-label="Ordenar"
-            title="Ordenar lançamentos"
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                Ordenar: {option.label}
-              </option>
-            ))}
-          </select>
+          <Select value={sort} onValueChange={(value) => setSort(value as EntriesOrderBy)}>
+            <SelectTrigger className="h-9 min-w-44 flex-1 text-xs sm:flex-none" aria-label="Ordenar" title="Ordenar lançamentos">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value} className="text-xs">
+                  Ordenar: {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {isSearching && (
             <Button
@@ -478,6 +471,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                   onPay={() => openPayDialog(entry)}
                   onEdit={() => setEditEntry(entry)}
                   onAssignDunning={() => openAssignDunning(entry)}
+                  onChargeLink={() => setChargeLinkEntry({ id: entry.id, name: entry.description })}
                   onDunningHistory={() =>
                     setHistoryDunning({ id: entry.id, name: entry.description })
                   }
@@ -644,6 +638,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
                       onPay={() => openPayDialog(entry)}
                       onEdit={() => setEditEntry(entry)}
                       onAssignDunning={() => openAssignDunning(entry)}
+                      onChargeLink={() => setChargeLinkEntry({ id: entry.id, name: entry.description })}
                       onDunningHistory={() =>
                         setHistoryDunning({ id: entry.id, name: entry.description })
                       }
@@ -723,51 +718,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Pay Dialog */}
-      <Dialog open={!!payDialog} onOpenChange={(o) => !o && setPayDialog(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Registrar Pagamento</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label>Valor pago</Label>
-              <Input
-                placeholder="R$ 0,00"
-                value={payAmount}
-                onChange={(e) => setPayAmount(e.target.value)}
-                autoFocus
-                data-guide={GUIDE_ANCHORS.paymentPaidAmount.id}
-              />
-              {payDialog && (
-                <p className="text-xs text-muted-foreground">
-                  Saldo: {formatCurrency(payDialog.amount)}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Conta bancária</Label>
-              <select className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 focus:outline-none">
-                <option value="">Selecionar...</option>
-                {accountsData?.accounts.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="ghost" className="flex-1" onClick={() => setPayDialog(null)}>Cancelar</Button>
-              <Button
-                className="flex-1 bg-success/10 text-success hover:bg-success/20 border border-success/20"
-                onClick={handlePay}
-                disabled={payEntry.isPending}
-                data-guide={GUIDE_ANCHORS.paymentConfirmPay.id}
-              >
-                {payEntry.isPending ? "Salvando..." : "Confirmar Pagamento"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <PayEntryDialog entry={payDialog} onClose={() => setPayDialog(null)} />
 
       {/* Dunning — atribuir régua */}
       <DunningAssignDialog
@@ -775,6 +726,12 @@ export function EntriesTable({ type }: EntriesTableProps) {
         initialRuleId={assignDunning?.ruleId ?? null}
         entryName={assignDunning?.name}
         onClose={() => setAssignDunning(null)}
+      />
+
+      <ChargeLinkDialog
+        entryId={chargeLinkEntry?.id ?? null}
+        entryName={chargeLinkEntry?.name}
+        onClose={() => setChargeLinkEntry(null)}
       />
 
       {/* Dunning — histórico de execuções */}

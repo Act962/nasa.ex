@@ -10,7 +10,7 @@ export type LeadCreditStatus = {
   overdueTotalCents: number;
 };
 
-function startOfTodayInBrasilia(now: Date): Date {
+export function startOfTodayInBrasilia(now: Date): Date {
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(now);
   return new Date(`${day}T00:00:00-03:00`);
 }

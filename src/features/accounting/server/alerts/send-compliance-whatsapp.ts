@@ -1,11 +1,12 @@
 import "server-only";
 
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers/resolve-outbound-provider";
-import { findConnectedOrganizationInstance } from "@/features/tracking-chat/lib/providers/send-org-document";
+import { findOrganizationSenderInstance } from "@/features/tracking-chat/lib/providers/send-org-document";
+import { getPaymentSenderTrackingId } from "@/features/payment/server/messaging/sender-tracking";
 import { normalizePhoneToMetaE164 } from "@/features/tracking-chat/lib/providers/adapters/meta-cloud/normalize-phone";
 
-// Aviso fiscal pelo WhatsApp da própria empresa (instância conectada mais
-// antiga). Meta Cloud fora da janela de 24h só aceita template aprovado: com
+// Aviso fiscal pelo WhatsApp do tracking escolhido nas configurações do
+// financeiro (spec 0115, D-8) ou, sem escolha, da instância conectada mais antiga. Meta Cloud fora da janela de 24h só aceita template aprovado: com
 // ACCOUNTING_ALERT_WHATSAPP_TEMPLATE configurado ele é usado sempre; sem ele,
 // tentamos texto e registramos o motivo quando a Meta recusa. Nunca lança.
 
@@ -34,9 +35,11 @@ export async function sendComplianceWhatsApp(params: {
   const phones = [...new Set(params.phones.map((phone) => phone.trim()).filter(Boolean))];
   if (phones.length === 0) return [];
 
-  const instance = await findConnectedOrganizationInstance(params.organizationId).catch(() => null);
+  const senderTrackingId = await getPaymentSenderTrackingId(params.organizationId).catch(() => null);
+  const instance = await findOrganizationSenderInstance(params.organizationId, senderTrackingId).catch(() => null);
   if (!instance) {
-    return phones.map((phone) => ({ phone, isSent: false, reason: "no_connected_whatsapp_instance" }));
+    const reason = senderTrackingId ? "sender_tracking_not_connected" : "no_connected_whatsapp_instance";
+    return phones.map((phone) => ({ phone, isSent: false, reason }));
   }
 
   let resolved: Awaited<ReturnType<typeof resolveOutboundProvider>>;

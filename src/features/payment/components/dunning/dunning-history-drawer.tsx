@@ -27,11 +27,18 @@ import {
 } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useDunningExecutionsByEntry } from "../../hooks/use-payment-dunning";
+import { describeDunningFailure } from "../../lib/dunning-failure";
 
 const CHANNEL_ICONS = {
   EMAIL:    Mail,
   WHATSAPP: MessageSquare,
   SMS:      Smartphone,
+} as const;
+
+const CHANNEL_LABELS = {
+  EMAIL:    "E-mail",
+  WHATSAPP: "WhatsApp",
+  SMS:      "SMS",
 } as const;
 
 const STATUS_META = {
@@ -97,7 +104,7 @@ export function DunningHistoryDrawer({ entryId, entryName, onClose }: Props) {
                         </Badge>
                         <Badge variant="outline" className="text-[10px] h-4 gap-1">
                           <ChannelIcon className="size-2.5" />
-                          {exec.channel}
+                          {CHANNEL_LABELS[exec.channel] ?? exec.channel}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -108,14 +115,20 @@ export function DunningHistoryDrawer({ entryId, entryName, onClose }: Props) {
                           Executado em: <span className="text-foreground">{executedLabel}</span>
                         </p>
                       )}
-                      {exec.messageId && (
-                        <p className="text-[11px] text-muted-foreground font-mono truncate">
-                          msg: {exec.messageId}
+                      {exec.status === "SENT" && (
+                        <p className="text-xs text-muted-foreground">
+                          {exec.readAt ? (
+                            <>Lido pelo cliente em <span className="text-success">{new Date(exec.readAt).toLocaleString("pt-BR")}</span></>
+                          ) : exec.deliveredAt ? (
+                            <>Entregue em <span className="text-foreground">{new Date(exec.deliveredAt).toLocaleString("pt-BR")}</span></>
+                          ) : exec.channel === "WHATSAPP" ? (
+                            "Sem confirmação de entrega (só o número oficial confirma)"
+                          ) : null}
                         </p>
                       )}
                       {exec.errorMessage && (
-                        <p className="text-[11px] text-destructive">
-                          {exec.errorMessage}
+                        <p className={`text-[11px] ${exec.status === "FAILED" ? "text-destructive" : "text-muted-foreground"}`}>
+                          Motivo: {describeDunningFailure(exec.errorMessage)}
                         </p>
                       )}
                     </div>

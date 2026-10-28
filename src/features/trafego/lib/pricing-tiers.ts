@@ -173,3 +173,48 @@ export function quoteTrafego(
     nextTierSavingBrlCents,
   };
 }
+
+export interface TrafegoPriceParts {
+  serviceFeeBrlCents: number;
+  setupBrlCents: number;
+  extraCreativesBrlCents: number;
+  adBudgetBrlCents: number;
+}
+
+export interface TrafegoDiscountAllocation extends TrafegoPriceParts {
+  /** Desconto efetivamente aplicado — nunca passa do total. */
+  discountBrlCents: number;
+  /** O cupom chegou na verba: muda a entrega, a equipe precisa saber. */
+  touchesAdBudget: boolean;
+}
+
+/**
+ * Distribui o desconto de um cupom pelas parcelas (spec 0010 §5.1): taxa →
+ * setup → criativos extras → verba. A verba é a última porque desconto nela é
+ * menos dinheiro no anúncio, não menos margem.
+ */
+export function allocateTrafegoDiscount(
+  parts: TrafegoPriceParts,
+  discountBrlCents: number,
+): TrafegoDiscountAllocation {
+  let remaining = Math.max(0, discountBrlCents);
+  const takeFrom = (value: number) => {
+    const taken = Math.min(value, remaining);
+    remaining -= taken;
+    return value - taken;
+  };
+
+  const serviceFeeBrlCents = takeFrom(parts.serviceFeeBrlCents);
+  const setupBrlCents = takeFrom(parts.setupBrlCents);
+  const extraCreativesBrlCents = takeFrom(parts.extraCreativesBrlCents);
+  const adBudgetBrlCents = takeFrom(parts.adBudgetBrlCents);
+
+  return {
+    serviceFeeBrlCents,
+    setupBrlCents,
+    extraCreativesBrlCents,
+    adBudgetBrlCents,
+    discountBrlCents: Math.max(0, discountBrlCents) - remaining,
+    touchesAdBudget: adBudgetBrlCents < parts.adBudgetBrlCents,
+  };
+}

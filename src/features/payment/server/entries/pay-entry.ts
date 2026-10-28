@@ -21,6 +21,7 @@ async function updateEntryAsPaid(params: {
   status: "PAID" | "PARTIAL";
   paidAt: Date;
   accountId?: string;
+  notes?: string;
 }) {
   return prisma.paymentEntry.update({
     where: { id: params.entryId },
@@ -29,6 +30,7 @@ async function updateEntryAsPaid(params: {
       status: params.status,
       paidAt: params.paidAt,
       ...(params.accountId ? { accountId: params.accountId } : {}),
+      ...(params.notes !== undefined ? { notes: params.notes } : {}),
     },
     include: ENTRY_INCLUDE,
   });
@@ -41,6 +43,8 @@ export async function payPaymentEntryRecord(params: {
   paidAmountCents: number;
   paidAt?: string | Date;
   accountId?: string;
+  /** Como foi pago (ex.: "PIX direto — cliente pagou por fora"); vai para as observações. */
+  paymentNote?: string;
 }): Promise<PayEntryResult> {
   const { organizationId, actor, entryId } = params;
 
@@ -70,12 +74,18 @@ export async function payPaymentEntryRecord(params: {
   const status = newPaid >= existing.amount ? "PAID" : "PARTIAL";
   const paidAt = params.paidAt ? new Date(params.paidAt) : new Date();
 
+  const paymentNote = params.paymentNote?.trim();
+  const noteLine = paymentNote
+    ? `Pagamento de ${formatCents(params.paidAmountCents)} em ${paidAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}: ${paymentNote}`
+    : null;
+
   const entry = await updateEntryAsPaid({
     entryId,
     paidAmount: newPaid,
     status,
     paidAt,
     accountId: params.accountId,
+    notes: noteLine ? [existing.notes, noteLine].filter(Boolean).join("\n") : undefined,
   });
 
   await logActivity({
@@ -99,6 +109,7 @@ export async function payPaymentEntryRecord(params: {
       totalPaid: newPaid,
       totalAmount: existing.amount,
       type: existing.type,
+      ...(paymentNote ? { paymentNote } : {}),
     },
   });
 

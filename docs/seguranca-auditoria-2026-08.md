@@ -177,6 +177,13 @@ tenant. O isolamento é 100% aplicação, sem rede.
 
 O time já suspeitava: existem `scripts/diag-cross-org.ts` e `scripts/seed-cross-org-test.ts` no repo.
 
+**Lotes já corrigidos** (o item segue ⬜ até a varredura completa):
+
+| Data | Arquivos | Efeito que existia | Branch |
+| --- | --- | --- | --- |
+| 2026-10-23 | `router/payment/entries.ts` → `createPaymentEntryRecord` | Receita aceitava `contactId`, `leadId` e `dunningRuleId` de outra org — a régua mandaria mensagem ao cliente alheio. Agora ignorados | `feature/payment-cobrancas-recorrentes-20261022` |
+| 2026-10-26 | `router/integrations/create.ts`, `conect.ts`, `disconect.ts`, `delet.ts`, `list.ts` (helper `owned-instance.ts`) | Criar instância no tracking de outra org (bloqueava a vítima, `trackingId` é único); conectar, desconectar, apagar ou ler instância alheia por id. Agora `requireOrgMiddleware` + posse conferida → `NOT_FOUND`. Testado cross-org no banco local | `feature/payment-cobrancas-recorrentes-20261022` |
+
 **Correção** (item longo da Fase 0 — 1 a 2 semanas):
 
 - [ ] Script que classifica cada uma das ~190 em

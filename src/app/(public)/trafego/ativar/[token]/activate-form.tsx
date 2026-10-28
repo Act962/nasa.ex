@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Eye, EyeOff, Lock, Mail, Rocket, User } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { authClient } from "@/lib/auth-client";
-import { client as orpcClient } from "@/lib/orpc";
+import { useRedeemTrafegoPurchase } from "@/features/trafego/hooks/use-trafego-purchase";
 
 const schema = z
   .object({
@@ -51,6 +51,7 @@ export function ActivateForm({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const redeemPurchase = useRedeemTrafegoPurchase();
   const [statusText, setStatusText] = useState<string | null>(null);
 
   const isSameAccountLogged =
@@ -101,7 +102,7 @@ export function ActivateForm({
       }
 
       setStatusText("Preparando sua campanha…");
-      const redeem = await orpcClient.trafego.redeemPurchase({
+      const redeem = await redeemPurchase.mutateAsync({
         signupToken: token,
       });
 

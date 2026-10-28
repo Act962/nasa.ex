@@ -15,12 +15,15 @@ export default async function TrafegoSuccessPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const { token } = await searchParams;
+  const { token, session_id: checkoutSessionId } = await searchParams;
 
   return (
     <div className="px-4 py-12">
       <div className="mx-auto max-w-md">
-        <TrafegoSuccessPolling pendingId={token ?? null} />
+        <TrafegoSuccessPolling
+          pendingId={token ?? null}
+          checkoutSessionId={checkoutSessionId ?? null}
+        />
       </div>
     </div>
   );

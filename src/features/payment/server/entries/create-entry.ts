@@ -37,12 +37,61 @@ export interface CreatePaymentEntryInput {
   attachmentIds?: string[];
 }
 
+/**
+ * Cliente, lead, régua e tracking vêm do client e de vários chamadores (Astro, Forms, chat). Um id
+ * de outra empresa faria a régua mandar mensagem para o cliente dela: fica de fora.
+ */
+async function dropForeignReferences(
+  organizationId: string,
+  input: CreatePaymentEntryInput,
+): Promise<CreatePaymentEntryInput> {
+  const [contact, lead, rule, tracking] = await Promise.all([
+    input.contactId
+      ? prisma.paymentContact.findFirst({ where: { id: input.contactId, organizationId }, select: { id: true } })
+      : null,
+    input.leadId
+      ? prisma.lead.findFirst({
+          where: { id: input.leadId, tracking: { organizationId } },
+          select: { id: true, trackingId: true },
+        })
+      : null,
+    input.dunningRuleId
+      ? prisma.paymentDunningRule.findFirst({ where: { id: input.dunningRuleId, organizationId }, select: { id: true } })
+      : null,
+    input.trackingId
+      ? prisma.tracking.findFirst({ where: { id: input.trackingId, organizationId }, select: { id: true } })
+      : null,
+  ]);
+  if (
+    (input.contactId && !contact) ||
+    (input.leadId && !lead) ||
+    (input.dunningRuleId && !rule) ||
+    (input.trackingId && !tracking)
+  ) {
+    console.warn("[payment/entries create] referência de outra organização ignorada", {
+      organizationId,
+      contactId: input.contactId && !contact ? input.contactId : undefined,
+      leadId: input.leadId && !lead ? input.leadId : undefined,
+      dunningRuleId: input.dunningRuleId && !rule ? input.dunningRuleId : undefined,
+      trackingId: input.trackingId && !tracking ? input.trackingId : undefined,
+    });
+  }
+  return {
+    ...input,
+    contactId: contact?.id,
+    leadId: lead?.id,
+    trackingId: tracking?.id ?? lead?.trackingId,
+    dunningRuleId: rule?.id,
+  };
+}
+
 export async function createPaymentEntryRecord(params: {
   organizationId: string;
   actor: PaymentActor;
   input: CreatePaymentEntryInput;
 }) {
-  const { organizationId, actor, input } = params;
+  const { organizationId, actor } = params;
+  const input = await dropForeignReferences(organizationId, params.input);
   const installments = input.installments ?? 1;
   const groupId = installments > 1 ? randomUUID() : undefined;
   const baseDate = parseCalendarDate(input.dueDate);

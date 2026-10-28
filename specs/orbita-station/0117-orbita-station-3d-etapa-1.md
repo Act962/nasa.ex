@@ -38,7 +38,7 @@ O protótipo não pode ir para produção como está:
 Esta etapa transforma o protótipo em código do app, sem banco, para que as próximas etapas sejam construídas em cima de uma base revisável:
 
 - **Etapa 2:** a estação da empresa e presença.
-- **Spec 0116:** a loja.
+- **Spec 0118:** a loja.
 
 ## 2. Objetivo
 
@@ -49,7 +49,7 @@ Um usuário logado abre `/orbita-station` e anda pela estação 3D do protótipo
 - **Banco de dados.** Nenhuma tabela, coluna ou procedure. O que precisa ser lembrado fica no navegador até a etapa 2 (D-5).
 - **Multiplayer e presença.** Só o próprio avatar anda na estação.
 - **Pessoas de exemplo.** Os 14 personagens fictícios do protótipo saem. As salas continuam com o nome e o módulo, sem gente.
-- **Loja Órbita e STARS.** Ficam com a spec 0116, que depende da etapa 2.
+- **Loja Órbita e STARS.** Ficam com a spec 0118, que depende da etapa 2.
 - **Editor de decoração** ("Itens para decorar", cores do piso, luz da sala). A decoração é da empresa: gravar no navegador criaria uma estação diferente para cada pessoa, que se perderia na etapa 2. O editor entra junto com a persistência.
 - **Ligar as salas aos módulos reais** (abrir o NasaChat ao entrar na sala). A sala mostra o nome do módulo, como no protótipo. A integração é uma etapa própria.
 - **Link no menu da plataforma.** A rota só é acessada por URL até a etapa 2 (D-6).

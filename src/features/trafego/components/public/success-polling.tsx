@@ -31,15 +31,21 @@ const NEXT_STEPS = [
 
 export function TrafegoSuccessPolling({
   pendingId,
+  checkoutSessionId,
 }: {
   pendingId: string | null;
+  /** `session_id` do Stripe: só com ele o link de ativação aparece aqui (P-3). */
+  checkoutSessionId: string | null;
 }) {
   const [attempts, setAttempts] = useState(0);
   const { data: config } = useTrafegoPublicConfig();
   const gaveUp = attempts >= MAX_ATTEMPTS;
 
   const { data, isError } = useTrafegoPendingPurchase(
-    { pendingId: pendingId ?? undefined },
+    {
+      pendingId: pendingId ?? undefined,
+      checkoutSessionId: checkoutSessionId ?? undefined,
+    },
     {
       enabled: Boolean(pendingId) && !gaveUp,
       refetchInterval: gaveUp ? false : POLL_INTERVAL_MS,

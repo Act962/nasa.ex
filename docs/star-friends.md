@@ -82,7 +82,7 @@ Aba **Campanha** do app. O cliente manda a foto do cupom pelo WhatsApp e ganha n
 
 "Meus pontos" e "meus códigos" pedem o número cadastrado. Ele só é comparado com o número de quem escreve; diferente, a resposta é "Você não está acessando pelo dispositivo que se cadastrou na promoção." Nenhuma consulta usa o número digitado.
 
-**Cupom repetido**: recusado na hora por mesmo arquivo (`sha256`), mesma chave de acesso (44 dígitos) ou mesma impressão digital (CNPJ + número + dia + total), entre quaisquer clientes. Leitura incompleta é aceita com alerta. A **varredura** trata como a mesma compra o mesmo número de cupom, ou o mesmo CNPJ + dia + total (a hora só separa quando foi lida nos dois e difere em mais de 2 minutos), mantém o mais antigo e anula os números dos demais; depois confere se o cliente não ficou com mais números do que as compras válidas dão. O **sorteio** só roda com varredura feita depois do último cupom e grava a semente.
+**Cupom repetido**: recusado na hora por mesmo arquivo (`sha256`), mesma chave de acesso (44 dígitos) ou mesma impressão digital (CNPJ + número + dia + total), entre quaisquer clientes. Leitura incompleta é aceita com alerta. A **varredura** trata como a mesma compra o mesmo número de cupom, ou o mesmo CNPJ + dia + total (a hora só separa quando foi lida nos dois e difere em mais de 2 minutos), mantém o mais antigo e anula os números dos demais; depois confere se o cliente não ficou com mais números do que as compras válidas dão. O **sorteio** só roda com varredura feita depois do último cupom e grava a semente. A campanha tem uma quantidade de prêmios: sai um número para cada prêmio, no máximo um por cliente, com a ordem gravada em `LoyaltyLuckyNumber.drawPosition`.
 
 A varredura anula números, mas não estorna as stars já creditadas por eles.
 
@@ -109,6 +109,7 @@ Permissões: ver cupons e números = "Ver"; configurar = "Editar"; varredura e s
 
 ## Changelog
 
+- **2026-10-13** — Campanha com vários prêmios, um por pessoa; corrigida a data de fim que andava um dia a cada salvamento.
 - **2026-10-13** — Campanha de sorteio por cupom pelo WhatsApp: cadastro com aceite, leitura do cupom, bloqueio de repetido, varredura e sorteio (spec 0102).
 - **2026-09-29** — Níveis Terra/Lua/Galaxy, nível mínimo por prêmio, aba Níveis e regras e área do cliente no portal (spec 0041).
 - **2026-09-29** — Botão Star Friend dos Detalhes do lead no chat deixa de ser placeholder: mostra o card completo e estados de não instalado, pausado e sem permissão; resgates decididos direto no lead.

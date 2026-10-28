@@ -25,6 +25,7 @@ import { clientMenuId } from "./guided-menu/menu-ids";
 
 const AWAITING_KEY = "campaignAwaiting";
 const AWAITING_TIMEOUT_MINUTES = 30;
+const ASKS_FOR_CAMPAIGN = /\b(promocao|promo|sorteio|numeros? da sorte|participar|15 anos|aniversario|cadastrar (meu |o )?cupom)\b/;
 const WRONG_DEVICE_MESSAGE = "Você não está acessando pelo dispositivo que se cadastrou na promoção.";
 const SAYS_YES = /^(sim|aceito|aceitar|concordo|ok|pode|1)[\s!.]*$/;
 const SAYS_NO = /^(nao|nao aceito|recuso|2)[\s!.]*$/;
@@ -129,15 +130,19 @@ export async function handleCampaign(ctx: AgentContext, inboundMessageId: string
   if (!inbound) return { handled: false };
 
   const clickedId = (inbound.metadata as { interactiveReplyId?: unknown } | null)?.interactiveReplyId;
-  const campaignClick = typeof clickedId === "string" && clickedId.startsWith(CAMPAIGN_OPTION_PREFIX) ? clickedId : null;
+  const clickedCampaignOption = typeof clickedId === "string" && clickedId.startsWith(CAMPAIGN_OPTION_PREFIX) ? clickedId : null;
   // Clique em opção de outro menu tira o cliente da campanha.
-  const isOtherClick = typeof clickedId === "string" && !campaignClick;
+  const isOtherClick = typeof clickedId === "string" && !clickedCampaignOption;
   const previousOutbound = await prisma.message.findFirst({
     where: { conversationId: ctx.conversation.id, fromMe: true, createdAt: { lt: inbound.createdAt } },
     orderBy: { createdAt: "desc" },
     select: { metadata: true, createdAt: true },
   });
   const awaiting = isOtherClick ? null : readAwaiting(previousOutbound?.metadata, inbound.createdAt);
+  // CB-19: o link da bio chega com "Quero participar da promoção" escrito. Sem isso a frase ia para a
+  // assistente, que inventou um cadastro no teste real. Pedido escrito vale como o clique em "Promoção".
+  const asksForCampaignInText = !clickedId && !awaiting && ASKS_FOR_CAMPAIGN.test(normalizeAnswer(inbound.body ?? ""));
+  const campaignClick = clickedCampaignOption ?? (asksForCampaignInText ? CAMPAIGN_OPTION.start : null);
   // Quem já está cadastrado manda a foto direto, sem passar pelo botão "Cadastrar novo cupom".
   const isUnpromptedPhoto = !campaignClick && !awaiting && !isOtherClick && isReceiptFile(inbound);
   if (!campaignClick && !awaiting && !isUnpromptedPhoto) return { handled: false };

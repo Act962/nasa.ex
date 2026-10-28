@@ -379,22 +379,22 @@ apenas para destravar o teste. Três caminhos possíveis, do mais barato ao mais
 
 | Id | Item | Peso | Área | Status |
 | --- | --- | --- | --- | --- |
-| P-9 | **Cupom habilitado sem rastreio do desconto** (financeiro falso) | Alta | Pagamentos | ⬜ |
-| P-1 | Corrida em `claimPixReference` vira 500 | Alta | Pagamentos | ⬜ |
-| P-2 | Checkout público sem rate limit | Alta | Pagamentos | ⬜ |
-| E-1 | Overview sem a Fase E; `SCHEMA_VERSION` errado | Alta | Docs | ⬜ |
-| P-3 | `getPendingPurchase` expõe PII e `signupToken` | Média | Pagamentos | ⬜ |
-| P-4 | Reembolso parcial sem tratamento | Média | Pagamentos | ⬜ |
-| P-5 | Reembolso total não reverte o financeiro | Média | Pagamentos | ⬜ |
-| P-8 | Sem cobrança avulsa pós-checkout | Média | Produto | ⬜ |
-| E-2 | `TrafegoCreativeTopUp` e `TrafegoInfoTipSeen` mortas | Média | Schema | ⬜ |
-| E-3 | Recuperação de carrinho sem cron | Média | Automação | ⬜ |
-| E-5 | `trafego-landing.tsx` com 1.152 linhas / 26 `useState` | Média | Front | ⬜ |
-| P-6 | Disputa só no console | Baixa | Pagamentos | ⬜ |
-| P-7 | `computeTrafegoPrice` legado | Baixa | Pagamentos | ⬜ |
-| E-4 | Regra 9 em `activate-form.tsx` + hook órfão | Baixa | Front | ⬜ |
-| E-6 | Componentes admin fora da feature | Baixa | Arquitetura | ⬜ |
-| E-7 | Fixtures de preview no bundle | Baixa | Build | ⬜ |
+| P-9 | **Cupom habilitado sem rastreio do desconto** (financeiro falso) | Alta | Pagamentos | ✅ PR #481 |
+| P-1 | Corrida em `claimPixReference` vira 500 | Alta | Pagamentos | ✅ PR #481 |
+| P-2 | Checkout público sem rate limit | Alta | Pagamentos | ✅ PR #481 |
+| E-1 | Overview sem a Fase E; `SCHEMA_VERSION` errado | Alta | Docs | ✅ PR #481 |
+| P-3 | `getPendingPurchase` expõe PII e `signupToken` | Média | Pagamentos | ✅ PR #481 |
+| P-4 | Reembolso parcial sem tratamento | Média | Pagamentos | ✅ PR #481 |
+| P-5 | Reembolso total não reverte o financeiro | Média | Pagamentos | ✅ PR #481 |
+| P-8 | Sem cobrança avulsa pós-checkout | Média | Produto | ⬜ decisão de produto |
+| E-2 | `TrafegoCreativeTopUp` e `TrafegoInfoTipSeen` mortas | Média | Schema | ⬜ decisão: implementar ou dropar |
+| E-3 | Recuperação de carrinho sem cron | Média | Automação | ⬜ decisão + parecer Inngest |
+| E-5 | `trafego-landing.tsx` com 1.152 linhas / 26 `useState` | Média | Front | ⬜ PR próprio |
+| P-6 | Disputa só no console | Baixa | Pagamentos | ✅ PR #481 |
+| P-7 | `computeTrafegoPrice` legado | Baixa | Pagamentos | ✅ PR #481 |
+| E-4 | Regra 9 em `activate-form.tsx` + hook órfão | Baixa | Front | ✅ PR #481 |
+| E-6 | Componentes admin fora da feature | Baixa | Arquitetura | ⬜ PR próprio |
+| E-7 | Fixtures de preview no bundle | Baixa | Build | ⬜ investigar no build |
 
 ### Ordem sugerida
 
@@ -417,3 +417,4 @@ apenas para destravar o teste. Três caminhos possíveis, do mais barato ao mais
 | --- | --- |
 | 2026-09-17 | Documento criado. Auditoria de estrutura e de pagamentos sobre `2215387a`: 15 itens (7 de estrutura, 8 de pagamentos), nenhum aplicado. |
 | 2026-09-17 | Cupom habilitado no checkout (`allow_promotion_codes: true`, spec [0010](../specs/trafego/0010-trafego-checkout-cupom.md) Fase A). O rastreio do desconto (Fase B) foi implementado e **revertido** por decisão do dono — a migration não se justificava só para destravar teste. Registrado como **P-9**, com a regra operacional de uso até lá. **Nenhum item deste backlog foi resolvido**; P-2 (rate limit) ficou mais relevante, já que o checkout público agora aceita códigos. |
+| 2026-10-27 | PR #481 resolve P-9 (sem migration: desconto lido do Stripe e alocado taxa → setup → extras → verba), P-1, P-2, P-3, P-4, P-5 (Stripe e Asaas), P-6, P-7, E-1 e E-4. Também: criativos extras passam a entrar na receita (antes ficavam fora dos dois lançamentos). Decisões de P-4/P-6: nada é revertido sozinho, só evento interno + aviso aos admins; disputa não pausa a campanha. Restam P-8, E-2, E-3 (decisão de produto) e E-5, E-6, E-7 (PRs próprios). |

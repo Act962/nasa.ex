@@ -16,7 +16,8 @@ import {
   parseStoredRecipients,
 } from "@/features/payment/schemas/reminders";
 import { queryPaymentReminders } from "@/features/payment/server/reminders/list-reminders";
-import { findConnectedOrganizationInstance } from "@/features/tracking-chat/lib/providers/send-org-document";
+import { findOrganizationSenderInstance } from "@/features/tracking-chat/lib/providers/send-org-document";
+import { getPaymentSenderTrackingId } from "@/features/payment/server/messaging/sender-tracking";
 import { assertPaymentToolAccess } from "./access";
 import { formatBRL, formatDateBR } from "./payloads";
 import { formatReminderDateTime, resolveReminderDateTime } from "./reminder-dates";
@@ -111,8 +112,13 @@ export function buildFinanceReminderTools(ctx: AgentContext) {
     if (deliverableCount === 0) {
       return { error: "Nenhum destinatário tem telefone ou e-mail para os canais escolhidos. Peça esses dados ao usuário." };
     }
-    if (input.channels.includes("WHATSAPP") && !(await findConnectedOrganizationInstance(ctx.organizationId))) {
-      warnings.push("Nenhum WhatsApp conectado nesta empresa — o envio por WhatsApp vai falhar (o e-mail segue).");
+    if (input.channels.includes("WHATSAPP")) {
+      const senderTrackingId = await getPaymentSenderTrackingId(ctx.organizationId);
+      if (!(await findOrganizationSenderInstance(ctx.organizationId, senderTrackingId))) {
+        warnings.push(senderTrackingId
+          ? "O número escolhido para o financeiro está desconectado — o envio por WhatsApp vai falhar (o e-mail segue)."
+          : "Nenhum WhatsApp conectado nesta empresa — o envio por WhatsApp vai falhar (o e-mail segue).");
+      }
     }
     if (!documentToSend) warnings.push("Sem documento anexo — só a mensagem será enviada.");
 

@@ -3,11 +3,12 @@ import prisma from "@/lib/prisma";
 import { resend } from "@/lib/email/resend";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import {
-  findConnectedOrganizationInstance,
+  findOrganizationSenderInstance,
   sendOrganizationWhatsAppDocument,
   sendOrganizationWhatsAppText,
   type OrganizationWhatsAppSendResult,
 } from "@/features/tracking-chat/lib/providers/send-org-document";
+import { getPaymentSenderTrackingId } from "@/features/payment/server/messaging/sender-tracking";
 import { readAttachmentBytes } from "@/features/payment/server/documents/read-attachment-bytes";
 import {
   parseStoredRecipients,
@@ -124,9 +125,11 @@ async function deliverByWhatsApp(
   const channel = "WHATSAPP";
   if (!recipient.phone) return buildDeliveryLog({ recipient, channel, status: "SKIPPED", reason: "recipient_without_phone" });
 
-  const instance = await findConnectedOrganizationInstance(snapshot.organizationId);
+  const senderTrackingId = await getPaymentSenderTrackingId(snapshot.organizationId);
+  const instance = await findOrganizationSenderInstance(snapshot.organizationId, senderTrackingId);
   if (!instance) {
-    return buildDeliveryLog({ recipient, channel, status: "FAILED", reason: "no_connected_whatsapp_instance" });
+    const reason = senderTrackingId ? "sender_tracking_not_connected" : "no_connected_whatsapp_instance";
+    return buildDeliveryLog({ recipient, channel, status: "FAILED", reason });
   }
 
   const { isCharged, starsCharged } = await chargeReminderDelivery(snapshot, recipient, channel);
@@ -140,11 +143,13 @@ async function deliverByWhatsApp(
         fileName: snapshot.attachment.fileName,
         mimeType: snapshot.attachment.mimeType,
         caption: snapshot.message,
+        senderTrackingId,
       })
     : await sendOrganizationWhatsAppText({
         organizationId: snapshot.organizationId,
         phone: recipient.phone,
         message: snapshot.message,
+        senderTrackingId,
       });
 
   return sendResult.isSent

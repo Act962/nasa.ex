@@ -2,10 +2,15 @@
 
 > Documento de referência do domínio `trafego`. Status: **venda (0008) implementada ·
 > operação, PIX, chat, políticas, KPIs e inteligência (0009, Fases A–D) implementadas em
-> 2026-09-12/13 · migrations pendentes de aplicação**.
+> 2026-09-12/13 · Fase E, PIX pelo Asaas e captura de lead em 2026-09 · pedido avulso e correções
+> de pagamento em 2026-10 · migrations do domínio aplicadas (conferido em clone de 2026-10-21)**.
 > Specs: [`0008`](../specs/trafego/0008-trafego-self-service.md) (venda) ·
 > [`0009`](../specs/trafego/0009-trafego-operacao-inteligencia.md) (operação, PIX, Astro, políticas,
-> Release, KPIs). Playbook do gestor: [`trafego-playbook-gestor.md`](trafego-playbook-gestor.md).
+> Release, KPIs) · [`0010`](../specs/trafego/0010-trafego-checkout-cupom.md) (cupom) ·
+> [`0021`](../specs/trafego/0021-trafego-captura-lead-e-notificacao-admin.md) (captura de lead) ·
+> [`0022`](../specs/trafego/0022-trafego-pix-asaas.md) (PIX Asaas) ·
+> [`0116`](../specs/trafego/0116-trafego-pedido-avulso.md) (pedido avulso). Backlog:
+> [`trafego-correcoes-pendentes.md`](trafego-correcoes-pendentes.md). Playbook do gestor: [`trafego-playbook-gestor.md`](trafego-playbook-gestor.md).
 >
 > **Regra de manutenção**: ao mexer em `src/features/trafego/`, `src/app/router/trafego/`,
 > `src/app/(public)/trafego/`, `src/app/(platform)/(tracking)/trafego/`,
@@ -38,6 +43,18 @@ anúncio. Quanto maior o investimento, menor o percentual:
 O **setup da BM** é cobrado uma única vez, apenas de quem ainda não tem conta de anúncios. Cobre a
 criação da BM, da página do Facebook e a correção de problemas na conta. Produção de criativo é
 serviço à parte. As três parcelas aparecem separadas: na landing, no Stripe e no e-mail.
+
+**Criativos extras (Fase E)**: o pedido inclui `TrafegoSettings.includedCreatives` criativos (padrão
+3). Quem quer mais escolhe no wizard (`desiredCreativeCount`) e paga
+`extraCreativeBrlCents` por criativo adicional, como quarta parcela no Stripe. O pedido não tem
+coluna própria para isso: no financeiro, extras = total − verba − taxa − setup, e entram como
+receita junto da taxa. Quem já tem perfil pronto pode mandar o link (`materialsProfileLink`) em vez
+dos arquivos.
+
+**Cupom (spec 0010)**: aceito no Stripe (`allow_promotion_codes`). O desconto **não** é gravado no
+banco: é lido do Stripe na hora de lançar o financeiro (`stripe-discount.ts`) e distribuído por
+`allocateTrafegoDiscount` na ordem taxa → setup → extras → verba. Cupom que chega na verba gera
+evento interno e aviso aos admins. Se o Stripe não responder, nada é lançado e a equipe é avisada.
 
 A tabela vive em `src/features/trafego/lib/pricing-tiers.ts` e é a fonte de verdade. O servidor
 **sempre recalcula** a cotação no checkout. A verba é limitada entre **R$ 300 e R$ 500.000**.
@@ -101,6 +118,13 @@ Operação
   materiais: ≥1 criativo + ≥1 copy selecionada → MATERIALS_SUBMITTED sozinho
   "Ativar" → REQUESTED (claim) → `trafego/order.requested` → notifica a equipe
   cron horário `trafego-kanban-drift-sweep`: card fora da coluna → realinha (pedido é autoridade)
+
+Pedido avulso (spec 0116) — cliente que pagou fora da landing
+  /admin/trafego → "Pedido avulso" → trafego.admin.orders.createManual (só admin do sistema)
+  $transaction: TrafegoOrder(ACCOUNT_REVIEW) sem pendingPurchaseId, eventos com source=ADMIN
+     ("Pagamento registrado pela equipe"), dono = membro owner → admin → mais antigo da org
+  fora da tx: o mesmo `runTrafegoOrderPostCreation`; financeiro opcional (skipFinance)
+  meio de pagamento: PIX ou Cartão, escolhido pela equipe (sem enum novo)
 ```
 
 Colunas do tracking (ordem): Aguardando pagamento · Pagamento confirmado · Análise da conta de
@@ -153,6 +177,7 @@ a partir de ONBOARDING (ativar antes pularia a análise da conta).
 
 ```
 specs/trafego/0008-*.md · 0009-*.md              specs (venda · operação)
+specs/trafego/0116-trafego-pedido-avulso.md     pedido criado pela equipe
 docs/trafego-playbook-gestor.md                  operação coluna a coluna + Claude Code/MCP
 
 src/features/trafego/
@@ -172,7 +197,7 @@ src/features/trafego/
 │                 trafego-settings (cache 30 s) · provision-operations-tracking
 │                 provision-briefing-form · create-order-from-purchase · begin-trafego-activation
 │                 phone-verification (OTP) · whatsapp-number-check · social-profile-lookup
-│                 mark-purchase-paid (Stripe e PIX) · compliance-check
+│                 mark-purchase-paid (Stripe e PIX) · compliance-check · create-manual-order
                  auto-link-meta-campaigns (TG-NNNN → campanha) · live-meta-insights (cache 15 min)
                  recommendations (regras decidem, modelo redige) · suggest-copies
                  astro-tools (escopo trafeGO do Astro no painel)
@@ -203,6 +228,7 @@ src/inngest/functions/trafego/  asaas-payment-event (webhook do Asaas, fora do r
                                sync-meta-ads-structure (vincula TG-NNNN)
 src/lib/email/                 trafego-purchase-confirmation · trafego-status-update
 src/features/admin/components/trafego/ orders-table · order-detail · public-link-card
+                                       create-manual-order-dialog (pedido avulso, spec 0116)
 src/features/admin/components/trafego/settings/ ajustes em /admin/trafego/settings (7 seções)
 src/features/admin/lib/trafego-settings-form.ts   estado do formulário de ajustes, fora da UI
 instrumentation.ts             registra o subscriber do kanban
@@ -232,8 +258,8 @@ src/app/api/astro/chat/route.ts            isenta Stars quando appScope === "tra
 | Participantes do tracking | app de tracking | Gestor não vê os cards |
 
 Migration da Fase A: `prisma/migrations/20260912150000_trafego_operacao_kanban` (aditiva). Depois
-de aplicar: `pnpm db:generate`, bump de `SCHEMA_VERSION` (já em `v61-trafego-operacao-kanban`) e o
-ritual da regra 11.
+de aplicar: `pnpm db:generate`, bump de `SCHEMA_VERSION` (em `src/lib/prisma.ts`) e o ritual da
+regra 11.
 
 ### Por que o webhook é fail-closed
 
@@ -246,21 +272,27 @@ trafeGO com o secret do better-auth aceitaria evento de outro produto. Mesmo gua
 | Fase | Escopo | Status |
 | --- | --- | --- |
 | 0008-1..3 | Venda ponta a ponta, materiais, desempenho | ✅ |
-| 0008-4 | Suporte: thread ✅ · notificação da equipe ✅ · recuperação de carrinho ⬜ | 🚧 |
-| **0009-A** | Tracking de operação, card ↔ pedido, briefing no card, avisos WhatsApp + e-mail, financeiro com conta/categoria, `ACCOUNT_REVIEW`, materiais automáticos, Google Ads no checkout | ✅ código · ⬜ migration/config |
+| 0008-4 | Suporte: thread ✅ · notificação da equipe ✅ · recuperação de carrinho ⬜ (E-3, decisão pendente) | 🚧 |
+| **0009-A** | Tracking de operação, card ↔ pedido, briefing no card, avisos WhatsApp + e-mail, financeiro com conta/categoria, `ACCOUNT_REVIEW`, materiais automáticos, Google Ads no checkout | ✅ código · ✅ migration · config: conferir |
 | **0009-B4** | Chat público do Astro na landing: ferramentas só de leitura (simular preço, checar política, estimar início, contato), limite por IP, sem persistir conversa | ✅ código |
-| **0009-B3** | Políticas de publicidade (base curada + prescreen determinístico + checagem por modelo) e prazo realista em dias úteis reconhecido antes do pagamento | ✅ código · ⬜ migration |
-| **0009-B2** | PIX manual: escolha no passo Contato, chave + referência `TGP-xxxx`, comprovante pelo WhatsApp, "Confirmar PIX" na aba trafeGO do card do lead, cron de validade, caminho único de confirmação com o Stripe | ✅ código · ⬜ migration/config |
-| **0009-B1** | Verificações do wizard: WhatsApp por código, conta do Instagram/Facebook com preview em mockup, número na API Oficial com aquecimento explicado; hero animado em 6 passos; telefone obrigatório | ✅ código · ⬜ migration/config |
+| **0009-B3** | Políticas de publicidade (base curada + prescreen determinístico + checagem por modelo) e prazo realista em dias úteis reconhecido antes do pagamento | ✅ |
+| **0009-B2** | PIX manual: escolha no passo Contato, chave + referência `TGP-xxxx`, comprovante pelo WhatsApp, "Confirmar PIX" na aba trafeGO do card do lead, cron de validade, caminho único de confirmação com o Stripe | ✅ código · ✅ migration · config: conferir |
+| **0009-B1** | Verificações do wizard: WhatsApp por código, conta do Instagram/Facebook com preview em mockup, número na API Oficial com aquecimento explicado; hero animado em 6 passos; telefone obrigatório | ✅ código · ✅ migration · config: conferir |
 | 0009-B | Completa | ✅ |
-| **0009-C** | Vínculo automático da campanha por nome (`TG-NNNN`) no cron da estrutura Meta, leitura ao vivo dos KPIs com cache de 15 min e selo de frescor no painel | ✅ código · ⬜ migration |
-| **0009-D** | Astro no painel com escopo `trafego` e isento de Stars, Release montado a partir de site/PDF, recomendações por regras duras, copies sugeridas com selo de política, checklist de acessos | ✅ código · ⬜ migration |
-| **0020** | PIX pelo Asaas: cobrança nominal com CPF/CNPJ na trilha PIX, QR na tela, webhook dedicado com `asaas-access-token` fail-closed e valor relido da API, confirmação pelo `markTrafegoPurchasePaid` | ✅ código · ⬜ migration/config |
+| **0009-C** | Vínculo automático da campanha por nome (`TG-NNNN`) no cron da estrutura Meta, leitura ao vivo dos KPIs com cache de 15 min e selo de frescor no painel | ✅ |
+| **0009-D** | Astro no painel com escopo `trafego` e isento de Stars, Release montado a partir de site/PDF, recomendações por regras duras, copies sugeridas com selo de política, checklist de acessos | ✅ |
+| **0009-E** | Criativos extras cobrados no checkout, link de perfil no lugar dos arquivos, limite de criativos incluídos configurável | ✅ |
+| **0021** | Captura do lead no passo Contato do wizard e aviso aos admins | ✅ |
+| **0116** | Pedido avulso criado pela equipe para quem pagou fora da landing | ✅ |
+| **0010-B** | Cupom no financeiro e no `amountMismatch`, sem migration (desconto lido do Stripe) | ✅ |
+| **0022** | PIX pelo Asaas: cobrança nominal com CPF/CNPJ na trilha PIX, QR na tela, webhook dedicado com `asaas-access-token` fail-closed e valor relido da API, confirmação pelo `markTrafegoPurchasePaid` | ✅ código · ✅ migration · config: conferir |
 
 ## 8. Changelog
 
 | Data | Mudança |
 | --- | --- |
+| 2026-10-27 | **Correções do backlog de 2026-09-17**: cupom chega ao financeiro com valor líquido e deixa de marcar `amountMismatch` (P-9); referência PIX gravada com a unicidade do banco, sem 500 em colisão (P-1); limite de tentativas no checkout por IP e por e-mail (P-2); consulta pública da compra com e-mail mascarado e token só para quem tem o `session_id` do Stripe (P-3); estorno parcial e disputa viram evento interno + aviso aos admins (P-4, P-6); estorno total cancela os lançamentos no financeiro, nos dois gateways (P-5); `computeTrafegoPrice` → `computeLegacyPlanPrice` (P-7); ativação usa o hook (E-4). Criativos extras passam a entrar na receita. |
+| 2026-10-27 | **Pedido avulso (spec 0116)**: a equipe cria pelo `/admin/trafego` o pedido de quem pagou fora da landing, escolhendo empresa, canal, valores e PIX/Cartão. Sem migration. Nasce em "Análise da conta" e segue o pós-criação de sempre; lançar no financeiro é opcional. |
 | 2026-10-02 | **Painel do cliente no padrão celular primeiro** (`docs/apps-mobile-playbook.md`), só interface: título uma vez (barra de cima sem nome), topo com ícone redondo e a seção atual como título no celular; números sempre à vista, mesmo zerados (verba nos anúncios, total investido, no ar, precisam de você; no pedido: verba, já gasto, taxa e total); filtros em pílulas que rolam e busca em pílula na lista; menu de baixo no pedido com Campanhas · Materiais · Andamento · Desempenho; texto do anúncio editado em gaveta de baixo no celular (janela no computador); "Confirmar PIX" da equipe em gaveta no celular; selos de status em tokens (`ORDER_STATUS_STYLE`); "Verba usada" aparece desde R$ 0,00; atalho do WhatsApp sobe acima do menu de baixo. Componentes novos: `panel-page-header`, `panel-stat-grid`, `order-card`, `order-detail-header`, `order-status-notices`, `copy-card`, `copy-editor-dialog`, `copy-editor-fields`, `release-fields`; filtros em `lib/order-filters.ts`. |
 | 2026-09-18 | **PIX pelo Asaas (spec 0022)**: a trilha PIX deixa de depender de comprovante. O checkout emite cobrança nominal no Asaas com `externalReference` = id da pendência, e a tela mostra QR e copia-e-cola em vez da chave estática. Como a API exige documento para cadastrar pagador, o wizard passa a pedir **CPF/CNPJ apenas em quem escolheu PIX** — o cartão não vê o campo. O webhook é endpoint próprio (`/api/trafego/asaas/webhook`), separado do de Stars: valida o header `asaas-access-token` **fail-closed** e, validado o token, **relê a cobrança na API** em vez de confiar no valor do corpo — token prova quem mandou, releitura prova quanto. Fora isso responde 200 quase sempre, porque o Asaas interrompe a fila após 15 falhas seguidas. A confirmação entra pelo `markTrafegoPurchasePaid` de sempre, então idempotência e aviso de duplicidade vêm de graça. Estorno e chargeback **notificam** e param aí. Gateway desligado em `/admin/payments` devolve tudo ao PIX manual, sem deploy. |
 | 2026-09-13 | **Fase D da 0009 — inteligência no painel**: o Astro do painel passa a ter escopo próprio (`toolScope: "trafego"`) com dez ferramentas do próprio pedido e **nenhuma da plataforma** — o cliente trafeGO não é membro e não pode ver leads, orgs nem automações — e fica **isento de Stars** (a taxa de serviço cobre; ele não tem saldo e não deveria precisar ter). O **Release** nasce das fontes que o cliente aponta: site e PDF são lidos de fato (fetch com bloqueio de IP privado, `pdf-parse` sob import dinâmico), Instagram e Facebook ficam como referência porque raspar violaria os termos; a redação roda no Inngest, um passo por fonte, e o resultado é **rascunho** — só vira insumo de copy e recomendação depois que o cliente salva. As **recomendações** são decididas por regras duras em código (verba mínima por dia e plataforma, formato por objetivo, destino × pixel) e o modelo só redige em cima do veredito — número inventado por modelo viraria conselho diferente a cada refresh. Copies ganham `suggest` (três ângulos distintos, `SUGGESTED_BY_NASA`, nunca já selecionadas) e selo de política por variação. Nova aba **Acessos** com o Business ID de parceiro para copiar — nunca pedimos senha. |
