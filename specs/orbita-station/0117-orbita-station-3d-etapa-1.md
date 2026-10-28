@@ -7,7 +7,7 @@ autor: João Gabriel (com Claude)
 criada: 2026-10-27
 atualizada: 2026-10-28
 branch: claude/focused-hamilton-2dc35f
-pr:
+pr: 482
 peso: completa
 ---
 
