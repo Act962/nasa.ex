@@ -15,9 +15,10 @@ peso: completa
 
 > **Depende de:**
 > - [0117](0117-orbita-station-3d-etapa-1.md): a estação como código do app.
-> - A spec da **etapa 2** (ainda sem número): a estação da empresa no banco, com presença e permissões.
+> - [0119](0119-orbita-station-etapa-2-estacao-da-empresa.md), a **etapa 2**: a estação da empresa no banco (`OrbitaStation`), a sala de tempo real e a permissão `orbita-station`.
+> - A **etapa 3**: o editor de decoração, que entra junto com esta loja (os dois põem objetos na estação e dividem a regra de posição).
 >
-> Esta spec não pode ser implementada antes dessas duas. Os nomes `OrbitaStation` e "permissão de editar a estação" vêm da etapa 2 e serão confirmados lá.
+> Esta spec não pode ser implementada antes da 0117 e da 0119.
 
 ## 1. Contexto
 
@@ -50,7 +51,7 @@ A empresa compra objetos da Loja Órbita com STARS reais. Cada unidade comprada 
 - **Space Points (SP).** A compra é só em STARS. SP não é aceito nem creditado.
 - **Venda, troca ou devolução de itens.** Não há reembolso por item, e tirar da estação não devolve STARS.
 - **Itens funcionais** (guichê, mesa que muda capacidade, painel da fila). Só itens decorativos.
-- **Editor de decoração gratuito** (cores do piso, luz, itens grátis). Fica com a etapa 2.
+- **Editor de decoração gratuito** (cores do piso, luz, itens grátis). Entra na etapa 3, junto com esta loja, mas tem decisões próprias.
 - **Orçamento por pessoa** (`MemberStarBudget.monthlyBudget`). Hoje ele não bloqueia nenhum débito. Esta spec só registra o `userId` na transação, como os débitos atuais.
 - **Corrigir a disputa de saldo em `debitStars` e no ingresso de evento.** Fica registrada como achado para uma tarefa separada (§9). Esta spec só exige que o débito **novo** seja atômico.
 - **Escala livre do objeto.** O item tem um tamanho só. Muda só a posição e o giro.
@@ -72,7 +73,7 @@ A empresa compra objetos da Loja Órbita com STARS reais. Cada unidade comprada 
 | RF-9 | O servidor valida a posição com a **mesma função pura** de montagem e colisão da 0117. O item precisa estar sobre o piso de uma sala ou corredor. Ele não pode sobrepor parede, móvel fixo ou outro item comprado, nem bloquear porta, passagem do corredor ou ponto de chegada. |
 | RF-10 | Na estação, botão direito (ou toque longo) abre um menu de contexto conforme o alvo. Piso → "Meus itens da loja". Item posicionado → "Arrastar item". Item em posicionamento → "Soltar aqui", "Girar" e "Cancelar". |
 | RF-11 | Durante o posicionamento, o item segue o cursor sobre o piso, com contorno azul pulsante, e mostra o motivo quando o lugar é inválido. Esc cancela sem gravar. |
-| RF-12 | Posicionar, mover ou retirar avisa quem está na estação (pelo canal de tempo real definido na etapa 2), e todos veem a mudança sem recarregar. |
+| RF-12 | Posicionar, mover ou retirar avisa quem está na estação (pela sala do LiveKit da estação, spec 0119, D-3), e todos veem a mudança sem recarregar. |
 | RF-13 | Os itens comprados aparecem para todos que entram na estação da empresa. |
 
 ### Não-funcionais
@@ -113,7 +114,7 @@ A empresa compra objetos da Loja Órbita com STARS reais. Cada unidade comprada 
 | CB-5 | O preço do item muda depois da compra | A unidade guarda `pricePaidStars`. O preço novo não afeta quem já comprou. |
 | CB-6 | O item sai da loja (marcado `retired` no catálogo) | Ele some da loja. As unidades já compradas continuam no inventário e na estação, porque o modelo `.glb` continua no repositório. |
 | CB-7 | Alguém apaga do catálogo a entrada ou o `.glb` de um item com unidades vendidas | Proibido. Item vendido só pode ser marcado `retired` (D-3). Um teste confere que toda `itemKey` do catálogo tem modelo. Unidade com chave desconhecida aparece como caixa com o nome "Item indisponível" e não quebra a estação. |
-| CB-8 | Alguém salva a decoração da estação (etapa 2) enquanto outra pessoa posiciona um item comprado | Sem efeito sobre o item: a posição mora na unidade, não na decoração (D-2). |
+| CB-8 | Alguém salva a decoração da estação (etapa 3) enquanto outra pessoa posiciona um item comprado | Sem efeito sobre o item: a posição mora na unidade, não na decoração (D-2). |
 | CB-9 | A empresa troca o modelo de estação, e um item comprado fica fora do piso novo ou sobre uma parede | O item não é desenhado e aparece no inventário como "fora da estação — reposicione". A unidade não é apagada. A validação usa a mesma função da RF-9. |
 | CB-10 | A estação da empresa é apagada | `onDelete: SetNull` na estação da unidade: ela volta a "disponível" no inventário. |
 | CB-11 | A empresa é apagada | `onDelete: Cascade` a partir da organização. |
@@ -146,7 +147,7 @@ A empresa compra objetos da Loja Órbita com STARS reais. Cada unidade comprada 
 ### D-2 — A posição do item comprado não fica na decoração da estação
 
 - **Escolha:** o item comprado é desenhado a partir das linhas de `OrbitaStationItem` e só se junta à estação na tela.
-- **Alternativa descartada:** gravar o item comprado dentro do JSON de decoração da estação (etapa 2).
+- **Alternativa descartada:** gravar o item comprado dentro do JSON de decoração da estação (etapa 3).
   - Um JSON regravado inteiro permitiria duplicar ou apagar item pago, e um salvamento apagaria o que outra pessoa posicionou (CB-8).
   - Também não daria para validar posição nem contar unidades no banco (S3: `Json` só para dado opaco).
 - **Consequência:** a estação tem duas fontes de objetos para desenhar. A junção fica numa função só, com teste.
@@ -184,7 +185,7 @@ A empresa compra objetos da Loja Órbita com STARS reais. Cada unidade comprada 
 ### D-6 — Quem pode o quê
 
 - **Comprar:** Master e Adm (`owner` e `admin`), porque gasta STARS da empresa, como no protótipo. A checagem é por papel dentro da procedure, não só na tela.
-- **Posicionar, mover e retirar:** quem pode editar a estação da empresa, conforme a permissão que a etapa 2 definir para o app `orbita-station` na matriz de permissões (`hasAppPermission`).
+- **Posicionar, mover e retirar:** quem pode editar a estação da empresa, ou seja, quem tem **Editar** no app `orbita-station` da matriz de permissões (spec 0119, RF-9).
 - **Alternativa descartada:** deixar todo membro comprar. Hoje não existe trava de orçamento por pessoa (não-objetivo), então qualquer membro poderia zerar o saldo da empresa.
 
 ### D-7 — Procedures próprias para posicionar, com controle por versão
@@ -206,7 +207,7 @@ A empresa compra objetos da Loja Órbita com STARS reais. Cada unidade comprada 
 
 - [x] Schema / migration (`prisma/schema.prisma`)
 - [x] Procedures oRPC (contrato de entrada e saída)
-- [x] Realtime (o canal da estação, definido na etapa 2)
+- [x] Realtime (a sala do LiveKit da estação, spec 0119)
 - [ ] Automações (Inngest): nenhuma (RNF-6)
 - [ ] Env vars novas: nenhuma
 - [ ] Breaking change para clientes existentes: não
