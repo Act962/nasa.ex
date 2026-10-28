@@ -16,6 +16,9 @@ Escritório virtual em 3D em que cada sala corresponde a um módulo da plataform
 | 1 (spec 0117) | Estação do protótipo como código do app, sem banco: modelos de estação, personagem, câmera, acabamento | 🚧 em construção |
 | 2 (spec 0119) | Estação da empresa no banco, avatar no servidor, colegas ao vivo (LiveKit), permissões, link no menu | ⬜ spec em rascunho |
 | 3 (sem spec) | Editor de decoração, junto com a loja | ⬜ |
+| Final | Remover a Space Station 2D (`src/features/space-station/`, rotas, permissão `space-station` e, em migration separada depois do deploy, as tabelas `SpaceStation*` e afins) | ⬜ quando o 3D estiver pronto |
+
+O tempo real da etapa 2 usa um servidor do LiveKit nosso, na VPS: ver [livekit-self-hosted.md](livekit-self-hosted.md).
 | Loja (spec 0118) | Comprar itens com STARS e posicioná-los | ⬜ depende da etapa 2 |
 
 ## Estrutura

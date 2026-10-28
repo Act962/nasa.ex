@@ -31,11 +31,11 @@ O que foi levantado no código antes de propor (S1, S4):
 
 - **Tempo real:** o app tem Pusher e LiveKit.
   - **Pusher:** canais `presence-*` são liberados para **qualquer usuário, inclusive visitante** (`src/app/api/pusher/auth/route.ts`). Um canal de presença por empresa vazaria quem está online para outras empresas. Canal privado exige um `ChannelAuthorizer` (`src/lib/realtime/channel-authorizers.ts`).
-  - **Movimento na Space Station 2D:** cada passo vai por `POST /api/pusher/world`, cerca de 8 vezes por segundo por pessoa andando. É uma requisição ao servidor mais uma mensagem do Pusher multiplicada pelo número de ouvintes. Ver os números na D-3.
-  - **LiveKit** já está configurado (`src/lib/livekit/server.ts`, tokens emitidos em `src/app/router/space-station/join-world.ts`) para vídeo e áudio da Space Station.
-- **Avatar:** não existe nada reaproveitável. O `AvatarTemplate` e o `SpaceStationWorld.avatarConfig` são do produto 2D (sprites) e ficam de fora (0117, D-1).
-- **Permissões:** a matriz é o catálogo `src/features/permissions/lib/app-permission-catalog.ts`. A `space-station` está lá; a `orbita-station` não.
+  - **LiveKit:** já está no app, com tokens emitidos por `src/lib/livekit/server.ts`. O LiveKit Cloud que era usado acabava rápido, então o servidor vai para a nossa VPS, pelo Coolify ([docs/livekit-self-hosted.md](../../docs/livekit-self-hosted.md)).
+- **Avatar:** não há nada reaproveitável no schema.
+- **Permissões:** a matriz é o catálogo `src/features/permissions/lib/app-permission-catalog.ts`. A `orbita-station` ainda não está lá.
 - **Sync com o NERP:** o `User` é replicado por uma **lista explícita de campos** (`src/features/sync/lib/inbound.ts`). Uma coluna nova em `User` não entra no sync nem quebra nada.
+- **Uso esperado no início:** até ~20 pessoas ativas ao mesmo tempo, somando todas as empresas.
 
 ## 2. Objetivo
 
@@ -74,7 +74,7 @@ Cada empresa tem **uma** estação no banco, igual para todos. O avatar de cada 
 | RNF-1 | Toda leitura e gravação filtra pelo `organizationId` da sessão. Id de outra empresa responde `NOT_FOUND`. |
 | RNF-2 | Ninguém de outra empresa vê nem ouve a presença de uma estação. A sala de tempo real é fechada por token emitido no servidor, depois de checar a empresa e a permissão **Ver** (D-3). |
 | RNF-3 | Posição só é enviada enquanto a pessoa anda, no máximo 10 vezes por segundo, e nunca passa pelo servidor do app (D-3). Parado, não envia nada. |
-| RNF-4 | Limite de 50 pessoas ao mesmo tempo por estação. A 51ª vê o aviso "a estação está cheia agora" e não entra na sala de tempo real. |
+| RNF-4 | Limite de 30 pessoas ao mesmo tempo por estação (`max_participants` do servidor do LiveKit). A 31ª vê o aviso "a estação está cheia agora" e não entra na sala de tempo real. |
 | RNF-5 | Nenhuma função ou cron no Inngest (S11). |
 | RNF-6 | O avatar e os nomes das salas são validados com Zod no servidor antes de gravar. JSON inválido vindo do banco vira o padrão, sem derrubar a página. |
 | RNF-7 | O código continua sem importar nada de `src/features/space-station/` (0117, CA-10). |
@@ -109,7 +109,7 @@ Cada empresa tem **uma** estação no banco, igual para todos. O avatar de cada 
 | CB-10 | O modelo muda e uma sala renomeada deixa de existir | Os nomes ficam guardados pela chave da sala (`top-0`, `bottom-2`). Chave que não existe no modelo novo é ignorada e não é apagada: se o modelo voltar, o nome volta. |
 | CB-11 | Mensagem de posição chega fora de ordem ou se perde | As mensagens levam um número de sequência. Mensagem mais velha que a última recebida é ignorada, e perdas são compensadas pela interpolação. |
 | CB-12 | A conexão cai e volta | O cliente reconecta sozinho, pede token novo e reaparece no ponto onde estava, não no Terminal. |
-| CB-13 | A 51ª pessoa entra (RNF-4) | A estação abre sem colegas, com o aviso. Ela tenta de novo quando alguém sai, sem loop: no máximo uma vez por minuto. |
+| CB-13 | A 31ª pessoa entra (RNF-4) | A estação abre sem colegas, com o aviso. Ela tenta de novo quando alguém sai, sem loop: no máximo uma vez por minuto. |
 
 ## 6. Decisões de design
 
@@ -121,7 +121,6 @@ Cada empresa tem **uma** estação no banco, igual para todos. O avatar de cada 
   - A estação precisa de controle de versão próprio (CB-2).
   - O `Organization` já é grande e é replicado com o NERP. Somar colunas de um produto novo nele mistura domínios.
 - **Por que `roomNames` é JSON (S3):** é um mapa pequeno (chave da sala → nome), editado inteiro por quem administra e nunca filtrado, somado ou ordenado no banco. É configuração livre do usuário, validada com Zod. Uma tabela de nomes de sala seria um join sem uso.
-- **Alternativa descartada:** reaproveitar `SpaceStation` ou `SpaceStationWorld`. São do produto 2D (0117, D-1).
 
 ### D-2 — Avatar numa coluna de `User`
 
@@ -131,26 +130,19 @@ Cada empresa tem **uma** estação no banco, igual para todos. O avatar de cada 
 - **Alternativa descartada:** uma tabela `OrbitaAvatar`. Seria um join para um dado 1:1.
 - **Consequência:** o avatar vale em todas as empresas da pessoa, e é isso que se espera de um personagem.
 
-### D-3 — Presença e movimento pelo LiveKit, não pelo Pusher
+### D-3 — Presença e movimento pelo LiveKit na nossa VPS, não pelo Pusher
 
-Esta é a decisão de custo da etapa.
-
-- **Escolha:** uma sala do LiveKit por estação (`orbita:<organizationId>`).
+- **Escolha:** uma sala do LiveKit por estação (`orbita:<organizationId>`), num servidor do LiveKit nosso, na VPS, pelo Coolify ([docs/livekit-self-hosted.md](../../docs/livekit-self-hosted.md)).
   - **Presença:** quem está na sala.
   - **Posição:** mensagens de dados do LiveKit (`publishData`, modo sem garantia de entrega), de pessoa para pessoa através do servidor do LiveKit, sem passar pelo Next.
   - **Mudança de modelo e de avatar:** mensagem de dados com garantia de entrega.
   - **Token:** emitido por uma procedure que confere sessão, empresa ativa e permissão **Ver**. Ele vale 15 minutos e é renovado pelo cliente.
 - **Por que não o Pusher, com números:** imagine 15 pessoas na estação, com 6 andando ao mesmo tempo a 6 posições por segundo.
-  - Pelo caminho da Space Station 2D (POST ao servidor e depois Pusher), são **36 requisições por segundo ao Next**.
-  - Mais **36 × 14 ouvintes = 504 mensagens do Pusher por segundo**, ou cerca de **1,8 milhão por hora**.
-  - O Pusher cobra por mensagem entregue a cada ouvinte. Isso estoura qualquer plano com poucas empresas usando.
-  - Com eventos de cliente do Pusher, as requisições ao Next somem, mas a contagem de mensagens é a mesma.
-- **Custo do LiveKit:**
-  - Ele cobra por minuto de conexão e por tráfego, não por mensagem. Uma posição tem ~20 bytes.
-  - **Precisa confirmar:** o LiveKit de produção é o Cloud (pago por minuto de participante) ou é hospedado por nós? Com 15 pessoas 8 h por dia, são ~7.200 minutos de participante por dia por empresa. No Cloud isso tem preço; numa instalação própria, é só servidor.
-  - Se o custo do Cloud não couber, a alternativa é o Pusher com **4 posições por segundo e só a quem está perto**. Isso reduz o volume, mas complica o código.
-- **Bônus:** a mesma sala abre caminho para voz e vídeo depois, sem segunda infraestrutura.
-- **Alternativa descartada:** canal `presence-*` do Pusher. Hoje qualquer usuário, inclusive visitante, assina esse tipo de canal (§1). A presença de uma empresa vazaria para outras.
+  - São 36 posições por segundo, cada uma entregue a 14 ouvintes: **cerca de 500 mensagens do Pusher por segundo**, ou 1,8 milhão por hora. O Pusher cobra por mensagem entregue a cada ouvinte.
+  - Os canais de presença do Pusher, como estão hoje, também vazariam a presença entre empresas (§1).
+- **Por que na nossa VPS, e não no LiveKit Cloud:** o Cloud cobra por minuto de conexão e acabava rápido. Com 20 pessoas trocando só posições (~20 bytes cada), um servidor pequeno dá conta, e o custo é só o da VPS.
+- **Bônus:** a mesma sala abre caminho para voz e vídeo depois, sem segunda infraestrutura. Com vídeo, o consumo de banda sobe bastante e precisa ser medido antes.
+- **Pré-requisito da implementação:** o servidor do LiveKit no ar, com as portas 7881/tcp e 50000–50100/udp abertas na VPS.
 
 ### D-4 — Liberação pela matriz de permissões, sem feature flag
 
@@ -229,18 +221,14 @@ model User {
 
 ## 9. Riscos e rollback
 
-- **Custo do LiveKit (D-3):** é a pergunta aberta mais importante. Confirmar antes de implementar: o LiveKit de produção é o Cloud ou é nosso? Qual o plano?
+- **LiveKit na VPS (D-3):** ainda precisa ser instalado. Se a VPS cair, a estação abre sem os colegas (CB-7). Redes corporativas que bloqueiam UDP e a porta 7881 não conectam: a solução é o TURN na porta 443, que só será ligado se o caso aparecer.
 - **Exposição depois de sair da empresa (CB-5):** até 15 min vendo quem está online. Encurtar o token aumenta as renovações. Se o produto exigir corte imediato, a remoção de membro passa a chamar a remoção do participante no LiveKit, por evento e não por cron.
 - **Desempenho com muita gente:** cada colega é um personagem com animação. Medir os quadros por segundo com 20 personagens no nível "médio" antes de liberar. Se pesar, colegas longe ficam sem animação.
 - **Rollback:** o Master tira o **Ver** da equipe, e a estação some do menu. A migration é reversível (apagar a tabela e a coluna) enquanto a loja (0118) não depender dela.
-
-### Achados fora do escopo (S8, para tarefa separada)
-
-- **`POST /api/pusher/world` não confere a sessão e confia no `userId` do corpo** (Space Station 2D). Qualquer pessoa pode disparar eventos de movimento e entrada em qualquer estação, fingindo ser outro usuário.
-- **Canais `presence-*` são abertos a qualquer usuário e visitante** (`/api/pusher/auth`). Se isso é intencional para estações públicas da Space Station, deveria valer só para elas.
 
 ## 10. Changelog da spec
 
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-28 | João Gabriel (com Claude) | Criada, com o parecer da etapa 2 |
+| 2026-10-28 | João Gabriel (com Claude) | LiveKit decidido: servidor próprio na VPS (Coolify), não o Cloud. Limite por estação de 30 pessoas (uso esperado: até 20). Saem as referências à Space Station 2D, que será removida quando o 3D estiver pronto. |
