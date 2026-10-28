@@ -4,7 +4,10 @@ import * as THREE from "three";
 import type { AvatarLook } from "../lib/avatar-look";
 import {
   DOOR_WIDTH,
+  PLAYER_RADIUS,
   ROOM_DEPTH,
+  hitsObstacle,
+  isWalkable,
   ROOM_OFFSET_Z,
   moveWithCollision,
   planRouteToRoom,
@@ -31,6 +34,7 @@ export type StationEngineEvent =
 
 export interface StationEngineOptions {
   templateKey: string;
+  roomNames: Readonly<Record<string, string>>;
   look: AvatarLook;
   onEvent: (event: StationEngineEvent) => void;
 }
@@ -189,7 +193,7 @@ export class StationEngine {
 
     this.materials = createStationMaterials();
     this.sharedMaterials = new Set(Object.values(this.materials).flatMap((value) => (value instanceof THREE.Material ? [value] : [])));
-    this.layout = resolveLayout(options.templateKey);
+    this.layout = resolveLayout(options.templateKey, options.roomNames);
     this.finish = new FinishPipeline(this.renderer, this.scene, this.camera, (tier) => this.options.onEvent({ type: "qualityChange", tier }));
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -220,14 +224,20 @@ export class StationEngine {
     this.frameId = requestAnimationFrame(this.frame);
   }
 
-  setTemplate(templateKey: string) {
-    this.layout = resolveLayout(templateKey);
+  /** Remonta a estação com outro modelo ou outros nomes de sala. Quem fica fora do piso novo volta ao Terminal (RF-3). */
+  setStation(templateKey: string, roomNames: Readonly<Record<string, string>>) {
+    this.layout = resolveLayout(templateKey, roomNames);
     if (!this.characters) return;
     this.rebuildStation();
-    const spawn = spawnPoint(this.layout);
-    this.player?.position.set(spawn.x, 0, spawn.z);
-    if (this.player) this.player.route = [];
-    this.cameraFocus.copy(this.player?.position ?? new THREE.Vector3());
+    if (!this.player || !this.built) return;
+    this.player.route = [];
+    const { x, z } = this.player.position;
+    const isStillOnFloor = isWalkable(this.layout, x, z) && !hitsObstacle(this.built.obstacles, x, z, PLAYER_RADIUS);
+    if (!isStillOnFloor) {
+      const spawn = spawnPoint(this.layout);
+      this.player.position.set(spawn.x, 0, spawn.z);
+      this.cameraFocus.copy(this.player.position);
+    }
     this.currentRoom = undefined;
   }
 

@@ -65,7 +65,7 @@ Cada empresa tem **uma** estação no banco, igual para todos. O avatar de cada 
 | RF-7 | O movimento dos colegas aparece suave: o cliente interpola entre as posições recebidas. |
 | RF-8 | Quem fecha a aba, perde a conexão ou sai da empresa ativa some da estação dos outros em até ~15 s. |
 | RF-9 | O app `orbita-station` entra na matriz de permissões: **Ver** entra na estação e **Editar** muda o modelo e o nome das salas. |
-| RF-10 | A estação aparece no menu da plataforma para quem tem **Ver**. |
+| RF-10 | A estação entra na página Apps e pode ser posta no menu lateral, como os outros apps. Quem não tem **Ver** e abre a rota vê "você ainda não tem acesso", com a orientação de pedir ao Master. |
 
 ### Não-funcionais
 
@@ -90,7 +90,7 @@ Cada empresa tem **uma** estação no banco, igual para todos. O avatar de cada 
 - [ ] **CA-7** — Dadas duas pessoas da mesma empresa na estação, quando uma anda, então a outra vê o personagem dela andando, com o nome em cima.
 - [ ] **CA-8** — Dadas duas empresas com gente na estação ao mesmo tempo, então ninguém de uma vê ninguém da outra. Um token pedido com o id de outra empresa responde `NOT_FOUND`.
 - [ ] **CA-9** — Dada uma pessoa que fecha a aba, então ela some da estação dos outros em até ~15 s.
-- [ ] **CA-10** — Dado um membro sem **Ver** no app `orbita-station`, então o link não aparece no menu e a rota mostra "sem acesso".
+- [ ] **CA-10** — Dado um membro sem **Ver** no app `orbita-station`, quando ele abre `/orbita-station`, então vê "você ainda não tem acesso", sem carregar o 3D. As procedures da estação respondem `FORBIDDEN`.
 - [ ] **CA-11** — Dada uma pessoa parada, então nenhuma mensagem de posição sai do navegador dela (conferido no painel de rede ou no log da sala).
 
 ## 5. Casos de borda
@@ -172,7 +172,7 @@ Cada empresa tem **uma** estação no banco, igual para todos. O avatar de cada 
 - [ ] **Automações (Inngest):** nenhuma.
 - [ ] **Env vars novas:** nenhuma. Usa as do LiveKit que já existem (`LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_WS_URL`).
 - [x] **Permissões:** entrada `orbita-station` no catálogo, com dicas das ações.
-- [x] **Menu:** link para `/orbita-station` com checagem de **Ver**.
+- [x] **Menu:** a Órbita Station entra no catálogo da página Apps e na lista do menu lateral (`src/features/apps/`), escondida por padrão como os outros apps.
 - [ ] **Breaking change:** não.
 - [x] **Documentação:** `docs/orbita-station-overview.md`.
 
@@ -231,4 +231,5 @@ model User {
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-28 | João Gabriel (com Claude) | Criada, com o parecer da etapa 2 |
+| 2026-10-28 | João Gabriel (com Claude) | RF-10 ajustado na implementação: o menu lateral do app não filtra nenhum app por permissão, e criar esse filtro só para a estação mudaria o menu inteiro (S8). A estação segue o padrão dos outros apps (página Apps + menu opcional), e a barreira de acesso é a página e as procedures. |
 | 2026-10-28 | João Gabriel (com Claude) | LiveKit decidido: servidor próprio na VPS (Coolify), não o Cloud. Limite por estação de 30 pessoas (uso esperado: até 20). Saem as referências à Space Station 2D, que será removida quando o 3D estiver pronto. |

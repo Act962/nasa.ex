@@ -1,47 +1,112 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Map as MapIcon, Minus, Plus, UserRound } from "lucide-react";
+import { Camera, Map as MapIcon, Minus, PencilRuler, Plus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { StationEngine, WebGLUnavailableError } from "../engine/station-engine";
-import { STATION_TEMPLATES } from "../layout/station-templates";
-import type { AvatarLook } from "../lib/avatar-look";
-import { hasSavedAvatarLook, readAvatarLook, readTemplateKey, saveAvatarLook, saveTemplateKey } from "../lib/station-preferences";
+import { useOrbitaStation, useSaveOrbitaAvatar, useUpdateOrbitaStation } from "../hooks/use-orbita-station";
+import { defaultLook, type AvatarLook } from "../lib/avatar-look";
+import { clearLegacyPreferences, readLegacyAvatarLook } from "../lib/station-preferences";
+import type { RoomNames, StationSettings } from "../lib/station-settings";
 import { useOrbitaStationStore } from "../store/use-orbita-station-store";
 import { AvatarStudio } from "./avatar-studio";
+import { StationEditor } from "./station-editor";
 import { StationMapLabels } from "./station-map-labels";
 import { TouchJoystick } from "./touch-joystick";
 
 const isTypingTarget = (target: EventTarget | null) =>
   target instanceof HTMLElement && (target.isContentEditable || target.closest("input, select, textarea") !== null);
 
+function CenteredMessage({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="grid h-dvh w-full place-items-center bg-black p-6 text-white">
+      <div className="max-w-sm rounded-2xl bg-white/5 p-6 text-center">
+        <p className="font-semibold">{title}</p>
+        <p className="mt-2 text-sm text-white/70">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Carrega a estação da empresa e o avatar do servidor antes de montar o motor (spec 0119). */
 export function OrbitaStationView({ userId }: { userId: string }) {
+  const stationQuery = useOrbitaStation();
+  if (stationQuery.isPending) {
+    return (
+      <div className="grid h-dvh w-full place-items-center bg-black text-white">
+        <div className="flex items-center gap-3 text-sm">
+          <Spinner /> Carregando a estação da empresa…
+        </div>
+      </div>
+    );
+  }
+  if (stationQuery.isError) {
+    return <CenteredMessage title="Não foi possível abrir a estação" detail={stationQuery.error.message} />;
+  }
+  return <StationExperience userId={userId} initialStation={stationQuery.data.station} serverAvatar={stationQuery.data.avatar} canEdit={stationQuery.data.canEdit} />;
+}
+
+interface StationExperienceProps {
+  userId: string;
+  initialStation: StationSettings;
+  serverAvatar: AvatarLook | null;
+  canEdit: boolean;
+}
+
+function StationExperience({ userId, initialStation, serverAvatar, canEdit }: StationExperienceProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<StationEngine | null>(null);
   const [readyEngine, setReadyEngine] = useState<StationEngine | null>(null);
+  const [station, setStation] = useState(initialStation);
+  // Ordem do primeiro visual: o do servidor; senão o que a etapa 1 guardou no navegador (migrado uma vez); senão o padrão.
+  const [initialLook] = useState(() => ({ legacy: readLegacyAvatarLook(userId), fromServer: serverAvatar }));
+  const [look, setLook] = useState<AvatarLook>(() => initialLook.fromServer ?? initialLook.legacy ?? defaultLook(userId));
+  const [hasSavedLook, setHasSavedLook] = useState(() => Boolean(initialLook.fromServer ?? initialLook.legacy));
   const [studioLook, setStudioLook] = useState<AvatarLook | null>(null);
   // A view só roda no navegador (import dinâmico sem SSR), então dá para ler o tipo de tela já no primeiro render.
   const [isTouch] = useState(() => window.matchMedia("(pointer: coarse)").matches);
-  const { status, errorMessage, currentRoom, quality, templateKey, panel, setStatus, setCurrentRoom, setQuality, setTemplateKey, setPanel } =
-    useOrbitaStationStore();
+  const { status, errorMessage, currentRoom, quality, panel, setStatus, setCurrentRoom, setQuality, setPanel } = useOrbitaStationStore();
+  const saveAvatar = useSaveOrbitaAvatar();
+  const updateStation = useUpdateOrbitaStation();
+
+  // Migração da etapa 1 (RF-5): o avatar do navegador sobe uma vez, sem sobrescrever um que já esteja no servidor.
+  useEffect(() => {
+    const { legacy, fromServer } = initialLook;
+    if (!legacy) return;
+    if (fromServer) {
+      clearLegacyPreferences(userId);
+      return;
+    }
+    saveAvatar.mutate({ look: legacy, onlyIfEmpty: true }, { onSuccess: () => clearLegacyPreferences(userId) });
+    // Roda uma vez por montagem: `saveAvatar` muda de identidade a cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialLook, userId]);
+
+  const persistLook = useCallback(
+    (nextLook: AvatarLook) => {
+      setLook(nextLook);
+      setHasSavedLook(true);
+      saveAvatar.mutate({ look: nextLook, onlyIfEmpty: false }, { onError: () => toast.error("Não foi possível salvar o personagem. Tente de novo.") });
+    },
+    [saveAvatar],
+  );
 
   const openStudio = useCallback(() => {
-    setStudioLook(readAvatarLook(userId));
+    setStudioLook(look);
     engineRef.current?.setMode("play");
     engineRef.current?.setPaused(true);
     setPanel("studio");
-  }, [userId, setPanel]);
+  }, [look, setPanel]);
 
   const closePanel = useCallback(() => {
     // Primeira visita: quem fecha o estúdio sem salvar fica com o visual sugerido, e ele não reabre sozinho.
-    if (panel === "studio" && !hasSavedAvatarLook(userId)) saveAvatarLook(userId, readAvatarLook(userId));
+    if (panel === "studio" && !hasSavedLook) persistLook(look);
     engineRef.current?.setPaused(false);
     engineRef.current?.setMode("play");
     setPanel("none");
-  }, [panel, userId, setPanel]);
+  }, [panel, hasSavedLook, look, persistLook, setPanel]);
 
   const toggleMap = useCallback(() => {
     const isOpening = panel !== "map";
@@ -50,21 +115,20 @@ export function OrbitaStationView({ userId }: { userId: string }) {
   }, [panel, setPanel]);
 
   useEffect(() => {
-    const initialTemplate = readTemplateKey() ?? "completo";
-    setTemplateKey(initialTemplate);
     setStatus("loading");
     setPanel("none");
     let engine: StationEngine;
     try {
       engine = new StationEngine(hostRef.current!, {
-        templateKey: initialTemplate,
-        look: readAvatarLook(userId),
+        templateKey: initialStation.templateKey,
+        roomNames: initialStation.roomNames,
+        look,
         onEvent: (event) => {
           if (event.type === "ready") {
             setReadyEngine(engine);
             setStatus("ready");
-            if (!hasSavedAvatarLook(userId)) {
-              setStudioLook(readAvatarLook(userId));
+            if (!hasSavedLook) {
+              setStudioLook(look);
               engine.setPaused(true);
               setPanel("studio");
             }
@@ -84,12 +148,14 @@ export function OrbitaStationView({ userId }: { userId: string }) {
       engine.dispose();
       engineRef.current = null;
     };
-  }, [userId, setStatus, setCurrentRoom, setQuality, setTemplateKey, setPanel]);
+    // O motor nasce uma vez com o estado inicial; mudanças depois vão por setStation/setLook.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, setStatus, setCurrentRoom, setQuality, setPanel]);
 
   useEffect(() => {
     if (status !== "ready") return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isTypingTarget(event.target) || panel === "studio") return;
+      if (isTypingTarget(event.target) || panel === "studio" || panel === "editor") return;
       const key = event.key.toLowerCase();
       if (key === "m") toggleMap();
       if (key === "escape" && panel === "map") toggleMap();
@@ -98,16 +164,35 @@ export function OrbitaStationView({ userId }: { userId: string }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [status, panel, toggleMap]);
 
-  const changeTemplate = (nextTemplateKey: string) => {
-    setTemplateKey(nextTemplateKey);
-    saveTemplateKey(nextTemplateKey);
-    engineRef.current?.setTemplate(nextTemplateKey);
+  const saveLook = (nextLook: AvatarLook) => {
+    persistLook(nextLook);
+    engineRef.current?.setLook(nextLook);
+    engineRef.current?.setPaused(false);
+    setPanel("none");
   };
 
-  const saveLook = (look: AvatarLook) => {
-    if (!saveAvatarLook(userId, look)) toast.error("Não foi possível salvar o personagem neste navegador.");
-    engineRef.current?.setLook(look);
-    closePanel();
+  const applyStation = (next: StationSettings) => {
+    setStation(next);
+    engineRef.current?.setStation(next.templateKey, next.roomNames);
+  };
+
+  const saveStation = (templateKey: string, roomNames: RoomNames) => {
+    updateStation.mutate(
+      { templateKey, roomNames, version: station.version },
+      {
+        onSuccess: ({ station: saved }) => {
+          applyStation(saved);
+          setPanel("none");
+          toast.success("Estação atualizada para toda a empresa.");
+        },
+        onError: (error) => {
+          // Outra pessoa salvou antes (CB-2): mostra a versão nova em vez de sobrescrever o trabalho dela.
+          const conflictStation = (error as { data?: { station?: StationSettings } }).data?.station;
+          if (conflictStation) applyStation(conflictStation);
+          toast.error(error.message);
+        },
+      },
+    );
   };
 
   const pickRoom = (roomKey: string) => {
@@ -169,25 +254,24 @@ export function OrbitaStationView({ userId }: { userId: string }) {
                 </>
               )}
             </div>
-            <div className="pointer-events-auto flex w-full min-w-0 items-center gap-2 sm:w-auto">
-              <Select value={templateKey} onValueChange={changeTemplate}>
-                <SelectTrigger aria-label="Modelo da estação" className="min-w-0 flex-1 border-white/20 bg-black/40 text-white backdrop-blur sm:w-56 sm:flex-none">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATION_TEMPLATES.map((template) => (
-                    <SelectItem key={template.key} value={template.key}>
-                      {template.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="pointer-events-auto flex items-center gap-2">
               <Button size="icon" variant={panel === "map" ? "default" : "secondary"} aria-label="Mapa da estação (M)" aria-pressed={panel === "map"} onClick={toggleMap}>
                 <MapIcon />
               </Button>
               <Button size="icon" variant="secondary" aria-label="Estúdio do personagem" onClick={openStudio}>
                 <UserRound />
               </Button>
+              {canEdit && (
+                <Button
+                  size="icon"
+                  variant={panel === "editor" ? "default" : "secondary"}
+                  aria-label="Editar a estação"
+                  aria-pressed={panel === "editor"}
+                  onClick={() => setPanel(panel === "editor" ? "none" : "editor")}
+                >
+                  <PencilRuler />
+                </Button>
+              )}
               <Button size="icon" variant="secondary" aria-label="Baixar print da cena" onClick={downloadCapture}>
                 <Camera />
               </Button>
@@ -222,6 +306,10 @@ export function OrbitaStationView({ userId }: { userId: string }) {
             </p>
           )}
         </>
+      )}
+
+      {status === "ready" && panel === "editor" && canEdit && (
+        <StationEditor station={station} isSaving={updateStation.isPending} onSave={saveStation} onClose={() => setPanel("none")} />
       )}
 
       {status === "ready" && readyEngine && panel === "studio" && studioLook && (

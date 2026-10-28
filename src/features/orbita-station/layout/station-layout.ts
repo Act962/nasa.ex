@@ -48,7 +48,8 @@ export interface Obstacle {
   halfDepth: number;
 }
 
-export function resolveLayout(templateKey: string): StationLayout {
+/** `roomNames`: nomes que a empresa deu às salas, pela chave da sala (spec 0119, RF-2). */
+export function resolveLayout(templateKey: string, roomNames: Readonly<Record<string, string>> = {}): StationLayout {
   const template = findTemplate(templateKey);
   const rooms: RoomLayout[] = [];
   let hallLength = 0;
@@ -59,11 +60,12 @@ export function resolveLayout(templateKey: string): StationLayout {
     let cursor = -total / 2;
     row.forEach(([kind, width, customName], index) => {
       const towardDoor = side === "top" ? 1 : -1;
+      const key = `${side}-${index}`;
       rooms.push({
-        key: `${side}-${index}`,
+        key,
         kind,
         side,
-        name: customName ?? ROOM_KINDS[kind].label,
+        name: roomNames[key] ?? customName ?? ROOM_KINDS[kind].label,
         module: ROOM_KINDS[kind].module,
         width,
         cx: cursor + width / 2,
