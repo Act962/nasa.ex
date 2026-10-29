@@ -51,6 +51,22 @@ export interface RoomLabel {
   y: number;
 }
 
+/** Nome de um colega por cima do personagem dele, em pixels CSS. */
+export interface RemoteLabel {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+}
+
+/** Posição do próprio personagem, para a presença enviar aos colegas. */
+export interface PlayerState {
+  x: number;
+  z: number;
+  facing: number;
+  isWalking: boolean;
+}
+
 export class WebGLUnavailableError extends Error {
   constructor() {
     super("WebGL indisponível neste navegador");
@@ -102,6 +118,19 @@ function drawSky(canvas: HTMLCanvasElement, width: number, height: number) {
   context.globalAlpha = 1;
 }
 
+/** Colega da mesma empresa na estação. A posição recebida vira alvo e o personagem anda até ela (RF-7). */
+interface RemoteAvatar {
+  name: string;
+  lookKey: string;
+  rig: CharacterRig;
+  position: THREE.Vector3;
+  target: THREE.Vector3;
+  facing: number;
+  targetFacing: number;
+  isWalking: boolean;
+  hasPosition: boolean;
+}
+
 interface Player {
   rig: CharacterRig;
   position: THREE.Vector3;
@@ -145,6 +174,7 @@ export class StationEngine {
   private mode: StationMode = "play";
   private isPaused = false;
   private readonly labelPoint = new THREE.Vector3();
+  private readonly remotes = new Map<string, RemoteAvatar>();
   private frameId = 0;
   private elapsed = 0;
   private isDisposed = false;
@@ -201,6 +231,7 @@ export class StationEngine {
     window.addEventListener("keydown", this.handleKeyDown);
     window.addEventListener("keyup", this.handleKeyUp);
     window.addEventListener("blur", this.handleBlur);
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
     this.renderer.domElement.addEventListener("wheel", this.handleWheel, { passive: false });
   }
 
@@ -271,6 +302,81 @@ export class StationEngine {
     this.player.route = planRouteToRoom(this.layout, this.player.position, room).map((point) => new THREE.Vector3(point.x, 0, point.z));
   }
 
+  getPlayerState(): PlayerState | null {
+    if (!this.player) return null;
+    const { position, facing, isWalking } = this.player;
+    return { x: position.x, z: position.z, facing, isWalking };
+  }
+
+  /** Cria o colega, ou troca o visual dele. Ele só aparece depois da primeira posição. */
+  upsertRemote(id: string, name: string, look: AvatarLook) {
+    if (!this.characters) return;
+    const lookKey = JSON.stringify(look);
+    const existing = this.remotes.get(id);
+    if (existing) {
+      existing.name = name;
+      if (existing.lookKey === lookKey) return;
+      disposeObject(existing.rig.root, this.sharedMaterials);
+      existing.rig = this.buildRemoteRig(look, existing.position, existing.facing, existing.hasPosition);
+      existing.lookKey = lookKey;
+      return;
+    }
+    const position = new THREE.Vector3();
+    this.remotes.set(id, {
+      name,
+      lookKey,
+      rig: this.buildRemoteRig(look, position, 0, false),
+      position,
+      target: new THREE.Vector3(),
+      facing: 0,
+      targetFacing: 0,
+      isWalking: false,
+      hasPosition: false,
+    });
+  }
+
+  setRemoteState(id: string, state: PlayerState) {
+    const remote = this.remotes.get(id);
+    if (!remote) return;
+    remote.target.set(state.x, 0, state.z);
+    remote.targetFacing = state.facing;
+    remote.isWalking = state.isWalking;
+    // Primeira posição (ou um salto grande, como a volta ao Terminal): aparece no lugar, sem atravessar a estação.
+    if (!remote.hasPosition || remote.position.distanceTo(remote.target) > 8) {
+      remote.position.copy(remote.target);
+      remote.facing = state.facing;
+      remote.hasPosition = true;
+      remote.rig.root.visible = true;
+    }
+  }
+
+  hasRemote(id: string): boolean {
+    return this.remotes.has(id);
+  }
+
+  removeRemote(id: string) {
+    const remote = this.remotes.get(id);
+    if (!remote) return;
+    disposeObject(remote.rig.root, this.sharedMaterials);
+    this.remotes.delete(id);
+  }
+
+  remoteLabels(): RemoteLabel[] {
+    if (this.viewWidth === 0) return [];
+    const labels: RemoteLabel[] = [];
+    this.remotes.forEach((remote, id) => {
+      if (!remote.hasPosition) return;
+      this.labelPoint.set(remote.position.x, 2.35, remote.position.z).project(this.camera);
+      labels.push({
+        id,
+        name: remote.name,
+        x: ((this.labelPoint.x + 1) / 2) * this.viewWidth,
+        y: ((1 - this.labelPoint.y) / 2) * this.viewHeight,
+      });
+    });
+    return labels;
+  }
+
   roomLabels(): RoomLabel[] {
     if (this.viewWidth === 0) return [];
     return this.layout.rooms.map((room) => {
@@ -314,9 +420,12 @@ export class StationEngine {
     window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("keyup", this.handleKeyUp);
     window.removeEventListener("blur", this.handleBlur);
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange);
     this.renderer.domElement.removeEventListener("wheel", this.handleWheel);
     if (this.built) disposeObject(this.built.root, this.sharedMaterials);
     if (this.player) disposeObject(this.player.rig.root, this.sharedMaterials);
+    this.remotes.forEach((remote) => disposeObject(remote.rig.root, this.sharedMaterials));
+    this.remotes.clear();
     this.characters?.dispose();
     this.library.dispose();
     this.sharedMaterials.forEach((material) => material.dispose());
@@ -382,6 +491,29 @@ export class StationEngine {
     return Math.max(maxUp * 2, (maxRight * 2) / aspect) * 1.08;
   }
 
+  private buildRemoteRig(look: AvatarLook, position: THREE.Vector3, facing: number, isVisible: boolean): CharacterRig {
+    const rig = this.characters!.build(look);
+    this.bindEnvironment(rig.root);
+    rig.root.position.copy(position);
+    rig.root.rotation.y = facing;
+    rig.root.visible = isVisible;
+    this.scene.add(rig.root);
+    return rig;
+  }
+
+  private updateRemotes(delta: number) {
+    this.remotes.forEach((remote) => {
+      if (!remote.hasPosition) return;
+      const distance = remote.position.distanceTo(remote.target);
+      // Persegue o alvo um pouco mais rápido que a caminhada: atraso de rede não vira personagem ficando para trás.
+      remote.position.lerp(remote.target, 1 - Math.exp(-delta * 10));
+      remote.facing += wrapAngle(remote.targetFacing - remote.facing) * Math.min(delta * 12, 1);
+      remote.rig.root.position.copy(remote.position);
+      remote.rig.root.rotation.y = remote.facing;
+      remote.rig.update(delta, remote.isWalking || distance > 0.08);
+    });
+  }
+
   private playHeight() {
     const aspect = this.viewWidth / Math.max(this.viewHeight, 1);
     return aspect < 0.8 ? (22 / aspect) * 0.55 : 17;
@@ -420,6 +552,7 @@ export class StationEngine {
     this.elapsed += delta;
     if (this.viewWidth === 0 || this.isPaused) return;
     this.updatePlayer(delta);
+    this.updateRemotes(delta);
     this.updateRoom();
     this.animateWorld(delta);
     this.updateCamera(delta);
@@ -490,7 +623,11 @@ export class StationEngine {
           (screen.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.75 + Math.sin(this.elapsed * 3 + index) * 0.2;
         });
       }
-      const isNearDoor = !!playerPosition && Math.hypot(playerPosition.x - layout.cx, playerPosition.z - layout.doorWallZ) < 2.8;
+      const isNearDoorPoint = (point: THREE.Vector3) => Math.hypot(point.x - layout.cx, point.z - layout.doorWallZ) < 2.8;
+      let isNearDoor = !!playerPosition && isNearDoorPoint(playerPosition);
+      this.remotes.forEach((remote) => {
+        if (remote.hasPosition && isNearDoorPoint(remote.position)) isNearDoor = true;
+      });
       visual.doorOpen += ((isNearDoor ? 1 : 0) - visual.doorOpen) * Math.min(delta * 8, 1);
       visual.doorPanels.forEach((panel) => {
         panel.position.x = panel.userData.closedX + panel.userData.side * visual.doorOpen * (DOOR_WIDTH / 2 + 0.05);
@@ -529,6 +666,16 @@ export class StationEngine {
   private readonly handleBlur = () => {
     this.keys.clear();
     this.joystick.set(0, 0);
+  };
+
+  // Aba escondida: o navegador quase para o loop de quadros. O personagem para na hora, para os colegas não verem
+  // alguém "andando parado" até a pessoa voltar (a presença manda a parada no próximo envio).
+  private readonly handleVisibilityChange = () => {
+    if (!document.hidden || !this.player) return;
+    this.handleBlur();
+    this.player.route = [];
+    this.player.velocity.set(0, 0, 0);
+    this.player.isWalking = false;
   };
 
   private readonly handleWheel = (event: WheelEvent) => {

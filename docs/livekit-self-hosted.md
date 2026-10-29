@@ -42,8 +42,9 @@ As faixas UDP e a 7881 **não passam pelo proxy**: o navegador fala direto com o
 ```yaml
 services:
   livekit:
-    # Fixe a versão estável do dia do deploy (veja as tags em hub.docker.com/r/livekit/livekit-server).
-    image: livekit/livekit-server:v1.8.4
+    # Versão fixa. Precisa ser compatível com o `livekit-client` do app (2.19, protocolo 17): a 1.8.x não conhece o
+    # canal de dados `_data_track` do cliente, a negociação expira e o navegador reconecta a cada ~15 s.
+    image: livekit/livekit-server:v1.13.11
     command: --config /etc/livekit.yaml
     restart: unless-stopped
     ports:
@@ -80,7 +81,7 @@ room:
 Para testar a presença ao vivo localmente, o próprio LiveKit tem um modo de desenvolvimento que roda num container só, com chaves de teste públicas (`devkey` / `secret`):
 
 ```bash
-docker run -d --name orbita-livekit-dev --restart unless-stopped -p 7880:7880 -p 7881:7881 -p 7882:7882/udp livekit/livekit-server:v1.8.4 --dev --bind 0.0.0.0 --node-ip 127.0.0.1
+docker run -d --name orbita-livekit-dev --restart unless-stopped -p 7880:7880 -p 7881:7881 -p 7882:7882/udp livekit/livekit-server:v1.13.11 --dev --bind 0.0.0.0 --node-ip 127.0.0.1
 ```
 
 No `.env.local`:

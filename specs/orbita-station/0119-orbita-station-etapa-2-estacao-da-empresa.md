@@ -83,15 +83,15 @@ Cada empresa tem **uma** estação no banco, igual para todos. O avatar de cada 
 
 - [x] **CA-1** — Dada uma empresa sem estação, quando o primeiro membro abre `/orbita-station`, então existe uma `OrbitaStation` com o modelo "completo" e ele vê essa estação. _(verificado no banco local: a estação foi criada no primeiro acesso, com o modelo "completo".)_
 - [ ] **CA-2** — Dado um Master que troca o modelo para "Escritório compacto", quando outro membro abre a estação em outro computador, então vê o "Escritório compacto".
-- [ ] **CA-3** — Dadas duas pessoas na estação, quando o Master troca o modelo, então a outra pessoa vê as salas remontarem em poucos segundos, sem recarregar.
+- [x] **CA-3** — Dadas duas pessoas na estação, quando o Master troca o modelo, então a outra pessoa vê as salas remontarem em poucos segundos, sem recarregar. _(verificado com um colega de teste conectado direto no LiveKit local: ele recebeu a estação nova (versão 2) logo depois de salvar.)_
 - [x] **CA-4** — Dado um membro sem **Editar**, quando ele chama a procedure de troca de modelo direto pela API, então recebe `FORBIDDEN` e nada muda. _(verificado pela regra: administrador, moderador e membro começam sem Ver e sem Editar; só o Master tem. Falta testar com uma segunda conta.)_
 - [ ] **CA-5** — Dado um avatar salvo num computador, quando a mesma pessoa abre a estação em outro computador, então o personagem aparece igual.
 - [x] **CA-6** — Dado um avatar salvo só no navegador pela etapa 1, quando a pessoa entra na etapa 2, então ele vai para o servidor uma vez, e o estúdio não reabre como "primeira visita". _(verificado: o avatar da etapa 1 subiu para o servidor, a cópia do navegador foi apagada e o estúdio não reabriu.)_
-- [ ] **CA-7** — Dadas duas pessoas da mesma empresa na estação, quando uma anda, então a outra vê o personagem dela andando, com o nome em cima.
+- [x] **CA-7** — Dadas duas pessoas da mesma empresa na estação, quando uma anda, então a outra vê o personagem dela andando, com o nome em cima. _(verificado nos dois sentidos com o colega de teste: ele apareceu com o visual e o nome, andou até a porta, e as posições do personagem local chegaram a ele (12 em 2,2 s) com a parada no fim.)_
 - [ ] **CA-8** — Dadas duas empresas com gente na estação ao mesmo tempo, então ninguém de uma vê ninguém da outra. Um token pedido com o id de outra empresa responde `NOT_FOUND`.
 - [ ] **CA-9** — Dada uma pessoa que fecha a aba, então ela some da estação dos outros em até ~15 s.
 - [ ] **CA-10** — Dado um membro sem **Ver** no app `orbita-station`, quando ele abre `/orbita-station`, então vê "você ainda não tem acesso", sem carregar o 3D. As procedures da estação respondem `FORBIDDEN`.
-- [ ] **CA-11** — Dada uma pessoa parada, então nenhuma mensagem de posição sai do navegador dela (conferido no painel de rede ou no log da sala).
+- [x] **CA-11** — Dada uma pessoa parada, então nenhuma mensagem de posição sai do navegador dela (conferido no painel de rede ou no log da sala). _(verificado: depois da parada (`w: false`), nenhuma posição saiu enquanto o personagem ficou parado.)_
 
 ## 5. Casos de borda
 
@@ -101,13 +101,13 @@ Cada empresa tem **uma** estação no banco, igual para todos. O avatar de cada 
 | CB-2 | Dois admins trocam o modelo ao mesmo tempo | Controle por `version`. O segundo recebe `CONFLICT` e vê o modelo novo. |
 | CB-3 | A mesma pessoa abre a estação em duas abas | A identidade na sala é o `userId`. A segunda aba assume, e a primeira mostra "a estação foi aberta em outra aba", com um botão para voltar. Não aparecem dois personagens iguais. |
 | CB-4 | A pessoa troca a empresa ativa com a estação aberta | Sai da sala da empresa antiga e entra na nova, com a estação nova. |
-| CB-5 | A pessoa é removida da empresa com a estação aberta | O token vale 15 minutos. Na renovação, o servidor recusa e ela é desconectada. Fica exposta, no máximo, a presença por até 15 min (registrado em §9). |
+| CB-5 | A pessoa é removida da empresa com a estação aberta | O token vale 15 minutos, mas só para entrar: uma conexão já aberta continua (o LiveKit renova a sessão sozinho). Quem sai da empresa só perde a presença quando a conexão cair ou a página recarregar, porque aí o token novo é recusado. Corte imediato exigiria remover o participante pela API do LiveKit (§9). |
 | CB-6 | O Master tira o **Ver** de alguém com a estação aberta | Mesmo caminho do CB-5: recusa na renovação do token. |
 | CB-7 | O LiveKit está fora do ar ou não configurado no ambiente | A estação abre sozinha, como na etapa 1, com o aviso "colegas indisponíveis agora". Modelo e avatar continuam vindo do banco. |
 | CB-8 | O avatar no banco é inválido (formato antigo ou campo removido) | Zod recusa, e o personagem usa o visual padrão da pessoa. O estúdio abre com esse padrão. |
 | CB-9 | O nome de sala renomeada fica vazio ou passa de 40 caracteres | O servidor recusa com `BAD_REQUEST`. Nome vazio volta ao nome do tipo da sala. |
 | CB-10 | O modelo muda e uma sala renomeada deixa de existir | Os nomes ficam guardados pela chave da sala (`top-0`, `bottom-2`). Chave que não existe no modelo novo é ignorada e não é apagada: se o modelo voltar, o nome volta. |
-| CB-11 | Mensagem de posição chega fora de ordem ou se perde | As mensagens levam um número de sequência. Mensagem mais velha que a última recebida é ignorada, e perdas são compensadas pela interpolação. |
+| CB-11 | Mensagem de posição chega fora de ordem ou se perde | As mensagens levam o identificador da sessão e um número de sequência. Dentro da mesma sessão, mensagem mais velha que a última é ignorada; perdas são compensadas pela interpolação. Posição de quem ainda não se apresentou (ou de uma sessão nova, depois de recarregar a página) faz a estação pedir o "olá" dessa pessoa. |
 | CB-12 | A conexão cai e volta | O cliente reconecta sozinho, pede token novo e reaparece no ponto onde estava, não no Terminal. |
 | CB-13 | A 31ª pessoa entra (RNF-4) | A estação abre sem colegas, com o aviso. Ela tenta de novo quando alguém sai, sem loop: no máximo uma vez por minuto. |
 
@@ -231,6 +231,7 @@ model User {
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-28 | João Gabriel (com Claude) | Criada, com o parecer da etapa 2 |
+| 2026-10-29 | João Gabriel (com Claude) | Presença ao vivo implementada e testada no LiveKit local. Achados no teste: o "olá" mandado logo ao entrar pode se perder (a estação agora pede o "olá" de quem aparece sem se apresentar); quem recarrega a página recomeça a sequência (as mensagens ganharam um identificador de sessão); aba escondida deixava o personagem "andando parado" para os outros (o motor para o personagem quando a aba some). O servidor do LiveKit precisa ser 1.13 ou mais novo: a 1.8.4 não conhece o canal de dados do cliente 2.19 e derruba a conexão a cada ~15 s. CB-5 corrigido: o token de 15 min só vale para entrar. |
 | 2026-10-28 | João Gabriel (com Claude) | Implementada a parte sem tempo real (banco, avatar, permissão, editor, menu). Verificado no banco local também o CB-2 (versão velha responde CONFLICT com a versão nova) e a validação (modelo desconhecido e nome com mais de 40 caracteres respondem 400). Falta a presença ao vivo, que depende do LiveKit na VPS. |
 | 2026-10-28 | João Gabriel (com Claude) | RF-10 ajustado na implementação: o menu lateral do app não filtra nenhum app por permissão, e criar esse filtro só para a estação mudaria o menu inteiro (S8). A estação segue o padrão dos outros apps (página Apps + menu opcional), e a barreira de acesso é a página e as procedures. |
 | 2026-10-28 | João Gabriel (com Claude) | LiveKit decidido: servidor próprio na VPS (Coolify), não o Cloud. Limite por estação de 30 pessoas (uso esperado: até 20). Saem as referências à Space Station 2D, que será removida quando o 3D estiver pronto. |

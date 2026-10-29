@@ -6,12 +6,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { StationEngine, WebGLUnavailableError } from "../engine/station-engine";
-import { useOrbitaStation, useSaveOrbitaAvatar, useUpdateOrbitaStation } from "../hooks/use-orbita-station";
+import { useFetchOrbitaJoinToken, useOrbitaStation, useSaveOrbitaAvatar, useUpdateOrbitaStation } from "../hooks/use-orbita-station";
 import { defaultLook, type AvatarLook } from "../lib/avatar-look";
 import { clearLegacyPreferences, readLegacyAvatarLook } from "../lib/station-preferences";
 import type { RoomNames, StationSettings } from "../lib/station-settings";
+import { StationPresence, type PresenceStatus } from "../realtime/station-presence";
 import { useOrbitaStationStore } from "../store/use-orbita-station-store";
 import { AvatarStudio } from "./avatar-studio";
+import { ColleagueNameLabels } from "./colleague-name-labels";
 import { StationEditor } from "./station-editor";
 import { StationMapLabels } from "./station-map-labels";
 import { TouchJoystick } from "./touch-joystick";
@@ -70,6 +72,18 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
   const { status, errorMessage, currentRoom, quality, panel, setStatus, setCurrentRoom, setQuality, setPanel } = useOrbitaStationStore();
   const saveAvatar = useSaveOrbitaAvatar();
   const updateStation = useUpdateOrbitaStation();
+  const fetchJoinToken = useFetchOrbitaJoinToken();
+  const presenceRef = useRef<StationPresence | null>(null);
+  const [presence, setPresence] = useState<{ status: PresenceStatus; colleagueCount: number }>({ status: "connecting", colleagueCount: 0 });
+  // A presença vive fora do React e lê o estado mais recente por estas referências.
+  const lookRef = useRef(look);
+  const stationRef = useRef(station);
+  const fetchJoinTokenRef = useRef(fetchJoinToken);
+  useEffect(() => {
+    lookRef.current = look;
+    stationRef.current = station;
+    fetchJoinTokenRef.current = fetchJoinToken;
+  });
 
   // Migração da etapa 1 (RF-5): o avatar do navegador sobe uma vez, sem sobrescrever um que já esteja no servidor.
   useEffect(() => {
@@ -127,6 +141,21 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
           if (event.type === "ready") {
             setReadyEngine(engine);
             setStatus("ready");
+            const stationPresence = new StationPresence({
+              engine,
+              fetchTicket: () => fetchJoinTokenRef.current(),
+              getLook: () => lookRef.current,
+              onStatus: (presenceStatus, colleagueCount) => setPresence({ status: presenceStatus, colleagueCount }),
+              // Outro membro salvou a estação: aplica se for mais nova que a que está na tela (RF-3).
+              onStationChanged: (next) => {
+                if (next.version <= stationRef.current.version) return;
+                stationRef.current = next;
+                setStation(next);
+                engine.setStation(next.templateKey, next.roomNames);
+              },
+            });
+            presenceRef.current = stationPresence;
+            void stationPresence.start();
             if (!hasSavedLook) {
               setStudioLook(look);
               engine.setPaused(true);
@@ -145,6 +174,8 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
     engineRef.current = engine;
     void engine.start();
     return () => {
+      presenceRef.current?.stop();
+      presenceRef.current = null;
       engine.dispose();
       engineRef.current = null;
     };
@@ -166,6 +197,7 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
 
   const saveLook = (nextLook: AvatarLook) => {
     persistLook(nextLook);
+    presenceRef.current?.publishLook(nextLook);
     engineRef.current?.setLook(nextLook);
     engineRef.current?.setPaused(false);
     setPanel("none");
@@ -182,6 +214,7 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
       {
         onSuccess: ({ station: saved }) => {
           applyStation(saved);
+          presenceRef.current?.publishStation(saved);
           setPanel("none");
           toast.success("Estação atualizada para toda a empresa.");
         },
@@ -237,6 +270,17 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
       )}
 
       {status === "ready" && readyEngine && panel === "map" && <StationMapLabels engine={readyEngine} onPickRoom={pickRoom} />}
+      {status === "ready" && readyEngine && panel !== "map" && panel !== "studio" && <ColleagueNameLabels engine={readyEngine} />}
+
+      {presence.status === "replaced" && (
+        <div className="absolute inset-0 z-30 grid place-items-center bg-black/70 p-6 backdrop-blur-sm">
+          <div className="max-w-sm space-y-4 rounded-2xl bg-black/60 p-6 text-center">
+            <p className="font-semibold">A estação foi aberta em outra aba</p>
+            <p className="text-sm text-white/70">Você só aparece para os colegas numa aba por vez.</p>
+            <Button onClick={() => window.location.reload()}>Usar esta aba</Button>
+          </div>
+        </div>
+      )}
 
       {status === "ready" && panel !== "studio" && (
         <>
@@ -287,6 +331,15 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
                 <Minus />
               </Button>
             </div>
+            <span className="rounded-full bg-black/40 px-3 py-1 text-xs text-white/80 backdrop-blur" aria-live="polite">
+              {presence.status === "connected"
+                ? presence.colleagueCount === 0
+                  ? "Só você na estação"
+                  : `${presence.colleagueCount} ${presence.colleagueCount === 1 ? "colega" : "colegas"} na estação`
+                : presence.status === "connecting"
+                  ? "Conectando aos colegas…"
+                  : "Colegas indisponíveis agora"}
+            </span>
             <button
               type="button"
               className="pointer-events-auto rounded-full bg-black/40 px-3 py-1 text-xs text-white/80 backdrop-blur"

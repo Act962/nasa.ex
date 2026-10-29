@@ -15,6 +15,12 @@ export function useUpdateOrbitaStation() {
   });
 }
 
+/** Token da sala de tempo real. Pedido sob demanda (na conexão e em cada reconexão), sem cache. */
+export function useFetchOrbitaJoinToken() {
+  const queryClient = useQueryClient();
+  return () => queryClient.fetchQuery({ ...orpc.orbitaStation.getJoinToken.queryOptions(), staleTime: 0 });
+}
+
 export function useSaveOrbitaAvatar() {
   return useMutation(orpc.orbitaStation.avatar.save.mutationOptions());
 }
