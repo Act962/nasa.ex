@@ -71,6 +71,7 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 - **Luzes multiplicadas por π** em relação ao protótipo: desde a r155 o Three.js usa unidades físicas.
 - **Reflexo pela cena com `scene.environmentIntensity = 0,22`**: desde a r163 o `envMapIntensity` do material é ignorado quando o reflexo vem de `scene.environment`. Material que precisa de outra intensidade recebe o mapa direto (`bindEnvironment` no motor). Sem isso, a cena fica ~4,5x mais clara.
 - **Porta trancada vem da permissão do módulo** (0120, D-1): o app da matriz de cada tipo de sala fica em `layout/room-kinds.ts` (`accessApp` e `links`). Não existe lista de acesso por sala.
+- **"Ir até" por A* numa grade de 0,4 m** (`layout/path-finding.ts`): desvia de paredes, móveis e salas trancadas, e depois corta os degraus por linha de visão. O destino continua o dos pontos de porta (`planRouteToRoom`), que segue como reserva se não houver caminho. Calcula uma vez por clique (~2 ms).
 - **"Lead aguardando" é o critério dos alertas** (0121, D-1): `waitingLeadWhere` em `src/features/alerts/lib/waiting-lead.ts`, compartilhado com o detector `lead-waiting`. Nunca `statusFlow = WAITING`, que fica parado depois do atendimento.
 - **A trava é só visual** (0120, D-3): a posição de quem está numa sala trancada chega igual ao navegador; ela só não é desenhada. Quem protege os dados é a permissão de cada módulo.
 - **Tamanho zero do canvas é ignorado** até ele ganhar tamanho. No protótipo isso deixava a tela preta para sempre (0117, CB-2).
@@ -85,3 +86,4 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | 2026-10-29 | Fonte do protótipo (versão 33) guardado em `docs/orbita-station/prototipo/` como referência temporária, com a lista do que falta portar e o aviso de remoção. |
 | 2026-10-29 | Etapa 3 (spec 0120): `getStation` devolve `appAccess`, portas trancadas, botão de proximidade, painéis da sala e do colega, aceno (mensagem `emote`), portal (`engine/portal.ts`). |
 | 2026-10-29 | Etapa 4 (spec 0121): `getRoomIndicators` (chat, chegadas, tarefas, financeiro, agenda e Forge, cada um só com Ver no módulo), painel "O que pede atenção", indicadores no painel da sala, fila de leads em 3D com portal e painel do lead. |
+| 2026-10-29 | "Ir até" desvia dos móveis: A* numa grade sobre o piso, usado em `walkToRoom` e `walkToColleague`. Antes era só uma linha reta entre os pontos de porta, que prendia nas mesas. |

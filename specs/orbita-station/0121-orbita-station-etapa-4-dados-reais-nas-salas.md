@@ -169,4 +169,5 @@ O projeto não tem runner de teste (CLAUDE.md, regra 20). Os critérios são ver
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-29 | João Gabriel (com Claude) | Criada |
-| 2026-10-29 | João Gabriel (com Claude) | Implementada. CB-8 reescrito: o schema não tem fuso por empresa. Critérios verificados marcados. Achado no teste e fora do escopo: o "Ir até" anda em linha reta e pode prender num móvel perto da porta, quando a pessoa sai de um ponto fora do centro da sala (vale para todas as etapas). |
+| 2026-10-29 | João Gabriel (com Claude) | Implementada. CB-8 reescrito: o schema não tem fuso por empresa. Critérios verificados marcados. Achado no teste e fora do escopo: o "Ir até" andava em linha reta e prendia em mesas no caminho (vale para todas as etapas). |
+| 2026-10-29 | João Gabriel (com Claude) | Correção do "Ir até", que agora desvia dos móveis (`layout/path-finding.ts`, PR próprio). A parada vista no teste da etapa 4 não era um móvel: a janela do navegador ficou escondida, e a estação cancela o "Ir até" quando a aba some (0119). O problema real eram as mesas de Workspace, NasaChat e Reuniões no meio da linha reta. |

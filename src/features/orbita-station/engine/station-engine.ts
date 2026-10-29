@@ -19,6 +19,7 @@ import {
   type RoomLayout,
   type StationLayout,
 } from "../layout/station-layout";
+import { findPath, stopShortOf } from "../layout/path-finding";
 import { ROOM_KINDS } from "../layout/room-kinds";
 import { buildStation, type BuiltStation } from "./build-structure";
 import { CharacterFactory, type CharacterRig } from "./character";
@@ -372,28 +373,23 @@ export class StationEngine {
   /** Sala trancada: o personagem para no corredor, em frente à porta (RF-4). */
   walkToRoom(roomKey: string) {
     const room = this.layout.rooms.find((candidate) => candidate.key === roomKey);
-    if (!room || !this.player) return;
-    this.player.route = planRouteToRoom(this.layout, this.player.position, room, !this.isRoomOpen(room)).map(toFloorPoint);
+    if (!room || !this.player || !this.built) return;
+    const doorRoute = planRouteToRoom(this.layout, this.player.position, room, !this.isRoomOpen(room));
+    const target = doorRoute[doorRoute.length - 1];
+    // O destino continua o da porta (dentro da sala, ou no corredor se ela está trancada); o caminho desvia dos móveis.
+    const path = findPath(this.layout, this.built.obstacles, this.player.position, target, this.isRoomOpen) ?? doorRoute;
+    this.player.route = path.map(toFloorPoint);
   }
 
-  /** Anda até perto de um colega, passando pelas portas. Colega em sala trancada não é alcançável (RF-8). */
+  /** Anda até perto de um colega, desviando dos móveis. Colega em sala trancada não é alcançável (RF-8). */
   walkToColleague(id: string) {
     const remote = this.remotes.get(id);
-    if (!remote?.hasPosition || !this.player || (remote.room && !this.isRoomOpen(remote.room))) return;
+    if (!remote?.hasPosition || !this.player || !this.built || (remote.room && !this.isRoomOpen(remote.room))) return;
     const from = this.player.position;
-    const fromRoom = roomAt(this.layout, from.x, from.z);
-    const route: { x: number; z: number }[] = [];
-    if (fromRoom?.key !== remote.room?.key) {
-      if (fromRoom) route.push(doorWaypoints(fromRoom).inside, doorWaypoints(fromRoom).outside);
-      if (remote.room) route.push(doorWaypoints(remote.room).outside, doorWaypoints(remote.room).inside);
-    }
-    // Para um pouco antes, do lado de onde vem, em vez de entrar no colega.
-    const lastPoint = route.at(-1) ?? from;
-    const approach = new THREE.Vector3(lastPoint.x - remote.position.x, 0, lastPoint.z - remote.position.z);
-    if (approach.lengthSq() < 0.01) approach.set(0, 0, 1);
-    approach.setLength(1.2).add(remote.position);
-    route.push({ x: approach.x, z: approach.z });
-    this.player.route = route.map(toFloorPoint);
+    const path = findPath(this.layout, this.built.obstacles, from, remote.position, this.isRoomOpen);
+    if (!path) return;
+    // Para um pouco antes, em vez de entrar no colega.
+    this.player.route = stopShortOf(from, path, 1.2).map(toFloorPoint);
   }
 
   /**
