@@ -36,5 +36,5 @@ Consulte o protótipo ao fazer estas partes. Quando quase tudo estiver portado, 
 - [x] Portais de teletransporte pela porta da sala: seção `Portal de teletransporte` (`engine/portal.ts`: colegas na spec 0120, leads na 0121)
 - [x] Painel do gestor ("O que pede atenção") e indicadores do painel lateral das salas: seções `Painel lateral` e `HUD` (specs 0120 e 0121; ficaram de fora a tabela de vendedores, as inspeções e o estado de cada pessoa)
 - [x] Interação por proximidade ("Falar com…", "Ver sala"): seção `Interação por proximidade` (spec 0120)
-- [ ] Poses, fundos e miniaturas renderizadas no estúdio: seção `Personagem: estúdio`
-- [ ] Partículas e emotes: seções `Partículas` e `Animação`
+- [x] Poses, fundos e miniaturas renderizadas no estúdio: seção `Personagem: estúdio` (polimento)
+- [x] Partículas e emotes: seções `Partículas` e `Animação` (polimento; emotes novos com clipes do pacote)

@@ -50,8 +50,8 @@ export class ParticleEffects {
 
   puff(x: number, z: number) {
     if (this.reduceMotion || this.particles.length >= MAX_PARTICLES) return;
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.puffTexture, color: 0xd9d3ee, transparent: true, depthWrite: false, opacity: 0.6 }));
-    sprite.position.set(x + (Math.random() - 0.5) * 0.3, FLOOR_TOP + 0.1, z + (Math.random() - 0.5) * 0.3);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.puffTexture, color: 0x8f88aa, transparent: true, depthWrite: false, opacity: 0.7 }));
+    sprite.position.set(x + (Math.random() - 0.5) * 0.3, FLOOR_TOP + 0.22, z + (Math.random() - 0.5) * 0.3);
     sprite.scale.setScalar(0.4);
     this.add({ sprite, age: 0, life: 0.5, kind: "puff", drift: 0 });
   }
@@ -76,7 +76,7 @@ export class ParticleEffects {
         material.opacity = 1 - progress;
       } else {
         particle.sprite.scale.setScalar(0.4 + progress * 0.7);
-        material.opacity = 0.6 * (1 - progress);
+        material.opacity = 0.7 * (1 - progress);
       }
       if (progress >= 1) {
         this.remove(particle);
