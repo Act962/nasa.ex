@@ -19,6 +19,7 @@ Escritório virtual em 3D em que cada sala corresponde a um módulo da plataform
 | 3 (spec 0120) | Salas ligadas aos módulos: porta trancada pela matriz de permissões, botão de proximidade (E), painel da sala e do colega, aceno, portal na chegada e saída dos colegas | 🚧 implementada, em revisão |
 | 4 (spec 0121) | Dados reais nas salas (`getRoomIndicators`, a cada 30 s), "O que pede atenção" e a fila de leads do NasaChat em 3D, com portal | 🚧 implementada, em revisão |
 | 5 (spec 0118) | Modo Decorar: 30 itens grátis colocados, movidos, girados e tirados, com a posição validada no servidor (`orbita_station_items`). A Loja Órbita com STARS ficou para depois | 🚧 implementada, em revisão |
+| Polimento (sem spec: só visual e presença) | Emotes ao vivo (acenar, pular, cumprimentar, susto), poeira ao andar, "Zzz" de quem está em outra aba, fundos e poses no estúdio, miniaturas no estúdio e no modo Decorar | 🚧 implementado, em revisão. Sentar nas cadeiras ficou de fora: o pacote não tem animação de sentar |
 | Final | Remover a Space Station 2D (`src/features/space-station/`, rotas, permissão `space-station` e, em migration separada depois do deploy, as tabelas `SpaceStation*` e afins) | ⬜ quando o 3D estiver pronto |
 
 O tempo real da etapa 2 usa um servidor do LiveKit nosso, na VPS: ver [livekit-self-hosted.md](livekit-self-hosted.md).
@@ -49,6 +50,8 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | `setWaitingLeads(leads, overflow)` / `queueLabels()` | Fila de leads do NasaChat: quem entra chega pelo portal e quem sai vai embora por ele; posições das etiquetas de espera e do "+N". |
 | `setDecorItems(items)` / `setDecorMode(on, followCenter)` | Itens de decoração do servidor e o modo Decorar (no toque, a prévia segue o centro da tela). |
 | `startDecorPlacement(key, movingId?)` / `rotateDecorPlacement()` / `confirmDecorPlacement()` / `cancelDecorPlacement()` | A prévia do item: escolher, girar, soltar e cancelar. |
+| `playEmote(key)` / `remoteEmote(id, key)` / `setRemoteAway(id, isAway)` | Emotes (`lib/emotes.ts`) e o "Zzz" de quem está em outra aba. |
+| `decorThumbnail(key)` / `characterThumbnail(look, region)` | Miniaturas, desenhadas por um palco próprio (`engine/thumbnail-stage.ts`) e guardadas em cache. |
 | `firstRoomOfKind(kind)` | Primeira sala de um tipo no modelo atual (o "O que pede atenção" usa para levar até ela). |
 | `setLook(look)` | Troca o visual do personagem. |
 | `setQuality("medio" \| "leve")` | Liga ou desliga o brilho. |
@@ -93,3 +96,4 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | 2026-10-29 | Etapa 4 (spec 0121): `getRoomIndicators` (chat, chegadas, tarefas, financeiro, agenda e Forge, cada um só com Ver no módulo), painel "O que pede atenção", indicadores no painel da sala, fila de leads em 3D com portal e painel do lead. |
 | 2026-10-29 | "Ir até" desvia dos móveis: A* numa grade sobre o piso, usado em `walkToRoom` e `walkToColleague`. Antes era só uma linha reta entre os pontos de porta, que prendia nas mesas. |
 | 2026-10-29 | Etapa 5 (spec 0118): modo Decorar com 30 itens grátis (`DECOR_CATALOG`), tabela `orbita_station_items`, procedures `items.list/place/move/pickUp`, regra de posição pura (`layout/decor-placement.ts`), móveis fixos extraídos para `layout/room-furniture.ts`, `engine/decor-layer.ts` e o aviso `items` pelo LiveKit. A loja com STARS ficou para depois. |
+| 2026-10-29 | Polimento: emotes com clipes do pacote (`CharacterRig.playOnce`), poses no estúdio (`setPose`), partículas (`engine/particles.ts`), mensagens `emote` (com chave) e `away` na presença, miniaturas (`engine/thumbnail-stage.ts`), fundo e pose do estúdio guardados no navegador (`lib/studio-preferences.ts`). O `CharacterFactory` deixou de guardar todo personagem criado. |

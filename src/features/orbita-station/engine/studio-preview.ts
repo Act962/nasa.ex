@@ -27,6 +27,7 @@ export class StudioPreview {
   private zoom = 1;
   private shownZoom = 1;
   private dragX: number | null = null;
+  private pose: string | null = null;
   private frameId = 0;
 
   constructor(
@@ -86,9 +87,16 @@ export class StudioPreview {
         material.envMap = this.environmentTarget.texture;
       }
     });
+    this.rig.setPose(this.pose);
     this.scene.add(this.rig.root);
     this.rig.root.updateMatrixWorld(true);
     this.characterHeight = new THREE.Box3().setFromObject(this.rig.root).getSize(new THREE.Vector3()).y || 1.8;
+  }
+
+  /** Pose do estúdio: um clipe do pacote em laço (Parado, Relaxado, Andando…). */
+  setPose(clipName: string | null) {
+    this.pose = clipName;
+    this.rig?.setPose(clipName);
   }
 
   dispose() {

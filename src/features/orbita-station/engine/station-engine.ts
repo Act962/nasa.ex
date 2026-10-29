@@ -2,6 +2,7 @@
 // pelos eventos de `onEvent` (spec 0117, D-2). Tudo que ele cria é liberado em `dispose` (RNF-4).
 import * as THREE from "three";
 import { leadLook, type AvatarLook } from "../lib/avatar-look";
+import { emoteClip, type EmoteKey } from "../lib/emotes";
 import {
   DOOR_WIDTH,
   FLOOR_TOP,
@@ -31,9 +32,12 @@ import { CharacterFactory, type CharacterRig } from "./character";
 import { FinishPipeline, createEnvironmentTarget, type QualityTier } from "./finish";
 import { DEFAULT_ENV_INTENSITY, createStationMaterials, glowMaterial, type StationMaterials } from "./materials";
 import { ModelLibrary } from "./model-library";
+import { ParticleEffects } from "./particles";
 import { PortalEffects } from "./portal";
 import { addBox, disposeObject } from "./primitives";
 import { StudioPreview } from "./studio-preview";
+import { ThumbnailStage, type CharacterRegion } from "./thumbnail-stage";
+import { findDecorItem } from "../layout/decor-catalog";
 
 /** A ação que o botão de proximidade oferece agora (spec 0120, RF-5), na ordem de prioridade. */
 export type StationInteraction =
@@ -138,6 +142,9 @@ const TALK_DISTANCE = 2.3;
 const BUMP_NOTICE_MS = 2_200;
 const LOCK_COLOR = 0xff4f6d;
 const QUEUE_SPOTS = CHAT_QUEUE_SPOTS;
+/** Uma nuvem de poeira a cada tanto de caminhada; um "Z" a cada tanto de ausência. */
+const DUST_EVERY_SECONDS = 0.16;
+const ZZZ_EVERY_SECONDS = 1.1;
 const QUEUE_WALK_SPEED = 3.4;
 
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
@@ -188,6 +195,10 @@ interface RemoteAvatar {
   /** O portal de chegada já abriu: antes disso o personagem fica escondido (RF-9). */
   hasArrived: boolean;
   room: RoomLayout | null;
+  /** Está com a estação em outra aba: ganha o "Zzz". */
+  isAway: boolean;
+  dustTimer: number;
+  zzzTimer: number;
 }
 
 /** Lead da fila: entra pelo portal, anda até o lugar dele e, quando é atendido, sai pelo portal. */
@@ -245,6 +256,10 @@ export class StationEngine {
   private readonly labelPoint = new THREE.Vector3();
   private readonly remotes = new Map<string, RemoteAvatar>();
   private readonly portals: PortalEffects;
+  private readonly particles: ParticleEffects;
+  /** Criado na primeira miniatura pedida (modo Decorar ou estúdio). */
+  private thumbnails: ThumbnailStage | null = null;
+  private playerDustTimer = 0;
   /** Colegas que já saíram, esperando o portal abrir para sumir. */
   private readonly leavingRigs = new Set<CharacterRig>();
   private readonly lockMaterial = glowMaterial({ color: LOCK_COLOR });
@@ -316,6 +331,7 @@ export class StationEngine {
     this.sharedMaterials = new Set(Object.values(this.materials).flatMap((value) => (value instanceof THREE.Material ? [value] : [])));
     this.sharedMaterials.add(this.lockMaterial);
     this.portals = new PortalEffects(this.scene, this.reduceMotion);
+    this.particles = new ParticleEffects(this.scene, this.reduceMotion);
     this.decor = new DecorLayer(this.scene, this.library, (root) => this.bindEnvironment(root), this.sharedMaterials, (hiddenIds) =>
       this.options.onEvent({ type: "decorHidden", ids: [...hiddenIds] }),
     );
@@ -551,6 +567,22 @@ export class StationEngine {
     if (remote?.hasPosition) remote.rig.wave();
   }
 
+  /** Emote do próprio personagem: o aceno é o braço; os outros são clipes do pacote. */
+  playEmote(key: EmoteKey) {
+    if (!this.player) return;
+    playEmoteOn(this.player.rig, key);
+  }
+
+  remoteEmote(id: string, key: EmoteKey) {
+    const remote = this.remotes.get(id);
+    if (remote?.hasPosition) playEmoteOn(remote.rig, key);
+  }
+
+  setRemoteAway(id: string, isAway: boolean) {
+    const remote = this.remotes.get(id);
+    if (remote) remote.isAway = isAway;
+  }
+
   getPlayerState(): PlayerState | null {
     if (!this.player) return null;
     const { position, facing, isWalking } = this.player;
@@ -583,6 +615,9 @@ export class StationEngine {
       hasPosition: false,
       hasArrived: false,
       room: null,
+      isAway: false,
+      dustTimer: 0,
+      zzzTimer: 0,
     });
   }
 
@@ -717,6 +752,38 @@ export class StationEngine {
     });
   }
 
+  /** Miniatura de um item da decoração (spec 0118). `null` se o modelo não carregar. */
+  async decorThumbnail(itemKey: string): Promise<string | null> {
+    const item = findDecorItem(itemKey);
+    if (!item || this.isDisposed) return null;
+    const cacheKey = `decor:${itemKey}`;
+    const cached = this.thumbnails?.cached(cacheKey);
+    if (cached) return cached;
+    await this.library.loadDecor([item]);
+    if (this.isDisposed) return null;
+    const model = this.library.cloneDecor(itemKey);
+    if (!model) return null;
+    model.scale.setScalar(item.scale);
+    this.thumbnails ??= new ThumbnailStage();
+    const image = this.thumbnails.photographObject(cacheKey, model);
+    disposeObject(model, this.sharedMaterials);
+    return image;
+  }
+
+  /** Miniatura do personagem com um visual, enquadrada na parte do corpo que a opção do estúdio muda. */
+  characterThumbnail(look: AvatarLook, region: CharacterRegion): string | null {
+    if (!this.characters || this.isDisposed) return null;
+    const cacheKey = `look:${region}:${JSON.stringify(look)}`;
+    const cached = this.thumbnails?.cached(cacheKey);
+    if (cached) return cached;
+    const rig = this.characters.build(look);
+    rig.update(0, false);
+    this.thumbnails ??= new ThumbnailStage();
+    const image = this.thumbnails.photographCharacter(cacheKey, rig.root, region);
+    disposeObject(rig.root, this.sharedMaterials);
+    return image;
+  }
+
   /** Prévia do estúdio num canvas próprio. Devolve `null` antes de os modelos carregarem. */
   openStudio(host: HTMLElement, look: AvatarLook): StudioPreview | null {
     if (!this.characters) return null;
@@ -760,6 +827,8 @@ export class StationEngine {
     this.queueLeads.forEach((lead) => disposeObject(lead.rig.root, this.sharedMaterials));
     this.queueLeads.clear();
     this.portals.dispose();
+    this.particles.dispose();
+    this.thumbnails?.dispose();
     this.characters?.dispose();
     this.library.dispose();
     this.sharedMaterials.forEach((material) => material.dispose());
@@ -925,7 +994,19 @@ export class StationEngine {
       remote.facing += wrapAngle(remote.targetFacing - remote.facing) * Math.min(delta * 12, 1);
       remote.rig.root.position.copy(remote.position);
       remote.rig.root.rotation.y = remote.facing;
-      remote.rig.update(delta, remote.isWalking || distance > 0.08);
+      const isWalking = remote.isWalking || distance > 0.08;
+      remote.rig.update(delta, isWalking);
+      if (!remote.rig.root.visible) return;
+      remote.dustTimer = isWalking ? remote.dustTimer + delta : 0;
+      if (remote.dustTimer >= DUST_EVERY_SECONDS) {
+        remote.dustTimer = 0;
+        this.particles.puff(remote.position.x, remote.position.z);
+      }
+      remote.zzzTimer = remote.isAway ? remote.zzzTimer + delta : 0;
+      if (remote.zzzTimer >= ZZZ_EVERY_SECONDS) {
+        remote.zzzTimer = 0;
+        this.particles.zzz(remote.position.x, remote.position.z);
+      }
     });
   }
 
@@ -977,6 +1058,7 @@ export class StationEngine {
     this.updateInteraction();
     this.animateWorld(delta);
     this.portals.update(delta, this.elapsed);
+    this.particles.update(delta);
     this.updateCamera(delta);
     this.finish.render();
     this.finish.watchSpeed(delta);
@@ -1019,6 +1101,11 @@ export class StationEngine {
     player.rig.root.position.copy(player.position);
     player.rig.root.rotation.y = player.facing;
     player.rig.update(delta, player.isWalking);
+    this.playerDustTimer = player.isWalking ? this.playerDustTimer + delta : 0;
+    if (this.playerDustTimer >= DUST_EVERY_SECONDS) {
+      this.playerDustTimer = 0;
+      this.particles.puff(player.position.x, player.position.z);
+    }
   }
 
   private updateRoom() {
@@ -1151,4 +1238,10 @@ export class StationEngine {
 
 function toFloorPoint(point: { x: number; z: number }) {
   return new THREE.Vector3(point.x, 0, point.z);
+}
+
+function playEmoteOn(rig: CharacterRig, key: EmoteKey) {
+  const clip = emoteClip(key);
+  if (clip) rig.playOnce(clip);
+  else rig.wave();
 }

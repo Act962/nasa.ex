@@ -21,6 +21,7 @@ import {
   type StationDecorItem,
 } from "../hooks/use-orbita-station";
 import { defaultLook, type AvatarLook } from "../lib/avatar-look";
+import { EMOTES, type EmoteKey } from "../lib/emotes";
 import { clearLegacyPreferences, readLegacyAvatarLook } from "../lib/station-preferences";
 import type { RoomNames, StationSettings } from "../lib/station-settings";
 import { StationPresence, type PresenceStatus } from "../realtime/station-presence";
@@ -30,6 +31,7 @@ import { ColleagueNameLabels } from "./colleague-name-labels";
 import { InteractionPrompt } from "./interaction-prompt";
 import { AttentionPanel } from "./attention-panel";
 import { DecorPanel, PlacementBar } from "./decor-panel";
+import { EmoteMenu } from "./emote-menu";
 import { QueueLabels } from "./queue-labels";
 import { attentionItems, type AttentionItem } from "./room-indicators";
 import { StationSidePanel, type SidePanelTarget } from "./station-side-panel";
@@ -323,6 +325,7 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
   };
 
   const isDecorBusy = placeItem.isPending || moveItem.isPending || pickUpItem.isPending;
+  const decorThumbnailOf = useCallback((itemKey: string) => engineRef.current?.decorThumbnail(itemKey) ?? Promise.resolve(null), []);
 
   const openSidePanel = (target: SidePanelTarget | null) => {
     setIsAttentionOpen(false);
@@ -342,11 +345,20 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
     setSideTarget({ type: "room", room });
   };
 
+  // Emote: anima aqui e avisa os colegas. O limite de um a cada 2 s vale para os dois (spec 0120, RNF-4).
+  const playEmote = (key: EmoteKey) => {
+    if (presenceRef.current?.publishEmote(key) ?? true) engineRef.current?.playEmote(key);
+  };
+  const playEmoteRef = useRef(playEmote);
+  useEffect(() => {
+    playEmoteRef.current = playEmote;
+  });
+
   // Botão de proximidade (spec 0120, RF-5): "Falar com" acena dos dois lados e abre o colega; o resto abre a sala.
   const runInteraction = useCallback(() => {
     if (!interaction) return;
     if (interaction.kind === "colleague") {
-      if (presenceRef.current?.publishWave()) engineRef.current?.wave(interaction.id);
+      if (presenceRef.current?.publishEmote("wave") ?? true) engineRef.current?.wave(interaction.id);
       setSideTarget({ type: "colleague", id: interaction.id, name: interaction.name });
       return;
     }
@@ -381,6 +393,8 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
         setIsAttentionOpen(false);
       }
       if (key === "e" && panel === "none" && !event.repeat) runInteraction();
+      const emote = EMOTES[Number(key) - 1];
+      if (emote && panel === "none" && !event.repeat) playEmoteRef.current(emote.key);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -533,6 +547,7 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
               <Button size="icon" variant={panel === "map" ? "default" : "secondary"} aria-label="Mapa da estação (M)" aria-pressed={panel === "map"} onClick={toggleMap}>
                 <MapIcon />
               </Button>
+              {panel === "none" && <EmoteMenu showKeys={!isTouch} onEmote={playEmote} />}
               {canEdit && (
                 <Button size="icon" variant={panel === "decor" ? "default" : "secondary"} aria-label="Decorar a estação" aria-pressed={panel === "decor"} onClick={toggleDecor}>
                   <Armchair />
@@ -639,6 +654,7 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
           onPickUp={removeItem}
           onDeselect={() => setSelectedDecorId(null)}
           onClose={toggleDecor}
+          thumbnailOf={decorThumbnailOf}
         />
       )}
       {status === "ready" && panel === "decor" && placement && (

@@ -42,6 +42,10 @@ export interface CharacterRig {
   update: (delta: number, isWalking: boolean) => void;
   /** Aceno curto com o braço direito, por cima da animação parada ou da caminhada (spec 0120, RF-7). */
   wave: () => void;
+  /** Toca um clipe do pacote uma vez (emote) e volta a parado ou andando. Clipe desconhecido é ignorado. */
+  playOnce: (clipName: string) => void;
+  /** Pose fixa em laço no lugar de parado/andando (estúdio). `null` volta ao normal. */
+  setPose: (clipName: string | null) => void;
 }
 
 const WAVE_SECONDS = 1.4;
@@ -79,7 +83,6 @@ function classifyPaletteCell(red: number, green: number, blue: number): PaletteR
 export class CharacterFactory {
   private readonly paletteMaterials = new Map<string, THREE.MeshStandardMaterial>();
   private readonly headGeometries = new Map<CharacterBody, { bald: THREE.BufferGeometry; haired: THREE.BufferGeometry }>();
-  private readonly ownedObjects: THREE.Object3D[] = [];
   private readonly seamMaterial = litMaterial({ color: 0x4a4f5c });
   private readonly seamGeometry = new THREE.TorusGeometry(0.12, 0.035, 8, 24);
 
@@ -266,22 +269,40 @@ export class CharacterFactory {
     }
 
     const mixer = new THREE.AnimationMixer(model);
-    const clip = (name: string) => assets.clips.find((candidate) => candidate.name === name)!;
-    const actions = { idle: mixer.clipAction(clip("Idle_A")), walk: mixer.clipAction(clip("Walking_A")) };
-    actions.idle.play();
-    let current: keyof typeof actions = "idle";
+    const actionCache = new Map<string, THREE.AnimationAction>();
+    const actionOf = (name: string) => {
+      const cached = actionCache.get(name);
+      if (cached) return cached;
+      const clip = assets.clips.find((candidate) => candidate.name === name);
+      if (!clip) return null;
+      const action = mixer.clipAction(clip);
+      actionCache.set(name, action);
+      return action;
+    };
+    let current = actionOf("Idle_A")!;
+    current.play();
+    let pose: string | null = null;
+    let oneShot: THREE.AnimationAction | null = null;
+    const fadeTo = (next: THREE.AnimationAction) => {
+      if (next === current) return;
+      next.reset().play();
+      current.crossFadeTo(next, 0.2, false);
+      current = next;
+    };
+    mixer.addEventListener("finished", (event) => {
+      if (event.action !== oneShot) return;
+      oneShot = null;
+    });
     // O pacote não tem aceno: o braço é girado depois do mixer, que reescreve os ossos a cada quadro.
     const upperArm = bone("upperarmr");
     let waveTime = 0;
-    this.ownedObjects.push(root);
     return {
       root,
       update: (delta, isWalking) => {
-        const wanted = isWalking ? "walk" : "idle";
-        if (wanted !== current) {
-          actions[wanted].reset().play();
-          actions[current].crossFadeTo(actions[wanted], 0.2, false);
-          current = wanted;
+        // Emote em andamento manda até acabar; depois volta à pose do estúdio ou a parado/andando.
+        if (!oneShot) {
+          const wanted = actionOf(pose ?? (isWalking ? "Walking_A" : "Idle_A")) ?? actionOf("Idle_A")!;
+          fadeTo(wanted);
         }
         mixer.update(delta);
         if (waveTime <= 0) return;
@@ -293,6 +314,19 @@ export class CharacterFactory {
       },
       wave: () => {
         waveTime = WAVE_SECONDS;
+      },
+      playOnce: (clipName) => {
+        const action = actionOf(clipName);
+        if (!action) return;
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = false;
+        oneShot = action;
+        // O mesmo emote de novo: recomeça do início em vez de ignorar.
+        if (action === current) action.reset().play();
+        else fadeTo(action);
+      },
+      setPose: (clipName) => {
+        pose = clipName && actionOf(clipName) ? clipName : null;
       },
     };
   }
