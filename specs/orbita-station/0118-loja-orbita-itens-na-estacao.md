@@ -75,13 +75,13 @@ Quem pode editar a estação decora as salas e o corredor com itens de um catál
 
 ## 4. Critérios de aceite
 
-- [ ] **CA-2** — Dada a mesma `requestKey` enviada duas vezes, então existe **um** item.
+- [x] **CA-2** — Dada a mesma `requestKey` enviada duas vezes, então existe **um** item. _(verificado pela API: as duas respostas devolvem o mesmo id; a chave reaproveitada para outro item responde 409 `REQUEST_KEY_REUSED`.)_
 - [ ] **CA-4** — Dado um membro sem **Editar** na estação, quando ele chama colocar, mover ou tirar pela API, então recebe `FORBIDDEN`. O botão do modo Decorar nem aparece para ele.
-- [ ] **CA-5** — Dado um item solto num lugar válido, quando a página recarrega, então ele está no mesmo lugar e no mesmo giro.
+- [x] **CA-5** — Dado um item solto num lugar válido, quando a página recarrega, então ele está no mesmo lugar e no mesmo giro. _(verificado no navegador com um sofá: solto com clique no piso, girado pelo painel e conferido depois de recarregar.)_
 - [x] **CA-6** — Dada uma posição fora do piso, sobre parede, móvel fixo ou outro item, na frente de uma porta, na faixa do corredor, na fila do chat ou numa sala trancada para quem coloca, então a regra recusa com o motivo (`OUT_OF_BOUNDS`, `BLOCKED_AREA`, `OVERLAPS_ITEM`, `BLOCKS_PASSAGE` ou `ROOM_LOCKED`), e nada muda. _(verificado: `scripts/orbita-decor-placement-check.ts`, 14 casos.)_
-- [ ] **CA-8** — Dada uma prévia aberta, quando a pessoa aperta Esc, então nenhuma gravação acontece.
-- [ ] **CA-9** — Dado um id de item de outra empresa, quando alguém tenta mover ou tirar, então recebe `NOT_FOUND`.
-- [ ] **CA-10** — Dadas duas pessoas movendo o mesmo item, então só a primeira grava, e a segunda recebe `CONFLICT`, com o item recarregado.
+- [x] **CA-8** — Dada uma prévia aberta, quando a pessoa aperta Esc, então nenhuma gravação acontece. _(verificado: a prévia some e nenhuma chamada de gravação sai.)_
+- [ ] **CA-9** — Dado um id de item de outra empresa, quando alguém tenta mover ou tirar, então recebe `NOT_FOUND`. _(um id que não existe na empresa responde 404, e as consultas filtram por `organizationId`. Falta testar com um item real de outra empresa.)_
+- [x] **CA-10** — Dadas duas pessoas movendo o mesmo item, então só a primeira grava, e a segunda recebe `CONFLICT`, com o item recarregado. _(verificado pela API com duas gravações da mesma versão: 200 e 409 com o item atual. Tirar com versão velha também responde 409.)_
 - [ ] **CA-11** — Dado um sofá colocado no meio de uma sala, quando alguém usa "Ir até" atravessando a sala, então o caminho contorna o sofá.
 - [ ] **CA-12** — Dado um aparelho de toque, então a prévia segue o centro da tela, e "Soltar aqui" grava.
 - [x] **CA-13** — Dado o catálogo, então toda chave tem o `.glb` correspondente. _(verificado pelo mesmo script: 30 de 30.)_
@@ -205,6 +205,7 @@ model OrbitaStationItem {
 | 2026-10-27 | João Gabriel (com Claude) | Refeita para o produto novo, sem a Space Station 2D. |
 | 2026-10-28 | João Gabriel (com Claude) | Renumerada de 0116 para 0118. |
 | 2026-10-29 | João Gabriel (com Claude) | Virou a etapa 5, juntando os itens grátis e a loja numa tabela só. A planta 2D saiu do escopo. |
+| 2026-10-29 | João Gabriel (com Claude) | Testada no navegador e pela API (CA-2, CA-5, CA-8 e CA-10). O contorno da prévia ganhou margem, porque do tamanho exato sumia embaixo do item. |
 | 2026-10-29 | João Gabriel (com Claude) | **Tudo grátis nesta versão**, a pedido do João Gabriel: a loja com STARS foi para o §11, sem implementar. Sem preço, sem `StarTransaction`, sem inventário; tirar apaga o item. Implementada com os móveis fixos extraídos para `layout/room-furniture.ts` (CA-14), a classe `DecorLayer` e as procedures `items.*`. |
 
 ## 11. Adiado: a Loja Órbita com STARS

@@ -19,6 +19,8 @@ const VALID_COLOR = 0x43d17a;
 const INVALID_COLOR = 0xff4f6d;
 /** O item anda em passos de 25 cm: alinhar é mais fácil e a posição salva fica limpa. */
 const SNAP = 0.25;
+/** O contorno passa um pouco da pegada: do tamanho exato, ele some embaixo do próprio item. */
+const OUTLINE_MARGIN = 0.35;
 
 export interface DecorPlacementState {
   itemKey: string;
@@ -107,7 +109,7 @@ export class DecorLayer {
       new THREE.Vector3(-0.5, 0, 0.5),
     ]);
     const outline = new THREE.LineLoop(outlineGeometry, new THREE.LineBasicMaterial({ color: VALID_COLOR, toneMapped: false }));
-    const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: VALID_COLOR, transparent: true, opacity: 0.25, depthWrite: false, toneMapped: false }));
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: VALID_COLOR, transparent: true, opacity: 0.4, depthWrite: false, toneMapped: false }));
     fill.rotation.x = -Math.PI / 2;
     const model = this.library.cloneDecor(item.key);
     if (model) {
@@ -242,9 +244,9 @@ export class DecorLayer {
     const { halfWidth, halfDepth } = decorHalfExtents(preview.item, preview.quarterTurns);
     preview.outline.material.color.set(color);
     preview.fill.material.color.set(color);
-    preview.outline.scale.set(halfWidth * 2, 1, halfDepth * 2);
+    preview.outline.scale.set(halfWidth * 2 + OUTLINE_MARGIN, 1, halfDepth * 2 + OUTLINE_MARGIN);
     preview.outline.position.set(preview.x, FLOOR_TOP + 0.03, preview.z);
-    preview.fill.scale.set(halfWidth * 2, halfDepth * 2, 1);
+    preview.fill.scale.set(halfWidth * 2 + OUTLINE_MARGIN, halfDepth * 2 + OUTLINE_MARGIN, 1);
     preview.fill.position.set(preview.x, FLOOR_TOP + 0.02, preview.z);
     if (preview.model) placeModel(preview.model, preview.item, preview.x, preview.z, preview.quarterTurns);
     return this.previewState();
