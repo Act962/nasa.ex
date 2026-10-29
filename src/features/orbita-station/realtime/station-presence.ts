@@ -4,6 +4,7 @@ import { DisconnectReason, Room, RoomEvent, type RemoteParticipant } from "livek
 import { z } from "zod";
 import type { PlayerState, StationEngine } from "../engine/station-engine";
 import { avatarLookSchema, type AvatarLook } from "../lib/avatar-look";
+import { EMOTE_KEYS, type EmoteKey } from "../lib/emotes";
 import { roomNamesSchema, templateKeySchema, type StationSettings } from "../lib/station-settings";
 
 const TOPIC = "orbita";
@@ -37,10 +38,12 @@ const coordinate = z.number().finite().min(-500).max(500);
 const stateFields = { n: z.string().min(1).max(32), s: z.number().int().nonnegative(), x: coordinate, z: coordinate, f: z.number().finite(), w: z.boolean() };
 const messageSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("pos"), ...stateFields }),
-  z.object({ t: z.literal("hello"), look: avatarLookSchema, ...stateFields }),
+  // `a`: está com a estação em outra aba (o "Zzz"). Opcional: clientes antigos não mandam.
+  z.object({ t: z.literal("hello"), look: avatarLookSchema, a: z.boolean().optional(), ...stateFields }),
+  z.object({ t: z.literal("away"), a: z.boolean() }).strict(),
   z.object({ t: z.literal("look"), look: avatarLookSchema }),
   z.object({ t: z.literal("ask") }),
-  z.object({ t: z.literal("emote"), e: z.literal("wave") }).strict(),
+  z.object({ t: z.literal("emote"), e: z.enum(EMOTE_KEYS) }).strict(),
   z.object({ t: z.literal("items") }).strict(),
   z.object({ t: z.literal("station"), templateKey: templateKeySchema, roomNames: roomNamesSchema, version: z.number().int().nonnegative() }),
 ]);
@@ -115,6 +118,7 @@ export class StationPresence {
     }
     this.retryCount = 0;
     this.setStatus("connected");
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
     this.sendHello();
     this.sendTimer = setInterval(() => this.sendPosition(), SEND_INTERVAL_MS);
   }
@@ -123,12 +127,12 @@ export class StationPresence {
     this.publish({ t: "look", look }, true);
   }
 
-  /** Devolve `false` quando o aceno anterior foi há menos de 2 s: quem chama não anima de novo. */
-  publishWave(): boolean {
+  /** Devolve `false` quando o emote anterior foi há menos de 2 s: quem chama não anima de novo. */
+  publishEmote(key: EmoteKey): boolean {
     const now = Date.now();
     if (now - this.lastWaveSentAt < WAVE_INTERVAL_MS) return false;
     this.lastWaveSentAt = now;
-    this.publish({ t: "emote", e: "wave" }, true);
+    this.publish({ t: "emote", e: key }, true);
     return true;
   }
 
@@ -142,6 +146,7 @@ export class StationPresence {
 
   stop() {
     this.isStopped = true;
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange);
     if (this.sendTimer) clearInterval(this.sendTimer);
     if (this.retryTimer) clearTimeout(this.retryTimer);
     const room = this.room;
@@ -188,6 +193,11 @@ export class StationPresence {
     }, delay);
   }
 
+  // Aba escondida ou de volta: os colegas veem ou deixam de ver o "Zzz".
+  private readonly handleVisibilityChange = () => {
+    this.publish({ t: "away", a: document.hidden }, true);
+  };
+
   private stateFields(state: PlayerState) {
     return { n: this.sessionId, s: ++this.sequence, x: state.x, z: state.z, f: state.facing, w: state.isWalking };
   }
@@ -195,7 +205,7 @@ export class StationPresence {
   private sendHello(destinationIdentities?: string[]) {
     const state = this.options.engine.getPlayerState();
     if (!state) return;
-    this.publish({ t: "hello", look: this.options.getLook(), ...this.stateFields(state) }, true, destinationIdentities);
+    this.publish({ t: "hello", look: this.options.getLook(), a: document.hidden, ...this.stateFields(state) }, true, destinationIdentities);
     this.lastSent = state;
   }
 
@@ -253,7 +263,11 @@ export class StationPresence {
       const now = Date.now();
       if (now - (this.wavedAtById.get(id) ?? 0) < WAVE_INTERVAL_MS) return;
       this.wavedAtById.set(id, now);
-      engine.remoteWave(id);
+      engine.remoteEmote(id, message.e);
+      return;
+    }
+    if (message.t === "away") {
+      engine.setRemoteAway(id, message.a);
       return;
     }
     // O "olá" que o colega manda ao entrar pode sair antes de a sala entregar a quem já estava lá. Chegou posição de
@@ -269,6 +283,7 @@ export class StationPresence {
     // O colega só aparece com o "olá" dele, que traz visual, posição e a sessão nova.
     if (message.t === "hello") {
       engine.upsertRemote(id, name, message.look);
+      engine.setRemoteAway(id, message.a ?? false);
       this.sessionById.set(id, message.n);
       this.lastSequenceById.delete(id);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Move, RotateCw, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,10 +20,31 @@ interface DecorPanelProps {
   onPickUp: (item: StationDecorItem) => void;
   onDeselect: () => void;
   onClose: () => void;
+  /** Foto do item, desenhada pelo motor e guardada em cache. */
+  thumbnailOf: (itemKey: string) => Promise<string | null>;
+}
+
+function DecorThumbnail({ itemKey, thumbnailOf }: { itemKey: string; thumbnailOf: (itemKey: string) => Promise<string | null> }) {
+  const [image, setImage] = useState<string | null>(null);
+  useEffect(() => {
+    let isCurrent = true;
+    void thumbnailOf(itemKey).then((url) => {
+      if (isCurrent) setImage(url);
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [itemKey, thumbnailOf]);
+  return (
+    <div className="mb-2 aspect-[4/3] w-full overflow-hidden rounded-lg bg-white/5">
+      {/* eslint-disable-next-line @next/next/no-img-element -- imagem gerada no navegador (data URL), não passa pelo otimizador */}
+      {image && <img src={image} alt="" className="h-full w-full object-contain" />}
+    </div>
+  );
 }
 
 /** Modo Decorar (spec 0118, RF-10 e RF-11): o catálogo para escolher e as ações do item clicado na estação. */
-export function DecorPanel({ items, hiddenIds, selectedId, isBusy, onChoose, onMove, onRotate, onPickUp, onDeselect, onClose }: DecorPanelProps) {
+export function DecorPanel({ items, hiddenIds, selectedId, isBusy, onChoose, onMove, onRotate, onPickUp, onDeselect, onClose, thumbnailOf }: DecorPanelProps) {
   const [category, setCategory] = useState<DecorCategory>("sala");
   const selected = selectedId ? items.find((item) => item.id === selectedId) : undefined;
   const hidden = items.filter((item) => hiddenIds.has(item.id));
@@ -83,8 +104,9 @@ export function DecorPanel({ items, hiddenIds, selectedId, isBusy, onChoose, onM
                 type="button"
                 disabled={isFull || isBusy}
                 onClick={() => onChoose(item.key)}
-                className="rounded-xl bg-white/5 p-3 text-left text-sm font-semibold transition hover:bg-white/15 disabled:opacity-40"
+                className="rounded-xl bg-white/5 p-2 text-left text-sm font-semibold transition hover:bg-white/15 disabled:opacity-40"
               >
+                <DecorThumbnail itemKey={item.key} thumbnailOf={thumbnailOf} />
                 {item.name}
                 <span className="block text-[11px] font-normal text-white/50">Grátis</span>
               </button>
