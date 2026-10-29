@@ -216,6 +216,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0117](orbita-station/0117-orbita-station-3d-etapa-1.md) | orbita-station | Órbita Station 3D, etapa 1 — a estação do protótipo como código do app, em rota própria e sem banco | em-revisao |
 | [0118](orbita-station/0118-loja-orbita-itens-na-estacao.md) | orbita-station | Loja Órbita — comprar itens com STARS e posicioná-los na Órbita Station 3D | rascunho |
 | [0119](orbita-station/0119-orbita-station-etapa-2-estacao-da-empresa.md) | orbita-station | Órbita Station 3D, etapa 2 — a estação da empresa no banco, avatar no servidor e colegas ao vivo | rascunho |
+| [0120](orbita-station/0120-orbita-station-etapa-3-salas-ligadas-aos-modulos.md) | orbita-station | Órbita Station 3D, etapa 3 — salas ligadas aos módulos, portas trancadas e interação por perto | em-revisao |
 
 ---
 

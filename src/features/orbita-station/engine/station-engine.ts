@@ -6,8 +6,10 @@ import {
   DOOR_WIDTH,
   PLAYER_RADIUS,
   ROOM_DEPTH,
+  doorWaypoints,
   hitsObstacle,
   isWalkable,
+  lockedDoorNear,
   ROOM_OFFSET_Z,
   moveWithCollision,
   planRouteToRoom,
@@ -21,14 +23,23 @@ import { ROOM_KINDS } from "../layout/room-kinds";
 import { buildStation, type BuiltStation } from "./build-structure";
 import { CharacterFactory, type CharacterRig } from "./character";
 import { FinishPipeline, createEnvironmentTarget, type QualityTier } from "./finish";
-import { DEFAULT_ENV_INTENSITY, createStationMaterials, type StationMaterials } from "./materials";
+import { DEFAULT_ENV_INTENSITY, createStationMaterials, glowMaterial, type StationMaterials } from "./materials";
 import { ModelLibrary } from "./model-library";
-import { disposeObject } from "./primitives";
+import { PortalEffects } from "./portal";
+import { addBox, disposeObject } from "./primitives";
 import { StudioPreview } from "./studio-preview";
+
+/** A ação que o botão de proximidade oferece agora (spec 0120, RF-5), na ordem de prioridade. */
+export type StationInteraction =
+  | { kind: "colleague"; id: string; name: string }
+  | { kind: "lockedDoor"; room: RoomLayout }
+  | { kind: "room"; room: RoomLayout };
 
 export type StationEngineEvent =
   | { type: "ready" }
   | { type: "roomChange"; room: RoomLayout | null }
+  | { type: "interactionChange"; interaction: StationInteraction | null }
+  | { type: "lockedDoor"; room: RoomLayout }
   | { type: "qualityChange"; tier: QualityTier }
   | { type: "error"; message: string };
 
@@ -36,7 +47,17 @@ export interface StationEngineOptions {
   templateKey: string;
   roomNames: Readonly<Record<string, string>>;
   look: AvatarLook;
+  /** Apps da matriz que a pessoa pode ver, vindos do servidor: decidem as portas trancadas (spec 0120, RF-2). */
+  appAccess: Readonly<Record<string, boolean>>;
   onEvent: (event: StationEngineEvent) => void;
+}
+
+/** Colega na estação, para os painéis. `isRestricted`: está numa sala trancada para quem olha (RF-8). */
+export interface ColleagueInfo {
+  id: string;
+  name: string;
+  room: RoomLayout | null;
+  isRestricted: boolean;
 }
 
 export type StationMode = "play" | "map";
@@ -47,6 +68,7 @@ export interface RoomLabel {
   name: string;
   module: string;
   color: string;
+  isLocked: boolean;
   x: number;
   y: number;
 }
@@ -83,6 +105,9 @@ const MOVE_KEYS: Record<string, [number, number]> = {
 };
 const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 2.2;
+const TALK_DISTANCE = 2.3;
+const BUMP_NOTICE_MS = 2_200;
+const LOCK_COLOR = 0xff4f6d;
 
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
 const isTypingTarget = (target: EventTarget | null) =>
@@ -129,6 +154,9 @@ interface RemoteAvatar {
   targetFacing: number;
   isWalking: boolean;
   hasPosition: boolean;
+  /** O portal de chegada já abriu: antes disso o personagem fica escondido (RF-9). */
+  hasArrived: boolean;
+  room: RoomLayout | null;
 }
 
 interface Player {
@@ -175,6 +203,14 @@ export class StationEngine {
   private isPaused = false;
   private readonly labelPoint = new THREE.Vector3();
   private readonly remotes = new Map<string, RemoteAvatar>();
+  private readonly portals: PortalEffects;
+  /** Colegas que já saíram, esperando o portal abrir para sumir. */
+  private readonly leavingRigs = new Set<CharacterRig>();
+  private readonly lockMaterial = glowMaterial({ color: LOCK_COLOR });
+  /** Tremor da porta trancada, por chave de sala: vai de 1 a 0 depois do esbarrão (RF-3). */
+  private readonly doorShake = new Map<string, number>();
+  private lastBumpAt = 0;
+  private interactionKey: string | null = null;
   private frameId = 0;
   private elapsed = 0;
   private isDisposed = false;
@@ -223,6 +259,8 @@ export class StationEngine {
 
     this.materials = createStationMaterials();
     this.sharedMaterials = new Set(Object.values(this.materials).flatMap((value) => (value instanceof THREE.Material ? [value] : [])));
+    this.sharedMaterials.add(this.lockMaterial);
+    this.portals = new PortalEffects(this.scene, this.reduceMotion);
     this.layout = resolveLayout(options.templateKey, options.roomNames);
     this.finish = new FinishPipeline(this.renderer, this.scene, this.camera, (tier) => this.options.onEvent({ type: "qualityChange", tier }));
 
@@ -263,7 +301,7 @@ export class StationEngine {
     if (!this.player || !this.built) return;
     this.player.route = [];
     const { x, z } = this.player.position;
-    const isStillOnFloor = isWalkable(this.layout, x, z) && !hitsObstacle(this.built.obstacles, x, z, PLAYER_RADIUS);
+    const isStillOnFloor = isWalkable(this.layout, x, z, this.isRoomOpen) && !hitsObstacle(this.built.obstacles, x, z, PLAYER_RADIUS);
     if (!isStillOnFloor) {
       const spawn = spawnPoint(this.layout);
       this.player.position.set(spawn.x, 0, spawn.z);
@@ -296,10 +334,53 @@ export class StationEngine {
     this.isPaused = isPaused;
   }
 
+  /** Sala trancada: o personagem para no corredor, em frente à porta (RF-4). */
   walkToRoom(roomKey: string) {
     const room = this.layout.rooms.find((candidate) => candidate.key === roomKey);
     if (!room || !this.player) return;
-    this.player.route = planRouteToRoom(this.layout, this.player.position, room).map((point) => new THREE.Vector3(point.x, 0, point.z));
+    this.player.route = planRouteToRoom(this.layout, this.player.position, room, !this.isRoomOpen(room)).map(toFloorPoint);
+  }
+
+  /** Anda até perto de um colega, passando pelas portas. Colega em sala trancada não é alcançável (RF-8). */
+  walkToColleague(id: string) {
+    const remote = this.remotes.get(id);
+    if (!remote?.hasPosition || !this.player || (remote.room && !this.isRoomOpen(remote.room))) return;
+    const from = this.player.position;
+    const fromRoom = roomAt(this.layout, from.x, from.z);
+    const route: { x: number; z: number }[] = [];
+    if (fromRoom?.key !== remote.room?.key) {
+      if (fromRoom) route.push(doorWaypoints(fromRoom).inside, doorWaypoints(fromRoom).outside);
+      if (remote.room) route.push(doorWaypoints(remote.room).outside, doorWaypoints(remote.room).inside);
+    }
+    // Para um pouco antes, do lado de onde vem, em vez de entrar no colega.
+    const lastPoint = route.at(-1) ?? from;
+    const approach = new THREE.Vector3(lastPoint.x - remote.position.x, 0, lastPoint.z - remote.position.z);
+    if (approach.lengthSq() < 0.01) approach.set(0, 0, 1);
+    approach.setLength(1.2).add(remote.position);
+    route.push({ x: approach.x, z: approach.z });
+    this.player.route = route.map(toFloorPoint);
+  }
+
+  colleagues(): ColleagueInfo[] {
+    return [...this.remotes.entries()]
+      .filter(([, remote]) => remote.hasPosition)
+      .map(([id, remote]) => ({ id, name: remote.name, room: remote.room, isRestricted: !!remote.room && !this.isRoomOpen(remote.room) }));
+  }
+
+  isRoomOpenForMe(roomKey: string): boolean {
+    const room = this.layout.rooms.find((candidate) => candidate.key === roomKey);
+    return !room || this.isRoomOpen(room);
+  }
+
+  /** Aceno do próprio personagem e, se houver, do colega com quem ele fala (RF-7). */
+  wave(colleagueId?: string) {
+    this.player?.rig.wave();
+    if (colleagueId) this.remoteWave(colleagueId);
+  }
+
+  remoteWave(id: string) {
+    const remote = this.remotes.get(id);
+    if (remote?.hasPosition) remote.rig.wave();
   }
 
   getPlayerState(): PlayerState | null {
@@ -332,6 +413,8 @@ export class StationEngine {
       targetFacing: 0,
       isWalking: false,
       hasPosition: false,
+      hasArrived: false,
+      room: null,
     });
   }
 
@@ -342,11 +425,20 @@ export class StationEngine {
     remote.targetFacing = state.facing;
     remote.isWalking = state.isWalking;
     // Primeira posição (ou um salto grande, como a volta ao Terminal): aparece no lugar, sem atravessar a estação.
-    if (!remote.hasPosition || remote.position.distanceTo(remote.target) > 8) {
+    const isFirstPosition = !remote.hasPosition;
+    if (isFirstPosition || remote.position.distanceTo(remote.target) > 8) {
       remote.position.copy(remote.target);
       remote.facing = state.facing;
       remote.hasPosition = true;
-      remote.rig.root.visible = true;
+      remote.room = roomAt(this.layout, remote.position.x, remote.position.z);
+    }
+    // Chega pelo portal: aparece quando o cilindro termina de subir (RF-9).
+    if (isFirstPosition) {
+      this.portals.open(remote.position.x, remote.position.z, {
+        onOpen: () => {
+          remote.hasArrived = true;
+        },
+      });
     }
   }
 
@@ -354,18 +446,29 @@ export class StationEngine {
     return this.remotes.has(id);
   }
 
+  /** Sai pelo portal: o personagem some no clarão e só então é liberado (RF-9). */
   removeRemote(id: string) {
     const remote = this.remotes.get(id);
     if (!remote) return;
-    disposeObject(remote.rig.root, this.sharedMaterials);
     this.remotes.delete(id);
+    if (!remote.rig.root.visible || this.isDisposed) {
+      disposeObject(remote.rig.root, this.sharedMaterials);
+      return;
+    }
+    this.leavingRigs.add(remote.rig);
+    this.portals.open(remote.position.x, remote.position.z, {
+      onOpen: () => {
+        this.leavingRigs.delete(remote.rig);
+        disposeObject(remote.rig.root, this.sharedMaterials);
+      },
+    });
   }
 
   remoteLabels(): RemoteLabel[] {
     if (this.viewWidth === 0) return [];
     const labels: RemoteLabel[] = [];
     this.remotes.forEach((remote, id) => {
-      if (!remote.hasPosition) return;
+      if (!remote.rig.root.visible) return;
       this.labelPoint.set(remote.position.x, 2.35, remote.position.z).project(this.camera);
       labels.push({
         id,
@@ -386,6 +489,7 @@ export class StationEngine {
         name: room.name,
         module: room.module,
         color: ROOM_KINDS[room.kind].color,
+        isLocked: !this.isRoomOpen(room),
         x: ((this.labelPoint.x + 1) / 2) * this.viewWidth,
         y: ((1 - this.labelPoint.y) / 2) * this.viewHeight,
       };
@@ -426,6 +530,9 @@ export class StationEngine {
     if (this.player) disposeObject(this.player.rig.root, this.sharedMaterials);
     this.remotes.forEach((remote) => disposeObject(remote.rig.root, this.sharedMaterials));
     this.remotes.clear();
+    this.leavingRigs.forEach((rig) => disposeObject(rig.root, this.sharedMaterials));
+    this.leavingRigs.clear();
+    this.portals.dispose();
     this.characters?.dispose();
     this.library.dispose();
     this.sharedMaterials.forEach((material) => material.dispose());
@@ -442,9 +549,29 @@ export class StationEngine {
 
   private rebuildStation() {
     if (this.built) disposeObject(this.built.root, this.sharedMaterials);
-    this.built = buildStation(this.layout, this.materials, this.library);
-    this.bindEnvironment(this.built.root);
-    this.scene.add(this.built.root);
+    const built = buildStation(this.layout, this.materials, this.library);
+    this.built = built;
+    // Faixa vermelha no alto da porta das salas trancadas: dá para ver de longe, antes de esbarrar (RF-3).
+    this.layout.rooms.forEach((room) => {
+      if (this.isRoomOpen(room)) return;
+      addBox(built.root, DOOR_WIDTH, 0.18, 0.72, this.lockMaterial, room.cx, 2.3, room.cz + room.towardDoor * (ROOM_DEPTH / 2));
+    });
+    this.doorShake.clear();
+    this.bindEnvironment(built.root);
+    this.scene.add(built.root);
+  }
+
+  private readonly isRoomOpen = (room: RoomLayout) => {
+    const accessApp = ROOM_KINDS[room.kind].accessApp;
+    return accessApp === null || this.options.appAccess[accessApp] === true;
+  };
+
+  private bumpLockedDoor(room: RoomLayout) {
+    this.doorShake.set(room.key, 1);
+    const now = performance.now();
+    if (now - this.lastBumpAt < BUMP_NOTICE_MS) return;
+    this.lastBumpAt = now;
+    this.options.onEvent({ type: "lockedDoor", room });
   }
 
   private spawnPlayer(look: AvatarLook) {
@@ -502,8 +629,12 @@ export class StationEngine {
   }
 
   private updateRemotes(delta: number) {
+    this.leavingRigs.forEach((rig) => rig.update(delta, false));
     this.remotes.forEach((remote) => {
       if (!remote.hasPosition) return;
+      remote.room = roomAt(this.layout, remote.position.x, remote.position.z);
+      // Colega numa sala trancada para mim não é desenhado. É só visual: a posição dele chega igual (spec 0120, D-3).
+      remote.rig.root.visible = remote.hasArrived && (!remote.room || this.isRoomOpen(remote.room));
       const distance = remote.position.distanceTo(remote.target);
       // Persegue o alvo um pouco mais rápido que a caminhada: atraso de rede não vira personagem ficando para trás.
       remote.position.lerp(remote.target, 1 - Math.exp(-delta * 10));
@@ -554,7 +685,9 @@ export class StationEngine {
     this.updatePlayer(delta);
     this.updateRemotes(delta);
     this.updateRoom();
+    this.updateInteraction();
     this.animateWorld(delta);
+    this.portals.update(delta, this.elapsed);
     this.updateCamera(delta);
     this.finish.render();
     this.finish.watchSpeed(delta);
@@ -583,8 +716,9 @@ export class StationEngine {
     player.velocity.lerp(direction.multiplyScalar(WALK_SPEED), 1 - Math.exp(-delta * 14));
     if (player.velocity.lengthSq() > 0.05) {
       const before = player.position.clone();
-      const next = moveWithCollision(this.layout, this.built.obstacles, player.position, player.velocity.x * delta, player.velocity.z * delta);
+      const next = moveWithCollision(this.layout, this.built.obstacles, player.position, player.velocity.x * delta, player.velocity.z * delta, this.isRoomOpen);
       player.position.set(next.x, 0, next.z);
+      if (next.lockedRoom) this.bumpLockedDoor(next.lockedRoom);
       player.facing += wrapAngle(Math.atan2(player.velocity.x, player.velocity.z) - player.facing) * Math.min(delta * 14, 1);
       const moved = before.distanceTo(player.position);
       player.isWalking = moved > 0.01;
@@ -611,6 +745,33 @@ export class StationEngine {
     this.options.onEvent({ type: "roomChange", room });
   }
 
+  // Uma ação por vez, na ordem da spec: colega perto, porta trancada à frente, a sala em que está (RF-5).
+  private updateInteraction() {
+    const player = this.player;
+    let next: StationInteraction | null = null;
+    if (player && this.mode === "play") {
+      let nearestDistance = TALK_DISTANCE;
+      this.remotes.forEach((remote, id) => {
+        if (!remote.rig.root.visible) return;
+        const distance = remote.position.distanceTo(player.position);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          next = { kind: "colleague", id, name: remote.name };
+        }
+      });
+      if (!next) {
+        const lockedRoom = lockedDoorNear(this.layout, player.position.x, player.position.z, this.isRoomOpen);
+        if (lockedRoom) next = { kind: "lockedDoor", room: lockedRoom };
+        else if (this.currentRoom) next = { kind: "room", room: this.currentRoom };
+      }
+    }
+    const interaction = next as StationInteraction | null;
+    const key = interaction ? `${interaction.kind}:${interaction.kind === "colleague" ? `${interaction.id}:${interaction.name}` : `${interaction.room.key}:${interaction.room.name}`}` : null;
+    if (key === this.interactionKey) return;
+    this.interactionKey = key;
+    this.options.onEvent({ type: "interactionChange", interaction });
+  }
+
   private animateWorld(delta: number) {
     if (!this.built) return;
     const playerPosition = this.player?.position;
@@ -623,14 +784,19 @@ export class StationEngine {
           (screen.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.75 + Math.sin(this.elapsed * 3 + index) * 0.2;
         });
       }
+      // Porta trancada para mim fica fechada, mesmo com um colega passando por ela.
+      const isOpenForMe = this.isRoomOpen(layout);
       const isNearDoorPoint = (point: THREE.Vector3) => Math.hypot(point.x - layout.cx, point.z - layout.doorWallZ) < 2.8;
-      let isNearDoor = !!playerPosition && isNearDoorPoint(playerPosition);
+      let isNearDoor = isOpenForMe && !!playerPosition && isNearDoorPoint(playerPosition);
       this.remotes.forEach((remote) => {
-        if (remote.hasPosition && isNearDoorPoint(remote.position)) isNearDoor = true;
+        if (isOpenForMe && remote.hasPosition && isNearDoorPoint(remote.position)) isNearDoor = true;
       });
       visual.doorOpen += ((isNearDoor ? 1 : 0) - visual.doorOpen) * Math.min(delta * 8, 1);
+      const shake = this.doorShake.get(layout.key) ?? 0;
+      if (shake > 0) this.doorShake.set(layout.key, Math.max(0, shake - delta * 2.5));
+      const shakeOffset = this.reduceMotion ? 0 : Math.sin(this.elapsed * 60) * 0.06 * shake;
       visual.doorPanels.forEach((panel) => {
-        panel.position.x = panel.userData.closedX + panel.userData.side * visual.doorOpen * (DOOR_WIDTH / 2 + 0.05);
+        panel.position.x = panel.userData.closedX + panel.userData.side * visual.doorOpen * (DOOR_WIDTH / 2 + 0.05) + shakeOffset;
       });
       if (visual.enterGlow > 0) {
         visual.enterGlow = Math.max(0, visual.enterGlow - delta * 1.5);
@@ -682,4 +848,8 @@ export class StationEngine {
     event.preventDefault();
     this.zoomBy(event.deltaY > 0 ? 0.9 : 1.1);
   };
+}
+
+function toFloorPoint(point: { x: number; z: number }) {
+  return new THREE.Vector3(point.x, 0, point.z);
 }

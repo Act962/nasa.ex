@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Lock } from "lucide-react";
 import type { RoomLabel, StationEngine } from "../engine/station-engine";
 
 /** Nomes das salas por cima do canvas no modo mapa. Clicar leva o personagem até a sala. */
@@ -26,7 +27,10 @@ export function StationMapLabels({ engine, onPickRoom }: { engine: StationEngine
           className="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 bg-black/60 px-2 py-0.5 sm:px-3 sm:py-1 text-left backdrop-blur transition hover:bg-black/80"
           style={{ left: label.x, top: label.y, borderColor: label.color }}
         >
-          <span className="block whitespace-nowrap text-xs font-semibold leading-tight sm:text-sm">{label.name}</span>
+          <span className="flex items-center gap-1 whitespace-nowrap text-xs font-semibold leading-tight sm:text-sm">
+            {label.isLocked && <Lock className="size-3 text-destructive" aria-label="Sem acesso" />}
+            {label.name}
+          </span>
           {label.module !== "—" && <span className="hidden whitespace-nowrap text-[11px] text-white/70 sm:block">{label.module}</span>}
         </button>
       ))}
