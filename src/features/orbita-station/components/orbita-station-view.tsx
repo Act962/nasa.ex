@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Map as MapIcon, Minus, PencilRuler, Plus, UserRound } from "lucide-react";
+import { Bell, Camera, Map as MapIcon, Minus, PencilRuler, Plus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { StationEngine, WebGLUnavailableError, type ColleagueInfo, type StationInteraction } from "../engine/station-engine";
-import { useFetchOrbitaJoinToken, useOrbitaStation, useSaveOrbitaAvatar, useUpdateOrbitaStation } from "../hooks/use-orbita-station";
+import { useFetchOrbitaJoinToken, useOrbitaRoomIndicators, useOrbitaStation, useSaveOrbitaAvatar, useUpdateOrbitaStation } from "../hooks/use-orbita-station";
 import { defaultLook, type AvatarLook } from "../lib/avatar-look";
 import { clearLegacyPreferences, readLegacyAvatarLook } from "../lib/station-preferences";
 import type { RoomNames, StationSettings } from "../lib/station-settings";
@@ -15,6 +15,9 @@ import { useOrbitaStationStore } from "../store/use-orbita-station-store";
 import { AvatarStudio } from "./avatar-studio";
 import { ColleagueNameLabels } from "./colleague-name-labels";
 import { InteractionPrompt } from "./interaction-prompt";
+import { AttentionPanel } from "./attention-panel";
+import { QueueLabels } from "./queue-labels";
+import { attentionItems, type AttentionItem } from "./room-indicators";
 import { StationSidePanel, type SidePanelTarget } from "./station-side-panel";
 import { StationEditor } from "./station-editor";
 import { StationMapLabels } from "./station-map-labels";
@@ -88,6 +91,11 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
   const [presence, setPresence] = useState<{ status: PresenceStatus; colleagueCount: number }>({ status: "connecting", colleagueCount: 0 });
   const [interaction, setInteraction] = useState<StationInteraction | null>(null);
   const [sideTarget, setSideTarget] = useState<SidePanelTarget | null>(null);
+  const [isAttentionOpen, setIsAttentionOpen] = useState(false);
+  const indicatorsQuery = useOrbitaRoomIndicators();
+  const indicators = indicatorsQuery.data;
+  // Itens pendentes calculados na hora da última leitura: a lista muda a cada 30 s, junto com os dados (spec 0121, D-2).
+  const attention = attentionItems(indicators, indicatorsQuery.dataUpdatedAt);
   // A presença vive fora do React e lê o estado mais recente por estas referências.
   const lookRef = useRef(look);
   const stationRef = useRef(station);
@@ -199,12 +207,41 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, setStatus, setCurrentRoom, setQuality, setPanel]);
 
+  // Fila de leads do NasaChat em 3D (spec 0121, RF-10): o motor recebe a lista a cada leitura nova.
+  useEffect(() => {
+    if (!readyEngine) return;
+    const chat = indicators?.chat;
+    readyEngine.setWaitingLeads(chat?.leads ?? [], chat ? Math.max(0, chat.waitingCount - chat.leads.length) : 0);
+  }, [readyEngine, indicators]);
+
+  const openSidePanel = (target: SidePanelTarget | null) => {
+    setIsAttentionOpen(false);
+    setSideTarget(target);
+  };
+
+  const pickLead = (leadId: string) => {
+    const lead = indicators?.chat?.leads.find((candidate) => candidate.id === leadId);
+    openSidePanel({ type: "lead", id: leadId, name: lead?.name ?? "Cliente" });
+  };
+
+  const pickAttention = (item: AttentionItem) => {
+    const room = engineRef.current?.firstRoomOfKind(item.roomKind);
+    setIsAttentionOpen(false);
+    if (!room) return;
+    engineRef.current?.walkToRoom(room.key);
+    setSideTarget({ type: "room", room });
+  };
+
   // Botão de proximidade (spec 0120, RF-5): "Falar com" acena dos dois lados e abre o colega; o resto abre a sala.
   const runInteraction = useCallback(() => {
     if (!interaction) return;
     if (interaction.kind === "colleague") {
       if (presenceRef.current?.publishWave()) engineRef.current?.wave(interaction.id);
       setSideTarget({ type: "colleague", id: interaction.id, name: interaction.name });
+      return;
+    }
+    if (interaction.kind === "lead") {
+      setSideTarget({ type: "lead", id: interaction.id, name: interaction.name });
       return;
     }
     setSideTarget({ type: "room", room: interaction.room });
@@ -220,7 +257,10 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
         toggleMap();
       }
       if (key === "escape" && panel === "map") toggleMap();
-      if (key === "escape" && panel === "none") setSideTarget(null);
+      if (key === "escape" && panel === "none") {
+        setSideTarget(null);
+        setIsAttentionOpen(false);
+      }
       if (key === "e" && panel === "none" && !event.repeat) runInteraction();
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -268,7 +308,7 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
   // Colega escolhido na lista do mapa: fecha o mapa e abre o painel dele (o painel só aparece fora do mapa).
   const pickColleague = (colleague: ColleagueInfo) => {
     toggleMap();
-    setSideTarget({ type: "colleague", id: colleague.id, name: colleague.name });
+    openSidePanel({ type: "colleague", id: colleague.id, name: colleague.name });
   };
 
   const walkToRoom = (roomKey: string) => {
@@ -319,6 +359,9 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
 
       {status === "ready" && readyEngine && panel === "map" && <StationMapLabels engine={readyEngine} onPickRoom={pickRoom} onPickColleague={pickColleague} />}
       {status === "ready" && readyEngine && panel !== "map" && panel !== "studio" && <ColleagueNameLabels engine={readyEngine} />}
+      {status === "ready" && readyEngine && indicators?.chat && (panel === "map" || (panel === "none" && currentRoom?.kind === "chat")) && (
+        <QueueLabels engine={readyEngine} leads={indicators.chat.leads} onPickLead={pickLead} />
+      )}
 
       {presence.status === "replaced" && (
         <div className="absolute inset-0 z-30 grid place-items-center bg-black/70 p-6 backdrop-blur-sm">
@@ -347,6 +390,25 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
               )}
             </div>
             <div className="pointer-events-auto flex items-center gap-2">
+              <Button
+                size="icon"
+                variant={isAttentionOpen ? "default" : "secondary"}
+                className="relative"
+                aria-label={`O que pede atenção (${attention.length})`}
+                aria-pressed={isAttentionOpen}
+                onClick={() => {
+                  if (panel === "map") toggleMap();
+                  setSideTarget(null);
+                  setIsAttentionOpen(!isAttentionOpen);
+                }}
+              >
+                <Bell />
+                {attention.length > 0 && (
+                  <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-destructive px-1 text-[11px] font-bold text-white">
+                    {attention.length}
+                  </span>
+                )}
+              </Button>
               <Button size="icon" variant={panel === "map" ? "default" : "secondary"} aria-label="Mapa da estação (M)" aria-pressed={panel === "map"} onClick={toggleMap}>
                 <MapIcon />
               </Button>
@@ -421,9 +483,21 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
           target={sideTarget}
           currentRoom={currentRoom}
           appAccess={appAccess}
+          indicators={indicators}
           onWalkToRoom={walkToRoom}
           onWalkToColleague={walkToColleague}
+          onPickLead={pickLead}
           onClose={() => setSideTarget(null)}
+        />
+      )}
+
+      {status === "ready" && panel === "none" && isAttentionOpen && (
+        <AttentionPanel
+          items={attention}
+          updatedAt={indicators?.generatedAt ?? null}
+          isStale={indicatorsQuery.isError}
+          onPick={pickAttention}
+          onClose={() => setIsAttentionOpen(false)}
         />
       )}
 

@@ -6,6 +6,7 @@ import type { StationInteraction } from "../engine/station-engine";
 
 export function interactionText(interaction: StationInteraction): string {
   if (interaction.kind === "colleague") return `Falar com ${firstName(interaction.name)}`;
+  if (interaction.kind === "lead") return `Ver ${interaction.name}`;
   if (interaction.kind === "lockedDoor") return `Sem acesso a ${interaction.room.name}`;
   return `Ver ${interaction.room.name}`;
 }
