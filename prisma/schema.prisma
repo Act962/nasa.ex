@@ -423,6 +423,7 @@ model Organization {
 
   // Órbita Station 3D (spec 0119)
   orbitaStation OrbitaStation?
+  orbitaStationItems OrbitaStationItem[]
 
   // NASA Planner 2.0: templates de post brandeáveis por-org
   nasaPlannerPostTemplates NasaPlannerPostTemplate[]
@@ -11765,7 +11766,37 @@ model OrbitaStation {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        OrbitaStationItem[]
 
   @@map("orbita_stations")
+}
+
+/// Item de decoração colocado na estação (spec 0118, D-1). Por enquanto todos são grátis: preço e inventário
+/// entram com o fluxo de STARS, numa migration própria.
+model OrbitaStationItem {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  stationId      String   @map("station_id")
+  /// Chave do `DECOR_CATALOG` (src/features/orbita-station/layout/decor-catalog.ts).
+  itemKey        String   @map("item_key")
+  /// Idempotência do "Adicionar": a mesma chave devolve o mesmo item (RF-4).
+  requestKey     String   @map("request_key")
+  x              Float
+  z              Float
+  /// Giro em quartos de volta, de 0 a 3.
+  quarterTurns   Int      @default(0) @map("quarter_turns")
+  createdById    String   @map("created_by_id")
+  updatedById    String   @map("updated_by_id")
+  /// Controle de concorrência: mover ou excluir com versão velha responde CONFLICT.
+  version        Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  station      OrbitaStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, requestKey])
+  @@index([stationId])
+  @@map("orbita_station_items")
 }

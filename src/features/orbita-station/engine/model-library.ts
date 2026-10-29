@@ -2,6 +2,7 @@
 // www.kenney.nl; ambos CC0). Cada modelo é baixado uma vez; os móveis da cena são clones que dividem a geometria.
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
+import type { DecorItem } from "../layout/decor-catalog";
 import { litMaterial } from "./materials";
 
 const MODELS_URL = "/orbita-station/models";
@@ -51,6 +52,10 @@ export class ModelLibrary {
   private readonly loader = new GLTFLoader();
   private readonly abort = new AbortController();
   private readonly furniture = new Map<FurnitureName, THREE.Group>();
+  private readonly atlasMaterials = new Map<string, THREE.MeshStandardMaterial>();
+  /** Modelos da decoração (spec 0118): baixados só quando um item aparece ou é escolhido. */
+  private readonly decor = new Map<string, THREE.Group>();
+  private readonly decorLoading = new Map<string, Promise<void>>();
   private readonly ownedTextures: THREE.Texture[] = [];
   private readonly ownedMaterials: THREE.Material[] = [];
   private readonly ownedGeometries = new Set<THREE.BufferGeometry>();
@@ -75,7 +80,7 @@ export class ModelLibrary {
   }
 
   async loadFurniture(): Promise<void> {
-    const atlasMaterials = new Map<string, THREE.MeshStandardMaterial>();
+    const atlasMaterials = this.atlasMaterials;
     await Promise.all(
       ["kaykit", "kenney"].map(async (atlasName) => {
         const bitmap = await loadImage(`${MODELS_URL}/furniture/atlas-${atlasName}.png`, this.abort.signal);
@@ -141,6 +146,39 @@ export class ModelLibrary {
     };
   }
 
+  /** Baixa os modelos que faltam. Um modelo que falha só não aparece (vira a caixa de "Item indisponível"). */
+  async loadDecor(items: readonly DecorItem[]): Promise<void> {
+    await Promise.all(
+      items.map((item) => {
+        if (this.decor.has(item.key)) return Promise.resolve();
+        const pending = this.decorLoading.get(item.key);
+        if (pending) return pending;
+        const loading = this.loadGltf(`${MODELS_URL}/furniture/${item.file}`)
+          .then((gltf) => {
+            gltf.scene.traverse((object) => {
+              if (!(object instanceof THREE.Mesh)) return;
+              const atlas = this.atlasMaterials.get(item.atlas);
+              if (atlas) object.material = atlas;
+              object.castShadow = true;
+              object.receiveShadow = true;
+            });
+            markShared(gltf.scene);
+            this.decor.set(item.key, gltf.scene);
+          })
+          .catch((error) => {
+            if (!this.abort.signal.aborted) console.warn(`[orbita-station] item ${item.key} indisponível`, error);
+          })
+          .finally(() => this.decorLoading.delete(item.key));
+        this.decorLoading.set(item.key, loading);
+        return loading;
+      }),
+    );
+  }
+
+  cloneDecor(itemKey: string): THREE.Object3D | null {
+    return this.decor.get(itemKey)?.clone() ?? null;
+  }
+
   hasFurniture(name: FurnitureName): boolean {
     return this.furniture.has(name);
   }
@@ -156,6 +194,7 @@ export class ModelLibrary {
     this.ownedTextures.forEach((texture) => texture.dispose());
     this.bitmaps.forEach((bitmap) => bitmap.close());
     this.furniture.clear();
+    this.decor.clear();
     this.characters = null;
   }
 }

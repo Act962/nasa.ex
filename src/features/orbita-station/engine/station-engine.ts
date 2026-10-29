@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { leadLook, type AvatarLook } from "../lib/avatar-look";
 import {
   DOOR_WIDTH,
+  FLOOR_TOP,
   PLAYER_RADIUS,
   ROOM_DEPTH,
   doorWaypoints,
@@ -16,12 +17,16 @@ import {
   resolveLayout,
   roomAt,
   spawnPoint,
+  type Obstacle,
   type RoomLayout,
   type StationLayout,
 } from "../layout/station-layout";
 import { findPath, stopShortOf } from "../layout/path-finding";
+import { CHAT_QUEUE_SPOTS, chatQueueSpot } from "../layout/room-furniture";
 import { ROOM_KINDS } from "../layout/room-kinds";
+import type { PlacedDecor } from "../layout/decor-placement";
 import { buildStation, type BuiltStation } from "./build-structure";
+import { DecorLayer, type DecorPlacementState } from "./decor-layer";
 import { CharacterFactory, type CharacterRig } from "./character";
 import { FinishPipeline, createEnvironmentTarget, type QualityTier } from "./finish";
 import { DEFAULT_ENV_INTENSITY, createStationMaterials, glowMaterial, type StationMaterials } from "./materials";
@@ -42,6 +47,14 @@ export type StationEngineEvent =
   | { type: "roomChange"; room: RoomLayout | null }
   | { type: "interactionChange"; interaction: StationInteraction | null }
   | { type: "lockedDoor"; room: RoomLayout }
+  /** A prévia do modo Decorar mudou de lugar, de giro ou de validade (spec 0118, RF-10). `null` = sem prévia. */
+  | { type: "decorPlacement"; state: DecorPlacementState | null }
+  /** Clique (ou "Soltar aqui") com a prévia num lugar válido: a interface grava. */
+  | { type: "decorConfirm"; state: DecorPlacementState }
+  /** Clique num item colocado, com o modo Decorar aberto (RF-11). */
+  | { type: "decorPick"; id: string }
+  /** Itens que não couberam no modelo de estação atual (RF-15). */
+  | { type: "decorHidden"; ids: string[] }
   | { type: "qualityChange"; tier: QualityTier }
   | { type: "error"; message: string };
 
@@ -124,7 +137,7 @@ const MAX_ZOOM = 2.2;
 const TALK_DISTANCE = 2.3;
 const BUMP_NOTICE_MS = 2_200;
 const LOCK_COLOR = 0xff4f6d;
-const QUEUE_SPOTS = 8;
+const QUEUE_SPOTS = CHAT_QUEUE_SPOTS;
 const QUEUE_WALK_SPEED = 3.4;
 
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
@@ -239,6 +252,17 @@ export class StationEngine {
   private readonly doorShake = new Map<string, number>();
   private lastBumpAt = 0;
   private interactionKey: string | null = null;
+  private readonly decor: DecorLayer;
+  private decorItems: readonly PlacedDecor[] = [];
+  private isDecorMode = false;
+  /** Toque: a prévia segue o centro da tela, e a pessoa solta pelo botão (RF-12). */
+  private isDecorFollowingCenter = false;
+  private lastDecorStateKey = "";
+  private readonly raycaster = new THREE.Raycaster();
+  private readonly floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -FLOOR_TOP);
+  private readonly pointer = new THREE.Vector2();
+  private pointerDownAt: { x: number; y: number } | null = null;
+  private collisionCache: { fixed: readonly Obstacle[]; decor: readonly Obstacle[]; all: Obstacle[] } | null = null;
   private readonly queueLeads = new Map<string, QueueLead>();
   private waitingLeads: readonly QueueLeadInput[] = [];
   private queueOverflow = 0;
@@ -292,6 +316,9 @@ export class StationEngine {
     this.sharedMaterials = new Set(Object.values(this.materials).flatMap((value) => (value instanceof THREE.Material ? [value] : [])));
     this.sharedMaterials.add(this.lockMaterial);
     this.portals = new PortalEffects(this.scene, this.reduceMotion);
+    this.decor = new DecorLayer(this.scene, this.library, (root) => this.bindEnvironment(root), this.sharedMaterials, (hiddenIds) =>
+      this.options.onEvent({ type: "decorHidden", ids: [...hiddenIds] }),
+    );
     this.layout = resolveLayout(options.templateKey, options.roomNames);
     this.finish = new FinishPipeline(this.renderer, this.scene, this.camera, (tier) => this.options.onEvent({ type: "qualityChange", tier }));
 
@@ -302,6 +329,9 @@ export class StationEngine {
     window.addEventListener("blur", this.handleBlur);
     document.addEventListener("visibilitychange", this.handleVisibilityChange);
     this.renderer.domElement.addEventListener("wheel", this.handleWheel, { passive: false });
+    this.renderer.domElement.addEventListener("pointerdown", this.handlePointerDown);
+    this.renderer.domElement.addEventListener("pointermove", this.handlePointerMove);
+    this.renderer.domElement.addEventListener("pointerup", this.handlePointerUp);
   }
 
   async start(): Promise<void> {
@@ -319,6 +349,7 @@ export class StationEngine {
     this.rebuildStation();
     this.spawnPlayer(this.options.look);
     this.setWaitingLeads(this.waitingLeads, this.queueOverflow);
+    void this.decor.setItems(this.decorItems);
     this.resize();
     this.timer.reset();
     this.options.onEvent({ type: "ready" });
@@ -337,7 +368,7 @@ export class StationEngine {
     if (!this.player || !this.built) return;
     this.player.route = [];
     const { x, z } = this.player.position;
-    const isStillOnFloor = isWalkable(this.layout, x, z, this.isRoomOpen) && !hitsObstacle(this.built.obstacles, x, z, PLAYER_RADIUS);
+    const isStillOnFloor = isWalkable(this.layout, x, z, this.isRoomOpen) && !hitsObstacle(this.collisionObstacles(), x, z, PLAYER_RADIUS);
     if (!isStillOnFloor) {
       const spawn = spawnPoint(this.layout);
       this.player.position.set(spawn.x, 0, spawn.z);
@@ -377,7 +408,7 @@ export class StationEngine {
     const doorRoute = planRouteToRoom(this.layout, this.player.position, room, !this.isRoomOpen(room));
     const target = doorRoute[doorRoute.length - 1];
     // O destino continua o da porta (dentro da sala, ou no corredor se ela está trancada); o caminho desvia dos móveis.
-    const path = findPath(this.layout, this.built.obstacles, this.player.position, target, this.isRoomOpen) ?? doorRoute;
+    const path = findPath(this.layout, this.collisionObstacles(), this.player.position, target, this.isRoomOpen) ?? doorRoute;
     this.player.route = path.map(toFloorPoint);
   }
 
@@ -386,7 +417,7 @@ export class StationEngine {
     const remote = this.remotes.get(id);
     if (!remote?.hasPosition || !this.player || !this.built || (remote.room && !this.isRoomOpen(remote.room))) return;
     const from = this.player.position;
-    const path = findPath(this.layout, this.built.obstacles, from, remote.position, this.isRoomOpen);
+    const path = findPath(this.layout, this.collisionObstacles(), from, remote.position, this.isRoomOpen);
     if (!path) return;
     // Para um pouco antes, em vez de entrar no colega.
     this.player.route = stopShortOf(from, path, 1.2).map(toFloorPoint);
@@ -460,6 +491,42 @@ export class StationEngine {
 
   firstRoomOfKind(kind: RoomLayout["kind"]): RoomLayout | null {
     return this.layout.rooms.find((room) => room.kind === kind) ?? null;
+  }
+
+  /** Itens de decoração vindos do servidor (spec 0118). */
+  setDecorItems(items: readonly PlacedDecor[]) {
+    this.decorItems = items;
+    // Antes de os modelos da estação carregarem, a textura compartilhada ainda não existe: espera o `start`.
+    if (this.characters) void this.decor.setItems(items);
+  }
+
+  setDecorMode(isOn: boolean, isFollowingCenter: boolean) {
+    this.isDecorMode = isOn;
+    this.isDecorFollowingCenter = isFollowingCenter;
+    if (!isOn) this.cancelDecorPlacement();
+  }
+
+  /** Começa a prévia de um item novo ou de um item colocado (`movingId`), perto do personagem. */
+  async startDecorPlacement(itemKey: string, movingId: string | null = null) {
+    const at = this.player ? { x: this.player.position.x, z: this.player.position.z + 2 } : { x: 0, z: 0 };
+    await this.decor.startPlacement(itemKey, movingId, at);
+    this.emitDecorState(this.decor.previewState());
+  }
+
+  rotateDecorPlacement() {
+    this.emitDecorState(this.decor.rotatePreview());
+  }
+
+  cancelDecorPlacement() {
+    if (!this.decor.hasPreview()) return;
+    this.decor.cancelPlacement();
+    this.emitDecorState(null);
+  }
+
+  /** "Soltar aqui": só confirma num lugar válido. A gravação é da interface, que encerra a prévia ao terminar. */
+  confirmDecorPlacement() {
+    const state = this.decor.previewState();
+    if (state && !state.problem) this.options.onEvent({ type: "decorConfirm", state });
   }
 
   colleagues(): ColleagueInfo[] {
@@ -574,12 +641,8 @@ export class StationEngine {
     return this.firstRoomOfKind("chat");
   }
 
-  // Duas fileiras de 4 depois da porta, de frente para os guichês.
   private queueSpot(chat: RoomLayout, index: number): THREE.Vector3 {
-    const inside = doorWaypoints(chat).inside;
-    const column = index % 4;
-    const row = Math.floor(index / 4);
-    return new THREE.Vector3(chat.cx + (column - 1.5) * 1.3, 0, inside.z - chat.towardDoor * (1.6 + row * 1.4));
+    return toFloorPoint(chatQueueSpot(chat, index));
   }
 
   private updateQueue(delta: number) {
@@ -684,6 +747,10 @@ export class StationEngine {
     window.removeEventListener("blur", this.handleBlur);
     document.removeEventListener("visibilitychange", this.handleVisibilityChange);
     this.renderer.domElement.removeEventListener("wheel", this.handleWheel);
+    this.renderer.domElement.removeEventListener("pointerdown", this.handlePointerDown);
+    this.renderer.domElement.removeEventListener("pointermove", this.handlePointerMove);
+    this.renderer.domElement.removeEventListener("pointerup", this.handlePointerUp);
+    this.decor.dispose();
     if (this.built) disposeObject(this.built.root, this.sharedMaterials);
     if (this.player) disposeObject(this.player.rig.root, this.sharedMaterials);
     this.remotes.forEach((remote) => disposeObject(remote.rig.root, this.sharedMaterials));
@@ -719,7 +786,64 @@ export class StationEngine {
     this.doorShake.clear();
     this.bindEnvironment(built.root);
     this.scene.add(built.root);
+    this.decor.setStation(this.layout, this.isRoomOpen);
   }
+
+  private collisionObstacles(): Obstacle[] {
+    const fixed = this.built?.obstacles ?? [];
+    const decor = this.decor.obstacles;
+    const cache = this.collisionCache;
+    if (cache && cache.fixed === fixed && cache.decor === decor) return cache.all;
+    const all = [...fixed, ...decor];
+    this.collisionCache = { fixed, decor, all };
+    return all;
+  }
+
+  private emitDecorState(state: DecorPlacementState | null) {
+    const key = state ? `${state.itemKey}:${state.x}:${state.z}:${state.quarterTurns}:${state.problem}` : "";
+    if (key === this.lastDecorStateKey) return;
+    this.lastDecorStateKey = key;
+    this.options.onEvent({ type: "decorPlacement", state });
+  }
+
+  /** Ponto do piso sob um ponto da tela (coordenadas normalizadas de -1 a 1). */
+  private floorPointAt(ndcX: number, ndcY: number): THREE.Vector3 | null {
+    this.pointer.set(ndcX, ndcY);
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    return this.raycaster.ray.intersectPlane(this.floorPlane, new THREE.Vector3());
+  }
+
+  private toNdc(event: PointerEvent) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    return { x: ((event.clientX - rect.left) / rect.width) * 2 - 1, y: -((event.clientY - rect.top) / rect.height) * 2 + 1 };
+  }
+
+  private readonly handlePointerDown = (event: PointerEvent) => {
+    this.pointerDownAt = { x: event.clientX, y: event.clientY };
+  };
+
+  private readonly handlePointerMove = (event: PointerEvent) => {
+    if (!this.decor.hasPreview() || this.isDecorFollowingCenter || event.pointerType === "touch") return;
+    const ndc = this.toNdc(event);
+    const point = this.floorPointAt(ndc.x, ndc.y);
+    if (point) this.emitDecorState(this.decor.movePreview(point.x, point.z));
+  };
+
+  // Clique, não arraste: com a prévia, solta; sem ela, no modo Decorar, escolhe o item clicado.
+  private readonly handlePointerUp = (event: PointerEvent) => {
+    const down = this.pointerDownAt;
+    this.pointerDownAt = null;
+    if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6 || !this.isDecorMode) return;
+    if (this.decor.hasPreview()) {
+      if (!this.isDecorFollowingCenter && event.pointerType !== "touch") this.confirmDecorPlacement();
+      return;
+    }
+    const ndc = this.toNdc(event);
+    this.pointer.set(ndc.x, ndc.y);
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const id = this.decor.pick(this.raycaster);
+    if (id) this.options.onEvent({ type: "decorPick", id });
+  };
 
   private readonly isRoomOpen = (room: RoomLayout) => {
     const accessApp = ROOM_KINDS[room.kind].accessApp;
@@ -843,6 +967,10 @@ export class StationEngine {
     this.elapsed += delta;
     if (this.viewWidth === 0 || this.isPaused) return;
     this.updatePlayer(delta);
+    if (this.isDecorFollowingCenter && this.decor.hasPreview()) {
+      const point = this.floorPointAt(0, 0);
+      if (point) this.emitDecorState(this.decor.movePreview(point.x, point.z));
+    }
     this.updateRemotes(delta);
     this.updateQueue(delta);
     this.updateRoom();
@@ -877,7 +1005,7 @@ export class StationEngine {
     player.velocity.lerp(direction.multiplyScalar(WALK_SPEED), 1 - Math.exp(-delta * 14));
     if (player.velocity.lengthSq() > 0.05) {
       const before = player.position.clone();
-      const next = moveWithCollision(this.layout, this.built.obstacles, player.position, player.velocity.x * delta, player.velocity.z * delta, this.isRoomOpen);
+      const next = moveWithCollision(this.layout, this.collisionObstacles(), player.position, player.velocity.x * delta, player.velocity.z * delta, this.isRoomOpen);
       player.position.set(next.x, 0, next.z);
       if (next.lockedRoom) this.bumpLockedDoor(next.lockedRoom);
       player.facing += wrapAngle(Math.atan2(player.velocity.x, player.velocity.z) - player.facing) * Math.min(delta * 14, 1);
@@ -910,7 +1038,7 @@ export class StationEngine {
   private updateInteraction() {
     const player = this.player;
     let next: StationInteraction | null = null;
-    if (player && this.mode === "play") {
+    if (player && this.mode === "play" && !this.isDecorMode) {
       let nearestDistance = TALK_DISTANCE;
       this.remotes.forEach((remote, id) => {
         if (!remote.rig.root.visible) return;

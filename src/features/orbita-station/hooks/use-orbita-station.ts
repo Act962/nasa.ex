@@ -38,3 +38,40 @@ export function useFetchOrbitaJoinToken() {
 export function useSaveOrbitaAvatar() {
   return useMutation(orpc.orbitaStation.avatar.save.mutationOptions());
 }
+
+/** Itens de decoração da estação (spec 0118). Relidos ao receber o aviso `items` dos colegas (RF-14). */
+export function useOrbitaStationItems() {
+  return useQuery({ ...orpc.orbitaStation.items.list.queryOptions(), staleTime: Infinity, refetchOnWindowFocus: false });
+}
+
+export function usePlaceOrbitaItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...orpc.orbitaStation.items.place.mutationOptions(),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: orpc.orbitaStation.items.list.key() }),
+  });
+}
+
+export function useMoveOrbitaItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...orpc.orbitaStation.items.move.mutationOptions(),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: orpc.orbitaStation.items.list.key() }),
+  });
+}
+
+export function usePickUpOrbitaItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...orpc.orbitaStation.items.pickUp.mutationOptions(),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: orpc.orbitaStation.items.list.key() }),
+  });
+}
+
+/** Relê os itens: depois do aviso de um colega pela sala do LiveKit. */
+export function useRefreshOrbitaItems() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: orpc.orbitaStation.items.list.key() });
+}
+
+export type StationDecorItem = NonNullable<ReturnType<typeof useOrbitaStationItems>["data"]>["items"][number];

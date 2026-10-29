@@ -1,12 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, Camera, Map as MapIcon, Minus, PencilRuler, Plus, UserRound } from "lucide-react";
+import { Armchair, Bell, Camera, Map as MapIcon, Minus, PencilRuler, Plus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import type { DecorPlacementState } from "../engine/decor-layer";
 import { StationEngine, WebGLUnavailableError, type ColleagueInfo, type StationInteraction } from "../engine/station-engine";
-import { useFetchOrbitaJoinToken, useOrbitaRoomIndicators, useOrbitaStation, useSaveOrbitaAvatar, useUpdateOrbitaStation } from "../hooks/use-orbita-station";
+import {
+  useFetchOrbitaJoinToken,
+  useMoveOrbitaItem,
+  useOrbitaRoomIndicators,
+  useOrbitaStation,
+  useOrbitaStationItems,
+  usePickUpOrbitaItem,
+  usePlaceOrbitaItem,
+  useRefreshOrbitaItems,
+  useSaveOrbitaAvatar,
+  useUpdateOrbitaStation,
+  type StationDecorItem,
+} from "../hooks/use-orbita-station";
 import { defaultLook, type AvatarLook } from "../lib/avatar-look";
 import { clearLegacyPreferences, readLegacyAvatarLook } from "../lib/station-preferences";
 import type { RoomNames, StationSettings } from "../lib/station-settings";
@@ -16,6 +29,7 @@ import { AvatarStudio } from "./avatar-studio";
 import { ColleagueNameLabels } from "./colleague-name-labels";
 import { InteractionPrompt } from "./interaction-prompt";
 import { AttentionPanel } from "./attention-panel";
+import { DecorPanel, PlacementBar } from "./decor-panel";
 import { QueueLabels } from "./queue-labels";
 import { attentionItems, type AttentionItem } from "./room-indicators";
 import { StationSidePanel, type SidePanelTarget } from "./station-side-panel";
@@ -86,6 +100,19 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
   const { status, errorMessage, currentRoom, quality, panel, setStatus, setCurrentRoom, setQuality, setPanel } = useOrbitaStationStore();
   const saveAvatar = useSaveOrbitaAvatar();
   const updateStation = useUpdateOrbitaStation();
+  const itemsQuery = useOrbitaStationItems();
+  const decorItems = itemsQuery.data?.items;
+  const placeItem = usePlaceOrbitaItem();
+  const moveItem = useMoveOrbitaItem();
+  const pickUpItem = usePickUpOrbitaItem();
+  const refreshItems = useRefreshOrbitaItems();
+  const [placement, setPlacement] = useState<DecorPlacementState | null>(null);
+  const [selectedDecorId, setSelectedDecorId] = useState<string | null>(null);
+  const [hiddenDecorIds, setHiddenDecorIds] = useState<ReadonlySet<string>>(new Set());
+  // Um pedido por item escolhido: clicar "Soltar aqui" de novo depois de uma falha de rede não duplica (RF-4).
+  const placementRequestKeyRef = useRef<string>("");
+  const confirmPlacementRef = useRef<(state: DecorPlacementState) => void>(() => {});
+  const refreshItemsRef = useRef(refreshItems);
   const fetchJoinToken = useFetchOrbitaJoinToken();
   const presenceRef = useRef<StationPresence | null>(null);
   const [presence, setPresence] = useState<{ status: PresenceStatus; colleagueCount: number }>({ status: "connecting", colleagueCount: 0 });
@@ -104,6 +131,7 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
     lookRef.current = look;
     stationRef.current = station;
     fetchJoinTokenRef.current = fetchJoinToken;
+    refreshItemsRef.current = refreshItems;
   });
 
   // Migração da etapa 1 (RF-5): o avatar do navegador sobe uma vez, sem sobrescrever um que já esteja no servidor.
@@ -175,6 +203,7 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
                 setStation(next);
                 engine.setStation(next.templateKey, next.roomNames);
               },
+              onItemsChanged: () => void refreshItemsRef.current(),
             });
             presenceRef.current = stationPresence;
             void stationPresence.start();
@@ -189,6 +218,10 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
           if (event.type === "interactionChange") setInteraction(event.interaction);
           if (event.type === "lockedDoor") toast.error(`Porta trancada: você não tem acesso a ${event.room.name}`);
           if (event.type === "qualityChange") setQuality(event.tier);
+          if (event.type === "decorPlacement") setPlacement(event.state);
+          if (event.type === "decorConfirm") confirmPlacementRef.current(event.state);
+          if (event.type === "decorPick") setSelectedDecorId(event.id);
+          if (event.type === "decorHidden") setHiddenDecorIds(new Set(event.ids));
         },
       });
     } catch (error) {
@@ -213,6 +246,83 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
     const chat = indicators?.chat;
     readyEngine.setWaitingLeads(chat?.leads ?? [], chat ? Math.max(0, chat.waitingCount - chat.leads.length) : 0);
   }, [readyEngine, indicators]);
+
+  // Decoração (spec 0118): o motor desenha o que o servidor tem; a cada lista nova, confere o que ficou fora da estação.
+  useEffect(() => {
+    if (!readyEngine || !decorItems) return;
+    readyEngine.setDecorItems(decorItems);
+  }, [readyEngine, decorItems]);
+
+  // Qualquer outro painel (mapa, estúdio, editor) encerra o modo Decorar no motor.
+  useEffect(() => {
+    engineRef.current?.setDecorMode(panel === "decor", isTouch);
+  }, [panel, isTouch]);
+
+  const toggleDecor = () => {
+    const isOpening = panel !== "decor";
+    if (panel === "map") toggleMap();
+    setSideTarget(null);
+    setIsAttentionOpen(false);
+    setSelectedDecorId(null);
+    setPanel(isOpening ? "decor" : "none");
+  };
+
+  const chooseDecor = (itemKey: string, movingId: string | null = null) => {
+    placementRequestKeyRef.current = crypto.randomUUID();
+    setSelectedDecorId(null);
+    void engineRef.current?.startDecorPlacement(itemKey, movingId);
+  };
+
+  const afterItemsChanged = () => {
+    presenceRef.current?.publishItemsChanged();
+  };
+
+  const showItemError = (error: Error) => {
+    toast.error(error.message);
+    void refreshItems();
+  };
+
+  const confirmPlacement = (state: DecorPlacementState) => {
+    const onSuccess = () => {
+      engineRef.current?.cancelDecorPlacement();
+      afterItemsChanged();
+    };
+    if (state.movingId) {
+      const current = decorItems?.find((item) => item.id === state.movingId);
+      if (!current) return;
+      moveItem.mutate({ id: current.id, version: current.version, x: state.x, z: state.z, quarterTurns: state.quarterTurns }, { onSuccess, onError: showItemError });
+      return;
+    }
+    placeItem.mutate(
+      { requestKey: placementRequestKeyRef.current, itemKey: state.itemKey, x: state.x, z: state.z, quarterTurns: state.quarterTurns },
+      { onSuccess, onError: showItemError },
+    );
+  };
+  useEffect(() => {
+    confirmPlacementRef.current = confirmPlacement;
+  });
+
+  const rotateItem = (item: StationDecorItem) => {
+    moveItem.mutate(
+      { id: item.id, version: item.version, x: item.x, z: item.z, quarterTurns: (item.quarterTurns + 1) % 4 },
+      { onSuccess: afterItemsChanged, onError: showItemError },
+    );
+  };
+
+  const removeItem = (item: StationDecorItem) => {
+    pickUpItem.mutate(
+      { id: item.id, version: item.version },
+      {
+        onSuccess: () => {
+          setSelectedDecorId(null);
+          afterItemsChanged();
+        },
+        onError: showItemError,
+      },
+    );
+  };
+
+  const isDecorBusy = placeItem.isPending || moveItem.isPending || pickUpItem.isPending;
 
   const openSidePanel = (target: SidePanelTarget | null) => {
     setIsAttentionOpen(false);
@@ -252,6 +362,15 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isTypingTarget(event.target) || panel === "studio" || panel === "editor") return;
       const key = event.key.toLowerCase();
+      if (panel === "decor") {
+        if (key === "r" && placement) engineRef.current?.rotateDecorPlacement();
+        if (key === "escape") {
+          if (placement) engineRef.current?.cancelDecorPlacement();
+          else if (selectedDecorId) setSelectedDecorId(null);
+          else toggleDecor();
+        }
+        return;
+      }
       if (key === "m") {
         setSideTarget(null);
         toggleMap();
@@ -265,7 +384,9 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [status, panel, toggleMap, runInteraction]);
+    // `toggleDecor` muda a cada render; o efeito já roda de novo pelas outras dependências.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, panel, toggleMap, runInteraction, placement, selectedDecorId]);
 
   const saveLook = (nextLook: AvatarLook) => {
     persistLook(nextLook);
@@ -412,6 +533,11 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
               <Button size="icon" variant={panel === "map" ? "default" : "secondary"} aria-label="Mapa da estação (M)" aria-pressed={panel === "map"} onClick={toggleMap}>
                 <MapIcon />
               </Button>
+              {canEdit && (
+                <Button size="icon" variant={panel === "decor" ? "default" : "secondary"} aria-label="Decorar a estação" aria-pressed={panel === "decor"} onClick={toggleDecor}>
+                  <Armchair />
+                </Button>
+              )}
               <Button size="icon" variant="secondary" aria-label="Estúdio do personagem" onClick={openStudio}>
                 <UserRound />
               </Button>
@@ -499,6 +625,32 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
           onPick={pickAttention}
           onClose={() => setIsAttentionOpen(false)}
         />
+      )}
+
+      {status === "ready" && panel === "decor" && canEdit && (
+        <DecorPanel
+          items={decorItems ?? []}
+          hiddenIds={hiddenDecorIds}
+          selectedId={selectedDecorId}
+          isBusy={isDecorBusy}
+          onChoose={(itemKey) => chooseDecor(itemKey)}
+          onMove={(item) => chooseDecor(item.itemKey, item.id)}
+          onRotate={rotateItem}
+          onPickUp={removeItem}
+          onDeselect={() => setSelectedDecorId(null)}
+          onClose={toggleDecor}
+        />
+      )}
+      {status === "ready" && panel === "decor" && placement && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-28 flex justify-center px-4 sm:bottom-16 sm:right-80">
+          <PlacementBar
+            state={placement}
+            isBusy={isDecorBusy}
+            onRotate={() => engineRef.current?.rotateDecorPlacement()}
+            onConfirm={() => engineRef.current?.confirmDecorPlacement()}
+            onCancel={() => engineRef.current?.cancelDecorPlacement()}
+          />
+        </div>
       )}
 
       {status === "ready" && panel === "editor" && canEdit && (

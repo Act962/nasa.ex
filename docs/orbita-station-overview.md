@@ -18,7 +18,7 @@ Escritório virtual em 3D em que cada sala corresponde a um módulo da plataform
 | 2 (spec 0119) | Estação da empresa no banco, avatar no servidor, colegas ao vivo (LiveKit), permissões, link no menu | 🚧 pronta, PR #482 |
 | 3 (spec 0120) | Salas ligadas aos módulos: porta trancada pela matriz de permissões, botão de proximidade (E), painel da sala e do colega, aceno, portal na chegada e saída dos colegas | 🚧 implementada, em revisão |
 | 4 (spec 0121) | Dados reais nas salas (`getRoomIndicators`, a cada 30 s), "O que pede atenção" e a fila de leads do NasaChat em 3D, com portal | 🚧 implementada, em revisão |
-| 5 (sem spec) | Editor de decoração e loja (0118) | ⬜ |
+| 5 (spec 0118) | Modo Decorar: 30 itens grátis colocados, movidos, girados e tirados, com a posição validada no servidor (`orbita_station_items`). A Loja Órbita com STARS ficou para depois | 🚧 implementada, em revisão |
 | Final | Remover a Space Station 2D (`src/features/space-station/`, rotas, permissão `space-station` e, em migration separada depois do deploy, as tabelas `SpaceStation*` e afins) | ⬜ quando o 3D estiver pronto |
 
 O tempo real da etapa 2 usa um servidor do LiveKit nosso, na VPS: ver [livekit-self-hosted.md](livekit-self-hosted.md).
@@ -47,6 +47,8 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | `colleagues()` / `isRoomOpenForMe(key)` | Colegas presentes, com a sala e se estão numa sala trancada para quem olha; e se uma sala está aberta. |
 | `wave(colleagueId?)` / `remoteWave(id)` | Aceno do próprio personagem (e do colega com quem fala) ou de um colega. |
 | `setWaitingLeads(leads, overflow)` / `queueLabels()` | Fila de leads do NasaChat: quem entra chega pelo portal e quem sai vai embora por ele; posições das etiquetas de espera e do "+N". |
+| `setDecorItems(items)` / `setDecorMode(on, followCenter)` | Itens de decoração do servidor e o modo Decorar (no toque, a prévia segue o centro da tela). |
+| `startDecorPlacement(key, movingId?)` / `rotateDecorPlacement()` / `confirmDecorPlacement()` / `cancelDecorPlacement()` | A prévia do item: escolher, girar, soltar e cancelar. |
 | `firstRoomOfKind(kind)` | Primeira sala de um tipo no modelo atual (o "O que pede atenção" usa para levar até ela). |
 | `setLook(look)` | Troca o visual do personagem. |
 | `setQuality("medio" \| "leve")` | Liga ou desliga o brilho. |
@@ -61,6 +63,7 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | `roomChange` | O personagem entrou numa sala ou no corredor (`room: null`). |
 | `interactionChange` | Mudou a ação do botão de proximidade: colega perto, porta trancada à frente, a sala atual, ou nenhuma. |
 | `lockedDoor` | O personagem esbarrou numa porta trancada (no máximo a cada ~2 s). |
+| `decorPlacement` / `decorConfirm` / `decorPick` / `decorHidden` | A prévia mudou; o clique pediu para soltar; um item foi clicado no modo Decorar; itens ficaram fora da estação. |
 | `qualityChange` | O nível gráfico mudou (inclusive a queda automática para "leve"). |
 | `error` | Os modelos 3D não carregaram. |
 
@@ -71,6 +74,8 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 - **Luzes multiplicadas por π** em relação ao protótipo: desde a r155 o Three.js usa unidades físicas.
 - **Reflexo pela cena com `scene.environmentIntensity = 0,22`**: desde a r163 o `envMapIntensity` do material é ignorado quando o reflexo vem de `scene.environment`. Material que precisa de outra intensidade recebe o mapa direto (`bindEnvironment` no motor). Sem isso, a cena fica ~4,5x mais clara.
 - **Porta trancada vem da permissão do módulo** (0120, D-1): o app da matriz de cada tipo de sala fica em `layout/room-kinds.ts` (`accessApp` e `links`). Não existe lista de acesso por sala.
+- **Móveis fixos numa lista pura** (`layout/room-furniture.ts`, 0118 D-7): colisão, caminho, desenho e a validação da decoração no servidor leem a mesma. Mudar um móvel de lugar é mudar ali.
+- **Decoração numa tabela, não num JSON** (0118, D-1): cada item é uma linha com versão, para duas pessoas poderem mexer ao mesmo tempo sem uma apagar o trabalho da outra.
 - **"Ir até" por A* numa grade de 0,4 m** (`layout/path-finding.ts`): desvia de paredes, móveis e salas trancadas, e depois corta os degraus por linha de visão. O destino continua o dos pontos de porta (`planRouteToRoom`), que segue como reserva se não houver caminho. Calcula uma vez por clique (~2 ms).
 - **"Lead aguardando" é o critério dos alertas** (0121, D-1): `waitingLeadWhere` em `src/features/alerts/lib/waiting-lead.ts`, compartilhado com o detector `lead-waiting`. Nunca `statusFlow = WAITING`, que fica parado depois do atendimento.
 - **A trava é só visual** (0120, D-3): a posição de quem está numa sala trancada chega igual ao navegador; ela só não é desenhada. Quem protege os dados é a permissão de cada módulo.
@@ -87,3 +92,4 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | 2026-10-29 | Etapa 3 (spec 0120): `getStation` devolve `appAccess`, portas trancadas, botão de proximidade, painéis da sala e do colega, aceno (mensagem `emote`), portal (`engine/portal.ts`). |
 | 2026-10-29 | Etapa 4 (spec 0121): `getRoomIndicators` (chat, chegadas, tarefas, financeiro, agenda e Forge, cada um só com Ver no módulo), painel "O que pede atenção", indicadores no painel da sala, fila de leads em 3D com portal e painel do lead. |
 | 2026-10-29 | "Ir até" desvia dos móveis: A* numa grade sobre o piso, usado em `walkToRoom` e `walkToColleague`. Antes era só uma linha reta entre os pontos de porta, que prendia nas mesas. |
+| 2026-10-29 | Etapa 5 (spec 0118): modo Decorar com 30 itens grátis (`DECOR_CATALOG`), tabela `orbita_station_items`, procedures `items.list/place/move/pickUp`, regra de posição pura (`layout/decor-placement.ts`), móveis fixos extraídos para `layout/room-furniture.ts`, `engine/decor-layer.ts` e o aviso `items` pelo LiveKit. A loja com STARS ficou para depois. |

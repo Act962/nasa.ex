@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { ROOM_KINDS } from "../layout/room-kinds";
+import { chatCounter, chatWaitingChairs, fromBackZ as roomFromBackZ, roomColumns, roomFurniture } from "../layout/room-furniture";
 import { FLOOR_TOP, ROOM_DEPTH, type Obstacle, type RoomLayout } from "../layout/station-layout";
 import { glowMaterial, litMaterial, type StationMaterials } from "./materials";
 import type { FurnitureName, ModelLibrary } from "./model-library";
@@ -30,8 +31,10 @@ type ChairTag = "desk" | "meeting" | "common" | "counter";
 export function furnishRoom({ room, group, materials, library, obstacles }: FurnishInput): FurnishResult {
   const towardDoor = room.towardDoor;
   const halfWidth = room.width / 2;
-  /** z local a partir da parede do fundo (oposta à porta). */
-  const fromBackZ = (fromBack: number) => (-towardDoor * ROOM_DEPTH) / 2 + towardDoor * fromBack;
+  const fromBackZ = (fromBack: number) => roomFromBackZ(room, fromBack);
+  // Colisão e plantas dos cantos vêm da lista pura (spec 0118, D-7): o servidor valida a decoração com a mesma.
+  const furniture = roomFurniture(room);
+  obstacles.push(...furniture.obstacles);
   const faceDoor = towardDoor > 0 ? 0 : Math.PI;
   const faceBack = towardDoor > 0 ? Math.PI : 0;
   const kindColor = ROOM_KINDS[room.kind].color;
@@ -49,8 +52,6 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
     group.add(model);
     return model;
   };
-  const solid = (x: number, z: number, width: number, depth: number) =>
-    obstacles.push({ x: room.cx + x, z: room.cz + z, halfWidth: width / 2, halfDepth: depth / 2 });
   // Postos de trabalho e reunião com as cadeiras da estação (Kenney); a copa mantém as de madeira.
   const chairAt = (x: number, fromBack: number, rotation: number, tag: ChairTag) => {
     if (tag === "common") addFurniture("chair_A_wood", x, fromBackZ(fromBack), rotation, CHAIR_SCALE);
@@ -62,26 +63,16 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
     addBox(group, 0.36, 0.03, 0.24, materials.metal, x, 1.03, fromBackZ(fromBack - 0.25));
     addBox(group, 0.07, 0.22, 0.07, materials.metal, x, 1.14, fromBackZ(fromBack - 0.25));
     result.screens.push(addBox(group, 0.9, 0.55, 0.08, materials.screen, x, 1.5, fromBackZ(fromBack - 0.25), faceDoor));
-    solid(x, fromBackZ(fromBack), 2, 1);
     chairAt(x, fromBack + 1, faceBack, "desk");
   };
-  const across = (spacing: number, margin = 1.6) => {
-    const count = Math.max(1, Math.floor((room.width - margin * 2) / spacing) + 1);
-    const span = (count - 1) * spacing;
-    return Array.from({ length: count }, (_, index) => -span / 2 + index * spacing);
-  };
+  const across = (spacing: number, margin = 1.6) => roomColumns(room, spacing, margin);
 
   switch (room.kind) {
     case "chat": {
       // Balcão contínuo encostado no fundo, com passagem na ponta direita; sala de espera na frente.
-      const counterFromBack = 2.4;
-      const counterDepth = 1;
-      const passage = 2.2;
-      const left = -halfWidth + 0.45;
-      const right = halfWidth - 0.45 - passage;
-      const counterLength = right - left;
-      const counterCenterX = (left + right) / 2;
-      const counterZ = fromBackZ(counterFromBack);
+      const counter = chatCounter(room);
+      const { left, right, depth: counterDepth, length: counterLength, centerX: counterCenterX, attendantCount, slot } = counter;
+      const counterZ = fromBackZ(counter.fromBack);
       const counterTop = litMaterial({ color: 0xe9e7f2 });
       const counterBody = litMaterial({ color: 0x3a3f63 });
       // Altura de mesa (não de balcão de bar): o atendente sentado alcança o notebook.
@@ -89,11 +80,8 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
       addBox(group, counterLength + 0.1, 0.1, counterDepth + 0.15, counterTop, counterCenterX, 0.88, counterZ);
       addBox(group, counterLength, 0.06, 0.06, materials.glow, counterCenterX, 0.32, counterZ + towardDoor * (counterDepth / 2 + 0.02));
       addBox(group, 0.25, 0.75, counterDepth, counterBody, right + 0.1, 0.62, counterZ);
-      solid(counterCenterX, counterZ, counterLength + 0.3, counterDepth);
       addBox(group, 2.4, 1.2, 0.12, materials.screen, halfWidth - 1.6, 1.6, fromBackZ(0.35));
 
-      const attendantCount = Math.max(2, Math.round(counterLength / 3));
-      const slot = counterLength / attendantCount;
       const glass = litMaterial({ color: 0x9ff3ff, transparent: true, opacity: 0.28, depthWrite: false, roughness: 0.05, metalness: 0.3, envMapIntensity: 1.4 });
       const glassEdge = glowMaterial({ color: new THREE.Color(0x3de0f0).multiplyScalar(2.2) });
       const laptopBody = litMaterial({ color: 0x8a91ad });
@@ -117,13 +105,7 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
         addBox(group, 0.05, 0.85, counterDepth + 0.1, glass, x, 1.36, counterZ);
         addBox(group, 0.07, 0.03, counterDepth + 0.1, glassEdge, x, 1.79, counterZ);
       }
-      [5.3, 6.9, 8.5].forEach((fromBack) => {
-        for (let x = -halfWidth + 1.2; x <= halfWidth - 1.6; x += 1.35) {
-          if (Math.abs(x) < 1.5) continue;
-          addFurniture("kenney:chair-armrest", x, fromBackZ(fromBack), faceBack, SPACE_CHAIR_SCALE);
-          solid(x, fromBackZ(fromBack), 0.8, 0.7);
-        }
-      });
+      chatWaitingChairs(room).forEach(({ x, z }) => addFurniture("kenney:chair-armrest", x, z, faceBack, SPACE_CHAIR_SCALE));
       break;
     }
     case "workspace":
@@ -133,7 +115,6 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
       rows.forEach((row) => across(3).forEach((x) => workstation(x, row)));
       if (room.kind === "finance") {
         addBox(group, 2.2, 2.2, 1.4, materials.metal, halfWidth - 1.5, 1.35, fromBackZ(ROOM_DEPTH - 3.2));
-        solid(halfWidth - 1.5, fromBackZ(ROOM_DEPTH - 3.2), 2.2, 1.4);
         const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.09, 8, 20), litMaterial({ color: 0xf2c230 }));
         wheel.position.set(halfWidth - 1.5, 1.4, fromBackZ(ROOM_DEPTH - 3.2) + towardDoor * 0.72);
         group.add(wheel);
@@ -144,7 +125,6 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
           .slice(0, 3)
           .forEach((x, index) => {
             addFurniture(index % 2 ? "kenney:container-wide" : "kenney:container-tall", x, fromBackZ(ROOM_DEPTH - 1.6), faceBack, [2, 2, 1.2]);
-            solid(x, fromBackZ(ROOM_DEPTH - 1.6), 1.2, 0.72);
           });
       }
       if (room.kind === "workspace") {
@@ -162,7 +142,6 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
         addBox(group, 2.5, 0.06, 0.04, accent, x, 0.94, fromBackZ(4) + towardDoor * 0.44);
         result.screens.push(addBox(group, 0.8, 0.5, 0.08, materials.screen, x - 0.5, 1.26, fromBackZ(3.85), faceBack));
         addFurniture("chair_stool", x, fromBackZ(5.4), 0, CHAIR_SCALE);
-        solid(x, fromBackZ(4), 2.5, 0.85);
         chairAt(x, 2.8, faceDoor, "desk");
       });
       if (room.kind === "field") addBox(group, Math.min(5, room.width - 3), 2, 0.15, litMaterial({ color: 0xd9f0d4 }), 0, 1.5, fromBackZ(0.3));
@@ -171,7 +150,6 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
     case "agenda": {
       addBox(group, 5, 1.05, 0.9, materials.woodLight, 0, 0.78, fromBackZ(ROOM_DEPTH - 4.2));
       addBox(group, 5.1, 0.12, 1.05, accent, 0, 1.32, fromBackZ(ROOM_DEPTH - 4.2));
-      solid(0, fromBackZ(ROOM_DEPTH - 4.2), 5.1, 1.05);
       addBox(group, 4.4, 2.4, 0.15, materials.white, 0, 1.6, fromBackZ(0.3));
       const slotMaterial = litMaterial({ color: 0xd9d3ee });
       for (let column = 0; column < 4; column++)
@@ -182,7 +160,6 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
     case "meeting": {
       const tableLength = Math.max(3, room.width - 5);
       addFurniture("table_medium_long", 0, fromBackZ(5.4), 0, [tableLength / 3, 0.69, 1.2]);
-      solid(0, fromBackZ(5.4), tableLength, 2.4);
       addBox(group, Math.min(4, room.width - 3), 2, 0.12, materials.screen, 0, 1.7, fromBackZ(0.3));
       const chairs = Math.max(2, Math.floor(tableLength / 1.4));
       for (let index = 0; index < chairs; index++) {
@@ -193,14 +170,11 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
     }
     case "restroom": {
       addBox(group, 0.25, 1.6, ROOM_DEPTH - 4, materials.wall, 0, 1.05, fromBackZ((ROOM_DEPTH - 4) / 2));
-      solid(0, fromBackZ((ROOM_DEPTH - 4) / 2), 0.25, ROOM_DEPTH - 4);
       const stallMaterial = litMaterial({ color: 0x9fb5c9 });
       [-1, 1].forEach((half) => {
         const centerX = (half * room.width) / 4;
         addBox(group, room.width / 2 - 1, 1.6, 1.6, stallMaterial, centerX, 1.05, fromBackZ(1.2));
-        solid(centerX, fromBackZ(1.2), room.width / 2 - 1, 1.6);
         addBox(group, 1.4, 0.8, 0.6, materials.white, centerX, 0.65, fromBackZ(ROOM_DEPTH - 3));
-        solid(centerX, fromBackZ(ROOM_DEPTH - 3), 1.4, 0.6);
       });
       break;
     }
@@ -209,15 +183,12 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
       tables.forEach((x) => {
         addCylinder(group, 1.1, 1.1, 0.12, materials.white, x, 0.88, fromBackZ(6), 24);
         addCylinder(group, 0.15, 0.3, 0.6, materials.dark, x, 0.55, fromBackZ(6));
-        solid(x, fromBackZ(6), 2, 2);
         ([[0, -1.6, faceDoor], [0, 1.6, faceBack], [-1.6, 0, Math.PI / 2], [1.6, 0, -Math.PI / 2]] as const).forEach(([offsetX, offsetFromBack, rotation]) =>
           chairAt(x + offsetX, 6 + offsetFromBack, rotation, "common"),
         );
       });
       addFurniture("kenney:container-tall", -room.width / 2 + 1.2, fromBackZ(1), faceDoor, [2, 2.67, 1.67]);
-      solid(-room.width / 2 + 1.2, fromBackZ(1), 1.2, 1);
       addFurniture("couch_pillows", room.width / 2 - 2.2, fromBackZ(1.1), faceDoor, 0.8);
-      solid(room.width / 2 - 2.2, fromBackZ(1.1), 2.4, 1.3);
       break;
     }
     case "terminal": {
@@ -231,7 +202,6 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
         .slice(0, 4)
         .forEach((x) => addFurniture("kenney:chair-armrest-headrest", x, fromBackZ(ROOM_DEPTH - 2), faceBack, SPACE_CHAIR_SCALE));
       addFurniture("kenney:table-display-planet", halfWidth - 1.1, fromBackZ(1.3), faceDoor, 2.2);
-      solid(halfWidth - 1.4, fromBackZ(1.3), 1.1, 1.1);
       break;
     }
   }
@@ -250,15 +220,7 @@ export function furnishRoom({ room, group, materials, library, obstacles }: Furn
     addBox(group, 0.6, 0.04, 0.12, cable, minX - 0.3, 0.27, cableZ);
   }
   // Plantas nos cantos do fundo e tapete nas salas de convivência
-  [-1, 1].forEach((side) => {
-    const x = side * (halfWidth - 0.9);
-    const z = fromBackZ(ROOM_DEPTH - 0.9);
-    const isBlocked = obstacles.some((box) => Math.abs(room.cx + x - box.x) < box.halfWidth + 0.5 && Math.abs(room.cz + z - box.z) < box.halfDepth + 0.5);
-    if (room.kind === "restroom" || isBlocked) return;
-    if (chairSpots.some((spot) => Math.hypot(spot.x - x, spot.z - z) < 1.2)) return;
-    addFurniture(side < 0 ? "cactus_medium_A" : "cactus_medium_B", x, z, 0, 1.2);
-    solid(x, z, 0.9, 0.9);
-  });
+  furniture.plants.forEach((plant) => addFurniture(plant.model, plant.x, plant.z, 0, 1.2));
   if (room.kind === "common" || room.kind === "meeting" || room.kind === "agenda") {
     const rugColor = new THREE.Color(kindColor).lerp(new THREE.Color(0xffffff), 0.45);
     addBox(group, Math.min(room.width - 3, 7), 0.03, 4.2, litMaterial({ color: rugColor }), 0, 0.265, fromBackZ(room.kind === "agenda" ? ROOM_DEPTH - 3 : 5.6));
