@@ -1,9 +1,11 @@
-Modelos 3D da Órbita Station (spec 0117)
+Modelos 3D da Órbita Station (specs 0117 e 0118)
 
 characters/Knight|Rogue|Ranger|Mage|Barbarian.glb, *.png, animations-*.glb
   KayKit Adventurers 2.0 — Kay Lousberg (www.kaylousberg.com) — CC0 1.0
 
 furniture/chair_A_wood, chair_stool, table_medium_long, couch_pillows, cactus_medium_A|B, atlas-kaykit.png
+furniture/armchair*, couch*, table_low|small|medium, lamp_standing, shelf_B_*_decorated, cabinet_*_decorated,
+  pictureframe_standing_A|B, cactus_small_A|B, rug_* (decoração, spec 0118)
   KayKit Furniture Bits 1.0 — Kay Lousberg (www.kaylousberg.com) — CC0 1.0
 
 furniture/kenney-*.glb, atlas-kenney.png

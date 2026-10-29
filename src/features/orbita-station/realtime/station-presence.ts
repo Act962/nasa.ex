@@ -27,6 +27,8 @@ interface StationPresenceOptions {
   getLook: () => AvatarLook;
   onStatus: (status: PresenceStatus, colleagueCount: number) => void;
   onStationChanged: (station: StationSettings) => void;
+  /** Um colega mexeu na decoração: só um aviso para reler os itens (spec 0118, RF-14). */
+  onItemsChanged: () => void;
 }
 
 const coordinate = z.number().finite().min(-500).max(500);
@@ -39,6 +41,7 @@ const messageSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("look"), look: avatarLookSchema }),
   z.object({ t: z.literal("ask") }),
   z.object({ t: z.literal("emote"), e: z.literal("wave") }).strict(),
+  z.object({ t: z.literal("items") }).strict(),
   z.object({ t: z.literal("station"), templateKey: templateKeySchema, roomNames: roomNamesSchema, version: z.number().int().nonnegative() }),
 ]);
 type PresenceMessage = z.infer<typeof messageSchema>;
@@ -127,6 +130,10 @@ export class StationPresence {
     this.lastWaveSentAt = now;
     this.publish({ t: "emote", e: "wave" }, true);
     return true;
+  }
+
+  publishItemsChanged() {
+    this.publish({ t: "items" }, true);
   }
 
   publishStation(station: StationSettings) {
@@ -236,6 +243,10 @@ export class StationPresence {
     }
     if (message.t === "ask") {
       this.sendHello([id]);
+      return;
+    }
+    if (message.t === "items") {
+      this.options.onItemsChanged();
       return;
     }
     if (message.t === "emote") {

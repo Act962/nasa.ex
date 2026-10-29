@@ -3,7 +3,7 @@ import type { QualityTier } from "../engine/finish";
 import type { RoomLayout } from "../layout/station-layout";
 
 export type StationStatus = "loading" | "ready" | "no-webgl" | "error";
-export type StationPanel = "none" | "studio" | "map" | "editor";
+export type StationPanel = "none" | "studio" | "map" | "editor" | "decor";
 
 interface OrbitaStationState {
   status: StationStatus;

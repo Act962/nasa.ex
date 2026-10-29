@@ -29,8 +29,8 @@ Estrutura e salas dos 8 modelos de estação, móveis, personagem e estúdio, c�
 
 Consulte o protótipo ao fazer estas partes. Quando quase tudo estiver portado, apague a pasta.
 
-- [ ] Loja e inventário (spec 0118): seções `Loja`, `Catálogo da Loja` e `Menu de contexto do mapa`
-- [ ] Editor de decoração (modo Decorar) e planta 2D: seções `Decoração` e `Editor (planta 2D)`
+- [ ] Loja e inventário com STARS: seções `Loja`, `Catálogo da Loja` e `Menu de contexto do mapa` (adiada, ver spec 0118 §11)
+- [x] Editor de decoração (modo Decorar): seção `Decoração` (spec 0118, itens grátis). A planta 2D (`Editor (planta 2D)`) ficou fora de escopo
 - [x] Salas trancadas por permissão (porta que treme, aviso): `canEnter`, `bumpLockedDoor` (spec 0120)
 - [ ] Pessoas nos postos: seção `Pessoas (exemplo)` (a fila de leads do NasaChat foi portada na spec 0121)
 - [x] Portais de teletransporte pela porta da sala: seção `Portal de teletransporte` (`engine/portal.ts`: colegas na spec 0120, leads na 0121)
