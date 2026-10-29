@@ -5,7 +5,7 @@ import { Camera, Map as MapIcon, Minus, PencilRuler, Plus, UserRound } from "luc
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { StationEngine, WebGLUnavailableError, type StationInteraction } from "../engine/station-engine";
+import { StationEngine, WebGLUnavailableError, type ColleagueInfo, type StationInteraction } from "../engine/station-engine";
 import { useFetchOrbitaJoinToken, useOrbitaStation, useSaveOrbitaAvatar, useUpdateOrbitaStation } from "../hooks/use-orbita-station";
 import { defaultLook, type AvatarLook } from "../lib/avatar-look";
 import { clearLegacyPreferences, readLegacyAvatarLook } from "../lib/station-preferences";
@@ -265,6 +265,12 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
     toggleMap();
   };
 
+  // Colega escolhido na lista do mapa: fecha o mapa e abre o painel dele (o painel só aparece fora do mapa).
+  const pickColleague = (colleague: ColleagueInfo) => {
+    toggleMap();
+    setSideTarget({ type: "colleague", id: colleague.id, name: colleague.name });
+  };
+
   const walkToRoom = (roomKey: string) => {
     engineRef.current?.walkToRoom(roomKey);
     setSideTarget(null);
@@ -311,7 +317,7 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit, appA
         </div>
       )}
 
-      {status === "ready" && readyEngine && panel === "map" && <StationMapLabels engine={readyEngine} onPickRoom={pickRoom} />}
+      {status === "ready" && readyEngine && panel === "map" && <StationMapLabels engine={readyEngine} onPickRoom={pickRoom} onPickColleague={pickColleague} />}
       {status === "ready" && readyEngine && panel !== "map" && panel !== "studio" && <ColleagueNameLabels engine={readyEngine} />}
 
       {presence.status === "replaced" && (
