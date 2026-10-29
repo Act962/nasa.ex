@@ -7,6 +7,7 @@ Escritório virtual em 3D em que cada sala corresponde a um módulo da plataform
 | Rota | `/orbita-station`, em `src/app/(platform)/orbita-station/page.tsx`. Exige login e não aparece no menu até a etapa 2. |
 | Domínio | `src/features/orbita-station/` |
 | Modelos 3D | `public/orbita-station/models/` (créditos e licenças em `CREDITS.txt`, todos CC0) |
+| Protótipo (referência temporária) | [docs/orbita-station/prototipo/](orbita-station/prototipo/README.md): fonte da versão 33. **Apagar** quando o que ainda só existe nele estiver portado (lista no README da pasta) |
 | Specs | [0117 — etapa 1](../specs/orbita-station/0117-orbita-station-3d-etapa-1.md) · [0119 — etapa 2](../specs/orbita-station/0119-orbita-station-etapa-2-estacao-da-empresa.md) · [0118 — loja](../specs/orbita-station/0118-loja-orbita-itens-na-estacao.md) |
 
 ## Etapas
@@ -68,3 +69,4 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | --- | --- |
 | 2026-10-27 | Criado com a primeira parte da etapa 1: estrutura, móveis, personagem, câmera, acabamento e rota. |
 | 2026-10-28 | Estúdio do personagem (prévia em `engine/studio-preview.ts`, abre sozinho na primeira visita) e modo mapa (tecla M, clique na sala leva o personagem até ela). Novos métodos do motor: `setMode`, `setPaused`, `walkToRoom`, `roomLabels`, `openStudio`. |
+| 2026-10-29 | Fonte do protótipo (versão 33) guardado em `docs/orbita-station/prototipo/` como referência temporária, com a lista do que falta portar e o aviso de remoção. |
