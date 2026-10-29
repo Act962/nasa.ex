@@ -32,9 +32,9 @@ Consulte o protótipo ao fazer estas partes. Quando quase tudo estiver portado, 
 - [ ] Loja e inventário (spec 0118): seções `Loja`, `Catálogo da Loja` e `Menu de contexto do mapa`
 - [ ] Editor de decoração (modo Decorar) e planta 2D: seções `Decoração` e `Editor (planta 2D)`
 - [x] Salas trancadas por permissão (porta que treme, aviso): `canEnter`, `bumpLockedDoor` (spec 0120)
-- [ ] Pessoas nos postos e fila de leads do NasaChat: seções `Pessoas (exemplo)` e `Leads do NasaChat`
-- [ ] Portais de teletransporte pela porta da sala: seção `Portal de teletransporte` (portado em `engine/portal.ts` para os colegas, spec 0120; falta usar nos leads, etapa 4)
-- [ ] Painel do gestor ("O que pede atenção") e indicadores do painel lateral das salas: seções `Painel lateral` e `HUD` (o painel com pessoas e atalhos já foi portado na spec 0120)
+- [ ] Pessoas nos postos: seção `Pessoas (exemplo)` (a fila de leads do NasaChat foi portada na spec 0121)
+- [x] Portais de teletransporte pela porta da sala: seção `Portal de teletransporte` (`engine/portal.ts`: colegas na spec 0120, leads na 0121)
+- [x] Painel do gestor ("O que pede atenção") e indicadores do painel lateral das salas: seções `Painel lateral` e `HUD` (specs 0120 e 0121; ficaram de fora a tabela de vendedores, as inspeções e o estado de cada pessoa)
 - [x] Interação por proximidade ("Falar com…", "Ver sala"): seção `Interação por proximidade` (spec 0120)
 - [ ] Poses, fundos e miniaturas renderizadas no estúdio: seção `Personagem: estúdio`
 - [ ] Partículas e emotes: seções `Partículas` e `Animação`

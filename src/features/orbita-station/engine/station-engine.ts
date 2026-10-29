@@ -1,7 +1,7 @@
 // Motor da Órbita Station: Three.js puro, sem React. A interface conversa com ele pelos métodos públicos e
 // pelos eventos de `onEvent` (spec 0117, D-2). Tudo que ele cria é liberado em `dispose` (RNF-4).
 import * as THREE from "three";
-import type { AvatarLook } from "../lib/avatar-look";
+import { leadLook, type AvatarLook } from "../lib/avatar-look";
 import {
   DOOR_WIDTH,
   PLAYER_RADIUS,
@@ -32,6 +32,7 @@ import { StudioPreview } from "./studio-preview";
 /** A ação que o botão de proximidade oferece agora (spec 0120, RF-5), na ordem de prioridade. */
 export type StationInteraction =
   | { kind: "colleague"; id: string; name: string }
+  | { kind: "lead"; id: string; name: string }
   | { kind: "lockedDoor"; room: RoomLayout }
   | { kind: "room"; room: RoomLayout };
 
@@ -81,6 +82,20 @@ export interface RemoteLabel {
   y: number;
 }
 
+/** Lead esperando resposta no chat (spec 0121, RF-10): só o que o motor precisa para desenhar a fila. */
+export interface QueueLeadInput {
+  id: string;
+  name: string;
+}
+
+/** Ponto da tela por cima de um lead da fila, ou da etiqueta "+N aguardando" (`id` = null). */
+export interface QueueLabel {
+  id: string | null;
+  overflow: number;
+  x: number;
+  y: number;
+}
+
 /** Posição do próprio personagem, para a presença enviar aos colegas. */
 export interface PlayerState {
   x: number;
@@ -108,6 +123,8 @@ const MAX_ZOOM = 2.2;
 const TALK_DISTANCE = 2.3;
 const BUMP_NOTICE_MS = 2_200;
 const LOCK_COLOR = 0xff4f6d;
+const QUEUE_SPOTS = 8;
+const QUEUE_WALK_SPEED = 3.4;
 
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
 const isTypingTarget = (target: EventTarget | null) =>
@@ -157,6 +174,16 @@ interface RemoteAvatar {
   /** O portal de chegada já abriu: antes disso o personagem fica escondido (RF-9). */
   hasArrived: boolean;
   room: RoomLayout | null;
+}
+
+/** Lead da fila: entra pelo portal, anda até o lugar dele e, quando é atendido, sai pelo portal. */
+interface QueueLead {
+  name: string;
+  rig: CharacterRig;
+  position: THREE.Vector3;
+  route: THREE.Vector3[];
+  state: "arriving" | "waiting" | "leaving";
+  isHidden: boolean;
 }
 
 interface Player {
@@ -211,6 +238,9 @@ export class StationEngine {
   private readonly doorShake = new Map<string, number>();
   private lastBumpAt = 0;
   private interactionKey: string | null = null;
+  private readonly queueLeads = new Map<string, QueueLead>();
+  private waitingLeads: readonly QueueLeadInput[] = [];
+  private queueOverflow = 0;
   private frameId = 0;
   private elapsed = 0;
   private isDisposed = false;
@@ -287,6 +317,7 @@ export class StationEngine {
     this.characters = new CharacterFactory(this.library.characters);
     this.rebuildStation();
     this.spawnPlayer(this.options.look);
+    this.setWaitingLeads(this.waitingLeads, this.queueOverflow);
     this.resize();
     this.timer.reset();
     this.options.onEvent({ type: "ready" });
@@ -298,6 +329,10 @@ export class StationEngine {
     this.layout = resolveLayout(templateKey, roomNames);
     if (!this.characters) return;
     this.rebuildStation();
+    // A sala do chat pode ter mudado de lugar ou sumido: a fila é remontada do zero, sem portal.
+    this.queueLeads.forEach((lead) => disposeObject(lead.rig.root, this.sharedMaterials));
+    this.queueLeads.clear();
+    this.setWaitingLeads(this.waitingLeads, this.queueOverflow);
     if (!this.player || !this.built) return;
     this.player.route = [];
     const { x, z } = this.player.position;
@@ -359,6 +394,76 @@ export class StationEngine {
     approach.setLength(1.2).add(remote.position);
     route.push({ x: approach.x, z: approach.z });
     this.player.route = route.map(toFloorPoint);
+  }
+
+  /**
+   * Fila de leads do NasaChat (spec 0121, RF-10). Quem entrou na lista chega pelo portal; quem saiu vai embora por ele.
+   * `overflow`: quantos esperam além dos que cabem na sala ("+N aguardando").
+   */
+  setWaitingLeads(leads: readonly QueueLeadInput[], overflow: number) {
+    this.waitingLeads = leads.slice(0, QUEUE_SPOTS);
+    this.queueOverflow = overflow;
+    const chat = this.chatRoom();
+    if (!this.characters || !chat) return;
+    const door = doorWaypoints(chat);
+    const wanted = new Set(this.waitingLeads.map((lead) => lead.id));
+    this.queueLeads.forEach((lead, id) => {
+      if (wanted.has(id) || lead.state === "leaving") return;
+      lead.state = "leaving";
+      lead.route = [door.inside, door.outside].map(toFloorPoint);
+    });
+    this.waitingLeads.forEach((input, index) => {
+      const spot = this.queueSpot(chat, index);
+      const existing = this.queueLeads.get(input.id);
+      if (existing && existing.state !== "leaving") {
+        existing.name = input.name;
+        // Ainda chegando pela porta: troca só o destino final, para não cortar caminho pela parede.
+        existing.route = existing.state === "arriving" && existing.route.length > 1 ? [existing.route[0], spot] : [spot];
+        return;
+      }
+      if (existing) {
+        disposeObject(existing.rig.root, this.sharedMaterials);
+        this.queueLeads.delete(input.id);
+      }
+      const rig = this.characters!.build(leadLook(input.id));
+      this.bindEnvironment(rig.root);
+      rig.root.visible = false;
+      this.scene.add(rig.root);
+      const lead: QueueLead = {
+        name: input.name,
+        rig,
+        position: new THREE.Vector3(door.outside.x, 0, door.outside.z),
+        route: [toFloorPoint(door.inside), spot],
+        state: "arriving",
+        isHidden: true,
+      };
+      this.queueLeads.set(input.id, lead);
+      this.portals.open(door.outside.x, door.outside.z, {
+        onOpen: () => {
+          lead.isHidden = false;
+        },
+      });
+    });
+  }
+
+  queueLabels(): QueueLabel[] {
+    if (this.viewWidth === 0) return [];
+    const labels: QueueLabel[] = [];
+    this.queueLeads.forEach((lead, id) => {
+      if (!lead.rig.root.visible || lead.state === "leaving") return;
+      labels.push({ id, overflow: 0, ...this.toScreen(lead.position.x, 2.3, lead.position.z) });
+    });
+    const chat = this.chatRoom();
+    if (chat && this.queueOverflow > 0 && this.isRoomOpen(chat)) {
+      // Ao lado da primeira fileira, para não cobrir o tempo de ninguém.
+      const spot = this.queueSpot(chat, 3);
+      labels.push({ id: null, overflow: this.queueOverflow, ...this.toScreen(spot.x + 1.6, 1.6, spot.z) });
+    }
+    return labels;
+  }
+
+  firstRoomOfKind(kind: RoomLayout["kind"]): RoomLayout | null {
+    return this.layout.rooms.find((room) => room.kind === kind) ?? null;
   }
 
   colleagues(): ColleagueInfo[] {
@@ -464,6 +569,63 @@ export class StationEngine {
     });
   }
 
+  private toScreen(x: number, y: number, z: number) {
+    this.labelPoint.set(x, y, z).project(this.camera);
+    return { x: ((this.labelPoint.x + 1) / 2) * this.viewWidth, y: ((1 - this.labelPoint.y) / 2) * this.viewHeight };
+  }
+
+  private chatRoom(): RoomLayout | null {
+    return this.firstRoomOfKind("chat");
+  }
+
+  // Duas fileiras de 4 depois da porta, de frente para os guichês.
+  private queueSpot(chat: RoomLayout, index: number): THREE.Vector3 {
+    const inside = doorWaypoints(chat).inside;
+    const column = index % 4;
+    const row = Math.floor(index / 4);
+    return new THREE.Vector3(chat.cx + (column - 1.5) * 1.3, 0, inside.z - chat.towardDoor * (1.6 + row * 1.4));
+  }
+
+  private updateQueue(delta: number) {
+    const chat = this.chatRoom();
+    const isChatVisible = !!chat && this.isRoomOpen(chat);
+    this.queueLeads.forEach((lead, id) => {
+      const target = lead.route[0];
+      let isWalking = false;
+      if (target && !lead.isHidden) {
+        const toTarget = target.clone().sub(lead.position).setY(0);
+        const distance = toTarget.length();
+        const stride = QUEUE_WALK_SPEED * delta;
+        if (distance <= stride) {
+          lead.position.copy(target);
+          lead.route.shift();
+        } else {
+          lead.position.addScaledVector(toTarget.normalize(), stride);
+          lead.rig.root.rotation.y = Math.atan2(toTarget.x, toTarget.z);
+          isWalking = true;
+        }
+      }
+      if (!lead.route.length && lead.state === "arriving") lead.state = "waiting";
+      if (lead.state === "waiting" && !lead.route.length && chat) lead.rig.root.rotation.y = chat.towardDoor > 0 ? Math.PI : 0;
+      // Chegou ao corredor depois de atendido: some no portal e só então é liberado.
+      if (lead.state === "leaving" && !lead.route.length && !lead.isHidden) {
+        lead.isHidden = true;
+        this.queueLeads.delete(id);
+        this.leavingRigs.add(lead.rig);
+        this.portals.open(lead.position.x, lead.position.z, {
+          onOpen: () => {
+            this.leavingRigs.delete(lead.rig);
+            disposeObject(lead.rig.root, this.sharedMaterials);
+          },
+        });
+        return;
+      }
+      lead.rig.root.position.copy(lead.position);
+      lead.rig.root.visible = isChatVisible && !lead.isHidden;
+      lead.rig.update(delta, isWalking);
+    });
+  }
+
   remoteLabels(): RemoteLabel[] {
     if (this.viewWidth === 0) return [];
     const labels: RemoteLabel[] = [];
@@ -532,6 +694,8 @@ export class StationEngine {
     this.remotes.clear();
     this.leavingRigs.forEach((rig) => disposeObject(rig.root, this.sharedMaterials));
     this.leavingRigs.clear();
+    this.queueLeads.forEach((lead) => disposeObject(lead.rig.root, this.sharedMaterials));
+    this.queueLeads.clear();
     this.portals.dispose();
     this.characters?.dispose();
     this.library.dispose();
@@ -684,6 +848,7 @@ export class StationEngine {
     if (this.viewWidth === 0 || this.isPaused) return;
     this.updatePlayer(delta);
     this.updateRemotes(delta);
+    this.updateQueue(delta);
     this.updateRoom();
     this.updateInteraction();
     this.animateWorld(delta);
@@ -760,13 +925,23 @@ export class StationEngine {
         }
       });
       if (!next) {
+        this.queueLeads.forEach((lead, id) => {
+          if (!lead.rig.root.visible || lead.state === "leaving") return;
+          const distance = lead.position.distanceTo(player.position);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            next = { kind: "lead", id, name: lead.name };
+          }
+        });
+      }
+      if (!next) {
         const lockedRoom = lockedDoorNear(this.layout, player.position.x, player.position.z, this.isRoomOpen);
         if (lockedRoom) next = { kind: "lockedDoor", room: lockedRoom };
         else if (this.currentRoom) next = { kind: "room", room: this.currentRoom };
       }
     }
     const interaction = next as StationInteraction | null;
-    const key = interaction ? `${interaction.kind}:${interaction.kind === "colleague" ? `${interaction.id}:${interaction.name}` : `${interaction.room.key}:${interaction.room.name}`}` : null;
+    const key = interaction ? `${interaction.kind}:${interaction.kind === "colleague" || interaction.kind === "lead" ? `${interaction.id}:${interaction.name}` : `${interaction.room.key}:${interaction.room.name}`}` : null;
     if (key === this.interactionKey) return;
     this.interactionKey = key;
     this.options.onEvent({ type: "interactionChange", interaction });

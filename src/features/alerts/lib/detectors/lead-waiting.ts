@@ -14,14 +14,13 @@ import type { GetStepTools } from "inngest";
 import type { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { dispatchAlert } from "@/features/alerts/lib/alert-engine";
+import { waitingLeadWhere } from "@/features/alerts/lib/waiting-lead";
 
 interface WaitingParams {
   waitingMinutes?: number;
 }
 
 const DEFAULT_WAITING_MINUTES = 5;
-/** Espera mais antiga que isso não é "agora" — vira lead parado, não alerta de atendimento. */
-const MAX_LOOKBACK_HOURS = 12;
 /** Teto por regra por execução; o resto entra na rodada seguinte (CB-4). */
 const BATCH_LIMIT = 200;
 
@@ -63,20 +62,10 @@ export async function runLeadWaitingDetection(
         ? params.waitingMinutes
         : DEFAULT_WAITING_MINUTES;
 
-    const waitingSinceLimit = new Date(now - waitingMinutes * 60_000);
-    const lookbackLimit = new Date(now - MAX_LOOKBACK_HOURS * 3_600_000);
-
     const waitingLeads = await step.run(`fetch-waiting-${rule.id}`, () =>
       prisma.lead.findMany({
         where: {
-          currentAction: { not: "DELETED" },
-          isArchived: false,
-          lastInboundAt: { lte: waitingSinceLimit, gte: lookbackLimit },
-          conversation: { isNot: null },
-          OR: [
-            { lastOutboundAt: null },
-            { lastOutboundAt: { lt: prisma.lead.fields.lastInboundAt } },
-          ],
+          ...waitingLeadWhere(now, waitingMinutes),
           ...(scope.organizationId
             ? { tracking: { organizationId: scope.organizationId } }
             : rule.organizationId

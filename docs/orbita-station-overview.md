@@ -8,7 +8,7 @@ Escritório virtual em 3D em que cada sala corresponde a um módulo da plataform
 | Domínio | `src/features/orbita-station/` |
 | Modelos 3D | `public/orbita-station/models/` (créditos e licenças em `CREDITS.txt`, todos CC0) |
 | Protótipo (referência temporária) | [docs/orbita-station/prototipo/](orbita-station/prototipo/README.md): fonte da versão 33. **Apagar** quando o que ainda só existe nele estiver portado (lista no README da pasta) |
-| Specs | [0117 — etapa 1](../specs/orbita-station/0117-orbita-station-3d-etapa-1.md) · [0119 — etapa 2](../specs/orbita-station/0119-orbita-station-etapa-2-estacao-da-empresa.md) · [0120 — etapa 3](../specs/orbita-station/0120-orbita-station-etapa-3-salas-ligadas-aos-modulos.md) · [0118 — loja](../specs/orbita-station/0118-loja-orbita-itens-na-estacao.md) |
+| Specs | [0117 — etapa 1](../specs/orbita-station/0117-orbita-station-3d-etapa-1.md) · [0119 — etapa 2](../specs/orbita-station/0119-orbita-station-etapa-2-estacao-da-empresa.md) · [0120 — etapa 3](../specs/orbita-station/0120-orbita-station-etapa-3-salas-ligadas-aos-modulos.md) · [0121 — etapa 4](../specs/orbita-station/0121-orbita-station-etapa-4-dados-reais-nas-salas.md) · [0118 — loja](../specs/orbita-station/0118-loja-orbita-itens-na-estacao.md) |
 
 ## Etapas
 
@@ -17,7 +17,7 @@ Escritório virtual em 3D em que cada sala corresponde a um módulo da plataform
 | 1 (spec 0117) | Estação do protótipo como código do app, sem banco: modelos de estação, personagem, câmera, acabamento | 🚧 em construção |
 | 2 (spec 0119) | Estação da empresa no banco, avatar no servidor, colegas ao vivo (LiveKit), permissões, link no menu | 🚧 pronta, PR #482 |
 | 3 (spec 0120) | Salas ligadas aos módulos: porta trancada pela matriz de permissões, botão de proximidade (E), painel da sala e do colega, aceno, portal na chegada e saída dos colegas | 🚧 implementada, em revisão |
-| 4 (sem spec) | Dados reais nas salas: painel do gestor, fila de leads do NasaChat, leads andando pelo portal | ⬜ |
+| 4 (spec 0121) | Dados reais nas salas (`getRoomIndicators`, a cada 30 s), "O que pede atenção" e a fila de leads do NasaChat em 3D, com portal | 🚧 implementada, em revisão |
 | 5 (sem spec) | Editor de decoração e loja (0118) | ⬜ |
 | Final | Remover a Space Station 2D (`src/features/space-station/`, rotas, permissão `space-station` e, em migration separada depois do deploy, as tabelas `SpaceStation*` e afins) | ⬜ quando o 3D estiver pronto |
 
@@ -46,6 +46,8 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | `walkToRoom(key)` / `walkToColleague(id)` | Anda sozinho até a sala (para na porta se ela estiver trancada) ou até perto do colega. |
 | `colleagues()` / `isRoomOpenForMe(key)` | Colegas presentes, com a sala e se estão numa sala trancada para quem olha; e se uma sala está aberta. |
 | `wave(colleagueId?)` / `remoteWave(id)` | Aceno do próprio personagem (e do colega com quem fala) ou de um colega. |
+| `setWaitingLeads(leads, overflow)` / `queueLabels()` | Fila de leads do NasaChat: quem entra chega pelo portal e quem sai vai embora por ele; posições das etiquetas de espera e do "+N". |
+| `firstRoomOfKind(kind)` | Primeira sala de um tipo no modelo atual (o "O que pede atenção" usa para levar até ela). |
 | `setLook(look)` | Troca o visual do personagem. |
 | `setQuality("medio" \| "leve")` | Liga ou desliga o brilho. |
 | `setMoveInput(x, y)` | Joystick de toque, de -1 a 1. |
@@ -69,6 +71,7 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 - **Luzes multiplicadas por π** em relação ao protótipo: desde a r155 o Three.js usa unidades físicas.
 - **Reflexo pela cena com `scene.environmentIntensity = 0,22`**: desde a r163 o `envMapIntensity` do material é ignorado quando o reflexo vem de `scene.environment`. Material que precisa de outra intensidade recebe o mapa direto (`bindEnvironment` no motor). Sem isso, a cena fica ~4,5x mais clara.
 - **Porta trancada vem da permissão do módulo** (0120, D-1): o app da matriz de cada tipo de sala fica em `layout/room-kinds.ts` (`accessApp` e `links`). Não existe lista de acesso por sala.
+- **"Lead aguardando" é o critério dos alertas** (0121, D-1): `waitingLeadWhere` em `src/features/alerts/lib/waiting-lead.ts`, compartilhado com o detector `lead-waiting`. Nunca `statusFlow = WAITING`, que fica parado depois do atendimento.
 - **A trava é só visual** (0120, D-3): a posição de quem está numa sala trancada chega igual ao navegador; ela só não é desenhada. Quem protege os dados é a permissão de cada módulo.
 - **Tamanho zero do canvas é ignorado** até ele ganhar tamanho. No protótipo isso deixava a tela preta para sempre (0117, CB-2).
 
@@ -81,3 +84,4 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | 2026-10-28 | Etapa 2, parte sem tempo real: tabela `orbita_stations`, coluna `user.orbita_avatar`, procedures `orbitaStation.getStation` / `updateStation` / `avatar.save`, app `orbita-station` na matriz (só o Master por padrão), editor da estação e app na página Apps. |
 | 2026-10-29 | Fonte do protótipo (versão 33) guardado em `docs/orbita-station/prototipo/` como referência temporária, com a lista do que falta portar e o aviso de remoção. |
 | 2026-10-29 | Etapa 3 (spec 0120): `getStation` devolve `appAccess`, portas trancadas, botão de proximidade, painéis da sala e do colega, aceno (mensagem `emote`), portal (`engine/portal.ts`). |
+| 2026-10-29 | Etapa 4 (spec 0121): `getRoomIndicators` (chat, chegadas, tarefas, financeiro, agenda e Forge, cada um só com Ver no módulo), painel "O que pede atenção", indicadores no painel da sala, fila de leads em 3D com portal e painel do lead. |

@@ -38,6 +38,25 @@ function hashOf(text: string): number {
   return hash;
 }
 
+/** Lead da fila do chat (spec 0121, RF-10): cliente, não astronauta. Sem capacete, roupa comum e cor tirada do id. */
+export function leadLook(leadId: string): AvatarLook {
+  const hash = hashOf(leadId);
+  const pick = <Item>(list: readonly Item[], salt: number) => list[(hash >>> salt) % list.length];
+  const clothes = LOOK_OPTIONS.top.slice(1).map(([key]) => key);
+  return {
+    skin: pick(LOOK_OPTIONS.skin, 1),
+    face: pick(LOOK_OPTIONS.face, 3)[0],
+    hairColor: pick(LOOK_OPTIONS.hairColor.slice(0, 5), 5),
+    suit: pick(LOOK_OPTIONS.suit, 7),
+    accent: pick(LOOK_OPTIONS.accent, 9),
+    helmet: "sem",
+    top: pick(clothes, 11),
+    bottom: pick(clothes, 13),
+    cape: "none",
+    outfitColor: pick(LOOK_OPTIONS.outfitColor.slice(1), 15),
+  };
+}
+
 /** Visual inicial estável por usuário: a mesma pessoa sempre começa igual, pessoas diferentes começam diferentes. */
 export function defaultLook(userId: string): AvatarLook {
   const hash = hashOf(userId);
