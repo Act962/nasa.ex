@@ -6,8 +6,8 @@ status: em-revisao
 autor: João Gabriel (com Claude)
 criada: 2026-10-27
 atualizada: 2026-10-29
-branch: feature/orbita-station-etapa-5-20261029
-pr:
+branch: claude/focused-hamilton-2dc35f (veio da feature/orbita-station-etapa-5-20261029, PR #487)
+pr: 482
 peso: completa
 ---
 
