@@ -5,7 +5,7 @@ import { Camera, Map as MapIcon, Minus, PencilRuler, Plus, UserRound } from "luc
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { StationEngine, WebGLUnavailableError } from "../engine/station-engine";
+import { StationEngine, WebGLUnavailableError, type ColleagueInfo, type StationInteraction } from "../engine/station-engine";
 import { useFetchOrbitaJoinToken, useOrbitaStation, useSaveOrbitaAvatar, useUpdateOrbitaStation } from "../hooks/use-orbita-station";
 import { defaultLook, type AvatarLook } from "../lib/avatar-look";
 import { clearLegacyPreferences, readLegacyAvatarLook } from "../lib/station-preferences";
@@ -14,6 +14,8 @@ import { StationPresence, type PresenceStatus } from "../realtime/station-presen
 import { useOrbitaStationStore } from "../store/use-orbita-station-store";
 import { AvatarStudio } from "./avatar-studio";
 import { ColleagueNameLabels } from "./colleague-name-labels";
+import { InteractionPrompt } from "./interaction-prompt";
+import { StationSidePanel, type SidePanelTarget } from "./station-side-panel";
 import { StationEditor } from "./station-editor";
 import { StationMapLabels } from "./station-map-labels";
 import { TouchJoystick } from "./touch-joystick";
@@ -47,7 +49,15 @@ export function OrbitaStationView({ userId }: { userId: string }) {
   if (stationQuery.isError) {
     return <CenteredMessage title="Não foi possível abrir a estação" detail={stationQuery.error.message} />;
   }
-  return <StationExperience userId={userId} initialStation={stationQuery.data.station} serverAvatar={stationQuery.data.avatar} canEdit={stationQuery.data.canEdit} />;
+  return (
+    <StationExperience
+      userId={userId}
+      initialStation={stationQuery.data.station}
+      serverAvatar={stationQuery.data.avatar}
+      canEdit={stationQuery.data.canEdit}
+      appAccess={stationQuery.data.appAccess}
+    />
+  );
 }
 
 interface StationExperienceProps {
@@ -55,9 +65,10 @@ interface StationExperienceProps {
   initialStation: StationSettings;
   serverAvatar: AvatarLook | null;
   canEdit: boolean;
+  appAccess: Readonly<Record<string, boolean>>;
 }
 
-function StationExperience({ userId, initialStation, serverAvatar, canEdit }: StationExperienceProps) {
+function StationExperience({ userId, initialStation, serverAvatar, canEdit, appAccess }: StationExperienceProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<StationEngine | null>(null);
   const [readyEngine, setReadyEngine] = useState<StationEngine | null>(null);
@@ -75,6 +86,8 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
   const fetchJoinToken = useFetchOrbitaJoinToken();
   const presenceRef = useRef<StationPresence | null>(null);
   const [presence, setPresence] = useState<{ status: PresenceStatus; colleagueCount: number }>({ status: "connecting", colleagueCount: 0 });
+  const [interaction, setInteraction] = useState<StationInteraction | null>(null);
+  const [sideTarget, setSideTarget] = useState<SidePanelTarget | null>(null);
   // A presença vive fora do React e lê o estado mais recente por estas referências.
   const lookRef = useRef(look);
   const stationRef = useRef(station);
@@ -137,6 +150,7 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
         templateKey: initialStation.templateKey,
         roomNames: initialStation.roomNames,
         look,
+        appAccess,
         onEvent: (event) => {
           if (event.type === "ready") {
             setReadyEngine(engine);
@@ -164,6 +178,8 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
           }
           if (event.type === "error") setStatus("error", event.message);
           if (event.type === "roomChange") setCurrentRoom(event.room);
+          if (event.type === "interactionChange") setInteraction(event.interaction);
+          if (event.type === "lockedDoor") toast.error(`Porta trancada: você não tem acesso a ${event.room.name}`);
           if (event.type === "qualityChange") setQuality(event.tier);
         },
       });
@@ -183,17 +199,33 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, setStatus, setCurrentRoom, setQuality, setPanel]);
 
+  // Botão de proximidade (spec 0120, RF-5): "Falar com" acena dos dois lados e abre o colega; o resto abre a sala.
+  const runInteraction = useCallback(() => {
+    if (!interaction) return;
+    if (interaction.kind === "colleague") {
+      if (presenceRef.current?.publishWave()) engineRef.current?.wave(interaction.id);
+      setSideTarget({ type: "colleague", id: interaction.id, name: interaction.name });
+      return;
+    }
+    setSideTarget({ type: "room", room: interaction.room });
+  }, [interaction]);
+
   useEffect(() => {
     if (status !== "ready") return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isTypingTarget(event.target) || panel === "studio" || panel === "editor") return;
       const key = event.key.toLowerCase();
-      if (key === "m") toggleMap();
+      if (key === "m") {
+        setSideTarget(null);
+        toggleMap();
+      }
       if (key === "escape" && panel === "map") toggleMap();
+      if (key === "escape" && panel === "none") setSideTarget(null);
+      if (key === "e" && panel === "none" && !event.repeat) runInteraction();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [status, panel, toggleMap]);
+  }, [status, panel, toggleMap, runInteraction]);
 
   const saveLook = (nextLook: AvatarLook) => {
     persistLook(nextLook);
@@ -233,6 +265,22 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
     toggleMap();
   };
 
+  // Colega escolhido na lista do mapa: fecha o mapa e abre o painel dele (o painel só aparece fora do mapa).
+  const pickColleague = (colleague: ColleagueInfo) => {
+    toggleMap();
+    setSideTarget({ type: "colleague", id: colleague.id, name: colleague.name });
+  };
+
+  const walkToRoom = (roomKey: string) => {
+    engineRef.current?.walkToRoom(roomKey);
+    setSideTarget(null);
+  };
+
+  const walkToColleague = (id: string) => {
+    engineRef.current?.walkToColleague(id);
+    setSideTarget(null);
+  };
+
   const downloadCapture = async () => {
     const image = await engineRef.current?.captureImage();
     if (!image) return;
@@ -269,7 +317,7 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
         </div>
       )}
 
-      {status === "ready" && readyEngine && panel === "map" && <StationMapLabels engine={readyEngine} onPickRoom={pickRoom} />}
+      {status === "ready" && readyEngine && panel === "map" && <StationMapLabels engine={readyEngine} onPickRoom={pickRoom} onPickColleague={pickColleague} />}
       {status === "ready" && readyEngine && panel !== "map" && panel !== "studio" && <ColleagueNameLabels engine={readyEngine} />}
 
       {presence.status === "replaced" && (
@@ -355,10 +403,28 @@ function StationExperience({ userId, initialStation, serverAvatar, canEdit }: St
             </div>
           ) : (
             <p className="pointer-events-none absolute bottom-4 left-4 rounded-full bg-black/40 px-3 py-1 text-xs text-white/80 backdrop-blur">
-              WASD ou setas para andar · M abre o mapa · roda do mouse para aproximar
+              WASD ou setas para andar · E interage · M abre o mapa · roda do mouse para aproximar
             </p>
           )}
+
+          {panel === "none" && interaction && !sideTarget && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-28 flex justify-center px-4 sm:bottom-16">
+              <InteractionPrompt interaction={interaction} showKey={!isTouch} onRun={runInteraction} />
+            </div>
+          )}
         </>
+      )}
+
+      {status === "ready" && readyEngine && panel === "none" && sideTarget && (
+        <StationSidePanel
+          engine={readyEngine}
+          target={sideTarget}
+          currentRoom={currentRoom}
+          appAccess={appAccess}
+          onWalkToRoom={walkToRoom}
+          onWalkToColleague={walkToColleague}
+          onClose={() => setSideTarget(null)}
+        />
       )}
 
       {status === "ready" && panel === "editor" && canEdit && (

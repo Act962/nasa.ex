@@ -8,15 +8,17 @@ Escritório virtual em 3D em que cada sala corresponde a um módulo da plataform
 | Domínio | `src/features/orbita-station/` |
 | Modelos 3D | `public/orbita-station/models/` (créditos e licenças em `CREDITS.txt`, todos CC0) |
 | Protótipo (referência temporária) | [docs/orbita-station/prototipo/](orbita-station/prototipo/README.md): fonte da versão 33. **Apagar** quando o que ainda só existe nele estiver portado (lista no README da pasta) |
-| Specs | [0117 — etapa 1](../specs/orbita-station/0117-orbita-station-3d-etapa-1.md) · [0119 — etapa 2](../specs/orbita-station/0119-orbita-station-etapa-2-estacao-da-empresa.md) · [0118 — loja](../specs/orbita-station/0118-loja-orbita-itens-na-estacao.md) |
+| Specs | [0117 — etapa 1](../specs/orbita-station/0117-orbita-station-3d-etapa-1.md) · [0119 — etapa 2](../specs/orbita-station/0119-orbita-station-etapa-2-estacao-da-empresa.md) · [0120 — etapa 3](../specs/orbita-station/0120-orbita-station-etapa-3-salas-ligadas-aos-modulos.md) · [0118 — loja](../specs/orbita-station/0118-loja-orbita-itens-na-estacao.md) |
 
 ## Etapas
 
 | Etapa | O que entra | Status |
 | --- | --- | --- |
 | 1 (spec 0117) | Estação do protótipo como código do app, sem banco: modelos de estação, personagem, câmera, acabamento | 🚧 em construção |
-| 2 (spec 0119) | Estação da empresa no banco, avatar no servidor, colegas ao vivo (LiveKit), permissões, link no menu | 🚧 banco, avatar, permissão e editor prontos; falta a presença ao vivo |
-| 3 (sem spec) | Editor de decoração, junto com a loja | ⬜ |
+| 2 (spec 0119) | Estação da empresa no banco, avatar no servidor, colegas ao vivo (LiveKit), permissões, link no menu | 🚧 pronta, PR #482 |
+| 3 (spec 0120) | Salas ligadas aos módulos: porta trancada pela matriz de permissões, botão de proximidade (E), painel da sala e do colega, aceno, portal na chegada e saída dos colegas | 🚧 implementada, em revisão |
+| 4 (sem spec) | Dados reais nas salas: painel do gestor, fila de leads do NasaChat, leads andando pelo portal | ⬜ |
+| 5 (sem spec) | Editor de decoração e loja (0118) | ⬜ |
 | Final | Remover a Space Station 2D (`src/features/space-station/`, rotas, permissão `space-station` e, em migration separada depois do deploy, as tabelas `SpaceStation*` e afins) | ⬜ quando o 3D estiver pronto |
 
 O tempo real da etapa 2 usa um servidor do LiveKit nosso, na VPS: ver [livekit-self-hosted.md](livekit-self-hosted.md).
@@ -40,7 +42,10 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | Método | O que faz |
 | --- | --- |
 | `start()` | Baixa os modelos, monta a estação e começa o loop. |
-| `setTemplate(key)` | Remonta as salas com outro modelo de estação. |
+| `setStation(key, roomNames)` | Remonta as salas com outro modelo ou outros nomes. |
+| `walkToRoom(key)` / `walkToColleague(id)` | Anda sozinho até a sala (para na porta se ela estiver trancada) ou até perto do colega. |
+| `colleagues()` / `isRoomOpenForMe(key)` | Colegas presentes, com a sala e se estão numa sala trancada para quem olha; e se uma sala está aberta. |
+| `wave(colleagueId?)` / `remoteWave(id)` | Aceno do próprio personagem (e do colega com quem fala) ou de um colega. |
 | `setLook(look)` | Troca o visual do personagem. |
 | `setQuality("medio" \| "leve")` | Liga ou desliga o brilho. |
 | `setMoveInput(x, y)` | Joystick de toque, de -1 a 1. |
@@ -52,6 +57,8 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | --- | --- |
 | `ready` | A estação está montada e o personagem nasceu. |
 | `roomChange` | O personagem entrou numa sala ou no corredor (`room: null`). |
+| `interactionChange` | Mudou a ação do botão de proximidade: colega perto, porta trancada à frente, a sala atual, ou nenhuma. |
+| `lockedDoor` | O personagem esbarrou numa porta trancada (no máximo a cada ~2 s). |
 | `qualityChange` | O nível gráfico mudou (inclusive a queda automática para "leve"). |
 | `error` | Os modelos 3D não carregaram. |
 
@@ -61,6 +68,8 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 - **Modelos como arquivos estáticos** (0117, D-4), carregados uma vez. Os móveis da cena são clones que dividem a geometria (`userData.sharesGeometry`), então `disposeObject` não libera a geometria deles.
 - **Luzes multiplicadas por π** em relação ao protótipo: desde a r155 o Three.js usa unidades físicas.
 - **Reflexo pela cena com `scene.environmentIntensity = 0,22`**: desde a r163 o `envMapIntensity` do material é ignorado quando o reflexo vem de `scene.environment`. Material que precisa de outra intensidade recebe o mapa direto (`bindEnvironment` no motor). Sem isso, a cena fica ~4,5x mais clara.
+- **Porta trancada vem da permissão do módulo** (0120, D-1): o app da matriz de cada tipo de sala fica em `layout/room-kinds.ts` (`accessApp` e `links`). Não existe lista de acesso por sala.
+- **A trava é só visual** (0120, D-3): a posição de quem está numa sala trancada chega igual ao navegador; ela só não é desenhada. Quem protege os dados é a permissão de cada módulo.
 - **Tamanho zero do canvas é ignorado** até ele ganhar tamanho. No protótipo isso deixava a tela preta para sempre (0117, CB-2).
 
 ## Changelog
@@ -71,3 +80,4 @@ A interface só fala com o motor por estes métodos e eventos. O motor não impo
 | 2026-10-28 | Estúdio do personagem (prévia em `engine/studio-preview.ts`, abre sozinho na primeira visita) e modo mapa (tecla M, clique na sala leva o personagem até ela). Novos métodos do motor: `setMode`, `setPaused`, `walkToRoom`, `roomLabels`, `openStudio`. |
 | 2026-10-28 | Etapa 2, parte sem tempo real: tabela `orbita_stations`, coluna `user.orbita_avatar`, procedures `orbitaStation.getStation` / `updateStation` / `avatar.save`, app `orbita-station` na matriz (só o Master por padrão), editor da estação e app na página Apps. |
 | 2026-10-29 | Fonte do protótipo (versão 33) guardado em `docs/orbita-station/prototipo/` como referência temporária, com a lista do que falta portar e o aviso de remoção. |
+| 2026-10-29 | Etapa 3 (spec 0120): `getStation` devolve `appAccess`, portas trancadas, botão de proximidade, painéis da sala e do colega, aceno (mensagem `emote`), portal (`engine/portal.ts`). |

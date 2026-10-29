@@ -40,7 +40,14 @@ type PaletteRole = "suit" | "trim" | "dark" | "skin" | "keep";
 export interface CharacterRig {
   root: THREE.Group;
   update: (delta: number, isWalking: boolean) => void;
+  /** Aceno curto com o braço direito, por cima da animação parada ou da caminhada (spec 0120, RF-7). */
+  wave: () => void;
 }
+
+const WAVE_SECONDS = 1.4;
+const WAVE_RAISE = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 2.5));
+const waveSwing = new THREE.Quaternion();
+const waveSwingAxis = new THREE.Vector3(1, 0, 0);
 
 function headMeshOf(scene: THREE.Object3D): THREE.SkinnedMesh {
   let found: THREE.SkinnedMesh | null = null;
@@ -263,6 +270,9 @@ export class CharacterFactory {
     const actions = { idle: mixer.clipAction(clip("Idle_A")), walk: mixer.clipAction(clip("Walking_A")) };
     actions.idle.play();
     let current: keyof typeof actions = "idle";
+    // O pacote não tem aceno: o braço é girado depois do mixer, que reescreve os ossos a cada quadro.
+    const upperArm = bone("upperarmr");
+    let waveTime = 0;
     this.ownedObjects.push(root);
     return {
       root,
@@ -274,6 +284,15 @@ export class CharacterFactory {
           current = wanted;
         }
         mixer.update(delta);
+        if (waveTime <= 0) return;
+        waveTime = Math.max(0, waveTime - delta);
+        const progress = 1 - waveTime / WAVE_SECONDS;
+        const weight = Math.min(1, progress * 6, (1 - progress) * 6);
+        waveSwing.setFromAxisAngle(waveSwingAxis, Math.sin(progress * Math.PI * 6) * 0.45);
+        upperArm.quaternion.slerp(upperArm.quaternion.clone().premultiply(WAVE_RAISE).multiply(waveSwing), weight);
+      },
+      wave: () => {
+        waveTime = WAVE_SECONDS;
       },
     };
   }

@@ -11,6 +11,8 @@ const TOPIC = "orbita";
 const SEND_INTERVAL_MS = 100;
 const RETRY_DELAYS_MS = [5_000, 15_000, 60_000];
 const ASK_AGAIN_AFTER_MS = 2_000;
+// No máximo um aceno a cada 2 s por pessoa, ao enviar e ao receber (spec 0120, RNF-4).
+const WAVE_INTERVAL_MS = 2_000;
 
 export type PresenceStatus = "connecting" | "connected" | "unavailable" | "replaced";
 
@@ -36,6 +38,7 @@ const messageSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("hello"), look: avatarLookSchema, ...stateFields }),
   z.object({ t: z.literal("look"), look: avatarLookSchema }),
   z.object({ t: z.literal("ask") }),
+  z.object({ t: z.literal("emote"), e: z.literal("wave") }).strict(),
   z.object({ t: z.literal("station"), templateKey: templateKeySchema, roomNames: roomNamesSchema, version: z.number().int().nonnegative() }),
 ]);
 type PresenceMessage = z.infer<typeof messageSchema>;
@@ -54,6 +57,8 @@ export class StationPresence {
   private readonly sessionById = new Map<string, string>();
   private sessionId = "";
   private readonly askedAtById = new Map<string, number>();
+  private readonly wavedAtById = new Map<string, number>();
+  private lastWaveSentAt = 0;
   private status: PresenceStatus = "connecting";
   private isStopped = false;
 
@@ -88,6 +93,7 @@ export class StationPresence {
         this.lastSequenceById.delete(participant.identity);
         this.sessionById.delete(participant.identity);
         this.askedAtById.delete(participant.identity);
+        this.wavedAtById.delete(participant.identity);
         this.emitStatus();
       })
       .on(RoomEvent.Disconnected, (reason) => this.handleDisconnect(reason));
@@ -112,6 +118,15 @@ export class StationPresence {
 
   publishLook(look: AvatarLook) {
     this.publish({ t: "look", look }, true);
+  }
+
+  /** Devolve `false` quando o aceno anterior foi há menos de 2 s: quem chama não anima de novo. */
+  publishWave(): boolean {
+    const now = Date.now();
+    if (now - this.lastWaveSentAt < WAVE_INTERVAL_MS) return false;
+    this.lastWaveSentAt = now;
+    this.publish({ t: "emote", e: "wave" }, true);
+    return true;
   }
 
   publishStation(station: StationSettings) {
@@ -221,6 +236,13 @@ export class StationPresence {
     }
     if (message.t === "ask") {
       this.sendHello([id]);
+      return;
+    }
+    if (message.t === "emote") {
+      const now = Date.now();
+      if (now - (this.wavedAtById.get(id) ?? 0) < WAVE_INTERVAL_MS) return;
+      this.wavedAtById.set(id, now);
+      engine.remoteWave(id);
       return;
     }
     // O "olá" que o colega manda ao entrar pode sair antes de a sala entregar a quem já estava lá. Chegou posição de
