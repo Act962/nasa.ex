@@ -22,6 +22,9 @@ export function useMutationLeadUpdate(leadId: string, trackingId: string) {
           queryKey: ["conversations.list", trackingId],
         });
         queryClient.invalidateQueries({
+          queryKey: orpc.conversation.get.key(),
+        });
+        queryClient.invalidateQueries({
           queryKey: orpc.status.getMany.queryKey({
             input: { trackingId: data.lead.trackingId },
           }),
