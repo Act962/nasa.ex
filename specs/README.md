@@ -216,6 +216,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0122](trafego/0122-trafego-base-meta-e-desempenho.md) | trafego | Base Meta pelos Satélites, Desempenho com a conta real do cliente e "Corrigir valores" | implementada |
 | [0123](trafego/0123-trafego-cobranca-so-do-servico.md) | trafego | Cobra só o serviço (30%, mín. R$ 150), complemento pelo gasto real e wizard da org logada | implementada |
 | [0124](trafego/0124-trafego-campanha-pelo-painel.md) | trafego | Owner/admin cria, publica e edita campanha de WhatsApp pelo painel | implementada |
+| [0125](astro/0125-astro-meta-ads-pelo-mcp-oficial.md) | astro | Astro gerencia contas de anúncio pelo MCP oficial da Meta (sai o "MCP" de mentira) | implementada |
 
 ---
 

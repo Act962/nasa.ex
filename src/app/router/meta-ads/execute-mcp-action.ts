@@ -1,195 +1,87 @@
-import { meter } from "@/features/stars/lib/metering";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { StarTransactionType } from "@/generated/prisma/enums";
-import { checkMcpAuthorization } from "@/lib/meta-mcp/authorization";
-import { createMetaMcpClient } from "@/lib/meta-mcp/client";
-import { getMetaAuth } from "@/app/router/meta-ads/_helpers";
+import { checkMcpAuthorization } from "@/features/astro-meta-ads/server/authorization";
+import { executeConfirmedMetaMcpWrite } from "@/features/astro-meta-ads/server/meta-mcp-tools";
+import { isMetaMcpWriteTool } from "@/features/astro-meta-ads/lib/mcp-guards";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 
 /**
- * Executa uma `MetaAdsPendingAction` previamente proposta pelo Astro.
+ * Executa uma `MetaAdsPendingAction` proposta pelo Astro, pelo MCP oficial da Meta (spec 0125).
  *
- * Validações em cadeia:
- *  1. Pending existe + status="pending" + não expirou + ownership do user
- *  2. Re-checa autorização MCP (revoke pode ter rolado entre propose e confirm)
- *  3. Carrega MetaAuth + cria client
- *  4. Executa op correspondente ao toolName
- *  5. Marca como "executed", debita Stars, registra em SystemActivityLog
- *
- * Falhas marcam status="executed" com errorMessage pra rastreabilidade.
+ *  1. Pendência existe, é do usuário, está "pending" e não venceu
+ *  2. Autorização re-checada (pode ter sido revogada entre propor e confirmar)
+ *  3. Claim atômico "pending" → "executing" (dois cliques executam uma vez)
+ *  4. Chama a ferramenta real com a conta da org reinjetada
+ *  5. Só com sucesso: "executed", Stars e registro. Falha volta a "pending" com o erro, sem cobrar.
  */
-
-const STARS_PER_TOOL: Record<string, number> = {
-  meta_ads_create_campaign: 5,
-  meta_ads_update_campaign: 5,
-  meta_ads_pause_campaign: 2,
-  meta_ads_resume_campaign: 2,
-  meta_ads_create_ad: 5,
-};
 
 export const executeMcpAction = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
   .input(z.object({ pendingActionId: z.string().min(1) }))
   .handler(async ({ input, context }) => {
-    // 1. Carrega pending
-    const pending = await prisma.metaAdsPendingAction.findUnique({
-      where: { id: input.pendingActionId },
-    });
-    if (!pending) {
-      throw new ORPCError("NOT_FOUND", { message: "Ação não encontrada." });
-    }
-    if (
-      pending.organizationId !== context.org.id ||
-      pending.userId !== context.user.id
-    ) {
-      throw new ORPCError("FORBIDDEN", {
-        message: "Você não tem acesso a essa ação.",
-      });
+    const pending = await prisma.metaAdsPendingAction.findUnique({ where: { id: input.pendingActionId } });
+    if (!pending) throw new ORPCError("NOT_FOUND", { message: "Ação não encontrada." });
+    if (pending.organizationId !== context.org.id || pending.userId !== context.user.id) {
+      throw new ORPCError("FORBIDDEN", { message: "Você não tem acesso a essa ação." });
     }
     if (pending.status !== "pending") {
-      throw new ORPCError("CONFLICT", {
-        message: `Ação já está com status "${pending.status}".`,
-      });
+      throw new ORPCError("CONFLICT", { message: `Ação já está com status "${pending.status}".` });
     }
     if (pending.expiresAt < new Date()) {
-      await prisma.metaAdsPendingAction.update({
-        where: { id: pending.id },
-        data: { status: "expired" },
-      });
-      throw new ORPCError("PRECONDITION_FAILED", {
-        message: "Essa ação expirou (TTL 5min). Peça ao Astro novamente.",
-      });
+      await prisma.metaAdsPendingAction.update({ where: { id: pending.id }, data: { status: "expired" } });
+      throw new ORPCError("PRECONDITION_FAILED", { message: "Essa ação venceu (5 min). Peça ao Astro de novo." });
+    }
+    if (!isMetaMcpWriteTool(pending.toolName)) {
+      await prisma.metaAdsPendingAction.update({ where: { id: pending.id }, data: { status: "cancelled" } });
+      throw new ORPCError("PRECONDITION_FAILED", { message: "Essa ação é de uma versão antiga do Astro. Peça de novo." });
     }
 
-    // 2. Re-checa autorização (revoke pode ter rolado entre propose e confirm)
-    const auth = await checkMcpAuthorization(context.user.id, context.org.id);
-    if (!auth.authorized) {
-      throw new ORPCError("FORBIDDEN", {
-        message: "Você não é autorizado a realizar essa operação.",
-      });
+    const authorization = await checkMcpAuthorization(context.user.id, context.org.id);
+    if (!authorization.authorized) {
+      throw new ORPCError("FORBIDDEN", { message: "Você não é autorizado a realizar essa operação." });
     }
-
-    // 3. Lock condicional: passa pra "executing" só se ainda está "pending"
     const locked = await prisma.metaAdsPendingAction.updateMany({
       where: { id: pending.id, status: "pending" },
-      data: { status: "executing" as any },
+      data: { status: "executing" },
     });
-    if (locked.count === 0) {
-      throw new ORPCError("CONFLICT", {
-        message: "Outra confirmação chegou primeiro.",
-      });
-    }
+    if (locked.count === 0) throw new ORPCError("CONFLICT", { message: "Outra confirmação chegou primeiro." });
 
-    // 4. Auth Meta + client
-    const metaAuth = await getMetaAuth(context.org.id, {
+    const execution = await executeConfirmedMetaMcpWrite({
+      organizationId: context.org.id,
       userId: context.user.id,
+      toolName: pending.toolName,
+      args: pending.payload as Record<string, unknown>,
     });
-    if (!metaAuth) {
-      await prisma.metaAdsPendingAction.update({
-        where: { id: pending.id },
-        data: {
-          status: "pending",
-          errorMessage: "Integração Meta não conectada.",
-        },
-      });
-      throw new ORPCError("PRECONDITION_FAILED", {
-        message: "Integração Meta não conectada.",
-      });
+    if (!execution.ok) {
+      await prisma.metaAdsPendingAction.update({ where: { id: pending.id }, data: { status: "pending", errorMessage: execution.message } });
+      throw new ORPCError("BAD_REQUEST", { message: execution.message });
     }
-    const client = await createMetaMcpClient(metaAuth);
+    const executionResult = execution.result;
 
-    let executionResult: Record<string, unknown> = {};
-    try {
-      const payload = pending.payload as Record<string, any>;
-      switch (pending.toolName) {
-        case "meta_ads_pause_campaign":
-          await client.pauseCampaign({ campaignId: payload.campaignId });
-          executionResult = { paused: payload.campaignId };
-          break;
-        case "meta_ads_resume_campaign":
-          await client.resumeCampaign({ campaignId: payload.campaignId });
-          executionResult = { resumed: payload.campaignId };
-          break;
-        case "meta_ads_update_campaign":
-        case "meta_ads_create_campaign":
-        case "meta_ads_create_ad":
-          // Stub — implementação completa quando MCP server da Meta expor.
-          executionResult = {
-            stub: true,
-            message:
-              "Operação registrada como pendente, mas execução completa requer MCP server ativo (env META_MCP_SERVER_CMD) ou extensão da Marketing API direta.",
-          };
-          break;
-        default:
-          throw new Error(`Tool desconhecida: ${pending.toolName}`);
-      }
+    await prisma.metaAdsPendingAction.update({
+      where: { id: pending.id },
+      data: { status: "executed", executedAt: new Date(), errorMessage: null },
+    });
+    await logActivity({
+      organizationId: context.org.id,
+      userId: context.user.id,
+      userName: context.user.name,
+      userEmail: context.user.email,
+      userImage: context.user.image,
+      appSlug: "meta-ads-mcp",
+      featureKey: pending.toolName,
+      action: pending.toolName,
+      actionLabel: pending.summary,
+      resourceId: pending.id,
+      metadata: { tool: pending.toolName, payload: pending.payload as Record<string, unknown> },
+    });
 
-      // 5. Marca como executed
-      await prisma.metaAdsPendingAction.update({
-        where: { id: pending.id },
-        data: { status: "executed", executedAt: new Date() },
-      });
-
-      // 6. Stars debit
-      try {
-        await meter({
-          organizationId: context.org.id,
-          action: "meta_ads_action",
-          variant: pending.toolName,
-          userId: context.user.id,
-          appSlug: "meta-ads-mcp",
-          description: `Astro Meta Ads — ${pending.toolName}`,
-          feature: "meta-ads.execute",
-          cost: { kind: "OTHER", provider: "meta" },
-        });
-      } catch (e) {
-        // Saldo insuficiente não desfaz a operação Meta — só loga.
-         
-        console.warn("[meta-mcp:execute] stars debit failed", e);
-      }
-
-      // 7. Activity log
-      await logActivity({
-        organizationId: context.org.id,
-        userId: context.user.id,
-        userName: context.user.name,
-        userEmail: context.user.email,
-        userImage: (context.user as any).image,
-        appSlug: "meta-ads-mcp",
-        featureKey: pending.toolName,
-        action: pending.toolName,
-        actionLabel: pending.summary,
-        resourceId: pending.id,
-        metadata: {
-          tool: pending.toolName,
-          payload: pending.payload,
-          result: executionResult,
-        },
-      });
-
-      return {
-        ok: true,
-        executionResult,
-        summary: pending.summary,
-        tool: pending.toolName,
-      };
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Erro desconhecido";
-      await prisma.metaAdsPendingAction.update({
-        where: { id: pending.id },
-        data: { status: "pending", errorMessage: message },
-      });
-      throw new ORPCError("INTERNAL_SERVER_ERROR", { message });
-    } finally {
-      await client.close();
-    }
+    return { ok: true, executionResult, summary: pending.summary, tool: pending.toolName };
   });
 
 /**

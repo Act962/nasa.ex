@@ -2,7 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
-import { checkMcpAuthorization } from "@/lib/meta-mcp/authorization";
+import { checkMcpAuthorization } from "@/features/astro-meta-ads/server/authorization";
 import { z } from "zod";
 
 /**
@@ -53,9 +53,19 @@ export const getStatus = base
       }),
     ]);
 
+    const connectionCheck = config.connectionCheck as
+      | { canUseAstro?: boolean; astroBlockedReason?: string | null }
+      | undefined;
+
     return {
       metaConnected,
       mcpEnabled,
+      // Spec 0125 (RF-8): o MCP oficial da Meta está pronto para esta conta?
+      astroReadiness: {
+        isTested: typeof connectionCheck?.canUseAstro === "boolean",
+        canUseAstro: connectionCheck?.canUseAstro === true,
+        blockedReason: connectionCheck?.astroBlockedReason ?? null,
+      },
       currentUser: {
         role,
         canManage,

@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/accordion";
 import { useConnectionWizardStore } from "@/features/integrations/store/connection-wizard-store";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { META_TOKEN_TUTORIAL_STEPS } from "@/features/integrations/lib/meta-token-tutorial";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -280,17 +281,11 @@ export const PLATFORM_DEFS: PlatformDef[] = [
     docsUrl: "https://developers.facebook.com/docs/marketing-api/get-started", docsLabel: "Meta Marketing API Docs",
     category: "ads",
     oauthProvider: "meta",
-    steps: [
-      "Acesse developers.facebook.com e crie ou use um App existente do tipo 'Business'",
-      "Adicione o produto 'Marketing API' ao App",
-      "Em 'Ferramentas > Explorador da API do Graph', gere um token com permissões: ads_read, ads_management, business_management",
-      "Em sua conta de anúncios, encontre o ID da conta (formato: act_XXXXXXXXX)",
-      "Cole o App ID, App Secret, Token e Ad Account ID abaixo",
-    ],
+    steps: META_TOKEN_TUTORIAL_STEPS,
     fields: [
       { key: "appId", label: "App ID", placeholder: "123456789", hint: "Meta for Developers > Seu App > Configurações Básicas" },
       { key: "appSecret", label: "App Secret", placeholder: "abc123...", type: "password" },
-      { key: "accessToken", label: "Token de Acesso (com ads_read)", placeholder: "EAABsb...", type: "password", hint: "Gere com escopo: ads_read, ads_management" },
+      { key: "accessToken", label: "Token de Acesso (com ads_read)", placeholder: "EAABsb...", type: "password", hint: "Token do usuário do sistema (função Funcionário), validade \"Nunca\"" },
       { key: "adAccountId", label: "Ad Account ID", placeholder: "act_123456789", hint: "Gerenciador de Anúncios > Conta > ID da conta" },
       { key: "businessId", label: "Business ID (opcional)", placeholder: "987654321", hint: "Meta Business Suite > Configurações > ID da Empresa" },
     ],

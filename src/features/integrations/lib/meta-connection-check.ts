@@ -9,6 +9,7 @@ import {
   listPromotablePages,
 } from "@/http/meta/ads-account";
 import { MetaGraphError, type MetaGraphErrorKind } from "@/http/meta/graph-client";
+import { connectAdsMcp } from "@/http/meta/ads-mcp-client";
 import { readMetaAccessToken, readMetaAppSecret } from "./integration-api-key";
 
 /** "Testar conexão" da Meta (spec 0122, RF-7..RF-9): resumo sem nenhum segredo, gravado em `config.connectionCheck`. */
@@ -69,6 +70,32 @@ export interface MetaConnectionCheck {
   }[];
   canRead: boolean;
   canCreate: boolean;
+  /** Spec 0125: o Astro pode gerenciar a conta pelo MCP oficial da Meta. */
+  canUseAstro?: boolean;
+  astroBlockedReason?: string | null;
+}
+
+/** Regra pura do Astro (spec 0125, RF-8): permissão + conta liberada pela Meta. */
+export function evaluateAstroAvailability(params: {
+  grantedPermissions: string[] | null;
+  canRead: boolean;
+  isAccountMcpEnabled: boolean | null;
+}): { canUseAstro: boolean; astroBlockedReason: string | null } {
+  if (!params.canRead) return { canUseAstro: false, astroBlockedReason: "A conexão ainda não lê a conta de anúncios." };
+  if (params.grantedPermissions && !params.grantedPermissions.includes("ads_mcp_management")) {
+    return {
+      canUseAstro: false,
+      astroBlockedReason:
+        "Falta a permissão ads_mcp_management no token. O app da Meta precisa do caso de uso \"Crie e gerencie anúncios com o servidor MCP de anúncios\".",
+    };
+  }
+  if (params.isAccountMcpEnabled === false) {
+    return { canUseAstro: false, astroBlockedReason: "A Meta ainda não liberou o Astro (MCP de anúncios) para esta conta. A liberação é gradual." };
+  }
+  if (params.isAccountMcpEnabled === null) {
+    return { canUseAstro: false, astroBlockedReason: "Não foi possível confirmar com a Meta se o Astro está liberado para esta conta." };
+  }
+  return { canUseAstro: true, astroBlockedReason: null };
 }
 
 /** Regra pura de capacidade, separada para o script de QA. */
@@ -100,6 +127,33 @@ export function evaluateMetaCapabilities(params: {
 function toCheckError(error: unknown): { kind: MetaGraphErrorKind; message: string } {
   if (error instanceof MetaGraphError) return { kind: error.kind, message: error.userMessage };
   return { kind: "unknown", message: "Não foi possível falar com a Meta agora." };
+}
+
+/** A Meta diz, conta por conta, se o MCP de anúncios está liberado (`is_ads_mcp_enabled`). */
+async function readAccountMcpEnabled(accessToken: string, adAccountId: string): Promise<boolean | null> {
+  const accountNumber = adAccountId.replace(/^act_/, "");
+  try {
+    const connection = await connectAdsMcp(accessToken);
+    try {
+      let cursor: string | undefined;
+      for (let page = 0; page < 4; page++) {
+        const result = (await connection.callTool("ads_get_ad_accounts", {
+          limit: 50,
+          client_conversation_id: "orbitaConnCheck00000",
+          ...(cursor ? { cursor } : {}),
+        })) as { ad_accounts?: { ad_account_id?: string; is_ads_mcp_enabled?: boolean }[]; next_cursor?: string | null } | null;
+        const account = result?.ad_accounts?.find((item) => String(item.ad_account_id) === accountNumber);
+        if (account) return account.is_ads_mcp_enabled === true;
+        cursor = result?.next_cursor ?? undefined;
+        if (!cursor) break;
+      }
+      return false;
+    } finally {
+      await connection.close();
+    }
+  } catch {
+    return null;
+  }
 }
 
 export async function runMetaConnectionCheck(config: Record<string, unknown> | null): Promise<MetaConnectionCheck> {
@@ -202,5 +256,13 @@ export async function runMetaConnectionCheck(config: Record<string, unknown> | n
     accountStatus: check.account?.accountStatus ?? null,
     promotablePagesCount: check.pages.length,
   });
-  return { ...check, ...capabilities, isOk: capabilities.canRead && !check.errorKind };
+  const astro = evaluateAstroAvailability({
+    grantedPermissions: check.grantedPermissions,
+    canRead: capabilities.canRead,
+    isAccountMcpEnabled:
+      capabilities.canRead && check.grantedPermissions?.includes("ads_mcp_management") !== false
+        ? await readAccountMcpEnabled(accessToken, adAccountId)
+        : null,
+  });
+  return { ...check, ...capabilities, ...astro, isOk: capabilities.canRead && !check.errorKind };
 }

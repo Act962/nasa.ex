@@ -18,6 +18,8 @@ export const useTestMetaConnection = () => {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: orpc.platformIntegrations.metaConnection.status.key({}) });
         qc.invalidateQueries({ queryKey: orpc.platformIntegrations.getMany.key({}) });
+        // O teste também decide se o Astro pode gerenciar a conta (spec 0125).
+        qc.invalidateQueries({ queryKey: orpc.metaMcp.getStatus.key({}) });
       },
     }),
   );
