@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { nextTrafegoOrderCode } from "./order-code";
+import { buildTrafegoPlanName } from "@/features/trafego/lib/order-values";
 
 interface CreateOrderInput {
   tx: Prisma.TransactionClient;
@@ -47,6 +48,7 @@ export async function createTrafegoOrderFromPurchaseInTx({
       serviceFeeBrlCents: true,
       setupFeeBrlCents: true,
       amountBrlCents: true,
+      adBudgetPaidToMeta: true,
       hasBusinessManager: true,
       acceptedTermsAt: true,
       acceptedTermsVersion: true,
@@ -99,8 +101,7 @@ export async function createTrafegoOrderFromPurchaseInTx({
       pendingPurchaseId: pending.id,
 
       planNameSnapshot:
-        pending.plan?.name ??
-        `Tráfego ${(pending.adBudgetBrlCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+        pending.plan?.name ?? buildTrafegoPlanName(pending.adBudgetBrlCents),
       campaignType: pending.campaignType,
       platform: pending.platform,
       objective: pending.objective,
@@ -114,6 +115,7 @@ export async function createTrafegoOrderFromPurchaseInTx({
       serviceFeeBrlCents: pending.serviceFeeBrlCents,
       setupFeeBrlCents: pending.setupFeeBrlCents,
       totalBrlCents: pending.amountBrlCents,
+      adBudgetPaidToMeta: pending.adBudgetPaidToMeta,
       hasBusinessManager: pending.hasBusinessManager,
       acceptedTermsAt: pending.acceptedTermsAt,
       acceptedTermsVersion: pending.acceptedTermsVersion,

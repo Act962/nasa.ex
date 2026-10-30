@@ -19,6 +19,93 @@ function officialNumberAnswer(value: boolean | null): "yes" | "no" | null {
   return value === null ? null : value ? "yes" : "no";
 }
 
+type SessionUser = { name: string; email: string; phone?: string | null };
+
+/**
+ * Sugestões para quem já é membro de uma org (spec 0123, RF-9/RF-10). Com pedido
+ * anterior, reaproveita o que ele trouxe; sem pedido, contrata dentro da org ativa
+ * do mesmo jeito. A Meta conectada e testada nos Satélites responde o que já sabemos.
+ */
+async function buildMemberDefaults(params: {
+  organizationId: string;
+  user: SessionUser;
+}): Promise<ReturningCustomerDefaults | null> {
+  const [organization, previous, metaIntegration] = await Promise.all([
+    prisma.organization.findUnique({ where: { id: params.organizationId }, select: { name: true } }),
+    prisma.trafegoOrder.findFirst({
+      where: {
+        organizationId: params.organizationId,
+        status: { notIn: ["CANCELLED", "REFUNDED"] },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        code: true,
+        platform: true,
+        campaignType: true,
+        objective: true,
+        businessName: true,
+        businessNiche: true,
+        targetAudience: true,
+        destinationUrl: true,
+        whatsappNumber: true,
+        socialHandle: true,
+        hasBusinessManager: true,
+        hasOfficialNumber: true,
+        officialNumber: true,
+        hasSocialLinked: true,
+        materialsReady: true,
+        phoneVerifiedAt: true,
+      },
+    }),
+    prisma.platformIntegration.findUnique({
+      where: { organizationId_platform: { organizationId: params.organizationId, platform: "META" } },
+      select: { isActive: true, config: true },
+    }),
+  ]);
+  if (!organization) return null;
+
+  const metaConfig = (metaIntegration?.config ?? null) as Record<string, unknown> | null;
+  const connectionCheck = metaConfig?.connectionCheck as
+    | { canRead?: boolean; pages?: { instagramUsername?: string | null }[] }
+    | undefined;
+  const isMetaConnected = Boolean(metaIntegration?.isActive && connectionCheck?.canRead);
+  const connectedInstagram =
+    connectionCheck?.pages?.find((page) => page.instagramUsername)?.instagramUsername ?? "";
+
+  return {
+    organizationId: params.organizationId,
+    organizationName: organization.name,
+    sourceOrderCode: previous?.code ?? null,
+    platform: previous?.platform ?? null,
+    campaignType: previous?.campaignType ?? null,
+    objective: previous?.objective ?? null,
+    isMetaConnected,
+    socialHandle: previous?.socialHandle || connectedInstagram,
+    hasBusinessManager: isMetaConnected
+      ? "yes"
+      : businessManagerAnswer(previous?.hasBusinessManager ?? null),
+    officialAnswer: officialNumberAnswer(previous?.hasOfficialNumber ?? null),
+    officialNumber: previous?.officialNumber ?? "",
+    business: {
+      businessName: previous?.businessName ?? organization.name,
+      segment: previous?.businessNiche ?? "",
+      destinationUrl: previous?.destinationUrl ?? "",
+      audienceNotes: previous?.targetAudience ?? "",
+    },
+    timing: {
+      hasSocialLinked: isMetaConnected ? true : (previous?.hasSocialLinked ?? null),
+      materialsReady: previous?.materialsReady ?? null,
+    },
+    contact: {
+      fullName: params.user.name,
+      email: params.user.email,
+      phone: previous?.whatsappNumber ?? params.user.phone ?? "",
+      referralSource: "",
+    },
+    phoneVerified: Boolean(previous?.phoneVerifiedAt),
+  };
+}
+
 export default async function TrafegoPublicPage({
   searchParams,
 }: {
@@ -38,69 +125,10 @@ export default async function TrafegoPublicPage({
       });
 
       if (membership) {
-        const previous = await prisma.trafegoOrder.findFirst({
-          where: {
-            organizationId,
-            status: { notIn: ["CANCELLED", "REFUNDED"] },
-          },
-          orderBy: { createdAt: "desc" },
-          select: {
-            code: true,
-            platform: true,
-            campaignType: true,
-            objective: true,
-            businessName: true,
-            businessNiche: true,
-            targetAudience: true,
-            destinationUrl: true,
-            whatsappNumber: true,
-            socialHandle: true,
-            hasBusinessManager: true,
-            hasOfficialNumber: true,
-            officialNumber: true,
-            hasSocialLinked: true,
-            materialsReady: true,
-            phoneVerifiedAt: true,
-            organization: { select: { name: true } },
-          },
+        repeatDefaults = await buildMemberDefaults({
+          organizationId,
+          user: session.user as typeof session.user & { phone?: string | null },
         });
-
-        if (previous) {
-          const userPhone = (
-            session.user as typeof session.user & { phone?: string | null }
-          ).phone;
-          repeatDefaults = {
-            organizationId,
-            organizationName: previous.organization.name,
-            sourceOrderCode: previous.code,
-            platform: previous.platform,
-            campaignType: previous.campaignType,
-            objective: previous.objective,
-            socialHandle: previous.socialHandle ?? "",
-            hasBusinessManager: businessManagerAnswer(
-              previous.hasBusinessManager,
-            ),
-            officialAnswer: officialNumberAnswer(previous.hasOfficialNumber),
-            officialNumber: previous.officialNumber ?? "",
-            business: {
-              businessName: previous.businessName ?? previous.organization.name,
-              segment: previous.businessNiche ?? "",
-              destinationUrl: previous.destinationUrl ?? "",
-              audienceNotes: previous.targetAudience ?? "",
-            },
-            timing: {
-              hasSocialLinked: previous.hasSocialLinked,
-              materialsReady: previous.materialsReady,
-            },
-            contact: {
-              fullName: session.user.name,
-              email: session.user.email,
-              phone: previous.whatsappNumber ?? userPhone ?? "",
-              referralSource: "",
-            },
-            phoneVerified: Boolean(previous.phoneVerifiedAt),
-          };
-        }
       }
     }
   }

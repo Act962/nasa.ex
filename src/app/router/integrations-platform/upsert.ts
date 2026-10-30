@@ -7,7 +7,14 @@ import { IntegrationPlatform } from "@/generated/prisma/enums";
 import { assertSafeSeiEndpoint } from "@/features/sei/server/sei-client";
 import { encryptSeiIdentification } from "@/features/sei/server/sei-config";
 import { inngest } from "@/inngest/client";
-import { isSealedKeyPlatform, maskIntegrationConfig, sealIntegrationConfig } from "@/features/integrations/lib/integration-api-key";
+import {
+  isSealedKeyPlatform,
+  maskIntegrationConfig,
+  sealIntegrationConfig,
+  sealMetaIntegrationConfig,
+} from "@/features/integrations/lib/integration-api-key";
+import { assertCanManageMetaIntegration } from "@/features/integrations/lib/meta-integration-access";
+import { Prisma } from "@/generated/prisma/client";
 
 const seiConfigSchema = z.object({
   endpoint: z.url("Informe uma URL válida para o WebService do SEI."),
@@ -56,6 +63,23 @@ export const upsertPlatformIntegration = base
       };
     }
 
+    let metaConfig: Record<string, unknown> | null = null;
+    if (input.platform === IntegrationPlatform.META) {
+      const current = await prisma.platformIntegration.findUnique({
+        where: {
+          organizationId_platform: { organizationId: context.org.id, platform: IntegrationPlatform.META },
+        },
+        select: { config: true },
+      });
+      const currentConfig = current?.config as Record<string, unknown> | null;
+      const { isSystemAdmin } = await assertCanManageMetaIntegration({
+        organizationId: context.org.id,
+        userId: context.user.id,
+        currentConfig,
+      });
+      metaConfig = sealMetaIntegrationConfig(input.config, currentConfig, { canSetManagedBy: isSystemAdmin });
+    }
+
     if (isSealedKeyPlatform(input.platform)) {
       const current = await prisma.platformIntegration.findUnique({
         where: {
@@ -70,6 +94,7 @@ export const upsertPlatformIntegration = base
       );
     }
 
+    const configToStore = (metaConfig ?? config) as Prisma.InputJsonObject;
     const integration = await prisma.platformIntegration.upsert({
       where: {
         organizationId_platform: {
@@ -80,11 +105,11 @@ export const upsertPlatformIntegration = base
       create: {
         organizationId: context.org.id,
         platform: input.platform,
-        config,
+        config: configToStore,
         isActive: input.isActive,
       },
       update: {
-        config,
+        config: configToStore,
         isActive: input.isActive,
       },
     });

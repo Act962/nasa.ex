@@ -22,7 +22,7 @@ const platformSchema = z
 
 export const simulateInvestmentTool = tool({
   description:
-    "Calcula o preço de uma campanha pela tabela de faixas: verba, taxa de serviço, setup e total. Use SEMPRE que a conversa envolver valores — nunca calcule de cabeça.",
+    "Calcula o preço do serviço: 30% da verba com mínimo de R$ 150, setup e o total a pagar à Órbita. A verba é paga pelo cliente direto à Meta. Use SEMPRE que a conversa envolver valores — nunca calcule de cabeça.",
   inputSchema: z.object({
     verbaEmReais: z
       .number()
@@ -36,7 +36,9 @@ export const simulateInvestmentTool = tool({
     const quote = quoteTrafego(Math.round(verbaEmReais * 100), !temContaDeAnuncios);
     return {
       verba: formatBrlFromCents(quote.adBudgetBrlCents),
+      verbaPagaA: "direto à Meta, no cartão da conta de anúncios do cliente",
       taxaPercentual: quote.feePercent,
+      taxaNoMinimo: quote.isMinimumFee,
       taxa: formatBrlFromCents(quote.serviceFeeBrlCents),
       setup:
         quote.setupBrlCents === 0
@@ -44,12 +46,9 @@ export const simulateInvestmentTool = tool({
             ? "não se aplica — cliente já tem conta"
             : "grátis nesta faixa"
           : formatBrlFromCents(quote.setupBrlCents),
-      total: formatBrlFromCents(quote.totalBrlCents),
-      minimo: formatBrlFromCents(MIN_AD_BUDGET_BRL_CENTS),
-      faltaParaProximaFaixa:
-        quote.nextTierGapBrlCents && quote.nextTierGapBrlCents > 0
-          ? `investindo ${formatBrlFromCents(quote.nextTierGapBrlCents)} a mais, a taxa cai para ${quote.nextTierFeePercent}%`
-          : null,
+      totalAPagarParaOrbita: formatBrlFromCents(quote.totalBrlCents),
+      verbaMinima: formatBrlFromCents(MIN_AD_BUDGET_BRL_CENTS),
+      complemento: "se o gasto real na Meta passar da verba declarada, cobramos 30% sobre a diferença",
     };
   },
 });

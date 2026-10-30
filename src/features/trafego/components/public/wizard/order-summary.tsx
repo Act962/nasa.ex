@@ -4,8 +4,8 @@ import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import type { TrafegoQuote } from "@/features/trafego/lib/pricing-tiers";
 
 /**
- * Quebra do preço nas três parcelas. Aparece igual no simulador e no resumo do
- * contato — o cliente nunca vê um total que não sabe de onde veio.
+ * Quebra do preço. Aparece igual no simulador e no resumo do contato — o cliente
+ * nunca vê um total que não sabe de onde veio. A verba é paga à Meta (spec 0123).
  */
 export function OrderSummary({
   quote,
@@ -22,11 +22,12 @@ export function OrderSummary({
     <dl className={compact ? "space-y-1.5 text-sm" : "space-y-2.5 text-sm"}>
       <Row
         label="Verba de tráfego"
-        hint="vai 100% para o anúncio"
+        hint="você paga direto à Meta"
         value={formatBrlFromCents(quote.adBudgetBrlCents)}
+        muted
       />
       <Row
-        label={`Serviço trafeGO (${quote.feePercent}%)`}
+        label={`Serviço trafeGO (${quote.feePercent}%${quote.isMinimumFee ? ", mínimo" : ""})`}
         hint="gestão, criativos e otimização"
         value={formatBrlFromCents(quote.serviceFeeBrlCents)}
       />
@@ -42,9 +43,15 @@ export function OrderSummary({
           highlight={quote.tier.setupBrlCents === 0}
         />
       )}
+      {quote.extraCreativesBrlCents > 0 && (
+        <Row
+          label="Criativos extras"
+          value={formatBrlFromCents(quote.extraCreativesBrlCents)}
+        />
+      )}
 
       <div className="flex items-baseline justify-between gap-3 border-t border-white/10 pt-3">
-        <dt className="font-semibold text-white">Total</dt>
+        <dt className="font-semibold text-white">A pagar agora</dt>
         <dd className="text-xl font-bold tabular-nums text-white">
           {formatBrlFromCents(quote.totalBrlCents)}
         </dd>
@@ -58,11 +65,14 @@ function Row({
   hint,
   value,
   highlight,
+  muted,
 }: {
   label: string;
   hint?: string;
   value: string;
   highlight?: boolean;
+  /** Valor só informativo: não entra no total cobrado. */
+  muted?: boolean;
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
@@ -74,7 +84,9 @@ function Row({
         className={
           highlight
             ? "shrink-0 font-semibold tabular-nums text-success"
-            : "shrink-0 tabular-nums text-white"
+            : muted
+              ? "shrink-0 tabular-nums text-white/45"
+              : "shrink-0 tabular-nums text-white"
         }
       >
         {value}

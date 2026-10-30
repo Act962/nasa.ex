@@ -6,10 +6,12 @@ import {
   FolderOpen,
   Headphones,
   KeyRound,
+  Rocket,
   type LucideIcon,
 } from "lucide-react";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 export type CampaignSection =
   | "materiais"
@@ -17,6 +19,7 @@ export type CampaignSection =
   | "acessos"
   | "andamento"
   | "desempenho"
+  | "publicar"
   | "suporte";
 
 interface SectionItem {
@@ -33,6 +36,7 @@ export const CAMPAIGN_SECTION_LABEL: Record<CampaignSection, string> = {
   acessos: "Acessos",
   andamento: "Andamento",
   desempenho: "Desempenho",
+  publicar: "Publicar",
   suporte: "Suporte",
 };
 
@@ -42,15 +46,19 @@ export const CAMPAIGN_SECTION_SUBTITLE: Record<CampaignSection, string> = {
   acessos: "O que a equipe precisa para publicar",
   andamento: "Em que fase a campanha está",
   desempenho: "Resultados e verba usada",
+  publicar: "Monte e publique o anúncio de WhatsApp",
   suporte: "Converse com a nossa equipe",
 };
 
 export function CampaignSectionNav({
   completion,
   nextIncomplete,
+  showPublish = false,
 }: {
   completion: Partial<Record<CampaignSection, boolean>>;
   nextIncomplete: CampaignSection | null;
+  /** Só dono ou admin da empresa, em campanha do Meta (spec 0124, RF-2). */
+  showPublish?: boolean;
 }) {
   const baseItems: SectionItem[] = [
     {
@@ -83,6 +91,15 @@ export function CampaignSectionNav({
       icon: BarChart3,
       done: completion.desempenho,
     },
+    ...(showPublish
+      ? [
+          {
+            value: "publicar" as const,
+            label: CAMPAIGN_SECTION_LABEL.publicar,
+            icon: Rocket,
+          },
+        ]
+      : []),
     {
       value: "suporte",
       label: CAMPAIGN_SECTION_LABEL.suporte,
@@ -106,6 +123,7 @@ export function CampaignSectionNav({
             <TabsTrigger
               key={item.value}
               value={item.value}
+              data-guide={item.value === "publicar" ? GUIDE_ANCHORS.trafegoPublishTab.id : undefined}
               className={cn(
                 "relative min-h-9 flex-none shrink-0 gap-1.5 px-3 text-xs",
                 item.done && "text-success",

@@ -9,6 +9,7 @@ import type {
   TrafegoPlatform,
 } from "@/generated/prisma/enums";
 import { useTrafegoOrderPerformance } from "@/features/trafego/hooks/use-trafego-orders";
+import { useTrafegoOrderBudget } from "@/features/trafego/hooks/use-trafego-performance";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import {
   CAMPAIGN_TYPE_SHORT_LABEL,
@@ -37,6 +38,7 @@ interface OrderDetailHeaderProps {
     durationDays: number;
     totalBrlCents: number;
     adBudgetBrlCents: number;
+    adBudgetPaidToMeta: boolean;
     serviceFeeBrlCents: number;
   };
   activeSection: CampaignSection;
@@ -56,8 +58,14 @@ export function OrderDetailHeader({
   activeSection,
   listHref,
 }: OrderDetailHeaderProps) {
-  const { data: performance } = useTrafegoOrderPerformance(order.id);
-  const spentBrlCents = performance?.budget.spentBrlCents ?? 0;
+  const { data: accountBudget } = useTrafegoOrderBudget(order.id);
+  // Sem resposta ainda (ou na prévia, sem rede) vale a leitura antiga, como antes.
+  const isLegacyPerformance = !accountBudget || accountBudget.mode === "legacy";
+  const { data: performance } = useTrafegoOrderPerformance(order.id, 30, { enabled: isLegacyPerformance });
+  const spentBrlCents =
+    accountBudget?.mode === "account"
+      ? accountBudget.budget.spentBrlCents
+      : (performance?.budget.spentBrlCents ?? 0);
   const objectiveTerm: TechnicalTermKey =
     order.objective === "LEADS" ? "lead" : "optimization";
 
@@ -102,7 +110,7 @@ export function OrderDetailHeader({
         stats={[
           {
             key: "adBudget",
-            label: "Verba do anúncio",
+            label: order.adBudgetPaidToMeta ? "Verba (paga à Meta)" : "Verba do anúncio",
             value: formatBrlFromCents(order.adBudgetBrlCents),
             term: "adBudget",
           },
@@ -119,7 +127,7 @@ export function OrderDetailHeader({
           },
           {
             key: "total",
-            label: "Total pago",
+            label: order.adBudgetPaidToMeta ? "Pago à Órbita" : "Total pago",
             value: formatBrlFromCents(order.totalBrlCents),
           },
         ]}

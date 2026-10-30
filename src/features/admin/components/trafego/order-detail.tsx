@@ -50,6 +50,8 @@ import {
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { OrderStatusBadge } from "@/features/trafego/components/panel/order-status-badge";
 import { useAdminPath } from "@/features/trafego/lib/base-path";
+import { CorrectOrderValuesButton } from "./correct-order-values-dialog";
+import { ComplementsCard } from "./complements-card";
 
 const SOURCE_LABEL: Record<TrafegoTransitionSource, string> = {
   KANBAN: "kanban",
@@ -345,7 +347,10 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
                 Salvando…
               </p>
             )}
+            <CorrectOrderValuesButton order={order} />
           </div>
+
+          {order.platform === "META_ADS" && order.adBudgetPaidToMeta && <ComplementsCard orderId={order.id} />}
 
           {order.platform === "META_ADS" ? (
             <div className="rounded-lg border p-4">

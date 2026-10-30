@@ -29,12 +29,15 @@ export function TimingStep({
   onChange,
   hasAdAccount,
   reuseSocialConnection = false,
+  socialConnectionSource = "previous-order",
 }: {
   value: TimingDraft;
   onChange: (value: TimingDraft) => void;
   /** null = "não sei dizer", tratado como quem não tem. */
   hasAdAccount: boolean | null;
   reuseSocialConnection?: boolean;
+  /** De onde veio a confirmação: pedido anterior ou a Meta conectada nos Satélites (spec 0123). */
+  socialConnectionSource?: "previous-order" | "satellites";
 }) {
   const patch = (partial: Partial<TimingDraft>) =>
     onChange({ ...value, ...partial });
@@ -68,7 +71,9 @@ export function TimingStep({
               Instagram e Facebook já vinculados
             </p>
             <p className="mt-1 text-[11px] leading-relaxed text-white/40">
-              Reaproveitamos esta confirmação da sua campanha anterior.
+              {socialConnectionSource === "satellites"
+                ? "A conta Meta da sua empresa já está conectada nos Satélites."
+                : "Reaproveitamos esta confirmação da sua campanha anterior."}
             </p>
           </div>
         ) : (

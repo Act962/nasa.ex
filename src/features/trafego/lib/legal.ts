@@ -5,4 +5,4 @@
  *
  * Ao alterar os termos de forma relevante, incremente a data.
  */
-export const TRAFEGO_TERMS_VERSION = "2026-09-12";
+export const TRAFEGO_TERMS_VERSION = "2026-10-30";

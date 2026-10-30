@@ -191,10 +191,13 @@ const EMPTY_CONTACT: ContactDraft = {
 export interface ReturningCustomerDefaults {
   organizationId: string;
   organizationName: string;
-  sourceOrderCode: string;
-  platform: TrafegoPlatform;
-  campaignType: TrafegoCampaignType;
-  objective: TrafegoObjective;
+  /** null = a org ainda não teve pedido: contrata dentro dela pela primeira vez (spec 0123, RF-9). */
+  sourceOrderCode: string | null;
+  platform: TrafegoPlatform | null;
+  campaignType: TrafegoCampaignType | null;
+  objective: TrafegoObjective | null;
+  /** A org tem a Meta conectada e testada nos Satélites (spec 0123, RF-10). */
+  isMetaConnected: boolean;
   socialHandle: string;
   hasBusinessManager: BusinessManagerAnswer;
   officialAnswer: OfficialNumberAnswer | null;
@@ -227,7 +230,7 @@ export function TrafegoLanding({
     wasCancelled || Boolean(repeatDefaults),
   );
   const [screenId, setScreenId] = useState<ScreenId>(
-    repeatDefaults ? "business" : "channel",
+    repeatDefaults?.platform ? "business" : "channel",
   );
   const [platform, setPlatform] = useState<TrafegoPlatform | null>(
     repeatDefaults?.platform ?? null,
@@ -289,6 +292,8 @@ export function TrafegoLanding({
     repeatDefaults.contact.phone.replace(/\D/g, "").length >= 10,
   );
   const [editContact, setEditContact] = useState(!canReuseContact);
+  // Com a Meta conectada e o contato da conta completo, o passo Contato não pergunta nada novo.
+  const shouldSkipContact = Boolean(repeatDefaults?.isMetaConnected && canReuseContact && !editContact);
   const [phoneVerification, setPhoneVerification] =
     useState<PhoneVerificationStatus>(
       repeatDefaults?.phoneVerified ? "verified" : "idle",
@@ -368,16 +373,11 @@ export function TrafegoLanding({
       if (officialAnswer === "yes") list.push("wa-verify");
       if (officialAnswer === "no") list.push("wa-acquire");
     }
-    list.push(
-      "type",
-      "objective",
-      "business",
-      "timing",
-      "contact",
-      "investment",
-    );
+    list.push("type", "objective", "business", "timing");
+    if (!shouldSkipContact) list.push("contact");
+    list.push("investment");
     return list;
-  }, [platform, officialAnswer]);
+  }, [platform, officialAnswer, shouldSkipContact]);
 
   const position = Math.max(0, screens.indexOf(screenId));
   const isLastScreen = position === screens.length - 1;
@@ -504,7 +504,7 @@ export function TrafegoLanding({
       handleSubmit();
       return;
     }
-    if (screenId === "contact") captureContactLead();
+    if (screenId === "contact" || (screenId === "timing" && shouldSkipContact)) captureContactLead();
     setScreenId(screens[position + 1]);
     scrollToWizard();
   }
@@ -878,8 +878,9 @@ export function TrafegoLanding({
                               Usar dados da {repeatDefaults.organizationName}
                             </p>
                             <p className="mt-0.5 text-xs text-white/50">
-                              Reaproveitados da campanha{" "}
-                              {repeatDefaults.sourceOrderCode}.
+                              {repeatDefaults.sourceOrderCode
+                                ? `Reaproveitados da campanha ${repeatDefaults.sourceOrderCode}.`
+                                : "Da empresa em que você está no Órbita."}
                             </p>
                             <button
                               type="button"
@@ -944,6 +945,9 @@ export function TrafegoLanding({
                     reuseSocialConnection={Boolean(
                       repeatDefaults?.timing.hasSocialLinked,
                     )}
+                    socialConnectionSource={
+                      repeatDefaults?.isMetaConnected ? "satellites" : "previous-order"
+                    }
                   />
                 </StepShell>
               )}
@@ -1006,8 +1010,8 @@ export function TrafegoLanding({
                         term="adBudget"
                         className="text-white/50"
                       />{" "}
-                      vai inteira para o anúncio. Nossa taxa vem por cima — e
-                      cai conforme o valor sobe.
+                      você paga direto à Meta. Ela só serve para calcular o
+                      serviço: 30%, com mínimo de R$ 150.
                     </>
                   }
                   onBack={goBack}
@@ -1191,7 +1195,7 @@ function ValueProps() {
     {
       icon: Target,
       title: "A verba é toda sua",
-      text: "100% do valor de tráfego vai para a plataforma de anúncio. Nossa taxa vem por cima, sem desconto escondido.",
+      text: "Você paga a verba direto à Meta, no cartão da sua conta de anúncios. A Órbita cobra só o serviço.",
     },
     {
       icon: BadgeCheck,

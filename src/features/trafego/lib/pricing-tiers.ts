@@ -1,12 +1,13 @@
 /**
- * Faixas de investimento do trafeGO.
+ * Preço do trafeGO (spec 0123).
  *
- * A taxa de serviço incide SOBRE a verba e vem por cima: quem investe R$ 1.000
- * cai na faixa de 40% e paga R$ 1.400 — os R$ 1.000 inteiros vão para o anúncio.
+ * A verba de tráfego é paga pelo cliente direto à Meta, no meio de pagamento da
+ * conta dele: a Órbita cobra só o serviço. A taxa é 30% da verba declarada, com
+ * mínimo de R$ 150 por pedido. Se o gasto real passar da verba declarada, a
+ * diferença gera complemento de 30% (ver `complement.ts`).
  *
- * Quanto maior a verba, menor o percentual e menor o setup da conta de anúncios
- * (BM), que zera a partir de R$ 2.501. O setup só é cobrado de quem ainda não
- * tem BM própria, uma única vez.
+ * As faixas abaixo decidem só o setup da conta de anúncios (BM), cobrado uma
+ * única vez de quem ainda não tem conta.
  */
 
 export interface TrafegoTier {
@@ -14,65 +15,27 @@ export interface TrafegoTier {
   minBrlCents: number;
   /** null = sem teto (última faixa). */
   maxBrlCents: number | null;
-  feePercent: number;
   setupBrlCents: number;
   label: string;
 }
 
+export const TRAFEGO_SERVICE_FEE_PERCENT = 30;
+export const TRAFEGO_MIN_SERVICE_FEE_BRL_CENTS = 15_000; // R$ 150,00
+
 export const MIN_AD_BUDGET_BRL_CENTS = 30_000; // R$ 300,00
 
 /**
- * Teto de verba por campanha: R$ 500.000,00.
- *
- * Existe por dois motivos. O primeiro é aritmético: `Int` do Postgres estoura em
- * R$ 21.474.836,47, e o total (verba + taxa + setup) chega lá antes da verba.
- * O segundo é de negócio — uma compra self-service acima disso deve passar por
- * um gestor, não pelo checkout automático. O simulador direciona para o WhatsApp
- * quando o cliente bate no teto.
+ * Teto de verba por campanha: R$ 500.000,00. Uma compra self-service acima
+ * disso deve passar por um gestor; o simulador direciona para o WhatsApp.
  */
 export const MAX_AD_BUDGET_BRL_CENTS = 50_000_000; // R$ 500.000,00
 
 export const TRAFEGO_TIERS: TrafegoTier[] = [
-  {
-    id: "t1",
-    minBrlCents: 30_000,
-    maxBrlCents: 50_000,
-    feePercent: 50,
-    setupBrlCents: 50_000,
-    label: "R$ 300 a R$ 500",
-  },
-  {
-    id: "t2",
-    minBrlCents: 50_100,
-    maxBrlCents: 100_000,
-    feePercent: 40,
-    setupBrlCents: 45_000,
-    label: "R$ 501 a R$ 1.000",
-  },
-  {
-    id: "t3",
-    minBrlCents: 100_100,
-    maxBrlCents: 250_000,
-    feePercent: 35,
-    setupBrlCents: 40_000,
-    label: "R$ 1.001 a R$ 2.500",
-  },
-  {
-    id: "t4",
-    minBrlCents: 250_100,
-    maxBrlCents: 500_000,
-    feePercent: 30,
-    setupBrlCents: 0,
-    label: "R$ 2.501 a R$ 5.000",
-  },
-  {
-    id: "t5",
-    minBrlCents: 500_100,
-    maxBrlCents: null,
-    feePercent: 25,
-    setupBrlCents: 0,
-    label: "Acima de R$ 5.000",
-  },
+  { id: "t1", minBrlCents: 30_000, maxBrlCents: 50_000, setupBrlCents: 50_000, label: "R$ 300 a R$ 500" },
+  { id: "t2", minBrlCents: 50_100, maxBrlCents: 100_000, setupBrlCents: 45_000, label: "R$ 501 a R$ 1.000" },
+  { id: "t3", minBrlCents: 100_100, maxBrlCents: 250_000, setupBrlCents: 40_000, label: "R$ 1.001 a R$ 2.500" },
+  { id: "t4", minBrlCents: 250_100, maxBrlCents: 500_000, setupBrlCents: 0, label: "R$ 2.501 a R$ 5.000" },
+  { id: "t5", minBrlCents: 500_100, maxBrlCents: null, setupBrlCents: 0, label: "Acima de R$ 5.000" },
 ];
 
 /** Prende a verba entre o piso e o teto — a fonte única desses limites. */
@@ -85,7 +48,7 @@ export function clampAdBudget(adBudgetBrlCents: number): number {
   );
 }
 
-/** Faixa que atende a verba. Abaixo do mínimo, devolve a primeira. */
+/** Faixa de setup que atende a verba. Abaixo do mínimo, devolve a primeira. */
 export function resolveTier(adBudgetBrlCents: number): TrafegoTier {
   const budget = clampAdBudget(adBudgetBrlCents);
   return (
@@ -102,29 +65,26 @@ export function resolveTier(adBudgetBrlCents: number): TrafegoTier {
   );
 }
 
-/** Próxima faixa, para mostrar quanto falta para a taxa cair. */
-export function nextTier(current: TrafegoTier): TrafegoTier | null {
-  const index = TRAFEGO_TIERS.findIndex((tier) => tier.id === current.id);
-  return TRAFEGO_TIERS[index + 1] ?? null;
+/** Taxa de serviço sobre uma verba (ou um gasto real): 30%, nunca abaixo do mínimo. */
+export function computeTrafegoServiceFee(adBudgetBrlCents: number): number {
+  return Math.max(
+    TRAFEGO_MIN_SERVICE_FEE_BRL_CENTS,
+    Math.round((Math.max(0, adBudgetBrlCents) * TRAFEGO_SERVICE_FEE_PERCENT) / 100),
+  );
 }
 
 export interface TrafegoQuote {
+  /** Verba declarada — paga pelo cliente à Meta; só entra no cálculo da taxa. */
   adBudgetBrlCents: number;
   tier: TrafegoTier;
   feePercent: number;
+  /** A taxa ficou no mínimo de R$ 150. */
+  isMinimumFee: boolean;
   serviceFeeBrlCents: number;
   setupBrlCents: number;
   extraCreativesBrlCents: number;
+  /** O que a Órbita cobra agora: serviço + setup + criativos extras (sem a verba). */
   totalBrlCents: number;
-  /** Quanto falta investir para cair na faixa seguinte; null na última. */
-  nextTierGapBrlCents: number | null;
-  nextTierFeePercent: number | null;
-  /**
-   * Quanto o total CAI ao subir para a próxima faixa, já descontando a verba
-   * extra. Pode ser positivo mesmo investindo mais: no limite entre faixas,
-   * R$ 1 a mais de verba derruba taxa e setup. É o argumento que convence.
-   */
-  nextTierSavingBrlCents: number | null;
 }
 
 /**
@@ -139,38 +99,20 @@ export function quoteTrafego(
 ): TrafegoQuote {
   const budget = clampAdBudget(adBudgetBrlCents);
   const tier = resolveTier(budget);
-  const serviceFeeBrlCents = Math.round((budget * tier.feePercent) / 100);
+  const serviceFeeBrlCents = computeTrafegoServiceFee(budget);
   const setupBrlCents = needsSetup ? tier.setupBrlCents : 0;
-  const upcoming = nextTier(tier);
-
   const extraCreativesBrlCents =
     Math.max(0, extraCreatives) * Math.max(0, extraCreativeBrlCents);
-  const totalBrlCents =
-    budget + serviceFeeBrlCents + setupBrlCents + extraCreativesBrlCents;
-
-  let nextTierSavingBrlCents: number | null = null;
-  if (upcoming) {
-    const upgradedBudget = Math.max(budget, upcoming.minBrlCents);
-    const upgradedTotal =
-      upgradedBudget +
-      Math.round((upgradedBudget * upcoming.feePercent) / 100) +
-      (needsSetup ? upcoming.setupBrlCents : 0);
-    nextTierSavingBrlCents = totalBrlCents - upgradedTotal;
-  }
 
   return {
     adBudgetBrlCents: budget,
     tier,
-    feePercent: tier.feePercent,
+    feePercent: TRAFEGO_SERVICE_FEE_PERCENT,
+    isMinimumFee: serviceFeeBrlCents === TRAFEGO_MIN_SERVICE_FEE_BRL_CENTS,
     serviceFeeBrlCents,
     setupBrlCents,
     extraCreativesBrlCents,
-    totalBrlCents,
-    nextTierGapBrlCents: upcoming
-      ? Math.max(0, upcoming.minBrlCents - budget)
-      : null,
-    nextTierFeePercent: upcoming?.feePercent ?? null,
-    nextTierSavingBrlCents,
+    totalBrlCents: serviceFeeBrlCents + setupBrlCents + extraCreativesBrlCents,
   };
 }
 

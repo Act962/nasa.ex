@@ -32,6 +32,7 @@ export const getTrafegoOrder = base
         maxCopies: true,
         materialsProfileLink: true,
         adBudgetBrlCents: true,
+        adBudgetPaidToMeta: true,
         serviceFeeBrlCents: true,
         totalBrlCents: true,
         businessName: true,

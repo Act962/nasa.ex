@@ -10362,6 +10362,8 @@ model TrafegoPendingPurchase {
   /// Setup da BM, cobrado uma única vez de quem não tem conta de anúncios.
   setupFeeBrlCents   Int @default(0) @map("setup_fee_brl_cents")
   amountBrlCents     Int @map("amount_brl_cents")
+  /// Spec 0123: verba paga pelo cliente direto à Meta; `amountBrlCents` é só o serviço. false = modelo antigo.
+  adBudgetPaidToMeta Boolean @default(false) @map("ad_budget_paid_to_meta")
 
   stripeSessionId       String?                      @map("stripe_session_id")
   stripePaymentIntentId String?                      @map("stripe_payment_intent_id")
@@ -10488,6 +10490,10 @@ model TrafegoOrder {
   serviceFeeBrlCents    Int       @map("service_fee_brl_cents")
   setupFeeBrlCents      Int       @default(0) @map("setup_fee_brl_cents")
   totalBrlCents         Int       @map("total_brl_cents")
+  /// Spec 0123: verba paga pelo cliente direto à Meta; o total é só o que a Órbita cobrou. false = modelo antigo (verba + taxa).
+  adBudgetPaidToMeta    Boolean   @default(false) @map("ad_budget_paid_to_meta")
+  /// Spec 0123: campanhas da conta que a equipe tirou da base do complemento (não são do trafeGO).
+  metaCampaignIdsOutsideService String[] @default([]) @map("meta_campaign_ids_outside_service")
   /// null = cliente não soube responder no wizard.
   hasBusinessManager    Boolean?  @map("has_business_manager")
   acceptedTermsAt       DateTime? @map("accepted_terms_at")

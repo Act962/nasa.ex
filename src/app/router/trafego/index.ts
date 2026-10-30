@@ -16,6 +16,25 @@ import {
 import { listTrafegoOrders } from "./list-orders";
 import { getTrafegoOrder } from "./get-order";
 import { getTrafegoOrderPerformance } from "./get-order-performance";
+import {
+  getTrafegoAccountBreakdown,
+  getTrafegoAccountOverview,
+  getTrafegoBillingLockProcedure,
+  getTrafegoOrderBudget,
+  getTrafegoServiceFee,
+} from "./performance";
+import {
+  createCampaignDraftProcedure,
+  discardCampaignDraftProcedure,
+  getCampaignBuilderAccess,
+  getCampaignBuilderContext,
+  listCampaignInstagramPosts,
+  publishCampaignProcedure,
+  replaceCampaignAdProcedure,
+  searchCampaignCities,
+  suggestCampaignAudience,
+  updateCampaignProcedure,
+} from "./campaign-builder";
 import { updateTrafegoBriefing } from "./update-briefing";
 import { activateTrafegoOrder } from "./activate-order";
 import {
@@ -64,6 +83,13 @@ import {
   listTrafegoMessagesAdmin,
 } from "./admin/orders";
 import { createManualTrafegoOrderProcedure } from "./admin/create-manual-order";
+import { correctTrafegoOrderValues } from "./admin/correct-values";
+import {
+  cancelTrafegoComplement,
+  listTrafegoComplements,
+  sendTrafegoComplement,
+  setTrafegoOutsideCampaigns,
+} from "./admin/complements";
 import {
   getTrafegoSettings,
   updateTrafegoSettings,
@@ -99,6 +125,26 @@ export const trafegoRouter = {
   listOrders: listTrafegoOrders,
   getOrder: getTrafegoOrder,
   getOrderPerformance: getTrafegoOrderPerformance,
+  performance: {
+    budget: getTrafegoOrderBudget,
+    overview: getTrafegoAccountOverview,
+    breakdown: getTrafegoAccountBreakdown,
+    serviceFee: getTrafegoServiceFee,
+    billingLock: getTrafegoBillingLockProcedure,
+  },
+  // Spec 0124: owner/admin cria, publica e edita a campanha pelo painel.
+  campaignBuilder: {
+    access: getCampaignBuilderAccess,
+    context: getCampaignBuilderContext,
+    suggest: suggestCampaignAudience,
+    searchCities: searchCampaignCities,
+    listInstagramPosts: listCampaignInstagramPosts,
+    createDraft: createCampaignDraftProcedure,
+    publish: publishCampaignProcedure,
+    discardDraft: discardCampaignDraftProcedure,
+    update: updateCampaignProcedure,
+    replaceAd: replaceCampaignAdProcedure,
+  },
   updateBriefing: updateTrafegoBriefing,
   activateOrder: activateTrafegoOrder,
 
@@ -151,6 +197,13 @@ export const trafegoRouter = {
       list: listTrafegoOrdersAdmin,
       get: getTrafegoOrderAdmin,
       createManual: createManualTrafegoOrderProcedure,
+      correctValues: correctTrafegoOrderValues,
+      complements: {
+        list: listTrafegoComplements,
+        send: sendTrafegoComplement,
+        cancel: cancelTrafegoComplement,
+      },
+      setOutsideCampaigns: setTrafegoOutsideCampaigns,
       updateStatus: updateTrafegoOrderStatus,
       assign: assignTrafegoOrder,
       linkMetaCampaign: linkTrafegoMetaCampaign,

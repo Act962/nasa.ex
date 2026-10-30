@@ -21,6 +21,8 @@ import { CreativesManager } from "./creatives-manager";
 import { CopiesManager } from "./copies-manager";
 import { BriefingForm } from "./briefing-form";
 import { PerformanceView } from "./performance-view";
+import { CampaignBuilderView } from "./campaign-builder/campaign-builder-view";
+import { useCampaignBuilderAccess } from "@/features/trafego/hooks/use-trafego-campaign-builder";
 import { SupportThread } from "./support-thread";
 import { SupportWhatsappFab } from "./support-whatsapp-fab";
 import { NextStepsCard } from "./next-steps-card";
@@ -76,6 +78,7 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
   const { data: order, isLoading } = useTrafegoOrder(orderId);
   const panelPath = usePanelPath();
   const activateOrder = useActivateTrafegoOrder();
+  const { data: builderAccess } = useCampaignBuilderAccess(orderId);
 
   useRegisterOrbitDock({
     leftItems: [
@@ -201,6 +204,7 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
         <CampaignSectionNav
           completion={sectionCompletion}
           nextIncomplete={nextIncomplete}
+          showPublish={builderAccess?.isVisible === true}
         />
 
         <OrderStatusNotices
@@ -265,8 +269,14 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
         </TabsContent>
 
         <TabsContent value="desempenho" className="mt-6">
-          <PerformanceView orderId={order.id} />
+          <PerformanceView orderId={order.id} orderCode={order.code} />
         </TabsContent>
+
+        {builderAccess?.isVisible && (
+          <TabsContent value="publicar" className="mt-6">
+            <CampaignBuilderView orderId={order.id} durationDays={order.durationDays} />
+          </TabsContent>
+        )}
 
         <TabsContent value="suporte" className="mt-6">
           <SupportThread orderId={order.id} />

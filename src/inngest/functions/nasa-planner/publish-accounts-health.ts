@@ -1,6 +1,7 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { decryptSecret } from "@/lib/crypto";
+import { readMetaAccessToken } from "@/features/integrations/lib/integration-api-key";
 import { IntegrationPlatform, MetaPublishAccountKind, MetaPublishAccountStatus } from "@/generated/prisma/enums";
 import { listUserPagesWithTokens, pingGraphObject } from "@/http/meta/planner-graph";
 import { classifyPublishError } from "@/features/nasa-planner/server/publishing/meta-errors";
@@ -90,8 +91,8 @@ export const plannerBackfillPublishAccounts = inngest.createFunction(
           where: { organizationId, platform: IntegrationPlatform.META },
           select: { config: true },
         });
-        const metaConfig = integration.config as { accessToken?: string; selectedPageIds?: string[] } | null;
-        const userAccessToken = metaConfig?.accessToken;
+        const metaConfig = integration.config as { selectedPageIds?: string[] } | null;
+        const userAccessToken = readMetaAccessToken(integration.config as Record<string, unknown> | null);
         if (!userAccessToken) return false;
         const selectedPageIds = new Set(metaConfig?.selectedPageIds ?? []);
         try {

@@ -213,6 +213,9 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0076](leads/0076-vinculados-do-lead.md) | leads | Vinculados do lead (dependentes, filiais) com cobrança pelo Financeiro | implementada |
 | [0077](workflows/0077-correcoes-api-oficial-e-gatilhos-orbita.md) | workflows | Correções API Oficial e Gatilhos ÓRBITA — jornada comentário → WhatsApp → curso → lead ganho | rascunho |
 | [0115](payment/0115-cobrancas-no-orbita-com-confirmacao-de-pagamento.md) | payment | Cobranças dentro do ÓRBITA, com confirmação do pagamento por várias fontes | em-revisao |
+| [0122](trafego/0122-trafego-base-meta-e-desempenho.md) | trafego | Base Meta pelos Satélites, Desempenho com a conta real do cliente e "Corrigir valores" | implementada |
+| [0123](trafego/0123-trafego-cobranca-so-do-servico.md) | trafego | Cobra só o serviço (30%, mín. R$ 150), complemento pelo gasto real e wizard da org logada | implementada |
+| [0124](trafego/0124-trafego-campanha-pelo-painel.md) | trafego | Owner/admin cria, publica e edita campanha de WhatsApp pelo painel | implementada |
 
 ---
 

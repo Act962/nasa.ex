@@ -22,6 +22,7 @@ export const listTrafegoOrders = base
         objective: true,
         status: true,
         adBudgetBrlCents: true,
+        adBudgetPaidToMeta: true,
         serviceFeeBrlCents: true,
         totalBrlCents: true,
         durationDays: true,

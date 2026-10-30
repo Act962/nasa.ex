@@ -8,6 +8,9 @@ import {
 } from "../hooks/use-integrations";
 import { useOrgRole } from "@/hooks/use-org-role";
 import { MetaMcpSection } from "./meta-mcp-section";
+import { MetaConnectionPanel } from "./meta-connection-panel";
+import { useMetaConnectionStatus } from "../hooks/use-meta-connection";
+import { Checkbox } from "@/components/ui/checkbox";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -650,6 +653,17 @@ function IntegrationCard({
 
 // ─── Config Dialog ────────────────────────────────────────────────────────────
 
+/**
+ * O Chrome ignora `off` em campo de senha e, ao ver texto + senha, preenche o login salvo:
+ * gravaria o e-mail no App ID e a senha da pessoa no App Secret. `new-password` impede isso.
+ */
+function credentialAutoComplete(fieldType: string | undefined): string {
+  return fieldType === "password" ? "new-password" : "off";
+}
+
+/** Campos cujo valor salvo nunca volta ao navegador (chaves de IA e segredos da Meta). */
+const SEALED_FIELD_KEYS = ["apiKey", "accessToken", "appSecret"];
+
 export function ConfigDialog({
   def, existing, open, onClose, onSave, isSaving,
 }: {
@@ -661,12 +675,21 @@ export function ConfigDialog({
     def.fields.forEach((f) => { init[f.key] = existing[f.key] ?? ""; });
     return init;
   });
-  // A chave salva nunca volta ao navegador: o campo fica vazio e mostra só os 4 últimos dígitos.
-  const savedKeyLast4 = existing.apiKeyLast4 || (String(existing.apiKeyConfigured) === "true" ? "····" : "");
+  // Segredos salvos nunca voltam ao navegador: o campo fica vazio e mostra só os 4 últimos dígitos.
+  const savedSecretLast4 = (key: string) =>
+    existing[`${key}Last4`] || (String(existing[`${key}Configured`]) === "true" ? "····" : "");
   const placeholderFor = (field: PlatformDef["fields"][number]) =>
-    field.key === "apiKey" && savedKeyLast4
-      ? `Chave salva ••••${savedKeyLast4} — deixe em branco para manter`
+    SEALED_FIELD_KEYS.includes(field.key) && savedSecretLast4(field.key)
+      ? `Salvo ••••${savedSecretLast4(field.key)} — deixe em branco para manter`
       : field.placeholder;
+  const isMeta = def.platform === IntegrationPlatform.META;
+  const { data: metaStatus } = useMetaConnectionStatus({ enabled: isMeta && open });
+  const canEditMeta = !isMeta || metaStatus?.viewer.canEdit !== false;
+  const [isManagedByOrbita, setIsManagedByOrbita] = useState(String(existing.managedBy) === "ORBITA");
+  const valuesToSave = () =>
+    isMeta && metaStatus?.viewer.isSystemAdmin
+      ? { ...values, managedBy: isManagedByOrbita ? "ORBITA" : "" }
+      : values;
   const [astroOpen, setAstroOpen] = useState(false);
   const [astroGuide, setAstroGuide] = useState<string | null>(null);
   const [astroLoading, setAstroLoading] = useState(false);
@@ -795,7 +818,34 @@ export function ConfigDialog({
           </div>
         )}
 
-        {oauthProvider ? (
+        {isMeta && <MetaConnectionPanel />}
+
+        {isMeta && !canEditMeta && (
+          <p className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+            Esta conexão é gerenciada pela equipe Órbita. Para trocar o token ou a conta, fale com a equipe.
+          </p>
+        )}
+
+        {isMeta && metaStatus?.viewer.isSystemAdmin && (
+          <label className="flex items-start gap-2 rounded-lg border p-3 text-xs">
+            <Checkbox
+              checked={isManagedByOrbita}
+              onCheckedChange={(checked) => setIsManagedByOrbita(checked === true)}
+            />
+            <span>
+              <span className="font-medium text-foreground">Gerenciada pela equipe Órbita</span>
+              <span className="block text-muted-foreground">
+                Use quando o token é do usuário do sistema da Órbita: só a equipe altera token e conta.
+              </span>
+            </span>
+          </label>
+        )}
+
+        {isMeta && !canEditMeta ? (
+          <Button variant="outline" onClick={onClose} className="w-full">
+            Fechar
+          </Button>
+        ) : oauthProvider ? (
           <div className="space-y-3">
             <Button
               type="button"
@@ -823,12 +873,12 @@ export function ConfigDialog({
                           <Input id={field.key} type={field.type ?? "text"} placeholder={placeholderFor(field)}
                             value={values[field.key] ?? ""}
                             onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                            autoComplete="off" />
+                            autoComplete={credentialAutoComplete(field.type)} />
                           {field.hint && <p className="text-[11px] text-muted-foreground">{field.hint}</p>}
                         </div>
                       ))}
                       <Button
-                        onClick={() => onSave(values)}
+                        onClick={() => onSave(valuesToSave())}
                         disabled={isSaving || !Object.values(values).some(v => v.trim())}
                         variant="outline"
                         size="sm"
@@ -860,7 +910,7 @@ export function ConfigDialog({
                     <Input id={field.key} type={field.type ?? "text"} placeholder={placeholderFor(field)}
                       value={values[field.key] ?? ""}
                       onChange={(e) => setValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                      autoComplete="off" />
+                      autoComplete={credentialAutoComplete(field.type)} />
                     {field.hint && <p className="text-[11px] text-muted-foreground">{field.hint}</p>}
                   </div>
                 ))}

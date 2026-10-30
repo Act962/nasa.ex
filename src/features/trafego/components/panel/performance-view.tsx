@@ -3,6 +3,8 @@
 import { BarChart3, Clock, LinkIcon, Radio } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useTrafegoOrderPerformance } from "@/features/trafego/hooks/use-trafego-orders";
+import { useTrafegoOrderBudget } from "@/features/trafego/hooks/use-trafego-performance";
+import { AccountPerformanceView } from "./account-performance-view";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { Progress } from "@/components/ui/progress";
 import { TechnicalTerm, type TechnicalTermKey } from "../technical-term";
@@ -25,7 +27,28 @@ const KPI_TERMS: Record<string, TechnicalTermKey> = {
   cpc: "cpc",
 };
 
-export function PerformanceView({ orderId }: { orderId: string }) {
+/**
+ * Com a conta do cliente conectada nos Satélites, o Desempenho mostra a conta
+ * real (spec 0122). Sem ela, segue a leitura antiga da campanha vinculada.
+ */
+export function PerformanceView({ orderId, orderCode }: { orderId: string; orderCode: string }) {
+  const { data: budgetResult, isLoading } = useTrafegoOrderBudget(orderId);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
+        <OrbitaSpinner className="size-4" />
+        Carregando desempenho…
+      </div>
+    );
+  }
+  if (budgetResult && budgetResult.mode !== "legacy") {
+    return <AccountPerformanceView orderId={orderId} orderCode={orderCode} />;
+  }
+  return <LegacyPerformanceView orderId={orderId} />;
+}
+
+function LegacyPerformanceView({ orderId }: { orderId: string }) {
   const { data, isLoading } = useTrafegoOrderPerformance(orderId);
 
   if (isLoading) {

@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, Check, MessageCircle, TrendingDown } from "lucide-react";
+import { ChevronDown, Check, Info, MessageCircle } from "lucide-react";
 import {
   MAX_AD_BUDGET_BRL_CENTS,
   MIN_AD_BUDGET_BRL_CENTS,
+  TRAFEGO_MIN_SERVICE_FEE_BRL_CENTS,
+  TRAFEGO_SERVICE_FEE_PERCENT,
   TRAFEGO_TIERS,
   quoteTrafego,
 } from "@/features/trafego/lib/pricing-tiers";
@@ -23,8 +25,8 @@ interface InvestmentSimulatorProps {
 }
 
 /**
- * Simulador de investimento. A taxa cai conforme a verba sobe, então o destaque
- * é sempre quanto falta para a próxima faixa — é o que convence a subir o valor.
+ * Simulador do serviço (spec 0123). A verba declarada só calcula a taxa: ela é
+ * paga pelo cliente à Meta. O que a Órbita cobra é serviço + setup.
  */
 export function InvestmentSimulator({
   adBudgetBrlCents,
@@ -105,53 +107,23 @@ export function InvestmentSimulator({
         <OrderSummary quote={quote} needsSetup={needsSetup} setupLabel={setupLabel} />
       </div>
 
-      {quote.nextTierGapBrlCents !== null && quote.nextTierGapBrlCents > 0 && (
-        <button
-          type="button"
-          onClick={() =>
-            onChangeBudget(quote.adBudgetBrlCents + quote.nextTierGapBrlCents!)
-          }
-          className="flex w-full items-start gap-2.5 rounded-xl border border-success/30 bg-success/15 p-3.5 text-left transition hover:border-success/50"
-        >
-          <TrendingDown className="mt-0.5 size-4 shrink-0 text-success" />
-          <span className="min-w-0 text-xs leading-relaxed text-foreground/85">
-            Investindo <strong>{formatBrlFromCents(quote.nextTierGapBrlCents)}</strong> a
-            mais, sua taxa cai para <strong>{quote.nextTierFeePercent}%</strong>
-            {needsSetup &&
-              quote.tier.setupBrlCents > 0 &&
-              nextTierHasFreeSetup(quote.feePercent) &&
-              " e o setup fica grátis"}
-            .
-            {quote.nextTierSavingBrlCents !== null && quote.nextTierSavingBrlCents > 0 && (
-              <>
-                {" "}
-                Você paga{" "}
-                <strong>{formatBrlFromCents(quote.nextTierSavingBrlCents)} a menos</strong>{" "}
-                no total — e ainda anuncia mais.
-              </>
-            )}
-          </span>
-        </button>
-      )}
+      <p className="flex items-start gap-2.5 rounded-xl border border-info/30 bg-info/10 p-3.5 text-xs leading-relaxed text-foreground/85">
+        <Info className="mt-0.5 size-4 shrink-0 text-info" />
+        <span>
+          A verba você paga direto à Meta, no cartão da sua conta de anúncios. O serviço
+          trafeGO é <strong>{TRAFEGO_SERVICE_FEE_PERCENT}% da verba</strong>, com mínimo de{" "}
+          <strong>{formatBrlFromCents(TRAFEGO_MIN_SERVICE_FEE_BRL_CENTS)}</strong>. Se o gasto real
+          passar do que você declarou, cobramos {TRAFEGO_SERVICE_FEE_PERCENT}% sobre a diferença.
+        </span>
+      </p>
 
-      <TierTable currentTierId={quote.tier.id} needsSetup={needsSetup} />
+      {needsSetup && <SetupTable currentTierId={quote.tier.id} />}
     </div>
   );
 }
 
-function nextTierHasFreeSetup(currentFeePercent: number): boolean {
-  const index = TRAFEGO_TIERS.findIndex((tier) => tier.feePercent === currentFeePercent);
-  return TRAFEGO_TIERS[index + 1]?.setupBrlCents === 0;
-}
-
-/** Colapsada por padrão: quem quer conferir a régua inteira abre. */
-function TierTable({
-  currentTierId,
-  needsSetup,
-}: {
-  currentTierId: string;
-  needsSetup: boolean;
-}) {
+/** Colapsada por padrão: o setup varia pela faixa de verba e só vale para quem não tem conta. */
+function SetupTable({ currentTierId }: { currentTierId: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -161,7 +133,7 @@ function TierTable({
         onClick={() => setIsOpen((open) => !open)}
         className="flex w-full items-center gap-1.5 text-xs text-white/40 transition hover:text-white/70"
       >
-        Ver todas as faixas
+        Ver o setup por faixa de verba
         <ChevronDown
           className={cn("size-3.5 transition-transform", isOpen && "rotate-180")}
         />
@@ -172,9 +144,8 @@ function TierTable({
           <table className="w-full text-left text-xs">
             <thead className="bg-white/[0.03] text-white/40">
               <tr>
-                <th className="px-3 py-2 font-medium">Investimento</th>
-                <th className="px-3 py-2 text-right font-medium">Taxa</th>
-                {needsSetup && <th className="px-3 py-2 text-right font-medium">Setup</th>}
+                <th className="px-3 py-2 font-medium">Verba</th>
+                <th className="px-3 py-2 text-right font-medium">Setup</th>
               </tr>
             </thead>
             <tbody>
@@ -196,25 +167,15 @@ function TierTable({
                         {tier.label}
                       </span>
                     </td>
-                    <td
-                      className={cn(
-                        "px-3 py-2 text-right tabular-nums",
-                        isCurrent ? "font-semibold text-white" : "text-white/55",
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {tier.setupBrlCents === 0 ? (
+                        <span className="font-semibold text-success">Grátis</span>
+                      ) : (
+                        <span className={isCurrent ? "text-white" : "text-white/55"}>
+                          {formatBrlFromCents(tier.setupBrlCents)}
+                        </span>
                       )}
-                    >
-                      {tier.feePercent}%
                     </td>
-                    {needsSetup && (
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {tier.setupBrlCents === 0 ? (
-                          <span className="font-semibold text-success">Grátis</span>
-                        ) : (
-                          <span className={isCurrent ? "text-white" : "text-white/55"}>
-                            {formatBrlFromCents(tier.setupBrlCents)}
-                          </span>
-                        )}
-                      </td>
-                    )}
                   </tr>
                 );
               })}

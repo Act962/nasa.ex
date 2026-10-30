@@ -24,7 +24,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { clientIpFromHeaders, takeRateLimit } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe";
 import { getPostHogClient } from "@/lib/posthog-server";
-import { STRIPE_MIN_BRL_CENTS } from "@/features/trafego/lib/pricing";
+import { formatBrlFromCents, STRIPE_MIN_BRL_CENTS } from "@/features/trafego/lib/pricing";
 import { quoteTrafego } from "@/features/trafego/lib/pricing-tiers";
 import { trafegoCheckoutBodySchema } from "@/features/trafego/schema/trafego-schemas";
 import { PLATFORM_SHORT_LABEL } from "@/features/trafego/lib/catalog-labels";
@@ -341,6 +341,7 @@ export async function POST(req: NextRequest) {
       serviceFeeBrlCents: quote.serviceFeeBrlCents,
       setupFeeBrlCents: quote.setupBrlCents,
       amountBrlCents: quote.totalBrlCents,
+      adBudgetPaidToMeta: true,
       status: "PENDING",
     },
     select: { id: true },
@@ -482,26 +483,16 @@ export async function POST(req: NextRequest) {
     objective,
   };
 
+  // A verba não entra: o cliente paga a Meta direto (spec 0123). Só o serviço é cobrado aqui.
   const lineItems = [
-    {
-      quantity: 1,
-      price_data: {
-        currency: "brl" as const,
-        unit_amount: quote.adBudgetBrlCents,
-        product_data: {
-          name: "Verba de tráfego",
-          description: `${platformLabel} · investido integralmente nos anúncios`,
-        },
-      },
-    },
     {
       quantity: 1,
       price_data: {
         currency: "brl" as const,
         unit_amount: quote.serviceFeeBrlCents,
         product_data: {
-          name: `Serviço Órbita (${quote.feePercent}%)`,
-          description: "Criação, configuração, acompanhamento e otimização",
+          name: `Serviço Órbita (${quote.feePercent}%${quote.isMinimumFee ? ", mínimo" : ""})`,
+          description: `Criação, configuração, acompanhamento e otimização · verba de ${formatBrlFromCents(quote.adBudgetBrlCents)} paga direto na ${platformLabel}`,
         },
       },
     },
