@@ -83,10 +83,13 @@ jobs:
       - name: Avisar o Coolify
         run: |
           if [ -z "${COOLIFY_WEBHOOK}" ]; then echo "COOLIFY_WEBHOOK ausente, pulando"; exit 0; fi
+          # POST desde o Coolify 4.2.0 (GET devolve 405); uuid e force seguem na query da URL.
+          # O corpo vazio garante o Content-Length que alguns proxies exigem em POST.
           # Mostra status e mensagem do Coolify: um 403 diz se falta permissão de deploy no
           # token, se a API está desligada ou se o IP do runner não está liberado.
           response_file=$(mktemp)
-          status=$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+          status=$(curl --silent --show-error --request POST --data '' \
+            --output "$response_file" --write-out '%{http_code}' \
             -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
             "${COOLIFY_WEBHOOK}")
           echo "Coolify respondeu HTTP ${status}:"
