@@ -130,6 +130,15 @@ export const ALL_APPS: AppPermissionDefinition[] = [
       canEdit: "Editar estação, módulos e modo de acesso",
     },
   },
+  {
+    key: "orbita-station",
+    label: "Órbita Station 3D",
+    icon: "🪐",
+    actionHints: {
+      canView: "Entrar na estação 3D da empresa e ver os colegas",
+      canEdit: "Trocar o modelo da estação e o nome das salas",
+    },
+  },
   // Gamificação
   { key: "stars",                 label: "Stars",                   icon: "⭐" },
   { key: "space-points",          label: "Space Points",            icon: "🏅" },
@@ -180,6 +189,19 @@ export const APPS_WITH_EXTENDED_ACTIONS = new Set<string>(Object.keys(EXTENDED_A
 // para todos, para o deploy não tirar acesso de ninguém. O Master restringe.
 const PREVIOUSLY_UNRESTRICTED_APPS = new Set(["nerp", "comments", "nasa-pages", "astro", "space-station"]);
 
+// Apps novos que começam fechados para todos menos o Master: ele libera para a equipe quando quiser
+// (Órbita Station 3D, spec 0119, D-4 — a liberação gradual por empresa substitui um feature flag).
+const OWNER_ONLY_BY_DEFAULT_APPS = new Set(["orbita-station"]);
+
+const NO_PERMISSIONS: AppPermissions = {
+  canView: false,
+  canCreate: false,
+  canEdit: false,
+  canDelete: false,
+  canApprove: false,
+  canPay: false,
+};
+
 const UNRESTRICTED_DEFAULT: AppPermissions = {
   canView: true,
   canCreate: true,
@@ -192,6 +214,7 @@ const UNRESTRICTED_DEFAULT: AppPermissions = {
 export function getDefaultAppPermissions(role: string, appKey: string): AppPermissions {
   if (role === "owner") return { ...DEFAULT_PERMISSIONS.owner };
   if (PREVIOUSLY_UNRESTRICTED_APPS.has(appKey)) return { ...UNRESTRICTED_DEFAULT };
+  if (OWNER_ONLY_BY_DEFAULT_APPS.has(appKey)) return { ...NO_PERMISSIONS };
   return { ...(DEFAULT_PERMISSIONS[role] ?? DEFAULT_PERMISSIONS.member) };
 }
 

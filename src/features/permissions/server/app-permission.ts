@@ -34,3 +34,22 @@ export async function hasAppPermission(
   const permissions = await getUserAppPermissions(organizationId, userId, appKey);
   return !!permissions?.[action];
 }
+
+/** Permissões de vários apps com duas consultas no total (o papel e os overrides), em vez de duas por app. */
+export async function getUserPermissionsForApps(
+  organizationId: string,
+  userId: string,
+  appKeys: readonly string[],
+): Promise<Record<string, AppPermissions> | null> {
+  const member = await prisma.member.findFirst({
+    where: { organizationId, userId },
+    select: { role: true },
+  });
+  if (!member) return null;
+  const overrides = await prisma.orgPermission.findMany({
+    where: { organizationId, role: member.role, appKey: { in: [...appKeys] } },
+    select: { appKey: true, canView: true, canCreate: true, canEdit: true, canDelete: true, canApprove: true, canPay: true },
+  });
+  const overrideByApp = new Map(overrides.map(({ appKey, ...override }) => [appKey, override]));
+  return Object.fromEntries(appKeys.map((appKey) => [appKey, resolveAppPermissions(member.role, appKey, overrideByApp.get(appKey) ?? null)]));
+}
