@@ -2,6 +2,7 @@ import "server-only";
 
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
+import { isNationalHoliday } from "@/features/public-calendar/utils/holidays";
 
 /**
  * Agenda os eventos Inngest pra TODOS os steps de uma régua aplicada a um entry.
@@ -89,18 +90,34 @@ export async function scheduleDunningForEntry(entryId: string) {
 const BRAZIL_UTC_OFFSET_HOURS = 3;
 const FIRST_BUSINESS_HOUR = 8;
 const LAST_BUSINESS_HOUR = 20;
+const LAST_SATURDAY_HOUR = 12;
 const DEFAULT_SEND_HOUR = 9;
+const SUNDAY = 0;
+const SATURDAY = 6;
 
-/** Aviso ao cliente só entre 8h e 20h de Brasília; fora disso, às 9h seguintes (spec 0115, RNF-3). */
+function lastSendHourOf(brazilClock: Date): number {
+  const weekday = brazilClock.getUTCDay();
+  if (weekday === SUNDAY || isNationalHoliday(brazilClock.toISOString().slice(0, 10))) return FIRST_BUSINESS_HOUR;
+  return weekday === SATURDAY ? LAST_SATURDAY_HOUR : LAST_BUSINESS_HOUR;
+}
+
+/**
+ * Aviso ao cliente só de segunda a sexta entre 8h e 20h e no sábado até 12h (Brasília); nunca
+ * em domingo nem feriado nacional. Fora disso, às 9h do próximo dia que pode (spec 0115, RNF-3).
+ */
 export function moveIntoBusinessHours(fireAt: Date): Date {
   const offsetMs = BRAZIL_UTC_OFFSET_HOURS * 60 * 60 * 1000;
   // Relógio de Brasília lido pelos getters UTC.
   const brazilClock = new Date(fireAt.getTime() - offsetMs);
   const brazilHour = brazilClock.getUTCHours();
-  if (brazilHour >= FIRST_BUSINESS_HOUR && brazilHour < LAST_BUSINESS_HOUR) return fireAt;
+  if (brazilHour >= FIRST_BUSINESS_HOUR && brazilHour < lastSendHourOf(brazilClock)) return fireAt;
 
-  if (brazilHour >= LAST_BUSINESS_HOUR) brazilClock.setUTCDate(brazilClock.getUTCDate() + 1);
+  if (brazilHour >= FIRST_BUSINESS_HOUR) brazilClock.setUTCDate(brazilClock.getUTCDate() + 1);
   brazilClock.setUTCHours(DEFAULT_SEND_HOUR, 0, 0, 0);
+  // Domingo e feriado não têm horário: pula até o próximo dia que tem (ex.: sábado à tarde → segunda).
+  while (lastSendHourOf(brazilClock) <= DEFAULT_SEND_HOUR) {
+    brazilClock.setUTCDate(brazilClock.getUTCDate() + 1);
+  }
   return new Date(brazilClock.getTime() + offsetMs);
 }
 

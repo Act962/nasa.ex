@@ -124,7 +124,7 @@ export function DunningRulesTab() {
         <div className="space-y-1 text-xs">
           <p className="font-medium">Cobrança ética, aplicada automaticamente</p>
           <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
-            <li>Avisos só saem entre 8h e 20h (horário de Brasília).</li>
+            <li>Avisos só saem de segunda a sexta, das 8h às 20h, e no sábado até 12h (horário de Brasília). Domingo e feriado nacional, nunca: o aviso vai para o próximo dia útil, às 9h.</li>
             <li>No máximo um aviso por dia para o mesmo cliente, mesmo com várias cobranças.</li>
             <li>Pagou ou cancelou, os avisos param na hora.</li>
             <li>Os modelos têm tom respeitoso; termos que soam como ameaça geram alerta (CDC, art. 42).</li>

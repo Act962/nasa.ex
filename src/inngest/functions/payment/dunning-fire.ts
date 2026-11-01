@@ -6,7 +6,11 @@ import { resend } from "@/lib/email/resend";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { buildChargeUrl } from "@/features/payment/lib/charge-link";
 import { formatCalendarDate } from "@/features/payment/lib/dates";
-import { sendDunningWhatsApp } from "@/features/payment/server/messaging/send-dunning-whatsapp";
+import {
+  sendDunningWhatsApp,
+  sendDunningWhatsAppFollowUp,
+} from "@/features/payment/server/messaging/send-dunning-whatsapp";
+import { splitPixCodeMessage } from "@/features/payment/lib/dunning-presets";
 import { moveIntoBusinessHours } from "@/features/payment/server/dunning/schedule";
 import {
   buildChargePixCode,
@@ -88,7 +92,13 @@ export const paymentDunningFire = inngest.createFunction(
       }
       // Cliente prometeu pagar: o aviso volta para o fim da pausa em vez de sair agora.
       if (entry.dunningPausedUntil && entry.dunningPausedUntil.getTime() > Date.now()) {
-        return { skip: "paused" as const, pausedUntilMs: entry.dunningPausedUntil.getTime() };
+        return { skip: "paused" as const, resumeAtMs: moveIntoBusinessHours(entry.dunningPausedUntil).getTime() };
+      }
+      // Domingo, feriado ou sábado à tarde (inclusive eventos agendados antes dessa regra existir).
+      const now = new Date();
+      const sendWindowOpensAt = moveIntoBusinessHours(now);
+      if (sendWindowOpensAt.getTime() !== now.getTime()) {
+        return { skip: "outside-send-window" as const, resumeAtMs: sendWindowOpensAt.getTime() };
       }
       if (await wasCustomerNotifiedTodayForAnotherEntry(entry)) {
         await prisma.paymentDunningExecution.upsert({
@@ -128,16 +138,16 @@ export const paymentDunningFire = inngest.createFunction(
       };
     });
 
-    if (guard.skip === "paused") {
-      const resumeAtMs = moveIntoBusinessHours(new Date(guard.pausedUntilMs)).getTime();
-      await step.sendEvent("reschedule-after-pause", {
+    if (guard.skip === "paused" || guard.skip === "outside-send-window") {
+      const { resumeAtMs } = guard;
+      await step.sendEvent(`reschedule-${guard.skip}`, {
         name: "payment/dunning.fire",
-        id: `dunning-${entryId}-${stepId}-${dueDateMs ?? "legacy"}-paused-${guard.pausedUntilMs}`,
+        id: `dunning-${entryId}-${stepId}-${dueDateMs ?? "legacy"}-${guard.skip}-${resumeAtMs}`,
         data: { entryId, stepId, organizationId, scheduledForMs: resumeAtMs, dueDateMs },
         ts: resumeAtMs,
       });
-      logger.info("[dunning] paused, rescheduled", { entryId, stepId, resumeAtMs });
-      return { skipped: "paused", resumeAtMs };
+      logger.info(`[dunning] ${guard.skip}, rescheduled`, { entryId, stepId, resumeAtMs });
+      return { skipped: guard.skip, resumeAtMs };
     }
     if (guard.skip) {
       logger.info(`[dunning] skip ${guard.skip}`, { entryId, stepId });
@@ -181,6 +191,9 @@ export const paymentDunningFire = inngest.createFunction(
     }
 
     const body = interpolate(dunStep.templateBody);
+    const pixCodeSplit = splitPixCodeMessage(dunStep.templateBody);
+    const pixCodeFollowUp = pixCodeSplit.hasPixCodeMessage ? chargeVariables.pixCode : "";
+    const whatsappBody = pixCodeSplit.hasPixCodeMessage ? interpolate(pixCodeSplit.body) : body;
     const subject = dunStep.templateSubject
       ? interpolate(dunStep.templateSubject)
       : `Cobrança — ${entry.description}`;
@@ -231,7 +244,7 @@ export const paymentDunningFire = inngest.createFunction(
         const result = await sendDunningWhatsApp({
           organizationId,
           phone: recipientPhone,
-          text:  body,
+          text:  whatsappBody,
           template: dunStep.whatsappTemplateName && dunStep.whatsappTemplateLanguage
             ? {
                 name:           dunStep.whatsappTemplateName,
@@ -244,10 +257,26 @@ export const paymentDunningFire = inngest.createFunction(
         if (!result.isSent) {
           return { status: "FAILED" as const, reason: result.reason, messageId: null };
         }
-        return { status: "SENT" as const, messageId: result.externalMessageId, reason: null };
+        return {
+          status: "SENT" as const,
+          messageId: result.externalMessageId,
+          reason: null,
+          isFreeText: result.via === "text",
+        };
       }
       return { status: "SKIPPED" as const, reason: "unknown-channel", messageId: null };
     });
+
+    // Modelo da Meta (janela fechada) não aceita texto livre logo depois: o código fica no modelo.
+    const pixCodeResult =
+      pixCodeFollowUp && recipientPhone && "isFreeText" in sendResult && sendResult.isFreeText
+        ? await step.run("send-pix-code", () =>
+            sendDunningWhatsAppFollowUp({ organizationId, phone: recipientPhone, text: pixCodeFollowUp }),
+          )
+        : null;
+    if (pixCodeResult && !pixCodeResult.isSent) {
+      logger.warn("[dunning] pix code message failed", { entryId, stepId, reason: pixCodeResult.reason });
+    }
 
     // ── 4) Marca execution ──────────────────────────────────────────────
     await step.run("mark-execution", async () => {
@@ -256,7 +285,9 @@ export const paymentDunningFire = inngest.createFunction(
         data: {
           status:       sendResult.status,
           executedAt:   new Date(),
-          errorMessage: sendResult.reason,
+          errorMessage:
+            sendResult.reason ??
+            (pixCodeResult && !pixCodeResult.isSent ? `pix-code-not-sent: ${pixCodeResult.reason}` : null),
           messageId:    sendResult.messageId,
         },
       });
@@ -283,6 +314,7 @@ export const paymentDunningFire = inngest.createFunction(
           status: sendResult.status,
           reason: sendResult.reason,
           messageId: sendResult.messageId,
+          pixCodeSent: pixCodeResult?.isSent ?? null,
         },
       });
     });
