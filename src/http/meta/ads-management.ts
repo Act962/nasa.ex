@@ -1,49 +1,50 @@
 /**
- * Meta Ads Management HTTP layer.
- *
- * Wraps Graph API v22.0 calls for:
- *  - Listing/CRUD de campaigns, adsets e ads
- *  - Insights drill-down (campaign/adset/ad)
- *
- * Recebe credenciais do PlatformIntegration.config (accessToken + adAccountId).
- * Não depende de oRPC — é puro fetch para ser usado em procedures e crons.
- *
- * Auth: prioriza `Authorization: Bearer <token>` (recomendação Meta), com fallback
- * de `access_token` em querystring pra compatibilidade.
+ * Meta Ads Management HTTP layer: campanhas, conjuntos, anúncios e insights.
+ * Puro fetch (procedures e crons), sobre o cliente único `graph-client.ts` (spec 0122).
  */
 
+import {
+  META_GRAPH_BASE_URL,
+  MetaGraphError,
+  metaGraphPaginate,
+  metaGraphRequest,
+} from "./graph-client";
+
+/**
+ * Versão antiga, mantida só para os módulos orgânicos que importam `META_GRAPH`
+ * (Página, Instagram, perfil social). Anúncios usam `META_GRAPH_BASE_URL`.
+ */
 export const META_API_VERSION = "v22.0";
 export const META_GRAPH = `https://graph.facebook.com/${META_API_VERSION}`;
-const GRAPH = META_GRAPH;
+const GRAPH = META_GRAPH_BASE_URL;
 
 export interface MetaAuth {
   accessToken: string;
   adAccountId: string; // com ou sem prefixo "act_"
+  /** Segredo do app que gerou o token: liga o `appsecret_proof`. */
+  appSecret?: string | null;
 }
 
-function actId(adAccountId: string) {
+export function actId(adAccountId: string) {
   return adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 }
 
 /**
- * Faz fetch contra Graph API com Bearer token no header. Lança Error com
- * `type` + `message` da Meta quando há `error` no payload.
+ * Chamada à Graph com o token no cabeçalho. Mantida pela assinatura antiga;
+ * erros saem como `MetaGraphError` (que também é `Error`).
  */
 export async function graphFetch<T = unknown>(
   url: string,
-  init?: RequestInit & { accessToken?: string },
+  init?: { method?: "GET" | "POST" | "DELETE"; body?: URLSearchParams; accessToken?: string; appSecret?: string | null },
 ): Promise<T> {
-  const headers = new Headers(init?.headers);
-  if (init?.accessToken && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${init.accessToken}`);
+  if (!init?.accessToken) {
+    throw new MetaGraphError({ kind: "token_invalid", message: "[MetaGraph] chamada sem token" });
   }
-  const res = await fetch(url, { ...init, headers });
-  const json = (await res.json()) as Record<string, unknown>;
-  if (json.error) {
-    const err = json.error as { message: string; code: number; type: string };
-    throw new Error(`[MetaAds] ${err.type ?? "Error"}: ${err.message}`);
-  }
-  return json as T;
+  return metaGraphRequest<T>(url, {
+    auth: { accessToken: init.accessToken, appSecret: init.appSecret },
+    method: init.method,
+    body: init.body,
+  });
 }
 
 // ─── Insights drill-down ──────────────────────────────────────────────────
@@ -69,6 +70,20 @@ export interface InsightRow {
   adsetName?: string;
   adId?: string;
   adName?: string;
+  /** Preenchidos quando a consulta usa `time_increment`. */
+  dateStart?: string;
+  dateStop?: string;
+  /** Pedidos com `extraFields` (nível de anúncio, spec 0128). */
+  objective?: string;
+  qualityRanking?: string;
+  engagementRanking?: string;
+  conversionRanking?: string;
+  /** Preenchidos quando a consulta usa `breakdowns` (spec 0129). */
+  age?: string;
+  gender?: string;
+  /** Conversas iniciadas por mensagem (WhatsApp, Messenger, Direct), janela de 7 dias. */
+  messagingConversations: number;
+  costPerMessagingConversation: number;
   reach: number;
   impressions: number;
   frequency: number;
@@ -92,6 +107,15 @@ export interface InsightRow {
   avgWatchTime: number;
 }
 
+const MESSAGING_CONVERSATION_ACTION = "onsite_conversion.messaging_conversation_started_7d";
+
+/** Filtro da Insights API, ex.: `{ field: "campaign.id", operator: "IN", value: ["123"] }`. */
+export interface MetaInsightsFilter {
+  field: string;
+  operator: "EQUAL" | "NOT_EQUAL" | "IN" | "NOT_IN" | "CONTAIN" | "NOT_CONTAIN" | "GREATER_THAN" | "LESS_THAN";
+  value: string | number | string[];
+}
+
 function parseInsightRow(raw: Record<string, unknown>): InsightRow {
   const reach = Number(raw.reach ?? 0);
   const impressions = Number(raw.impressions ?? 0);
@@ -106,6 +130,11 @@ function parseInsightRow(raw: Record<string, unknown>): InsightRow {
 
   const actions = (raw.actions as { action_type: string; value: string }[]) ?? [];
   const getAction = (type: string) => Number(actions.find((a) => a.action_type === type)?.value ?? 0);
+  const costPerActionType = (raw.cost_per_action_type as { action_type: string; value: string }[]) ?? [];
+  const messagingConversations = getAction(MESSAGING_CONVERSATION_ACTION);
+  const reportedCostPerConversation = Number(
+    costPerActionType.find((cost) => cost.action_type === MESSAGING_CONVERSATION_ACTION)?.value ?? 0,
+  );
 
   const conversions =
     getAction("offsite_conversion.fb_pixel_purchase") ||
@@ -138,12 +167,23 @@ function parseInsightRow(raw: Record<string, unknown>): InsightRow {
     adsetName: raw.adset_name as string | undefined,
     adId: raw.ad_id as string | undefined,
     adName: raw.ad_name as string | undefined,
+    dateStart: raw.date_start as string | undefined,
+    dateStop: raw.date_stop as string | undefined,
+    messagingConversations,
+    costPerMessagingConversation:
+      reportedCostPerConversation || (messagingConversations > 0 ? spend / messagingConversations : 0),
     reach, impressions, frequency,
     clicks, ctr, engagement,
     spend, cpm, cpc, cpp, cpl, cpa,
     cpv: videoPlays > 0 ? spend / videoPlays : 0,
     conversions, leads, conversionValue, conversionRate, roas,
     videoPlays, thruPlays, avgWatchTime,
+    objective: raw.objective as string | undefined,
+    qualityRanking: raw.quality_ranking as string | undefined,
+    engagementRanking: raw.engagement_rate_ranking as string | undefined,
+    conversionRanking: raw.conversion_rate_ranking as string | undefined,
+    age: raw.age as string | undefined,
+    gender: raw.gender as string | undefined,
   };
 }
 
@@ -158,28 +198,50 @@ function parseInsightRow(raw: Record<string, unknown>): InsightRow {
  *
  * Auth via Bearer header (não vaza token na URL/logs).
  */
-export async function fetchAdsInsights(
+export interface AdsInsightsOptions {
+  level: "account" | "campaign" | "adset" | "ad";
+  datePreset?: string;
+  timeRange?: { since: string; until: string };
+  filtering?: MetaInsightsFilter[];
+  /** 1 = uma linha por dia. */
+  timeIncrement?: 1;
+  /** Mesma atribuição do Gerenciador de Anúncios (spec 0122, D-3). */
+  unifiedAttribution?: boolean;
+  maxPages?: number;
+  /** Campos a mais, ex.: classificações de qualidade (só existem no nível de anúncio). */
+  extraFields?: string[];
+  breakdowns?: ("age" | "gender")[];
+}
+
+export async function fetchAdsInsightsDetailed(
   auth: MetaAuth,
-  opts: {
-    level: "account" | "campaign" | "adset" | "ad";
-    datePreset?: string;
-    timeRange?: { since: string; until: string };
-  },
-): Promise<InsightRow[]> {
-  const url = new URL(`${GRAPH}/${actId(auth.adAccountId)}/insights`);
-  url.searchParams.set("fields", INSIGHTS_FIELDS);
-  url.searchParams.set("level", opts.level);
-  url.searchParams.set("limit", "500");
-  if (opts.timeRange) {
-    url.searchParams.set("time_range", JSON.stringify(opts.timeRange));
-  } else {
-    url.searchParams.set("date_preset", opts.datePreset ?? "last_30d");
-  }
-  const json = await graphFetch<{ data: Record<string, unknown>[] }>(
-    url.toString(),
-    { accessToken: auth.accessToken },
+  opts: AdsInsightsOptions,
+): Promise<{ rows: InsightRow[]; truncated: boolean }> {
+  const { items, truncated } = await metaGraphPaginate<Record<string, unknown>>(
+    `${GRAPH}/${actId(auth.adAccountId)}/insights`,
+    {
+      auth,
+      maxPages: opts.maxPages,
+      query: {
+        fields: opts.extraFields?.length ? `${INSIGHTS_FIELDS},${opts.extraFields.join(",")}` : INSIGHTS_FIELDS,
+        level: opts.level,
+        limit: 500,
+        ...(opts.timeRange
+          ? { time_range: JSON.stringify(opts.timeRange) }
+          : { date_preset: opts.datePreset ?? "last_30d" }),
+        ...(opts.filtering?.length ? { filtering: JSON.stringify(opts.filtering) } : {}),
+        ...(opts.timeIncrement ? { time_increment: opts.timeIncrement } : {}),
+        ...(opts.unifiedAttribution ? { use_unified_attribution_setting: true } : {}),
+        ...(opts.breakdowns?.length ? { breakdowns: opts.breakdowns.join(",") } : {}),
+      },
+    },
   );
-  return (json.data ?? []).map(parseInsightRow);
+  return { rows: items.map(parseInsightRow), truncated };
+}
+
+export async function fetchAdsInsights(auth: MetaAuth, opts: AdsInsightsOptions): Promise<InsightRow[]> {
+  const { rows } = await fetchAdsInsightsDetailed(auth, opts);
+  return rows;
 }
 
 // ─── Insights breakdowns (idade/gênero/plataforma/região) ─────────────────
@@ -249,23 +311,28 @@ export async function fetchAdsBreakdowns(
     breakdown: MetaBreakdown;
     datePreset?: string;
     timeRange?: { since: string; until: string };
+    filtering?: MetaInsightsFilter[];
+    unifiedAttribution?: boolean;
   },
 ): Promise<BreakdownRow[]> {
-  const dateParam = opts.timeRange
-    ? `time_range=${encodeURIComponent(JSON.stringify(opts.timeRange))}`
-    : `date_preset=${opts.datePreset ?? "last_30d"}`;
-
-  const url =
-    `${GRAPH}/${actId(auth.adAccountId)}/insights?` +
-    `fields=${BREAKDOWN_FIELDS}` +
-    `&breakdowns=${opts.breakdown}` +
-    `&level=account` +
-    `&${dateParam}` +
-    `&limit=500` +
-    `&access_token=${auth.accessToken}`;
-
-  const json = await graphFetch<{ data: Record<string, unknown>[] }>(url);
-  return (json.data ?? []).map((r) => parseBreakdownRow(r, opts.breakdown));
+  const { items } = await metaGraphPaginate<Record<string, unknown>>(
+    `${GRAPH}/${actId(auth.adAccountId)}/insights`,
+    {
+      auth,
+      query: {
+        fields: BREAKDOWN_FIELDS,
+        breakdowns: opts.breakdown,
+        level: "account",
+        limit: 500,
+        ...(opts.timeRange
+          ? { time_range: JSON.stringify(opts.timeRange) }
+          : { date_preset: opts.datePreset ?? "last_30d" }),
+        ...(opts.filtering?.length ? { filtering: JSON.stringify(opts.filtering) } : {}),
+        ...(opts.unifiedAttribution ? { use_unified_attribution_setting: true } : {}),
+      },
+    },
+  );
+  return items.map((row) => parseBreakdownRow(row, opts.breakdown));
 }
 
 // ─── Insights time series (investido por dia) ─────────────────────────────
@@ -289,26 +356,27 @@ export async function fetchAdsTimeSeries(
     timeRange?: { since: string; until: string };
   },
 ): Promise<TimeSeriesRow[]> {
-  const dateParam = opts.timeRange
-    ? `time_range=${encodeURIComponent(JSON.stringify(opts.timeRange))}`
-    : `date_preset=${opts.datePreset ?? "last_30d"}`;
-
-  const url =
-    `${GRAPH}/${actId(auth.adAccountId)}/insights?` +
-    `fields=spend,impressions,reach,clicks` +
-    `&time_increment=1` +
-    `&level=account` +
-    `&${dateParam}` +
-    `&limit=500` +
-    `&access_token=${auth.accessToken}`;
-
-  const json = await graphFetch<{ data: Record<string, unknown>[] }>(url);
-  return (json.data ?? []).map((r) => ({
-    date: String(r.date_start ?? ""),
-    spend: Number(r.spend ?? 0),
-    impressions: Number(r.impressions ?? 0),
-    reach: Number(r.reach ?? 0),
-    clicks: Number(r.clicks ?? 0),
+  const { items } = await metaGraphPaginate<Record<string, unknown>>(
+    `${GRAPH}/${actId(auth.adAccountId)}/insights`,
+    {
+      auth,
+      query: {
+        fields: "spend,impressions,reach,clicks",
+        time_increment: 1,
+        level: "account",
+        limit: 500,
+        ...(opts.timeRange
+          ? { time_range: JSON.stringify(opts.timeRange) }
+          : { date_preset: opts.datePreset ?? "last_30d" }),
+      },
+    },
+  );
+  return items.map((row) => ({
+    date: String(row.date_start ?? ""),
+    spend: Number(row.spend ?? 0),
+    impressions: Number(row.impressions ?? 0),
+    reach: Number(row.reach ?? 0),
+    clicks: Number(row.clicks ?? 0),
   }));
 }
 

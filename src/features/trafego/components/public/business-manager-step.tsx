@@ -1,17 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, Check, ChevronDown, HelpCircle, Info } from "lucide-react";
+import { Building2, Check, ChevronDown, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 
 export type BusinessManagerAnswer = "yes" | "no" | "unsure";
 
 interface BusinessManagerStepProps {
   value: BusinessManagerAnswer | null;
   onChange: (value: BusinessManagerAnswer) => void;
-  /** Setup da faixa atual; 0 quando é gratuito. */
-  setupBrlCents: number;
 }
 
 const OPTIONS: Array<{
@@ -22,7 +19,7 @@ const OPTIONS: Array<{
   {
     value: "yes",
     label: "Sim, já tenho",
-    description: "Vamos pedir acesso à sua conta — sem taxa de setup.",
+    description: "Nossa equipe conecta a sua conta à Órbita.",
   },
   {
     value: "no",
@@ -37,16 +34,14 @@ const OPTIONS: Array<{
 ];
 
 /**
- * Pergunta sobre conta de anúncios. Quem não tem BM paga o setup, então a
- * resposta muda o preço — daí a explicação vir junto, e não num tooltip.
+ * Pergunta sobre conta de anúncios. Não muda o preço desde a spec 0126: serve
+ * para a equipe saber se cria a conta ou conecta a que já existe.
  */
 export function BusinessManagerStep({
   value,
   onChange,
-  setupBrlCents,
 }: BusinessManagerStepProps) {
   const [isExplanationOpen, setIsExplanationOpen] = useState(false);
-  const willBeCharged = value === "no" || value === "unsure";
 
   return (
     <div>
@@ -129,28 +124,6 @@ export function BusinessManagerStep({
         </div>
       )}
 
-      {willBeCharged && (
-        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning/15 p-4">
-          <Info className="mt-0.5 size-4 shrink-0 text-warning" />
-          <div className="text-xs leading-relaxed text-foreground/85">
-            {setupBrlCents > 0 ? (
-              <>
-                Como você ainda não tem conta de anúncios, há uma{" "}
-                <strong>taxa única de setup de {formatBrlFromCents(setupBrlCents)}</strong>{" "}
-                para criar e configurar a BM no seu nome. Ela some a partir de{" "}
-                <strong>R$ 2.501</strong> de investimento — dá para conferir na
-                simulação do próximo passo.
-              </>
-            ) : (
-              <>
-                Você ainda não tem conta de anúncios, mas no valor que você vai
-                investir o <strong>setup é gratuito</strong>: criamos e configuramos
-                a BM no seu nome sem custo.
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -3,13 +3,19 @@
 > Documento de referência do domínio `trafego`. Status: **venda (0008) implementada ·
 > operação, PIX, chat, políticas, KPIs e inteligência (0009, Fases A–D) implementadas em
 > 2026-09-12/13 · Fase E, PIX pelo Asaas e captura de lead em 2026-09 · pedido avulso e correções
-> de pagamento em 2026-10 · migrations do domínio aplicadas (conferido em clone de 2026-10-21)**.
+> de pagamento em 2026-10 · Desempenho pela conta do cliente e "Corrigir valores" (0122),
+> cobrança só do serviço com complemento (0123) e campanha de WhatsApp pelo painel (0124) em
+> 2026-10-30 · migration da 0123 (`20261030200000_trafego_service_only_billing`) aplicada no banco de desenvolvimento em 2026-10-30 (produção aplica no boot do container) ·
+> demais migrations do domínio aplicadas (conferido em clone de 2026-10-21)**.
 > Specs: [`0008`](../specs/trafego/0008-trafego-self-service.md) (venda) ·
 > [`0009`](../specs/trafego/0009-trafego-operacao-inteligencia.md) (operação, PIX, Astro, políticas,
 > Release, KPIs) · [`0010`](../specs/trafego/0010-trafego-checkout-cupom.md) (cupom) ·
 > [`0021`](../specs/trafego/0021-trafego-captura-lead-e-notificacao-admin.md) (captura de lead) ·
 > [`0022`](../specs/trafego/0022-trafego-pix-asaas.md) (PIX Asaas) ·
-> [`0116`](../specs/trafego/0116-trafego-pedido-avulso.md) (pedido avulso). Backlog:
+> [`0116`](../specs/trafego/0116-trafego-pedido-avulso.md) (pedido avulso) ·
+> [`0122`](../specs/trafego/0122-trafego-base-meta-e-desempenho.md) (base Meta, Desempenho real, Corrigir valores) ·
+> [`0123`](../specs/trafego/0123-trafego-cobranca-so-do-servico.md) (cobrança só do serviço, complemento, wizard da org logada) ·
+> [`0124`](../specs/trafego/0124-trafego-campanha-pelo-painel.md) (owner/admin cria e publica pelo painel). Backlog:
 > [`trafego-correcoes-pendentes.md`](trafego-correcoes-pendentes.md). Playbook do gestor: [`trafego-playbook-gestor.md`](trafego-playbook-gestor.md).
 >
 > **Regra de manutenção**: ao mexer em `src/features/trafego/`, `src/app/router/trafego/`,
@@ -28,17 +34,26 @@ envia criativos e copy, e clica em "Ativar". A equipe NASA executa (Claude Code 
 status anda num **tracking de operação** — cada card é um cliente, cada coluna uma fase. O cliente
 acompanha pelo painel e é avisado por WhatsApp e e-mail a cada mudança.
 
-**Modelo de cobrança**: pagamento único por campanha, calculado por um **simulador de faixas**.
-O cliente escolhe a verba (mínimo R$ 300) e a taxa vem **por cima** — os 100% da verba vão para o
-anúncio. Quanto maior o investimento, menor o percentual:
+**Modelo de cobrança (spec 0123, pedidos novos)**: a **verba** é paga pelo cliente direto à Meta,
+no cartão da conta de anúncios dele. A Órbita cobra **só o serviço**: 30% da verba declarada, com
+**mínimo de R$ 150**, mais setup (se não tem conta) e criativos extras. A verba declarada continua
+entre R$ 300 e R$ 500.000 e serve de base da taxa. Setup por faixa de verba:
 
-| Verba | Taxa | Setup da BM |
-| --- | --- | --- |
-| R$ 300 a R$ 500 | 50% | R$ 500 |
-| R$ 501 a R$ 1.000 | 40% | R$ 450 |
-| R$ 1.001 a R$ 2.500 | 35% | R$ 400 |
-| R$ 2.501 a R$ 5.000 | 30% | Grátis |
-| Acima de R$ 5.000 | 25% | Grátis |
+| Verba declarada | Setup da BM |
+| --- | --- |
+| R$ 300 a R$ 500 | R$ 500 |
+| R$ 501 a R$ 1.000 | R$ 450 |
+| R$ 1.001 a R$ 2.500 | R$ 400 |
+| Acima de R$ 2.500 | Grátis |
+
+**Complemento**: se o gasto real da conta no período do pedido passar da verba declarada, a taxa
+acompanha: `devido = max(30% × gasto, R$ 150)` menos o já cobrado. A partir de R$ 30 nasce um
+lançamento a receber `TG-NNNN-Cn` na org da agência, como **rascunho** (sem régua). A equipe envia
+pelo cartão "Complementos" do admin, que atribui a régua padrão das Cobranças (spec 0115).
+Complemento **enviado e vencido** trava a criação e a publicação de campanha pelo painel.
+
+O pedido guarda o modelo em `adBudgetPaidToMeta`. Pedidos e pendências anteriores à 0123 ficam
+`false` e seguem o modelo antigo (verba + taxa por faixa de 50% a 25%, verba como repasse a pagar).
 
 O **setup da BM** é cobrado uma única vez, apenas de quem ainda não tem conta de anúncios. Cobre a
 criação da BM, da página do Facebook e a correção de problemas na conta. Produção de criativo é
@@ -47,13 +62,14 @@ serviço à parte. As três parcelas aparecem separadas: na landing, no Stripe e
 **Criativos extras (Fase E)**: o pedido inclui `TrafegoSettings.includedCreatives` criativos (padrão
 3). Quem quer mais escolhe no wizard (`desiredCreativeCount`) e paga
 `extraCreativeBrlCents` por criativo adicional, como quarta parcela no Stripe. O pedido não tem
-coluna própria para isso: no financeiro, extras = total − verba − taxa − setup, e entram como
-receita junto da taxa. Quem já tem perfil pronto pode mandar o link (`materialsProfileLink`) em vez
+coluna própria para isso: no financeiro, extras = total − taxa − setup (− verba, só no modelo
+antigo), e entram como receita junto da taxa. Quem já tem perfil pronto pode mandar o link (`materialsProfileLink`) em vez
 dos arquivos.
 
 **Cupom (spec 0010)**: aceito no Stripe (`allow_promotion_codes`). O desconto **não** é gravado no
 banco: é lido do Stripe na hora de lançar o financeiro (`stripe-discount.ts`) e distribuído por
-`allocateTrafegoDiscount` na ordem taxa → setup → extras → verba. Cupom que chega na verba gera
+`allocateTrafegoDiscount` na ordem taxa → setup → extras → verba (no modelo novo a verba não é
+cobrada, então o cupom nunca chega nela). Cupom que chega na verba gera
 evento interno e aviso aos admins. Se o Stripe não responder, nada é lançado e a equipe é avisada.
 
 A tabela vive em `src/features/trafego/lib/pricing-tiers.ts` e é a fonte de verdade. O servidor
@@ -65,21 +81,24 @@ A tabela vive em `src/features/trafego/lib/pricing-tiers.ts` e é a fonte de ver
 | --- | --- | --- |
 | Catálogo | Meta Ads + Google Ads + WhatsApp API Oficial | Google entra como pedido executado pela equipe |
 | Cobrança | Pagamento único: cartão pelo Stripe Checkout, PIX pelo Asaas (spec 0022) | Reusa o eixo `PendingCoursePurchase`. O PIX manual continua como fallback quando o gateway está desligado |
-| Preço | Simulador por faixa, taxa **sobre** a verba | O cliente sabe quanto vai para o anúncio |
-| Execução | **Manual pela equipe**, via Claude Code + MCP | Verba é dinheiro real; clique de cliente não publica anúncio |
+| Preço | **Só o serviço**: 30% da verba declarada, mínimo R$ 150; verba paga direto à Meta — spec 0123 | A verba nunca passa pela Órbita; o setup segue por faixa |
+| Complemento | Gasto real da **conta toda** no período, com exclusão manual de campanhas; nasce rascunho; só enviado e vencido trava — 0123 D-2, D-4, D-5 | Contar só o código no nome deixaria escapar por outra campanha |
+| Execução | Equipe via Claude Code + MCP **e**, desde a 0124, o **owner/admin pelo painel** (campanha de WhatsApp, tudo pausado até publicar) — revoga a D-1 das 0008/0009/0010 | Travas: pausado, confirmação com valor, conta da org do pedido, complemento vencido bloqueia |
 | Mesa de operação | **Tracking** (não Workspace) — spec 0009 D-1 | Instância de WhatsApp e formulário se prendem ao lead/tracking |
 | Fonte de verdade do status | **O pedido**; o card é espelho — D-2 | O pedido carrega `startedAt/endsAt` e consequências contratuais |
 | Card por cliente | `TrafegoOrder.leadId` **não** único — D-3 | Cliente recorrente tem N pedidos no mesmo card |
 | Fase inicial do pedido | `ACCOUNT_REVIEW` para todo pedido — D-6 | Conta restrita é pega antes de gastar verba |
-| Financeiro | Receita = taxa + setup; verba = conta a pagar — D-5 | Somar inflaria faturamento |
+| Financeiro | Receita = taxa + setup + extras; verba = conta a pagar **só no modelo antigo** — D-5, 0123 RF-6 | Somar inflaria faturamento; no modelo novo a verba não passa pela Órbita |
 | Conta do cliente | Organization própria com `appScope="trafego"` | Reusa auth/org/permissões |
 | Nome do pedido | `TrafegoOrder`, nunca "campanha" | "Campanha" já nomeia `Broadcast`, `MetaAdCampaign` e `NasaCampaignPlanner` |
 | Timeline | Eventos append-only com `source` | O fluxo tem voltas; a origem diz quem mexeu |
 | Webhook | Endpoint próprio, fail-closed no secret | Um throw derruba o endpoint inteiro |
+| Números do Desempenho | Integração Meta dos **Satélites da org do pedido** (token manual); sem ela, modo antigo pela agência — spec 0122 D-1 | Tudo vem dos Satélites; o token da agência leria a conta de qualquer cliente |
+| Token do usuário do sistema da Órbita | Integração marcada "gerenciada pela Órbita": só admin do sistema edita — 0122 D-2 | Esse token enxerga todos os clientes; o owner trocaria o número da conta e leria outro |
 
 ### Não-objetivos declarados
 
-Publicação automática no Meta/Google · senha de redes sociais (acesso é por parceiro na BM) · PIX
+Publicação sem confirmação de uma pessoa · objetivos além de mensagens no WhatsApp pelo painel · senha de redes sociais (acesso é por parceiro na BM) · PIX
 por gateway · RAG das políticas (base curada em código) · raspagem de Instagram/Facebook.
 
 ## 3. Fluxo ponta a ponta (estado atual — Fase A da 0009)
@@ -165,8 +184,9 @@ a partir de ONBOARDING (ativar antes pularia a análise da conta).
 
 ### Dois pontos que causam bug silencioso
 
-1. **`metricsOrganizationId`** — snapshots do Meta são da org da **agência**; sem ele o painel volta
-   vazio.
+1. **`metricsOrganizationId`** — no modo antigo, os snapshots do Meta são da org da **agência**;
+   sem ele o painel volta vazio. Com a integração Meta na org do pedido (spec 0122), o Desempenho
+   ignora esse campo e lê a conta do cliente ao vivo, com cache de 15 min.
 2. **Telefone** — `Lead.phone` precisa ser igual ao `wa_id` do inbound (`normalizeWhatsappPhoneBr`
    → `normalizePhoneToMetaE164`); senão o comprovante cria um segundo card.
 3. **Verificações são fail-open** — sem instância Uazapi ou sem integração Meta na agência,
@@ -218,6 +238,30 @@ src/app/router/trafego/       public/ (+ verification: startPhone, confirmPhone,
                               admin/ (plans, orders + unlinkMetaCampaign,
                               settings + listAgencyOptions + provision*)
 src/lib/rate-limit.ts         limitador por IP compartilhado (chat público e verificações)
+src/http/meta/graph-client.ts cliente Graph dos anúncios (v25, erro tipado, paginação) — spec 0122
+src/http/meta/ads-account.ts  conta, token, páginas e WhatsApp para o "Testar conexão"
+src/features/trafego/server/lib/meta/  order-meta-access (conta da org do pedido) · order-meta-performance
+                              (visão da conta, campanhas, públicos, verba usada) · meta-read-cache (15 min)
+src/features/trafego/lib/     order-meta-metrics (período, campanha do pedido, KPIs) · order-values
+                              (nome do plano, regras do "Corrigir valores")
+src/app/router/trafego/       performance (budget · overview · breakdown) · admin/correct-values
+src/features/integrations/lib/ meta-connection-check · meta-integration-access (quem mexe na integração)
+src/features/trafego/lib/complement.ts  regras do complemento (janela, devido, número TG-NNNN-Cn, trava) — 0123
+src/features/trafego/server/lib/service-fee-complement.ts  cálculo diário (passo no fim de sync-meta-ads-kpis),
+                              trava da org, complementos do pedido
+src/app/router/trafego/admin/complements.ts  complements.{list,send,cancel} · setOutsideCampaigns
+src/features/admin/components/trafego/complements-card.tsx  cartão "Complementos" do admin
+src/features/trafego/components/panel/  service-fee-section ("Taxa sobre o gasto real") · billing-lock-banner
+src/http/meta/ads-builder.ts  escrita do construtor (criar/atualizar objeto, cidade, posts do IG, imagem, árvore) — 0124
+src/features/trafego/lib/campaign-builder/  build-meta-payloads (fonte única dos campos) · builder-rules
+src/features/trafego/server/lib/campaign-builder/  builder-access (guarda) · builder-context (leituras)
+                              builder-actions (rascunho, publicar) · builder-edits (pausar, verba, fim, público, anúncio)
+src/app/router/trafego/campaign-builder.ts  campaignBuilder.{access,context,suggest,searchCities,
+                              listInstagramPosts,createDraft,publish,discardDraft,update,replaceAd}
+src/features/trafego/components/panel/campaign-builder/  aba "Publicar" (wizard, lista, edição)
+src/features/trafego/server/lib/astro-meta-tools.ts  Astro do painel com a Meta pelo MCP oficial (spec 0125):
+                              números das campanhas do pedido e propostas de pausar, retomar e verba
+src/http/meta/ads-mcp-client.ts · src/features/astro-meta-ads/  cliente e guardas do MCP oficial da Meta
 src/app/api/checkout/trafego/ checkout público (cria o card e o briefing)
 src/app/api/trafego/webhook/  webhook dedicado
 src/app/api/trafego/assistant/ chat público (OpenAI, ferramentas de leitura)
@@ -253,7 +297,10 @@ src/app/api/astro/chat/route.ts            isenta Stars quando appScope === "tra
 | `OPENAI_API_KEY` | `.env.local` + host | O chat da landing responde 503 |
 | `ANTHROPIC_API_KEY` (ou integração ANTHROPIC na org da agência) | `.env.local` + host | A segunda camada da checagem de políticas não roda; fica só a determinística |
 | **Integração Meta com página + IG Business** na org da agência | app de integrações | Preview da conta do cliente no wizard some |
+| **Integração Meta (token manual) na org do cliente**, de preferência o token do usuário do sistema da Órbita com a conta e a página do cliente atribuídas, marcada "gerenciada pela Órbita" | Satélites da org do cliente → Meta → "Testar conexão" | Desempenho no modo antigo: só a campanha vinculada, lida pela conta da agência |
 | **Business ID** da Órbita | Ajustes → Agência | Pedido de acesso de parceiro sem o ID |
+| **Régua de cobrança ativa** (de preferência marcada padrão) na org da agência | app Payment → Cobranças | "Enviar cobrança" do complemento recusa |
+| Token da org do cliente com `ads_management`, `pages_manage_ads`, `pages_read_engagement`, `pages_show_list` e a página com **WhatsApp ligado** (+ tarefa de conteúdo para ler os posts) | Satélites → Meta → "Testar conexão" | A aba "Publicar" mostra o motivo e não deixa criar |
 | **Conta + categorias** ("STRIPE", "Cliente TrafeGO", "Repasse verba") | app Payment na org da agência + Ajustes → Financeiro | Lançamentos sem conta/categoria |
 | Participantes do tracking | app de tracking | Gestor não vê os cards |
 
@@ -285,12 +332,35 @@ trafeGO com o secret do better-auth aceitaria evento de outro produto. Mesmo gua
 | **0021** | Captura do lead no passo Contato do wizard e aviso aos admins | ✅ |
 | **0116** | Pedido avulso criado pela equipe para quem pagou fora da landing | ✅ |
 | **0010-B** | Cupom no financeiro e no `amountMismatch`, sem migration (desconto lido do Stripe) | ✅ |
+| **0122** | Base Meta pelos Satélites, Desempenho pela conta do cliente, "Corrigir valores" | ✅ código |
+| **0123** | Cobrança só do serviço, complemento pelo gasto real, trava e wizard da org logada | ✅ código · ✅ migration (dev) |
+| **0124** | Owner/admin cria, publica e edita campanha de WhatsApp pelo painel | ✅ código · ⬜ teste real na conta |
+| **0125** | Astro gerencia a conta pelo MCP oficial da Meta (sai o "MCP" de mentira); no painel, só as campanhas do pedido | ✅ código · ⬜ teste real (token com `ads_mcp_management`) |
+| **0126** | Painel sem abas (anúncio, verba e CTR/CPC/CPM de cara), setup único de R$ 450 por empresa e criativo analisado pelo Astro no wizard e no painel | ✅ código · ⬜ migration `20261031120000` no dev · ⬜ teste no navegador |
+| **0127** | Limite de anúncios **no ar ao mesmo tempo** por faixa de verba (até R$ 500 → 3, até R$ 2.000 → 5, acima → 8); troca livre; extra com valor fixo, liberado pela equipe no admin | ✅ código · ⬜ teste real de publicar com limite |
+| **0128** | Nota de qualidade 0–100 por anúncio e conjunto (classificações da Meta + indicadores contra a média do mesmo objetivo), "Aprendendo"/"Dados insuficientes", popover nos indicadores vermelhos com correção e duplicação pelo Astro, taxa de conversa e origem no Órbita (mensagem inicial, funil, tags, leads) | ✅ código · ⬜ período de teste interno (`TRAFEGO_QUALITY_SCORE_PUBLIC`) · ⬜ teste de escrita na sandbox |
+| **0129** | Passo a passo do `/trafego` guiado pelo criativo: com a Meta conectada começa pelo criativo; o Astro lê o criativo e os últimos 90 dias da conta (`server/lib/meta/account-context.ts`) e sugere tipo, objetivo, público, dois textos e verba; avisos por campo em regra fixa (`lib/wizard-guardrails.ts`) e lista de avisos abertos antes de pagar | ✅ código · ⬜ teste logado ponta a ponta com IA |
+| **0130** | Botão "Gere com IA" (texto, título e mensagem inicial), guia das regras da Meta, região obrigatória, "Copiar prompt para o Claude" no admin e "Precisa de aprovação" no painel (recomendação = evento do histórico com aprovação) | ✅ código · ⬜ migration `20261102120000_trafego_approval_and_ai_token_scopes` em produção · ⬜ teste logado |
+| **0131** | trafeGO no MCP do ÓRBITA para a equipe (chave da IA externa com escopo `trafego`, só admin do sistema): listar o que precisa de ação, ler o pedido, roteiro de publicação, números por anúncio, enviar recomendação, vincular campanha e nota interna | ✅ código · ⬜ migration `20261102120000_trafego_approval_and_ai_token_scopes` (junto com a da 0130) em produção · ⬜ teste com chave real |
+| **0132** | O Claude avalia o pedido completo (rotina a cada 2 h pelo MCP do ÓRBITA), o cliente libera ("Aprovado, publicar" ou "Avaliar melhorias e aprovar") e o Claude publica pelo MCP da Meta, sem token no ÓRBITA. Status existentes + 4 colunas no pedido; avaliação = recomendação da 0130. Flag `TRAFEGO_CAMPAIGN_REVIEW` | ✅ código · ⬜ migration (junto com a da 0130/0131) em produção · ⬜ rotina ligada · ⬜ teste com pedido real |
 | **0022** | PIX pelo Asaas: cobrança nominal com CPF/CNPJ na trilha PIX, QR na tela, webhook dedicado com `asaas-access-token` fail-closed e valor relido da API, confirmação pelo `markTrafegoPurchasePaid` | ✅ código · ✅ migration · config: conferir |
 
 ## 8. Changelog
 
 | Data | Mudança |
 | --- | --- |
+| 2026-10-30 | **Spec 0125 — Astro com o MCP oficial da Meta**. O "MCP" de mentira (`src/lib/meta-mcp/client.ts` e `server-spawn.ts`, env `META_MCP_SERVER_CMD`) saiu, junto com as três ações de escrita que fingiam executar e cobravam Stars. O Astro usa o servidor oficial `https://mcp.facebook.com/ads` com o token dos Satélites e a conta da org sempre injetada pelo servidor; leitura direta, escrita só por cartão de confirmação, ativação mostra a verba, Stars só depois que a Meta confirma. "Testar conexão" diz se o Astro pode gerenciar (`ads_mcp_management` + conta liberada pela Meta). No painel do trafeGO o Astro lê as campanhas do pedido e propõe pausar, retomar e mudar a verba, com a guarda da aba Publicar. Sem migration, cron ou env nova. |
+| 2026-10-31 | **Spec 0126 — painel enxuto, setup único e criativo com o Astro**. O detalhe do pedido perdeu as 7 abas: abre com a verba destinada × usada, os números somados e um cartão por anúncio (prévia, gasto, conversas, CTR, CPC, CPM), lidos com `level=ad` (`server/lib/meta/order-ads-performance.ts`, `trafego.performance.ads`). Andamento, "Sobre a empresa" (briefing + Release), "Mais números da conta", Suporte e "Publicar e editar" ficam em gavetas (`panel/order-panel-sheet.tsx`). Sem conta Meta conectada, um aviso só ("Nossa equipe está configurando…"). O cliente vê 4 estados (`ORDER_CLIENT_STATUS_LABEL`) e não "ativa" mais o pedido: saiu `trafego.activateOrder`. Acessos viraram tarefa da equipe no admin (`trafego.admin.orders.updateAccessChecklist`). Setup: R$ 450 uma vez por empresa (`TRAFEGO_SETUP_BRL_CENTS`, `server/lib/setup-fee.ts`); as faixas valem só no WhatsApp Oficial. Criativo: passo "Criativo" no wizard de quem já é cliente e cartão no painel antes de ir ao ar; o navegador tira até 4 quadros (`utils/creative-frames.ts`), o Astro (Claude Haiku com visão) dá nota, veredito e itens de política, técnico e força (`server/lib/creative-review.ts`, `trafego.creativeReview.analyze`, 5 Stars depois da resposta), e a análise fica em `TrafegoCreative.astroReview`. Migration aditiva `20261031120000_trafego_creative_astro_review`. Sem cron. |
+| 2026-10-31 | **Spec 0127 — anúncios no ar ao mesmo tempo**. `maxCreatives` passa a ser o limite de anúncios rodando juntos nas campanhas do pedido (`lib/creative-limits.ts`), definido pela faixa de verba no checkout. Publicar e retomar pelo painel recusam quando passaria do limite (`assertRunningAdsLimit`); trocar anúncio não conta. Envio de arquivos vira teto técnico de 20. Admin: "Anúncios ao mesmo tempo" no pedido (`trafego.admin.orders.setRunningAdsLimit`). O campo "criativos incluídos" dos ajustes deixou de ser usado (coluna sai em migration separada). Sem migration. |
+| 2026-10-31 | **Spec 0128 — nota de qualidade e correção pelo Astro**. `lib/quality-score.ts` (pesos: custo por conversa 30, CTR 20, CPC 15, CPM 10, classificações da Meta 25; na média vale 70%), `lib/quality-diagnosis.ts` (causa e correção por indicador), média de comparação por objetivo (`readAccountBenchmarks`), `learning_stage_info` do conjunto para "Aprendendo — avalie a partir de", taxa de conversa (conversas ÷ cliques) e origem no Órbita por anúncio (`ad-lead-origin.ts`, pelo `Lead.metaAdId`). Ações: `trafego.campaignBuilder.analyzeAdForFix` (5 Stars, `trafego_ad_fix`) e `applyAdFix` (troca ou duplica pausado, `builder-quality-fix.ts`). Nota só para admin do sistema até `TRAFEGO_QUALITY_SCORE_PUBLIC=true`. Sem migration. |
+| 2026-10-31 | **Spec 0129 — passo a passo guiado pelo criativo**. Membro com Meta conectada começa em "Criativo" (pula as telas de conta). `trafego.creativeReview.analyze` com `withGuidance` devolve também `guidance` (objetivo, tipo, público, 2 textos), na mesma cobrança de 5 Stars; `trafego.creativeReview.accountSummary` (custo por conversa médio e mínimo diário da conta) alimenta a verba sugerida e os avisos. Resumo da conta: média, 5 anúncios com menor custo por conversa e seus textos, idade e gênero mais baratos, reprovados (cache de 15 min). Sugestão só preenche campo que o cliente não mexeu (`use-wizard-astro-suggestions.ts`). `fetchAdsInsightsDetailed` ganhou `breakdowns`. Sem migration. |
+| 2026-11-02 | **Spec 0130 — pedido completo, prompt e aprovação**. `lib/publish-prompt.ts` (prompt em regra fixa, sem token; barra sem criativo ou texto), `trafego.admin.orders.buildPublishPrompt` (link do criativo assinado por 24 h) e `sendForApproval` (evento com `requiresApproval`, substitui o anterior e avisa o cliente por WhatsApp), `trafego.approvals.approve` (só dono/admin da org; grava uma vez) e `permission`. `trafego.creativeReview.suggestCopy` (2 Stars, `trafego_copy_suggestion`). Migration: 4 colunas em `trafego_order_event`. |
+| 2026-11-02 | **Spec 0131 — trafeGO no MCP do ÓRBITA**. `/api/mcp` registra `trafego_*` só para chave com escopo `trafego`, conferindo a cada chamada o escopo e o admin do sistema do dono (limite de 120 chamadas por hora por chave). Ferramentas: `trafego_list_orders`, `trafego_get_order`, `trafego_get_publish_brief`, `trafego_get_ad_insights`, `trafego_send_recommendation`, `trafego_link_meta_campaign`, `trafego_add_team_note`. Nada mexe na Meta nem em dinheiro. Coluna `scopes` em `external_ai_access_tokens`. |
+| 2026-11-02 | **Spec 0132 — avaliação do Claude antes de publicar** (versão do pedido). Colunas `review_requested_at`, `review_fingerprint`, `review_fixes` e `review_notes` em `trafego_order`. Pedido em "Materiais enviados" vai sozinho para `IN_REVIEW` (`transitionTrafegoOrder`); avaliação leva a `SCHEDULED` ou `CHANGES_REQUESTED` e cria a recomendação da 0130; "Aprovado, publicar" é o aprovar da 0130; "Avaliar melhorias e aprovar" grava as melhorias no pedido (`order-review-actions.ts`). MCP: `trafego_list_review_queue`, `trafego_get_order_for_review`, `trafego_review_order`, `trafego_mark_published`. Admin: aprovar à mão e marcar como publicado. A primeira versão, sobre a campanha criada com token, foi removida antes de ir para produção. Rotina em `docs/trafego-rotina-avaliacao.md`. |
+| 2026-10-30 | **Token da Meta com passo a passo nos Satélites** (spec 0125). O login com Facebook não serve para o Astro enquanto o app da Órbita não tiver Acesso Avançado em `ads_mcp_management`; o cliente gera o token de um usuário do sistema (função Funcionário) e segue os passos na tela. |
+| 2026-10-30 | **Spec 0124 — campanha de WhatsApp pelo painel**. Aba "Publicar" para owner/admin, com guarda no servidor (papel, `canCreate`, fase do pedido, complemento vencido). Passos: página e WhatsApp, público (cidade + raio, idade ≥ 18, sugestão pelo conjunto antigo com menor custo por conversa), anúncio por **post do Instagram** (ou imagem dos Materiais com copy), verba total e data de fim, revisão. O rascunho nasce **pausado** (campanha `OUTCOME_ENGAGEMENT` com orçamento total e `LOWEST_COST_WITHOUT_CAP`, conjunto `WHATSAPP`/`CONVERSATIONS`, botão `WHATSAPP_MESSAGE`); falha no meio arquiva o que nasceu. Publicar ativa os três níveis e leva o pedido a RUNNING. Editar: pausar, verba, fim, público e trocar anúncio (novo + antigo pausado). Regra nova de política "atributos pessoais". Guia `trafego.publish` do Astro. Sem migration, cron ou env nova. **Revoga a decisão "clique do cliente não publica"** das specs 0008, 0009 e 0010. |
+| 2026-10-30 | **Spec 0123 — cobrança só do serviço**. Checkout cobra taxa (30%, mínimo R$ 150) + setup + extras; a verba sai da cobrança e é paga à Meta. Colunas `adBudgetPaidToMeta` (pendência e pedido) e `metaCampaignIdsOutsideService` (migration `20261030200000_trafego_service_only_billing`). Financeiro sem repasse de verba no modelo novo. Complemento calculado num passo no fim do cron diário `sync-meta-ads-kpis`, como rascunho `TG-NNNN-Cn`; cartão "Complementos" no admin; "Taxa sobre o gasto real" no Desempenho; complemento enviado e vencido trava "Nova campanha" e a criação pelo painel. Wizard `?nova=1`: membro sem pedido contrata na org ativa; com a Meta testada, BM e "vinculados" vêm como Sim e o passo Contato é pulado. Termos `2026-10-30`. |
+| 2026-10-30 | **Spec 0122 — base Meta pelos Satélites, Desempenho real e "Corrigir valores"**. Cliente Graph único para os anúncios (`src/http/meta/graph-client.ts`, v25.0): token só no cabeçalho, `appsecret_proof`, tempo limite e erro tipado (token vencido, permissão, limite da Meta). O token da Meta passa a ser cifrado no banco e mascarado no navegador, e é lido por `readMetaAccessToken`. Só owner/admin mexe na integração; com "gerenciada pela Órbita", só admin do sistema. "Testar conexão" nos Satélites mostra conta, página, WhatsApp, permissões e validade do token. O Desempenho lê a conta da integração da org do pedido: KPIs como no Gerenciador (conversas iniciadas, custo por conversa, CPM, frequência), gráfico diário, campanhas com selo "deste pedido" e públicos. A verba usada conta só as campanhas com o código do pedido no nome. Admin ganha "Corrigir valores" antes de ir ao ar, com histórico, ajustando o financeiro quando o dinheiro ainda não andou. Sem migration, cron ou env nova. |
 | 2026-10-27 | **Correções do backlog de 2026-09-17**: cupom chega ao financeiro com valor líquido e deixa de marcar `amountMismatch` (P-9); referência PIX gravada com a unicidade do banco, sem 500 em colisão (P-1); limite de tentativas no checkout por IP e por e-mail (P-2); consulta pública da compra com e-mail mascarado e token só para quem tem o `session_id` do Stripe (P-3); estorno parcial e disputa viram evento interno + aviso aos admins (P-4, P-6); estorno total cancela os lançamentos no financeiro, nos dois gateways (P-5); `computeTrafegoPrice` → `computeLegacyPlanPrice` (P-7); ativação usa o hook (E-4). Criativos extras passam a entrar na receita. |
 | 2026-10-27 | **Pedido avulso (spec 0116)**: a equipe cria pelo `/admin/trafego` o pedido de quem pagou fora da landing, escolhendo empresa, canal, valores e PIX/Cartão. Sem migration. Nasce em "Análise da conta" e segue o pós-criação de sempre; lançar no financeiro é opcional. |
 | 2026-10-02 | **Painel do cliente no padrão celular primeiro** (`docs/apps-mobile-playbook.md`), só interface: título uma vez (barra de cima sem nome), topo com ícone redondo e a seção atual como título no celular; números sempre à vista, mesmo zerados (verba nos anúncios, total investido, no ar, precisam de você; no pedido: verba, já gasto, taxa e total); filtros em pílulas que rolam e busca em pílula na lista; menu de baixo no pedido com Campanhas · Materiais · Andamento · Desempenho; texto do anúncio editado em gaveta de baixo no celular (janela no computador); "Confirmar PIX" da equipe em gaveta no celular; selos de status em tokens (`ORDER_STATUS_STYLE`); "Verba usada" aparece desde R$ 0,00; atalho do WhatsApp sobe acima do menu de baixo. Componentes novos: `panel-page-header`, `panel-stat-grid`, `order-card`, `order-detail-header`, `order-status-notices`, `copy-card`, `copy-editor-dialog`, `copy-editor-fields`, `release-fields`; filtros em `lib/order-filters.ts`. |

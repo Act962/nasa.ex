@@ -29,17 +29,117 @@ function isEncryptedSecret(value: string): boolean {
   return ENCRYPTED_SECRET_PATTERN.test(value);
 }
 
-/** Chave pronta para uso. Aceita texto puro legado, gravado antes da cifragem (RNF-1). */
-export function readIntegrationApiKey(config: IntegrationConfig): string | null {
-  const storedKey = config?.apiKey;
-  if (typeof storedKey !== "string" || storedKey.length === 0) return null;
-  if (!isEncryptedSecret(storedKey)) return storedKey;
+function readSealedField(config: IntegrationConfig, field: string): string | null {
+  const storedValue = config?.[field];
+  if (typeof storedValue !== "string" || storedValue.length === 0) return null;
+  if (!isEncryptedSecret(storedValue)) return storedValue;
   try {
-    return decryptSecret(storedKey);
+    return decryptSecret(storedValue);
   } catch (decryptError) {
-    console.warn("[integrations] chave de IA não pôde ser decifrada:", decryptError);
+    console.warn(`[integrations] segredo "${field}" não pôde ser decifrado:`, decryptError);
     return null;
   }
+}
+
+/** Chave pronta para uso. Aceita texto puro legado, gravado antes da cifragem (RNF-1). */
+export function readIntegrationApiKey(config: IntegrationConfig): string | null {
+  return readSealedField(config, "apiKey");
+}
+
+// ─── Meta (spec 0122, RF-4..RF-6) ──────────────────────────────────────────
+
+const META_SECRET_FIELDS = ["accessToken", "appSecret"] as const;
+/** Chaves que só o servidor grava: o formulário nunca as define. */
+const META_SERVER_ONLY_FIELDS = ["connectionCheck", "managedBy"] as const;
+/** Segredos legados do OAuth antigo que também não podem ir ao navegador. */
+const META_LEGACY_SECRET_FIELDS = ["page_access_token", "access_token"] as const;
+
+export const META_MANAGED_BY_ORBITA = "ORBITA";
+
+/** Token da Meta pronto para uso; aceita o texto puro gravado antes da spec 0122. */
+export function readMetaAccessToken(config: IntegrationConfig): string | null {
+  return readSealedField(config, "accessToken");
+}
+
+export function readMetaAppSecret(config: IntegrationConfig): string | null {
+  return readSealedField(config, "appSecret");
+}
+
+export function isMetaManagedByOrbita(config: IntegrationConfig): boolean {
+  return config?.managedBy === META_MANAGED_BY_ORBITA;
+}
+
+export function sealMetaSecret(plainValue: string): { sealed: string; last4: string } {
+  return { sealed: encryptSecret(plainValue), last4: last4(plainValue) };
+}
+
+/**
+ * Config da META que vai para o banco. Mescla com a atual (o formulário manual
+ * não pode apagar o que o OAuth e o "Testar conexão" gravaram), cifra os
+ * segredos e descarta chaves que só o servidor define.
+ */
+export function sealMetaIntegrationConfig(
+  incomingConfig: Record<string, string>,
+  currentConfig: IntegrationConfig,
+  options: { canSetManagedBy: boolean },
+): Record<string, unknown> {
+  const editableIncoming = Object.fromEntries(
+    Object.entries(incomingConfig).filter(
+      ([key]) =>
+        !(META_SECRET_FIELDS as readonly string[]).includes(key) &&
+        !(META_SERVER_ONLY_FIELDS as readonly string[]).includes(key),
+    ),
+  );
+  const sealedConfig: Record<string, unknown> = { ...(currentConfig ?? {}), ...editableIncoming };
+
+  for (const field of META_SECRET_FIELDS) {
+    const incomingValue = incomingConfig[field]?.trim() ?? "";
+    const currentValue = readSealedField(currentConfig, field);
+    const plainValue = incomingValue || currentValue;
+    if (!plainValue) {
+      delete sealedConfig[field];
+      delete sealedConfig[`${field}Last4`];
+      continue;
+    }
+    const { sealed, last4: valueLast4 } = sealMetaSecret(plainValue);
+    sealedConfig[field] = sealed;
+    sealedConfig[`${field}Last4`] = valueLast4;
+  }
+
+  if (options.canSetManagedBy && "managedBy" in incomingConfig) {
+    if (incomingConfig.managedBy === META_MANAGED_BY_ORBITA) sealedConfig.managedBy = META_MANAGED_BY_ORBITA;
+    else delete sealedConfig.managedBy;
+  }
+
+  const hasCredentialChanged =
+    Boolean(incomingConfig.accessToken?.trim()) ||
+    (typeof incomingConfig.adAccountId === "string" && incomingConfig.adAccountId !== currentConfig?.adAccountId);
+  if (hasCredentialChanged) delete sealedConfig.connectionCheck;
+
+  return sealedConfig;
+}
+
+/** Config da META que vai para o navegador: sem nenhum segredo. */
+export function maskMetaIntegrationConfig(config: IntegrationConfig): IntegrationConfig {
+  if (!config) return config;
+  const maskedConfig: Record<string, unknown> = { ...config };
+  for (const field of META_SECRET_FIELDS) {
+    const storedValue = config[field];
+    const hasStoredValue = typeof storedValue === "string" && storedValue.length > 0;
+    const storedLast4 = config[`${field}Last4`];
+    maskedConfig[field] = "";
+    maskedConfig[`${field}Configured`] = hasStoredValue;
+    maskedConfig[`${field}Last4`] =
+      typeof storedLast4 === "string" && storedLast4
+        ? storedLast4
+        : hasStoredValue && !isEncryptedSecret(storedValue)
+          ? last4(storedValue)
+          : "";
+  }
+  for (const field of META_LEGACY_SECRET_FIELDS) {
+    if (field in maskedConfig) maskedConfig[field] = "";
+  }
+  return maskedConfig;
 }
 
 /** Config que vai para o banco: cifra a chave nova; campo vazio em edição mantém a atual (CA-7). */
@@ -61,6 +161,7 @@ export function sealIntegrationConfig(
 
 /** Config que vai para o navegador: sem a chave, só se ela existe e os 4 últimos dígitos. */
 export function maskIntegrationConfig(platform: string, config: IntegrationConfig): IntegrationConfig {
+  if (platform === "META") return maskMetaIntegrationConfig(config);
   if (!isSealedKeyPlatform(platform) || !config) return config;
   const storedKey = config.apiKey;
   const hasStoredKey = typeof storedKey === "string" && storedKey.length > 0;

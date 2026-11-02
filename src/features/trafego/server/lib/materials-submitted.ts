@@ -2,6 +2,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { MATERIALS_AUTO_SUBMIT_FROM } from "@/features/trafego/lib/order-status";
 import { transitionTrafegoOrder } from "./transition-order";
+import { isOrderReviewEnabled } from "./order-review";
 
 /**
  * "Materiais enviados" acontece sozinho: ≥1 criativo e ≥1 copy selecionada.
@@ -39,8 +40,10 @@ export async function maybeMarkMaterialsSubmitted(
       toStatus: "MATERIALS_SUBMITTED",
       source: "CLIENT",
       expectedFrom: [order.status],
-      clientNote:
-        'Criativos e copy recebidos. Quando quiser, clique em "Ativar campanha" para enviar à equipe.',
+      // Com a avaliação do Claude ligada o pedido segue sozinho para a fila (spec 0132, RF-1).
+      clientNote: isOrderReviewEnabled()
+        ? "Criativos e texto recebidos."
+        : 'Criativos e copy recebidos. Quando quiser, clique em "Ativar campanha" para enviar à equipe.',
     });
     return;
   }

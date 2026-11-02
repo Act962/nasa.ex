@@ -16,7 +16,7 @@ const CLAIMS = [
   "Envia os criativos ou seleciona da sua rede social.",
   "Nossa equipe coloca a campanha no ar.",
   "Você acompanha tudo na palma da mão.",
-  "Quanto maior o investimento, menor a nossa taxa.",
+  "A verba vai direto para a Meta; você paga só o serviço.",
 ];
 
 const STATS = [

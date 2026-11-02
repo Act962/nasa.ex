@@ -17,6 +17,7 @@ import {
 import { ArrowRight, Bot, CheckCircle2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { MetaMcpAuthorizedMembers } from "./meta-mcp-authorized-members";
+import { META_TOKEN_TUTORIAL_STEPS } from "../lib/meta-token-tutorial";
 
 const EXAMPLES = [
   '"Quais campanhas estão com CPA alto?"',
@@ -67,7 +68,7 @@ export function MetaMcpSection() {
   }
   if (!status?.metaConnected) return null;
 
-  const { mcpEnabled, currentUser, config, authorizedMembersCount } = status;
+  const { mcpEnabled, currentUser, config, authorizedMembersCount, astroReadiness } = status;
 
   // Banner "Habilitar" quando MCP não ativo
   if (!mcpEnabled) {
@@ -119,11 +120,19 @@ export function MetaMcpSection() {
                 </ul>
               </div>
             </div>
+            {!astroReadiness.canUseAstro && (
+              <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
+                {astroReadiness.isTested
+                  ? astroReadiness.blockedReason
+                  : "Clique em \"Testar conexão\" acima para conferir se a Meta liberou o Astro para esta conta."}
+              </p>
+            )}
+            {!astroReadiness.canUseAstro && <MetaTokenTutorial />}
             <div className="flex items-center gap-2 pt-2">
               <Button
                 size="sm"
                 onClick={() => enableMutation.mutate({})}
-                disabled={enableMutation.isPending}
+                disabled={enableMutation.isPending || !astroReadiness.canUseAstro}
                 className="gap-2"
               >
                 <CheckCircle2 className="size-3.5" />
@@ -439,4 +448,20 @@ function NextStep({
 // Helper só pra TS inferir o shape do status sem repetir tipo
 function useStatusQuery() {
   return useQuery(orpc.metaMcp.getStatus.queryOptions({})).data;
+}
+
+function MetaTokenTutorial() {
+  return (
+    <details className="rounded-lg border border-border px-3 py-2 text-xs">
+      <summary className="cursor-pointer font-semibold text-foreground">Como gerar o token que libera o Astro</summary>
+      <ol className="mt-2 space-y-1.5 text-muted-foreground">
+        {META_TOKEN_TUTORIAL_STEPS.map((step, index) => (
+          <li key={step} className="flex gap-2">
+            <span className="shrink-0 font-bold text-primary">{index + 1}.</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
 }

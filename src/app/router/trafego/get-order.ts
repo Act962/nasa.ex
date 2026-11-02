@@ -32,6 +32,7 @@ export const getTrafegoOrder = base
         maxCopies: true,
         materialsProfileLink: true,
         adBudgetBrlCents: true,
+        adBudgetPaidToMeta: true,
         serviceFeeBrlCents: true,
         totalBrlCents: true,
         businessName: true,
@@ -49,9 +50,15 @@ export const getTrafegoOrder = base
         completedAt: true,
         metaCampaignExternalId: true,
         broadcastId: true,
+        // Avaliação do Claude antes de publicar (spec 0132).
+        reviewRequestedAt: true,
+        reviewFingerprint: true,
+        reviewFixes: true,
+        reviewNotes: true,
         creatives: {
           orderBy: { position: "asc" },
           select: {
+            astroReview: true,
             id: true,
             kind: true,
             fileKey: true,
@@ -92,6 +99,9 @@ export const getTrafegoOrder = base
             title: true,
             detail: true,
             createdAt: true,
+            requiresApproval: true,
+            approvedAt: true,
+            supersededAt: true,
           },
         },
       },

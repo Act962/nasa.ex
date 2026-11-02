@@ -44,7 +44,10 @@ import {
   PLATFORM_SHORT_LABEL,
 } from "@/features/trafego/lib/catalog-labels";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
-import { quoteTrafego } from "@/features/trafego/lib/pricing-tiers";
+import {
+  quoteTrafego,
+  resolveTrafegoSetupBrlCents,
+} from "@/features/trafego/lib/pricing-tiers";
 import { summarizeAudience } from "@/features/trafego/lib/audience";
 import { prescreenAdContent } from "@/features/trafego/lib/ad-policies";
 import {
@@ -100,6 +103,23 @@ import { ComplianceAlert } from "./wizard/compliance-alert";
 import { TrafegoAssistant } from "./assistant/trafego-assistant";
 import { TechnicalTerm } from "../technical-term";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { CreativeStep } from "./wizard/creative-step";
+import type { TrafegoCreativeDraft } from "@/features/trafego/lib/creative-review/schema";
+import {
+  guidanceAudienceChips,
+  suggestBudget,
+  type CreativeGuidance,
+} from "@/features/trafego/lib/creative-review/guidance";
+import {
+  checkWizardGuardrails,
+  type GuardrailField,
+} from "@/features/trafego/lib/wizard-guardrails";
+import { useTrafegoWizardAccountSummary } from "@/features/trafego/hooks/use-trafego-creative-review";
+import { useWizardAstroSuggestions } from "@/features/trafego/hooks/use-wizard-astro-suggestions";
+import { AstroSuggestionNote } from "./wizard/astro-suggestion-note";
+import { GuardrailNotes } from "./wizard/guardrail-notes";
+import { OpenWarningsSummary } from "./wizard/open-warnings-summary";
+import { AccountPhoneField } from "./wizard/account-phone-field";
 
 const STEPS = [
   { key: "channel", label: "Canal" },
@@ -125,6 +145,7 @@ type ScreenId =
   | "objective"
   | "business"
   | "timing"
+  | "creative"
   | "contact"
   | "investment";
 
@@ -140,6 +161,8 @@ const SCREEN_STEP: Record<ScreenId, number> = {
   business: 3,
   // "Prazo" é sub-tela de "Negócio": a trilha continua com seis marcos.
   timing: 3,
+  // Spec 0126: o criativo também é sub-tela de "Negócio".
+  creative: 3,
   contact: 4,
   investment: 5,
 };
@@ -191,10 +214,15 @@ const EMPTY_CONTACT: ContactDraft = {
 export interface ReturningCustomerDefaults {
   organizationId: string;
   organizationName: string;
-  sourceOrderCode: string;
-  platform: TrafegoPlatform;
-  campaignType: TrafegoCampaignType;
-  objective: TrafegoObjective;
+  /** null = a org ainda não teve pedido: contrata dentro dela pela primeira vez (spec 0123, RF-9). */
+  sourceOrderCode: string | null;
+  platform: TrafegoPlatform | null;
+  campaignType: TrafegoCampaignType | null;
+  objective: TrafegoObjective | null;
+  /** A org tem a Meta conectada e testada nos Satélites (spec 0123, RF-10). */
+  isMetaConnected: boolean;
+  /** A empresa já pagou o setup em outro pedido (spec 0126, RF-8). */
+  hasPaidSetup: boolean;
   socialHandle: string;
   hasBusinessManager: BusinessManagerAnswer;
   officialAnswer: OfficialNumberAnswer | null;
@@ -226,8 +254,13 @@ export function TrafegoLanding({
   const [hasStarted, setHasStarted] = useState(
     wasCancelled || Boolean(repeatDefaults),
   );
+  // Spec 0129: com a Meta conectada, tudo começa pelo criativo.
   const [screenId, setScreenId] = useState<ScreenId>(
-    repeatDefaults ? "business" : "channel",
+    repeatDefaults?.platform === "META_ADS" && repeatDefaults.isMetaConnected
+      ? "creative"
+      : repeatDefaults?.platform
+        ? "business"
+        : "channel",
   );
   const [platform, setPlatform] = useState<TrafegoPlatform | null>(
     repeatDefaults?.platform ?? null,
@@ -282,13 +315,16 @@ export function TrafegoLanding({
   const [contact, setContact] = useState<ContactDraft>(
     repeatDefaults?.contact ?? EMPTY_CONTACT,
   );
-  const canReuseContact = Boolean(
+  // Com a Meta conectada e o contato da conta completo, o passo Contato não pergunta nada novo.
+  // Logado, nome e e-mail vêm da conta: o passo Contato some e, se faltar telefone, só ele é pedido no Investimento.
+  const shouldSkipContact = Boolean(
     repeatDefaults &&
     repeatDefaults.contact.fullName.trim().length > 2 &&
-    /\S+@\S+\.\S+/.test(repeatDefaults.contact.email) &&
-    repeatDefaults.contact.phone.replace(/\D/g, "").length >= 10,
+    /\S+@\S+\.\S+/.test(repeatDefaults.contact.email),
   );
-  const [editContact, setEditContact] = useState(!canReuseContact);
+  const isMissingAccountPhone =
+    shouldSkipContact &&
+    (repeatDefaults?.contact.phone.replace(/\D/g, "").length ?? 0) < 10;
   const [phoneVerification, setPhoneVerification] =
     useState<PhoneVerificationStatus>(
       repeatDefaults?.phoneVerified ? "verified" : "idle",
@@ -305,6 +341,20 @@ export function TrafegoLanding({
     charge: TrafegoPixCharge;
   } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [creativeDraft, setCreativeDraft] =
+    useState<TrafegoCreativeDraft | null>(null);
+  const isCreativeFirst =
+    platform === "META_ADS" && Boolean(repeatDefaults?.isMetaConnected);
+  // Criativo e texto mandados no passo Criativo: o Prazo não pergunta de novo se os materiais estão prontos.
+  const hasSentMaterials = Boolean(
+    (creativeDraft?.fileKey || creativeDraft?.postLink) &&
+    creativeDraft?.message?.trim(),
+  );
+  const materialsReady = hasSentMaterials ? true : timing.materialsReady;
+  const astroSuggestions = useWizardAstroSuggestions();
+  const { data: accountSummary } = useTrafegoWizardAccountSummary({
+    enabled: isCreativeFirst,
+  });
 
   const { data: config } = useTrafegoPublicConfig();
   const startCheckout = useStartTrafegoCheckout();
@@ -313,17 +363,21 @@ export function TrafegoLanding({
   const hasCapturedRef = useRef(false);
 
   const isWhatsappChannel = platform === "WHATSAPP_OFICIAL";
-  // No WhatsApp o setup é o número na API; nos demais, a conta de anúncios.
-  const needsSetup = isWhatsappChannel
-    ? officialAnswer !== "yes"
-    : hasBusinessManager !== "yes";
+  // No WhatsApp o setup é o número na API; nos demais, a configuração inicial
+  // feita pela equipe, uma vez por empresa (spec 0126).
+  const setupBrlCents = resolveTrafegoSetupBrlCents({
+    adBudgetBrlCents,
+    isWhatsappChannel,
+    needsWhatsappNumber: officialAnswer !== "yes",
+    hasPaidSetupBefore: repeatDefaults?.hasPaidSetup ?? false,
+  });
   const setupLabel = isWhatsappChannel
     ? "Setup do número na API Oficial"
-    : "Setup da conta de anúncios";
+    : "Setup inicial da conta";
 
   const quote = useMemo(
-    () => quoteTrafego(adBudgetBrlCents, needsSetup),
-    [adBudgetBrlCents, needsSetup],
+    () => quoteTrafego(adBudgetBrlCents, setupBrlCents),
+    [adBudgetBrlCents, setupBrlCents],
   );
 
   // Mesma função que o servidor roda antes de cobrar — o aviso que o cliente
@@ -349,11 +403,39 @@ export function TrafegoLanding({
   const startEstimate = estimateEarliestStart({
     hasAdAccount,
     hasSocialLinked: timing.hasSocialLinked,
-    materialsReady: timing.materialsReady,
+    materialsReady,
   });
   const startTooSoon = isDesiredStartTooSoon(
     timing.desiredStartAt,
     startEstimate.earliestStart,
+  );
+
+  const guardrailWarnings = useMemo(
+    () =>
+      checkWizardGuardrails({
+        platform,
+        objective,
+        message: creativeDraft?.message ?? "",
+        headline: creativeDraft?.headline ?? "",
+        audienceChips: business.audienceChips,
+        adBudgetBrlCents,
+        account: accountSummary ?? null,
+        creative: creativeDraft?.review ?? null,
+        requireLocation: platform === "META_ADS",
+      }),
+    [
+      platform,
+      objective,
+      creativeDraft,
+      business.audienceChips,
+      adBudgetBrlCents,
+      accountSummary,
+    ],
+  );
+  const warningsFor = (...fields: GuardrailField[]) =>
+    guardrailWarnings.filter((warning) => fields.includes(warning.field));
+  const hasBlockedGuardrail = guardrailWarnings.some(
+    (warning) => warning.level === "blocked",
   );
 
   const isBlockedByPolicy = compliance.level === "BLOCKED";
@@ -361,23 +443,29 @@ export function TrafegoLanding({
 
   const screens = useMemo<ScreenId[]>(() => {
     const list: ScreenId[] = ["channel"];
-    if (platform === "META_ADS") list.push("meta-account", "ad-account");
+    // Com a Meta conectada, conta e perfil já são conhecidos: depois do criativo vêm as escolhas da campanha.
+    if (isCreativeFirst) list.push("creative");
+    else if (platform === "META_ADS") list.push("meta-account", "ad-account");
     if (platform === "GOOGLE_ADS") list.push("ad-account");
     if (platform === "WHATSAPP_OFICIAL") {
       list.push("wa-has-number");
       if (officialAnswer === "yes") list.push("wa-verify");
       if (officialAnswer === "no") list.push("wa-acquire");
     }
-    list.push(
-      "type",
-      "objective",
-      "business",
-      "timing",
-      "contact",
-      "investment",
-    );
+    list.push("type", "objective", "business", "timing");
+    // Quem já é cliente envia o criativo e o Astro analisa (spec 0126, RF-9).
+    if (platform === "META_ADS" && repeatDefaults && !isCreativeFirst)
+      list.push("creative");
+    if (!shouldSkipContact) list.push("contact");
+    list.push("investment");
     return list;
-  }, [platform, officialAnswer]);
+  }, [
+    platform,
+    officialAnswer,
+    shouldSkipContact,
+    repeatDefaults,
+    isCreativeFirst,
+  ]);
 
   const position = Math.max(0, screens.indexOf(screenId));
   const isLastScreen = position === screens.length - 1;
@@ -428,10 +516,15 @@ export function TrafegoLanding({
         return (
           business.businessName.trim().length > 1 &&
           Boolean(business.segment) &&
-          !isBlockedByPolicy
+          !isBlockedByPolicy &&
+          !warningsFor("audience").some((warning) => warning.level === "blocked")
         );
       case "timing":
         return !startTooSoon || timing.acknowledged;
+      case "creative":
+        return !warningsFor("message", "headline").some(
+          (warning) => warning.level === "blocked",
+        );
       case "contact":
         return (
           contact.fullName.trim().length > 2 &&
@@ -442,6 +535,9 @@ export function TrafegoLanding({
         return (
           quote.totalBrlCents > 0 &&
           acceptedTerms &&
+          !hasBlockedGuardrail &&
+          (!isMissingAccountPhone ||
+            contact.phone.replace(/\D/g, "").length >= 10) &&
           !isBlockedByPolicy &&
           (!needsComplianceAck || complianceAcknowledged) &&
           (!startTooSoon || timing.acknowledged) &&
@@ -498,14 +594,61 @@ export function TrafegoLanding({
     );
   }
 
+  function applyBudgetSuggestion() {
+    if (!accountSummary) return;
+    const budget = suggestBudget(accountSummary);
+    if (!budget) return;
+    astroSuggestions.suggest("budget", budget.reason, () =>
+      setAdBudgetBrlCents(budget.recommendedMonthlyCents),
+    );
+  }
+
+  /** Orientação do Astro (spec 0129, RF-4): preenche só o que o cliente ainda não mexeu (CA-4). */
+  function applyGuidance(guidance: CreativeGuidance) {
+    astroSuggestions.suggest("campaignType", guidance.campaignType.reason, () =>
+      setCampaignType(guidance.campaignType.value),
+    );
+    astroSuggestions.suggest("objective", guidance.objective.reason, () =>
+      setObjective(guidance.objective.value),
+    );
+    astroSuggestions.suggest("audience", guidance.audience.reason, () => {
+      setUseSavedCompany(false);
+      setBusiness((current) => ({
+        ...current,
+        // Categoria especial: a Meta proíbe gênero e idade, só os interesses entram.
+        audienceChips: guidanceAudienceChips(guidance).filter(
+          (chip) =>
+            current.specialCategory === "none" || chip.dimension === "interest",
+        ),
+      }));
+    });
+  }
+
+  function goToWarningField(field: GuardrailField) {
+    const screenByField: Record<GuardrailField, ScreenId> = {
+      message: "creative",
+      headline: "creative",
+      creative: "creative",
+      objective: "objective",
+      audience: "business",
+      budget: "investment",
+    };
+    setUseSavedCompany(false);
+    setScreenId(screenByField[field]);
+    scrollToWizard();
+  }
+
   function goNext() {
     setFormError(null);
     if (isLastScreen) {
       handleSubmit();
       return;
     }
-    if (screenId === "contact") captureContactLead();
-    setScreenId(screens[position + 1]);
+    if (screenId === "contact" || (screenId === "timing" && shouldSkipContact))
+      captureContactLead();
+    const nextScreen = screens[position + 1];
+    if (nextScreen === "investment") applyBudgetSuggestion();
+    setScreenId(nextScreen);
     scrollToWizard();
   }
 
@@ -576,11 +719,13 @@ export function TrafegoLanding({
         acceptedTerms: true,
         paymentMethod,
         payerDocument:
-          paymentMethod === "PIX" ? payerDocument.trim() || undefined : undefined,
+          paymentMethod === "PIX"
+            ? payerDocument.trim() || undefined
+            : undefined,
         complianceAcknowledged,
         desiredStartAt: timing.desiredStartAt || undefined,
         hasSocialLinked: timing.hasSocialLinked ?? undefined,
-        materialsReady: timing.materialsReady ?? undefined,
+        materialsReady: materialsReady ?? undefined,
         startAcknowledged: timing.acknowledged,
         email: contact.email.trim().toLowerCase(),
         phone: contact.phone.trim(),
@@ -591,6 +736,7 @@ export function TrafegoLanding({
           targetAudience: audience || undefined,
           destinationUrl: business.destinationUrl.trim() || undefined,
           whatsappNumber: contact.phone.trim() || undefined,
+          creativeDraft: creativeDraft ?? undefined,
           notes:
             [
               contact.fullName.trim()
@@ -656,7 +802,14 @@ export function TrafegoLanding({
             className="scroll-mt-20 pt-8"
             data-guide={GUIDE_ANCHORS.trafegoWizard.id}
           >
-            <WizardStepper steps={STEPS} currentIndex={SCREEN_STEP[screenId]} />
+            <WizardStepper
+              steps={STEPS}
+              currentIndex={
+                screenId === "creative" && isCreativeFirst
+                  ? 0
+                  : SCREEN_STEP[screenId]
+              }
+            />
 
             <div className="mt-5">
               {screenId === "channel" && (
@@ -717,9 +870,8 @@ export function TrafegoLanding({
                   }
                   subtitle={
                     <>
-                      Isso muda o valor: quem não tem paga uma taxa única de
-                      setup
-                      <TechnicalTerm term="setup" className="text-white/50" />.
+                      Assim nossa equipe sabe se cria a conta ou conecta a que
+                      você já tem. O preço não muda.
                     </>
                   }
                   onBack={goBack}
@@ -729,7 +881,6 @@ export function TrafegoLanding({
                   <BusinessManagerStep
                     value={hasBusinessManager}
                     onChange={setHasBusinessManager}
-                    setupBrlCents={quote.tier.setupBrlCents}
                   />
                 </StepShell>
               )}
@@ -805,7 +956,13 @@ export function TrafegoLanding({
                   <ChoiceCardGrid
                     options={campaignTypeOptions}
                     value={campaignType}
-                    onSelect={setCampaignType}
+                    onSelect={(value) => {
+                      astroSuggestions.markTouched("campaignType");
+                      setCampaignType(value);
+                    }}
+                  />
+                  <AstroSuggestionNote
+                    reason={astroSuggestions.reasons.campaignType}
                   />
                   <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-white/45">
                     <span>
@@ -838,8 +995,15 @@ export function TrafegoLanding({
                   <ChoiceCardGrid
                     options={objectiveOptions}
                     value={objective}
-                    onSelect={setObjective}
+                    onSelect={(value) => {
+                      astroSuggestions.markTouched("objective");
+                      setObjective(value);
+                    }}
                   />
+                  <AstroSuggestionNote
+                    reason={astroSuggestions.reasons.objective}
+                  />
+                  <GuardrailNotes warnings={warningsFor("objective")} />
                   <p className="mt-3 text-xs text-white/45">
                     Lead
                     <TechnicalTerm term="lead" className="text-white/50" />
@@ -878,8 +1042,9 @@ export function TrafegoLanding({
                               Usar dados da {repeatDefaults.organizationName}
                             </p>
                             <p className="mt-0.5 text-xs text-white/50">
-                              Reaproveitados da campanha{" "}
-                              {repeatDefaults.sourceOrderCode}.
+                              {repeatDefaults.sourceOrderCode
+                                ? `Reaproveitados da campanha ${repeatDefaults.sourceOrderCode}.`
+                                : "Da empresa em que você está no Órbita."}
                             </p>
                             <button
                               type="button"
@@ -900,7 +1065,8 @@ export function TrafegoLanding({
                       </div>
                     )}
 
-                    {useSavedCompany && repeatDefaults ? (
+                    {/* Sem região salva, o formulário abre: anúncio de WhatsApp precisa dela (spec 0130, RF-4). */}
+                    {useSavedCompany && repeatDefaults && !warningsFor("audience").some((warning) => warning.id === "audience-no-location") ? (
                       <dl className="grid gap-3 rounded-2xl border border-white/[0.09] bg-white/[0.03] p-4 text-sm sm:grid-cols-2">
                         <SavedValue
                           label="Nome do negócio"
@@ -917,8 +1083,20 @@ export function TrafegoLanding({
                         />
                       </dl>
                     ) : (
-                      <BusinessStep value={business} onChange={setBusiness} />
+                      <BusinessStep
+                        value={business}
+                        onChange={(next) => {
+                          if (next.audienceChips !== business.audienceChips) {
+                            astroSuggestions.markTouched("audience");
+                          }
+                          setBusiness(next);
+                        }}
+                      />
                     )}
+                    <AstroSuggestionNote
+                      reason={astroSuggestions.reasons.audience}
+                    />
+                    <GuardrailNotes warnings={warningsFor("audience")} />
                     <ComplianceAlert
                       level={compliance.level}
                       issues={compliance.hits}
@@ -944,7 +1122,45 @@ export function TrafegoLanding({
                     reuseSocialConnection={Boolean(
                       repeatDefaults?.timing.hasSocialLinked,
                     )}
+                    socialConnectionSource={
+                      repeatDefaults?.isMetaConnected
+                        ? "satellites"
+                        : "previous-order"
+                    }
+                    hasSentMaterials={hasSentMaterials}
                   />
+                </StepShell>
+              )}
+
+              {screenId === "creative" && (
+                <StepShell
+                  eyebrow="Criativo"
+                  title="Qual imagem ou vídeo vai no anúncio?"
+                  subtitle={
+                    isCreativeFirst
+                      ? "Comece por aqui: o Astro olha o criativo e os números da sua conta e já preenche os próximos passos. Você pode mudar tudo."
+                      : "O Astro avalia antes de publicar. Se preferir, pule e envie depois pelo painel."
+                  }
+                  onBack={goBack}
+                  onNext={goNext}
+                  canGoNext={canGoNext}
+                >
+                  <CreativeStep
+                    value={creativeDraft}
+                    onChange={setCreativeDraft}
+                    isLinkEnabled={Boolean(repeatDefaults?.isMetaConnected)}
+                    businessName={business.businessName}
+                    businessNiche={business.segment}
+                    socialProfile={socialProfile}
+                    withGuidance={isCreativeFirst}
+                    onGuidance={applyGuidance}
+                    warnings={warningsFor("message", "headline")}
+                  />
+                  {isCreativeFirst && accountSummary?.message && (
+                    <p className="mt-3 text-xs text-white/45">
+                      {accountSummary.message}
+                    </p>
+                  )}
                 </StepShell>
               )}
 
@@ -957,41 +1173,16 @@ export function TrafegoLanding({
                   onNext={goNext}
                   canGoNext={canGoNext}
                 >
-                  {canReuseContact && !editContact ? (
-                    <div className="rounded-2xl border border-success/30 bg-success/15 p-4">
-                      <div className="flex items-start gap-3">
-                        <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-white">
-                            Usaremos os dados da sua conta
-                          </p>
-                          <p className="mt-1 text-xs leading-relaxed text-white/55">
-                            {contact.fullName} · {contact.email} ·{" "}
-                            {contact.phone}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => setEditContact(true)}
-                            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-success transition hover:text-success/80"
-                          >
-                            <Pencil className="size-3.5" />
-                            Alterar dados
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <ContactStep
-                      value={contact}
-                      onChange={setContact}
-                      phoneVerification={phoneVerification}
-                      onPhoneVerification={setPhoneVerification}
-                      verificationEnabled={config?.verification.phone ?? false}
-                      numberCheckEnabled={
-                        config?.verification.whatsappCheck ?? false
-                      }
-                    />
-                  )}
+                  <ContactStep
+                    value={contact}
+                    onChange={setContact}
+                    phoneVerification={phoneVerification}
+                    onPhoneVerification={setPhoneVerification}
+                    verificationEnabled={config?.verification.phone ?? false}
+                    numberCheckEnabled={
+                      config?.verification.whatsappCheck ?? false
+                    }
+                  />
                 </StepShell>
               )}
 
@@ -1006,8 +1197,8 @@ export function TrafegoLanding({
                         term="adBudget"
                         className="text-white/50"
                       />{" "}
-                      vai inteira para o anúncio. Nossa taxa vem por cima — e
-                      cai conforme o valor sobe.
+                      você paga direto à Meta. Ela só serve para calcular o
+                      serviço: 30%, com mínimo de R$ 150.
                     </>
                   }
                   onBack={goBack}
@@ -1021,12 +1212,26 @@ export function TrafegoLanding({
                   }
                 >
                   <div className="space-y-6">
+                    <OpenWarningsSummary
+                      warnings={guardrailWarnings.filter(
+                        (warning) => warning.field !== "budget",
+                      )}
+                      onFix={goToWarningField}
+                    />
                     <InvestmentSimulator
                       adBudgetBrlCents={adBudgetBrlCents}
-                      onChangeBudget={setAdBudgetBrlCents}
-                      needsSetup={needsSetup}
+                      onChangeBudget={(cents) => {
+                        astroSuggestions.markTouched("budget");
+                        setAdBudgetBrlCents(cents);
+                      }}
+                      setupBrlCents={setupBrlCents}
                       setupLabel={setupLabel}
+                      showSetupTiers={isWhatsappChannel && setupBrlCents > 0}
                     />
+                    <AstroSuggestionNote
+                      reason={astroSuggestions.reasons.budget}
+                    />
+                    <GuardrailNotes warnings={warningsFor("budget")} />
 
                     {config?.supportWhatsapp && (
                       <div className="flex flex-col items-center gap-2">
@@ -1044,6 +1249,15 @@ export function TrafegoLanding({
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-info/80">
                         Pagamento
                       </p>
+
+                      {isMissingAccountPhone && (
+                        <AccountPhoneField
+                          value={contact.phone}
+                          onChange={(phone) =>
+                            setContact((current) => ({ ...current, phone }))
+                          }
+                        />
+                      )}
 
                       <ComplianceAlert
                         level={compliance.level}
@@ -1086,7 +1300,6 @@ export function TrafegoLanding({
                         <div className="mt-3">
                           <OrderSummary
                             quote={quote}
-                            needsSetup={needsSetup}
                             setupLabel={setupLabel}
                             compact
                           />
@@ -1165,7 +1378,7 @@ export function TrafegoLanding({
           adBudgetBrlCents: quote.adBudgetBrlCents,
           totalBrlCents: quote.totalBrlCents,
           feePercent: quote.feePercent,
-          setupBrlCents: needsSetup ? quote.setupBrlCents : null,
+          setupBrlCents: quote.setupBrlCents || null,
           earliestStart: formatStartDate(startEstimate.earliestStart),
         }}
       />
@@ -1191,7 +1404,7 @@ function ValueProps() {
     {
       icon: Target,
       title: "A verba é toda sua",
-      text: "100% do valor de tráfego vai para a plataforma de anúncio. Nossa taxa vem por cima, sem desconto escondido.",
+      text: "Você paga a verba direto à Meta, no cartão da sua conta de anúncios. A Órbita cobra só o serviço.",
     },
     {
       icon: BadgeCheck,

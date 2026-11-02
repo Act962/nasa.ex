@@ -2,7 +2,7 @@ import "server-only";
 import { tool } from "ai";
 import { z } from "zod";
 import type { TrafegoPlatform } from "@/generated/prisma/enums";
-import { quoteTrafego, MIN_AD_BUDGET_BRL_CENTS } from "@/features/trafego/lib/pricing-tiers";
+import { quoteTrafego, resolveTrafegoSetupBrlCents, MIN_AD_BUDGET_BRL_CENTS } from "@/features/trafego/lib/pricing-tiers";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { prescreenAdContent } from "@/features/trafego/lib/ad-policies";
 import { estimateEarliestStart, formatStartDate } from "@/features/trafego/lib/timeline";
@@ -22,34 +22,41 @@ const platformSchema = z
 
 export const simulateInvestmentTool = tool({
   description:
-    "Calcula o preço de uma campanha pela tabela de faixas: verba, taxa de serviço, setup e total. Use SEMPRE que a conversa envolver valores — nunca calcule de cabeça.",
+    "Calcula o preço do serviço: 30% da verba com mínimo de R$ 150, setup e o total a pagar à Órbita. A verba é paga pelo cliente direto à Meta. Use SEMPRE que a conversa envolver valores — nunca calcule de cabeça.",
   inputSchema: z.object({
     verbaEmReais: z
       .number()
       .min(0)
       .describe("Quanto o cliente quer investir em anúncio, em reais (não centavos)"),
-    temContaDeAnuncios: z
+    canalWhatsappOficial: z.boolean().default(false).describe("true se a campanha é pelo WhatsApp Oficial"),
+    temNumeroNaApiOficial: z
       .boolean()
-      .describe("true se o cliente já tem BM (Meta/Google) ou número na API Oficial (WhatsApp)"),
+      .default(false)
+      .describe("Só no WhatsApp Oficial: true se o cliente já tem número na API Oficial"),
   }),
-  execute: async ({ verbaEmReais, temContaDeAnuncios }) => {
-    const quote = quoteTrafego(Math.round(verbaEmReais * 100), !temContaDeAnuncios);
+  execute: async ({ verbaEmReais, canalWhatsappOficial, temNumeroNaApiOficial }) => {
+    const adBudgetBrlCents = Math.round(verbaEmReais * 100);
+    // Visitante do site: ainda não tem empresa, então o setup único sempre entra (spec 0126).
+    const setupBrlCents = resolveTrafegoSetupBrlCents({
+      adBudgetBrlCents,
+      isWhatsappChannel: canalWhatsappOficial,
+      needsWhatsappNumber: !temNumeroNaApiOficial,
+      hasPaidSetupBefore: false,
+    });
+    const quote = quoteTrafego(adBudgetBrlCents, setupBrlCents);
     return {
       verba: formatBrlFromCents(quote.adBudgetBrlCents),
+      verbaPagaA: "direto à Meta, no cartão da conta de anúncios do cliente",
       taxaPercentual: quote.feePercent,
+      taxaNoMinimo: quote.isMinimumFee,
       taxa: formatBrlFromCents(quote.serviceFeeBrlCents),
       setup:
         quote.setupBrlCents === 0
-          ? temContaDeAnuncios
-            ? "não se aplica — cliente já tem conta"
-            : "grátis nesta faixa"
-          : formatBrlFromCents(quote.setupBrlCents),
-      total: formatBrlFromCents(quote.totalBrlCents),
-      minimo: formatBrlFromCents(MIN_AD_BUDGET_BRL_CENTS),
-      faltaParaProximaFaixa:
-        quote.nextTierGapBrlCents && quote.nextTierGapBrlCents > 0
-          ? `investindo ${formatBrlFromCents(quote.nextTierGapBrlCents)} a mais, a taxa cai para ${quote.nextTierFeePercent}%`
-          : null,
+          ? "não se aplica"
+          : `${formatBrlFromCents(quote.setupBrlCents)}, cobrado uma vez (configuração inicial da conta pela equipe)`,
+      totalAPagarParaOrbita: formatBrlFromCents(quote.totalBrlCents),
+      verbaMinima: formatBrlFromCents(MIN_AD_BUDGET_BRL_CENTS),
+      complemento: "se o gasto real na Meta passar da verba declarada, cobramos 30% sobre a diferença",
     };
   },
 });

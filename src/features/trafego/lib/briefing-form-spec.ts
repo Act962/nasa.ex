@@ -130,6 +130,8 @@ export interface BriefingAnswerSource {
   serviceFeeBrlCents: number;
   setupFeeBrlCents: number;
   totalBrlCents: number;
+  /** Spec 0123: verba paga pelo cliente à Meta, fora do total. */
+  adBudgetPaidToMeta?: boolean;
   hasBusinessManager?: boolean | null;
   phoneVerifiedAt?: Date | string | null;
   socialHandle?: string | null;
@@ -155,9 +157,11 @@ export function buildBriefingAnswers(source: BriefingAnswerSource): Record<strin
         ? "Não tem — setup contratado"
         : "Não soube dizer — setup contratado";
 
-  const investment = `${formatBrlFromCents(source.adBudgetBrlCents)} de verba + ${formatBrlFromCents(source.serviceFeeBrlCents)} de serviço${
-    source.setupFeeBrlCents > 0 ? ` + ${formatBrlFromCents(source.setupFeeBrlCents)} de setup` : ""
-  } = ${formatBrlFromCents(source.totalBrlCents)}`;
+  const setupPart =
+    source.setupFeeBrlCents > 0 ? ` + ${formatBrlFromCents(source.setupFeeBrlCents)} de setup` : "";
+  const investment = source.adBudgetPaidToMeta
+    ? `${formatBrlFromCents(source.adBudgetBrlCents)} de verba (paga pelo cliente à plataforma) · ${formatBrlFromCents(source.serviceFeeBrlCents)} de serviço${setupPart} = ${formatBrlFromCents(source.totalBrlCents)} pagos à Órbita`
+    : `${formatBrlFromCents(source.adBudgetBrlCents)} de verba + ${formatBrlFromCents(source.serviceFeeBrlCents)} de serviço${setupPart} = ${formatBrlFromCents(source.totalBrlCents)}`;
 
   const desired = formatDate(source.desiredStartAt);
   const earliest = formatDate(source.earliestStartAt);

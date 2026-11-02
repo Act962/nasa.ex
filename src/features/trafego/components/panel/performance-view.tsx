@@ -25,7 +25,8 @@ const KPI_TERMS: Record<string, TechnicalTermKey> = {
   cpc: "cpc",
 };
 
-export function PerformanceView({ orderId }: { orderId: string }) {
+/** Leitura antiga (conta da agência ou WhatsApp Oficial), usada quando a org não tem a Meta conectada. */
+export function LegacyPerformanceView({ orderId }: { orderId: string }) {
   const { data, isLoading } = useTrafegoOrderPerformance(orderId);
 
   if (isLoading) {
