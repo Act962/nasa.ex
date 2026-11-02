@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useTrafegoOrders } from "@/features/trafego/hooks/use-trafego-orders";
+import { useTrafegoBillingLock } from "@/features/trafego/hooks/use-trafego-performance";
 import { usePanelPath } from "@/features/trafego/lib/base-path";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import {
@@ -27,14 +28,19 @@ import {
   type OrderFilterKey,
 } from "@/features/trafego/lib/order-filters";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { BillingLockBanner } from "./billing-lock-banner";
 import { OrderCard } from "./order-card";
 import { PanelPageHeader } from "./panel-page-header";
 import { PanelStatGrid, type PanelStat } from "./panel-stat-grid";
+import { buildOrderTitle } from "@/features/trafego/lib/order-display";
 
 const NEW_CAMPAIGN_HREF = "/trafego?nova=1#montar";
 
 export function TrafegoOrdersList() {
   const { data: orders, isLoading } = useTrafegoOrders();
+  const { data: billingLock } = useTrafegoBillingLock();
+  // Complemento enviado e vencido: sem campanha nova até pagar (spec 0123, RF-15).
+  const isBillingLocked = billingLock?.isLocked === true;
   const panelPath = usePanelPath();
   const [activeFilter, setActiveFilter] = useState<OrderFilterKey>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,7 +62,10 @@ export function TrafegoOrdersList() {
       },
     ],
     rightItems: [
-      { label: "Nova", href: NEW_CAMPAIGN_HREF, icon: <Plus /> },
+      // O dock tem duas posições fixas: com o painel travado, "Nova" dá lugar à página do trafeGO.
+      isBillingLocked
+        ? { label: "trafeGO", href: "/trafego", icon: <MegaphoneIcon /> }
+        : { label: "Nova", href: NEW_CAMPAIGN_HREF, icon: <Plus /> },
       {
         label: "Como funciona",
         href: "/trafego#como-funciona",
@@ -89,7 +98,7 @@ export function TrafegoOrdersList() {
       },
       {
         key: "totalPaid",
-        label: "Total investido",
+        label: "Pago à Órbita",
         value: formatBrlFromCents(totalPaidCents),
       },
       { key: "live", label: "No ar agora", value: String(liveCount) },
@@ -107,7 +116,7 @@ export function TrafegoOrdersList() {
       matchesOrderFilter(order.status, activeFilter) &&
       (normalizedSearch.length === 0 ||
         order.code.toLowerCase().includes(normalizedSearch) ||
-        order.planNameSnapshot.toLowerCase().includes(normalizedSearch)),
+        buildOrderTitle(order).toLowerCase().includes(normalizedSearch)),
   );
 
   return (
@@ -118,18 +127,28 @@ export function TrafegoOrdersList() {
         subtitle="Acompanhe o andamento e o desempenho de cada uma."
         mobileSubtitle="Andamento e resultados dos seus anúncios"
         actions={
-          <Button
-            asChild
-            className="h-11 w-full rounded-full md:h-9 md:w-auto"
-            data-guide={GUIDE_ANCHORS.trafegoNewCampaign.id}
-          >
-            <Link href={NEW_CAMPAIGN_HREF}>
-              <Plus className="mr-1.5 size-4" />
-              Nova campanha
-            </Link>
-          </Button>
+          isBillingLocked ? undefined : (
+            <Button
+              asChild
+              className="h-11 w-full rounded-full md:h-9 md:w-auto"
+              data-guide={GUIDE_ANCHORS.trafegoNewCampaign.id}
+            >
+              <Link href={NEW_CAMPAIGN_HREF}>
+                <Plus className="mr-1.5 size-4" />
+                Nova campanha
+              </Link>
+            </Button>
+          )
         }
       />
+
+      {billingLock?.isLocked && (
+        <BillingLockBanner
+          className="mt-4"
+          orderCode={billingLock.orderCode}
+          complement={billingLock.complement}
+        />
+      )}
 
       {!isLoading && <PanelStatGrid stats={stats} className="mt-4 md:mt-6" />}
 
@@ -159,7 +178,7 @@ export function TrafegoOrdersList() {
               <Input
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Buscar pelo código ou plano"
+                placeholder="Buscar pela campanha ou código"
                 aria-label="Buscar campanha"
                 className="h-11 rounded-full pl-10 md:h-9"
               />

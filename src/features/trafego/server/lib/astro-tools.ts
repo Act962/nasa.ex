@@ -22,6 +22,7 @@ import { CLIENT_STATUS_COPY } from "@/features/trafego/lib/client-notifications"
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { inngest } from "@/inngest/client";
 import { loadTrafegoSettings } from "@/features/trafego/server/lib/trafego-settings";
+import { TRAFEGO_META_SCOPE_PROMPT, buildTrafegoMetaAstroTools } from "./astro-meta-tools";
 
 /**
  * Tools do Astro dentro do painel trafeGO.
@@ -63,6 +64,8 @@ export function buildTrafegoAstroTools(ctx: AgentContext): ToolSet {
   }
 
   return {
+    // Spec 0125 (RF-10): Meta pelo MCP oficial, só nas campanhas do pedido.
+    ...buildTrafegoMetaAstroTools(ctx),
     get_my_orders: tool({
       description:
         "Lista as campanhas do cliente com código, fase atual e investimento. Use antes de qualquer outra tool quando não souber de qual campanha ele fala.",
@@ -279,4 +282,5 @@ negócio pequeno, não entende de anúncios e não trabalha na plataforma.
 - Quando ele citar produto ou promessa de saúde, emagrecimento ou renda, chame
   check_ad_compliance ANTES de opinar.
 - Escreva em texto corrido, sem asteriscos, sem markdown.
+${TRAFEGO_META_SCOPE_PROMPT}
 `.trim();

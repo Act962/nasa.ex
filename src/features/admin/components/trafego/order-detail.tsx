@@ -50,6 +50,13 @@ import {
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
 import { OrderStatusBadge } from "@/features/trafego/components/panel/order-status-badge";
 import { useAdminPath } from "@/features/trafego/lib/base-path";
+import { CorrectOrderValuesButton } from "./correct-order-values-dialog";
+import { ComplementsCard } from "./complements-card";
+import { AccessChecklistCard } from "./access-checklist-card";
+import { RunningAdsLimitCard } from "./running-ads-limit-card";
+import { PublishPromptCard } from "./publish-prompt-card";
+import { OrderReviewCard } from "./order-review-card";
+import { StoredCreativeReview } from "./stored-creative-review";
 
 const SOURCE_LABEL: Record<TrafegoTransitionSource, string> = {
   KANBAN: "kanban",
@@ -193,6 +200,7 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
                         <Download className="size-3.5" />
                       </a>
                     </div>
+                    <StoredCreativeReview raw={creative.astroReview} />
                   </div>
                 ))}
                 {order.creatives.length === 0 && (
@@ -345,7 +353,23 @@ export function TrafegoOrderAdminDetail({ orderId }: { orderId: string }) {
                 Salvando…
               </p>
             )}
+            <CorrectOrderValuesButton order={order} />
           </div>
+
+          {order.platform === "META_ADS" && (
+            <PublishPromptCard
+              orderId={order.id}
+              pendingApprovalCount={
+                order.events.filter((event) => event.requiresApproval && !event.approvedAt && !event.supersededAt).length
+              }
+            />
+          )}
+          {order.platform === "META_ADS" && <OrderReviewCard order={order} />}
+          {order.platform === "META_ADS" && <AccessChecklistCard orderId={order.id} accessChecklist={order.accessChecklist} />}
+          {order.platform === "META_ADS" && (
+            <RunningAdsLimitCard orderId={order.id} maxRunningAds={order.maxCreatives} adBudgetBrlCents={order.adBudgetBrlCents} />
+          )}
+          {order.platform === "META_ADS" && order.adBudgetPaidToMeta && <ComplementsCard orderId={order.id} />}
 
           {order.platform === "META_ADS" ? (
             <div className="rounded-lg border p-4">

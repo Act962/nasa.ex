@@ -40,6 +40,8 @@ export const GUIDE_RESULT_KINDS = {
   commentAutomationCreated: "comments.automation-created",
   astroChatSiteCreated: "astro-chat.site-created",
   bankConnected: "payment.bank-connected",
+  trafegoDraftCreated: "trafego.draft-created",
+  trafegoCampaignPublished: "trafego.campaign-published",
 } as const;
 
 export type GuideResultKind = (typeof GUIDE_RESULT_KINDS)[keyof typeof GUIDE_RESULT_KINDS];

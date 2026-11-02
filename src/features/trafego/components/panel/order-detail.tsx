@@ -1,105 +1,55 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, BarChart3, FolderOpen, MegaphoneIcon } from "lucide-react";
+import { Activity, BarChart3, Building2, Headphones, MegaphoneIcon, MoreHorizontal, Rocket } from "lucide-react";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
-import { toast } from "sonner";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
-import type { TrafegoOrderStatus } from "@/generated/prisma/enums";
+import { Button } from "@/components/ui/button";
 import {
-  useActivateTrafegoOrder,
-  useTrafegoOrder,
-} from "@/features/trafego/hooks/use-trafego-orders";
-import {
-  isOrderActivatable,
-  isOrderEditable,
-} from "@/features/trafego/lib/order-status";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { useTrafegoOrder } from "@/features/trafego/hooks/use-trafego-orders";
+import { useTrafegoOrderBudget } from "@/features/trafego/hooks/use-trafego-performance";
+import { useCampaignBuilderAccess } from "@/features/trafego/hooks/use-trafego-campaign-builder";
+import { isOrderBeforeLaunch, isOrderEditable } from "@/features/trafego/lib/order-status";
 import { usePanelPath } from "@/features/trafego/lib/base-path";
-import { StatusTimeline } from "./status-timeline";
-import { CreativesManager } from "./creatives-manager";
-import { CopiesManager } from "./copies-manager";
-import { BriefingForm } from "./briefing-form";
-import { PerformanceView } from "./performance-view";
-import { SupportThread } from "./support-thread";
 import { SupportWhatsappFab } from "./support-whatsapp-fab";
-import { NextStepsCard } from "./next-steps-card";
-import { ReleaseEditor } from "./release-editor";
-import { AccessChecklist } from "./access-checklist";
-import { CampaignLaunchProgress } from "./campaign-launch-progress";
-import { AdPreviewMockup } from "./ad-preview-mockup";
 import { OrderDetailHeader } from "./order-detail-header";
-import { OrderStatusNotices } from "./order-status-notices";
-import {
-  CampaignSectionNav,
-  type CampaignSection,
-} from "./campaign-section-nav";
+import { OrderReviewStatus } from "./approval/order-review-status";
+import { resolveSingleAdset, useOrderCardAds } from "./order-card-live-summary";
+import { QualityScoreBadge } from "./quality/quality-score-badge";
+import { LegacyPerformanceView } from "./performance-view";
+import { CampaignOverview } from "./campaign-overview/campaign-overview";
+import { SetupInProgressCard } from "./campaign-overview/setup-in-progress-card";
+import { OrderCreativeCard } from "./creative-review/order-creative-card";
+import { ORDER_PANEL_SECTION, OrderPanelSheet, type OrderPanelSection } from "./order-panel-sheet";
 
-const ACCESS_READY_STATUSES = new Set<TrafegoOrderStatus>([
-  "ONBOARDING",
-  "MATERIALS_SUBMITTED",
-  "REQUESTED",
-  "IN_REVIEW",
-  "CHANGES_REQUESTED",
-  "SCHEDULED",
-  "RUNNING",
-  "PAUSED",
-  "COMPLETED",
-]);
-
-const TEAM_PROGRESS_STATUSES = new Set<TrafegoOrderStatus>([
-  "REQUESTED",
-  "IN_REVIEW",
-  "CHANGES_REQUESTED",
-  "SCHEDULED",
-  "RUNNING",
-  "PAUSED",
-  "COMPLETED",
-]);
-
-const PERFORMANCE_READY_STATUSES = new Set<TrafegoOrderStatus>([
-  "RUNNING",
-  "PAUSED",
-  "COMPLETED",
-]);
-
-const REQUIRED_SECTIONS: CampaignSection[] = [
-  "materiais",
-  "release",
-  "acessos",
-  "andamento",
-  "desempenho",
-];
-
+/**
+ * Detalhe do pedido sem abas (spec 0126, RF-1..RF-6): a campanha de cara e o resto
+ * numa gaveta. Antes de a conta Meta estar conectada, um aviso só e o criativo.
+ */
 export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
-  const [tab, setTab] = useState<CampaignSection>("materiais");
+  const [openSection, setOpenSection] = useState<OrderPanelSection | null>(null);
   const { data: order, isLoading } = useTrafegoOrder(orderId);
+  const { data: budgetResult, isLoading: isBudgetLoading } = useTrafegoOrderBudget(orderId);
+  const { data: builderAccess } = useCampaignBuilderAccess(orderId);
+  // Mesma leitura do cartão da lista (cacheada): conjunto único vira o título (spec 0126).
+  const liveAds = useOrderCardAds(orderId, Boolean(order && order.platform === "META_ADS"));
+  const singleAdset = liveAds ? resolveSingleAdset(liveAds.ads) : null;
   const panelPath = usePanelPath();
-  const activateOrder = useActivateTrafegoOrder();
 
   useRegisterOrbitDock({
     leftItems: [
       { label: "Campanhas", href: panelPath, icon: <MegaphoneIcon /> },
-      {
-        label: "Materiais",
-        icon: <FolderOpen />,
-        onSelect: () => setTab("materiais"),
-        isActive: tab === "materiais",
-      },
+      { label: "Andamento", icon: <Activity />, onSelect: () => setOpenSection("andamento") },
     ],
     rightItems: [
-      {
-        label: "Andamento",
-        icon: <Activity />,
-        onSelect: () => setTab("andamento"),
-        isActive: tab === "andamento",
-      },
-      {
-        label: "Desempenho",
-        icon: <BarChart3 />,
-        onSelect: () => setTab("desempenho"),
-        isActive: tab === "desempenho",
-      },
+      { label: "Empresa", icon: <Building2 />, onSelect: () => setOpenSection("empresa") },
+      { label: "Suporte", icon: <Headphones />, onSelect: () => setOpenSection("suporte") },
     ],
   });
 
@@ -120,158 +70,122 @@ export function TrafegoOrderDetail({ orderId }: { orderId: string }) {
             <MegaphoneIcon className="size-5 text-muted-foreground" />
           </div>
           <p className="mt-4 text-sm font-medium">Campanha não encontrada</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Volte para a lista e escolha outra campanha.
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Volte para a lista e escolha outra campanha.</p>
         </div>
       </div>
     );
   }
 
-  const readOnly = !isOrderEditable(order.status);
-  const selectedCopies = order.copies.filter((copy) => copy.isSelected).length;
-  const previewCopy = order.copies.find((copy) => copy.isSelected) ?? null;
-  const previewCreative =
-    order.creatives.find((creative) => creative.status === "SELECTED") ??
-    order.creatives[0] ??
-    null;
-  const hasDestination = Boolean(order.destinationUrl || order.whatsappNumber);
-  const hasMaterials =
-    order.creatives.length > 0 || Boolean(order.materialsProfileLink);
-  const canActivate =
-    isOrderActivatable(order.status) &&
-    hasMaterials &&
-    selectedCopies > 0 &&
-    hasDestination;
-  const sectionCompletion: Partial<Record<CampaignSection, boolean>> = {
-    materiais: hasMaterials && selectedCopies > 0 && hasDestination,
-    release: Boolean(order.releaseSavedAt),
-    acessos: ACCESS_READY_STATUSES.has(order.status),
-    andamento: TEAM_PROGRESS_STATUSES.has(order.status),
-    desempenho: PERFORMANCE_READY_STATUSES.has(order.status),
-  };
-  const nextIncomplete =
-    REQUIRED_SECTIONS.find((section) => !sectionCompletion[section]) ?? null;
+  const isAccountConnected = budgetResult?.mode === "account" || budgetResult?.mode === "unavailable";
+  // WhatsApp Oficial e pedidos antigos pela conta da agência seguem a leitura antiga.
+  const hasLegacyCampaign =
+    budgetResult?.mode === "legacy" && (order.platform !== "META_ADS" || Boolean(order.metaCampaignExternalId));
+  const canPublish = builderAccess?.isVisible === true;
+  const openSupport = () => setOpenSection("suporte");
 
-  const pendingReasons = [
-    order.creatives.length === 0 &&
-      !order.materialsProfileLink &&
-      "envie pelo menos uma imagem ou vídeo, ou informe seu perfil",
-    selectedCopies === 0 && "selecione pelo menos um texto do anúncio",
-    !hasDestination && "informe o site de destino ou o WhatsApp",
-  ].filter(Boolean) as string[];
+  const menuSections: OrderPanelSection[] = [
+    ...(budgetResult?.mode === "account" ? (["numeros"] as const) : []),
+    "andamento",
+    "empresa",
+    "suporte",
+  ];
 
-  function handleActivate() {
-    activateOrder.mutate(
-      { orderId },
-      {
-        onSuccess: (result) => {
-          toast.success(
-            result.alreadyRequested
-              ? "Esta campanha já estava com a equipe."
-              : "Campanha enviada! Nossa equipe assume a partir daqui.",
-          );
-          setTab("andamento");
-        },
-        onError: (error) => toast.error(error.message),
-      },
-    );
-  }
+  // Recomendação da equipe esperando o cliente (spec 0130, RF-8): a mais recente ainda aberta.
+  const pendingApproval =
+    order.events.findLast((event) => event.requiresApproval && !event.approvedAt && !event.supersededAt) ?? null;
+  // Avaliação do Claude liberada pelo cliente (spec 0132, RF-4): a última recomendação está aprovada.
+  const isReleased = Boolean(order.events.findLast((event) => event.requiresApproval && !event.supersededAt)?.approvedAt);
 
   return (
     <div className="mx-auto max-w-5xl px-4 pt-2 pb-6 max-lg:pb-40 md:px-6 md:pt-6">
       <OrderDetailHeader
         order={order}
-        activeSection={tab}
         listHref={panelPath}
+        adsetName={singleAdset?.name ?? null}
+        titleBadge={
+          singleAdset && liveAds?.isQualityScoreVisible ? (
+            <QualityScoreBadge quality={liveAds.adsets.find((adset) => adset.id === singleAdset.id)?.quality ?? null} />
+          ) : null
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            {canPublish && (
+              <Button
+                className="h-10 rounded-full"
+                onClick={() => setOpenSection("publicar")}
+                data-guide={GUIDE_ANCHORS.trafegoPublishTab.id}
+              >
+                <Rocket className="size-4" />
+                Publicar e editar
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="size-10 rounded-full" aria-label="Mais opções">
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {menuSections.map((section) => (
+                  <DropdownMenuItem key={section} onSelect={() => setOpenSection(section)}>
+                    {section === "numeros" && <BarChart3 className="size-4" />}
+                    {section === "andamento" && <Activity className="size-4" />}
+                    {section === "empresa" && <Building2 className="size-4" />}
+                    {section === "suporte" && <Headphones className="size-4" />}
+                    {ORDER_PANEL_SECTION[section].title}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        }
       />
 
-      <Tabs
-        value={tab}
-        onValueChange={(value) => setTab(value as CampaignSection)}
-        className="mt-5"
-      >
-        <CampaignLaunchProgress
-          status={order.status}
-          hasMaterials={hasMaterials}
-          hasSelectedCopy={selectedCopies > 0}
-          hasDestination={hasDestination}
-          hasRelease={Boolean(order.releaseSavedAt)}
-        />
-        <CampaignSectionNav
-          completion={sectionCompletion}
-          nextIncomplete={nextIncomplete}
-        />
+      <div className="mt-6 space-y-6">
+        <OrderReviewStatus order={order} pendingApproval={pendingApproval} isReleased={isReleased} onReply={openSupport} />
+        {isBudgetLoading ? (
+          <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
+            <OrbitaSpinner className="size-4" />
+            Lendo a conta de anúncios…
+          </div>
+        ) : isAccountConnected ? (
+          <CampaignOverview orderId={order.id} orderCode={order.code} onSupport={openSupport} />
+        ) : hasLegacyCampaign ? (
+          <LegacyPerformanceView orderId={order.id} />
+        ) : (
+          <SetupInProgressCard onSupport={openSupport} />
+        )}
 
-        <OrderStatusNotices
-          status={order.status}
-          canActivate={canActivate}
-          pendingReasons={pendingReasons}
-          isActivating={activateOrder.isPending}
-          onActivate={handleActivate}
-        />
-
-        {/* Antes das abas: o cliente acabou de entrar e precisa saber o que fazer. */}
-        <div className="mt-6">
-          <NextStepsCard orderId={order.id} />
-        </div>
-
-        <TabsContent value="materiais" className="mt-6 space-y-8">
-          <CreativesManager
+        {isOrderBeforeLaunch(order.status) && (
+          <OrderCreativeCard
             orderId={order.id}
             creatives={order.creatives}
-            maxCreatives={order.maxCreatives}
-            materialsProfileLink={order.materialsProfileLink}
-            readOnly={readOnly}
+            isReadOnly={!isOrderEditable(order.status)}
+            isLinkEnabled={budgetResult?.mode === "account"}
           />
-          <CopiesManager
-            orderId={order.id}
-            copies={order.copies}
-            maxCopies={order.maxCopies}
-            readOnly={readOnly}
-          />
-          <AdPreviewMockup
-            platform={order.platform}
-            businessName={order.businessName}
-            destinationUrl={order.destinationUrl}
-            whatsappNumber={order.whatsappNumber}
-            copy={previewCopy}
-            creative={previewCreative}
-          />
-          <BriefingForm
-            orderId={order.id}
-            readOnly={readOnly}
-            initial={{
-              businessName: order.businessName,
-              businessNiche: order.businessNiche,
-              targetAudience: order.targetAudience,
-              destinationUrl: order.destinationUrl,
-              whatsappNumber: order.whatsappNumber,
-              notes: order.notes,
-            }}
-          />
-        </TabsContent>
+        )}
+      </div>
 
-        <TabsContent value="release" className="mt-6">
-          <ReleaseEditor orderId={order.id} />
-        </TabsContent>
-
-        <TabsContent value="acessos" className="mt-6">
-          <AccessChecklist orderId={order.id} />
-        </TabsContent>
-
-        <TabsContent value="andamento" className="mt-6">
-          <StatusTimeline status={order.status} events={order.events} />
-        </TabsContent>
-
-        <TabsContent value="desempenho" className="mt-6">
-          <PerformanceView orderId={order.id} />
-        </TabsContent>
-
-        <TabsContent value="suporte" className="mt-6">
-          <SupportThread orderId={order.id} />
-        </TabsContent>
-      </Tabs>
+      <OrderPanelSheet
+        section={openSection}
+        onClose={() => setOpenSection(null)}
+        isReadOnly={!isOrderEditable(order.status)}
+        order={{
+          id: order.id,
+          code: order.code,
+          status: order.status,
+          durationDays: order.durationDays,
+          events: order.events,
+          briefing: {
+            businessName: order.businessName,
+            businessNiche: order.businessNiche,
+            targetAudience: order.targetAudience,
+            destinationUrl: order.destinationUrl,
+            whatsappNumber: order.whatsappNumber,
+            notes: order.notes,
+          },
+        }}
+      />
 
       <SupportWhatsappFab orderCode={order.code} />
     </div>

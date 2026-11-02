@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { META_GRAPH, graphFetch } from "@/http/meta/ads-management";
+import { readMetaAccessToken } from "@/features/integrations/lib/integration-api-key";
 
 /**
  * Resolve um Meta Ad ID (ex: vindo de `referral.source_id` no webhook CTWA)
@@ -64,15 +65,15 @@ export async function resolveMetaAd(
 
   const config = (integration?.config ?? {}) as MetaIntegrationConfig;
   const token =
-    config.accessToken ?? config.access_token ?? config.page_access_token;
+    readMetaAccessToken(integration?.config as Record<string, unknown> | null) ?? config.access_token ?? config.page_access_token;
 
   if (!token) {
     return { adId: metaAdId, adsetId: null, campaignId: null, resolved: false };
   }
 
   try {
-    const url = `${META_GRAPH}/${metaAdId}?fields=id,name,adset_id,campaign_id,creative{title,body,image_url}&access_token=${token}`;
-    const json = await graphFetch<Record<string, unknown>>(url);
+    const url = `${META_GRAPH}/${metaAdId}?fields=id,name,adset_id,campaign_id,creative{title,body,image_url}`;
+    const json = await graphFetch<Record<string, unknown>>(url, { accessToken: token });
 
     const adsetId = (json.adset_id as string | undefined) ?? null;
     const campaignId = (json.campaign_id as string | undefined) ?? null;

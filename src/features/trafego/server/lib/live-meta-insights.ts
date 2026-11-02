@@ -1,6 +1,7 @@
 import "server-only";
 import prisma from "@/lib/prisma";
 import { fetchAdsInsights, type InsightRow } from "@/http/meta/ads-management";
+import { readMetaAccessToken } from "@/features/integrations/lib/integration-api-key";
 
 /**
  * Leitura ao vivo dos KPIs, para quando o snapshot ainda não existe.
@@ -74,7 +75,7 @@ export async function getLiveCampaignKpis(params: {
   });
 
   const config = (integration?.config ?? {}) as Record<string, unknown>;
-  const accessToken = config.accessToken as string | undefined;
+  const accessToken = readMetaAccessToken(config);
   const adAccountId = (config.adAccountId ?? config.adAccounts) as string | undefined;
 
   if (!integration?.isActive || !accessToken || typeof adAccountId !== "string") {

@@ -19,20 +19,9 @@ import z from "zod";
 import prisma from "@/lib/prisma";
 import { findUserTool } from "./tools/find-user";
 import { listCampaignsForSelectionTool } from "./tools/meta-ads/list-campaigns-for-selection";
-import {
-  getAccountOverviewTool,
-  getInsightsTool,
-  getDiagnosticsTool,
-  listCatalogsTool,
-} from "./tools/meta-ads/read-tools";
-import {
-  proposePauseCampaignTool,
-  proposeResumeCampaignTool,
-  proposeUpdateCampaignTool,
-  proposeCreateCampaignTool,
-  proposeCreateAdTool,
-} from "./tools/meta-ads/propose-tools";
-import { checkMcpAuthorization } from "@/lib/meta-mcp/authorization";
+import { randomBytes } from "crypto";
+import { checkMcpAuthorization } from "@/features/astro-meta-ads/server/authorization";
+import { buildMetaMcpAstroTools } from "@/features/astro-meta-ads/server/meta-mcp-tools";
 
 export const createActionWithAi = base
   .use(requiredAuthMiddleware)
@@ -69,7 +58,13 @@ export const createActionWithAi = base
       // Decide se registra tools Meta MCP nesta sessão.
       // Critério: MCP habilitado na org + user autorizado.
       const metaMcpAuth = await checkMcpAuthorization(userId, orgId);
-      const metaMcpEnabled = metaMcpAuth.authorized;
+      // Id da conversa exigido pelo MCP da Meta: 20 letras e números, nunca ids nossos.
+      const metaConversationId = randomBytes(15).toString("base64").replace(/[^A-Za-z0-9]/g, "").padEnd(20, "x").slice(0, 20);
+      const metaMcpTools = metaMcpAuth.authorized
+        ? await buildMetaMcpAstroTools({ organizationId: orgId, userId, conversationId: metaConversationId })
+        : {};
+      // Sem ferramentas (conta sem MCP liberado, token sem permissão), o Astro não oferece Meta.
+      const metaMcpEnabled = Object.keys(metaMcpTools).length > 0;
 
       // Sem workspace, só registramos tools Meta (não bloqueia).
       const hasWorkspace = !!initialWorkspaceId;
@@ -109,13 +104,14 @@ export const createActionWithAi = base
           ? [
               "",
               "META ADS (Astro IA):",
-              "- Você TEM acesso a tools Meta Ads (listar, insights, diagnósticos, propor pause/resume/criar/editar campanhas).",
+              "- Você TEM acesso às ferramentas oficiais da Meta (`meta_ads_*`) para a conta de anúncios desta empresa. A conta já vem preenchida: nunca peça nem invente ad_account_id.",
               activeMetaCampaignId
-                ? `- CAMPANHA EM FOCO: ${activeMetaCampaignName ?? activeMetaCampaignId} (id: ${activeMetaCampaignId}). Use esse campaignId em tools de gestão.`
-                : "- NENHUMA campanha selecionada. Quando o usuário pedir ação focada (pausar, editar, diagnóstico), CHAME PRIMEIRO `metaListCampaignsForSelection` para listar e o frontend renderizar o picker. NÃO INVENTE campaignIds.",
-              "- Tools `metaPropose*` NÃO executam nada — só preparam confirmação. O usuário tem que clicar 'Confirmar' no card que aparece no chat.",
-              "- Se uma tool Meta retornar `error: \"unauthorized\"` ou `error: \"operation_not_allowed\"`, repasse a `message` ao usuário em linguagem amigável e PARE — não tente outra tool Meta.",
-              "- Use `metaGetAccountOverview` para visão geral, `metaGetInsights` para detalhes (com ou sem campaignId), `metaGetDiagnostics` para problemas/recomendações.",
+                ? `- CAMPANHA EM FOCO: ${activeMetaCampaignName ?? activeMetaCampaignId} (id: ${activeMetaCampaignId}). Use esse id nas ferramentas de gestão.`
+                : "- NENHUMA campanha selecionada. Quando o usuário pedir ação focada (pausar, editar, diagnóstico), CHAME PRIMEIRO `metaListCampaignsForSelection` para o frontend mostrar o seletor. NÃO INVENTE ids.",
+              "- Ferramentas marcadas [ESCRITA] NÃO executam: só preparam um cartão. O usuário confirma clicando 'Confirmar'. Nunca diga que algo foi feito antes da confirmação.",
+              "- Criações nascem pausadas. Para colocar no ar use `meta_ads_activate_entity`, que também pede confirmação e mostra a verba.",
+              "- Para números e diagnóstico use `meta_ads_get_ad_entities` (com fields e date_preset) e as de insights e oportunidade.",
+              "- Se uma ferramenta Meta devolver `ok: false`, repasse a `message` em linguagem amigável e PARE: não tente outra ferramenta Meta.",
             ]
           : [
               "",
@@ -162,19 +158,8 @@ export const createActionWithAi = base
           // Meta Ads MCP tools — registradas só quando MCP autorizado
           ...(metaMcpEnabled
             ? {
-                metaListCampaignsForSelection: listCampaignsForSelectionTool(
-                  userId,
-                  orgId,
-                ),
-                metaGetAccountOverview: getAccountOverviewTool(userId, orgId),
-                metaGetInsights: getInsightsTool(userId, orgId),
-                metaGetDiagnostics: getDiagnosticsTool(userId, orgId),
-                metaListCatalogs: listCatalogsTool(userId, orgId),
-                metaProposePauseCampaign: proposePauseCampaignTool(userId, orgId),
-                metaProposeResumeCampaign: proposeResumeCampaignTool(userId, orgId),
-                metaProposeUpdateCampaign: proposeUpdateCampaignTool(userId, orgId),
-                metaProposeCreateCampaign: proposeCreateCampaignTool(userId, orgId),
-                metaProposeCreateAd: proposeCreateAdTool(userId, orgId),
+                metaListCampaignsForSelection: listCampaignsForSelectionTool(userId, orgId, metaConversationId),
+                ...metaMcpTools,
               }
             : {}),
         },

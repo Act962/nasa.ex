@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+// Registra o executor do cartão de escrita na Meta (spec 0125) antes de qualquer confirmação.
+import "@/features/astro-meta-ads/server/astro-proposal-executor";
 import { headers } from "next/headers";
 import type { UIMessage } from "ai";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";

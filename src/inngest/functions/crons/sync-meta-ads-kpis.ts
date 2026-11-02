@@ -1,13 +1,16 @@
 /**
  * Cron: sync-meta-ads-kpis
  * Roda diariamente às 3h — sincroniza snapshots Meta Ads (campanha/adset/ad)
- * para todas organizações com integração META ativa.
+ * para todas organizações com integração META ativa. No fim, calcula o
+ * complemento da taxa dos pedidos do trafeGO (spec 0123).
  */
 
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { fetchAdsInsights } from "@/http/meta/ads-management";
+import { readMetaAccessToken } from "@/features/integrations/lib/integration-api-key";
 import { MetaAdLevel } from "@/generated/prisma/enums";
+import { reconcileTrafegoComplements } from "@/features/trafego/server/lib/service-fee-complement";
 
 const LEVELS: Array<"campaign" | "adset" | "ad"> = ["campaign", "adset", "ad"];
 
@@ -31,14 +34,15 @@ export const syncMetaAdsKpis = inngest.createFunction(
 
     for (const integ of integrations) {
       const config = (integ.config ?? {}) as Record<string, string>;
-      if (!config.accessToken || !config.adAccountId) continue;
+      const accessToken = readMetaAccessToken(config);
+      if (!accessToken || !config.adAccountId) continue;
       orgsProcessed++;
 
       for (const level of LEVELS) {
         try {
           const rows = await step.run(`fetch-${integ.organizationId}-${level}`, () =>
             fetchAdsInsights(
-              { accessToken: config.accessToken, adAccountId: config.adAccountId },
+              { accessToken, adAccountId: config.adAccountId },
               { level, datePreset: "yesterday" },
             ),
           );
@@ -116,6 +120,11 @@ export const syncMetaAdsKpis = inngest.createFunction(
       }
     }
 
-    return { orgsProcessed, totalSynced, errors };
+    // Spec 0123 (RNF-1): complemento da taxa do trafeGO num passo só, sem cron novo.
+    const trafegoComplements = await step.run("reconcile-trafego-complements", () =>
+      reconcileTrafegoComplements(),
+    );
+
+    return { orgsProcessed, totalSynced, errors, trafegoComplements };
   },
 );

@@ -24,6 +24,8 @@ interface TrafegoPurchaseConfirmationProps {
   serviceFeeBrl: number;
   setupFeeBrl: number;
   totalBrl: number;
+  /** Spec 0123: a verba é paga pelo cliente à Meta e não entra no total. */
+  isAdBudgetPaidToMeta?: boolean;
   durationDays: number;
   activationLink: string;
   expiresInDays: number;
@@ -42,6 +44,7 @@ export const TrafegoPurchaseConfirmationEmail = ({
   serviceFeeBrl,
   setupFeeBrl,
   totalBrl,
+  isAdBudgetPaidToMeta = false,
   durationDays,
   activationLink,
   expiresInDays,
@@ -78,7 +81,7 @@ export const TrafegoPurchaseConfirmationEmail = ({
             <Row>
               <Column>
                 <Text className="text-[#a3a3a3] text-[13px] m-0">
-                  Verba de tráfego
+                  {isAdBudgetPaidToMeta ? "Verba de tráfego (você paga direto à Meta)" : "Verba de tráfego"}
                 </Text>
               </Column>
               <Column align="right">

@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { MetaAccountKind } from "@/generated/prisma/enums";
 import { getAuthorizedAccountKeys } from "./_access";
+import { readMetaAccessToken } from "@/features/integrations/lib/integration-api-key";
 
 export type MetaAuth = { accessToken: string; adAccountId: string };
 
@@ -56,7 +57,7 @@ export async function getMetaAuth(
   if (!integration || !integration.isActive) return null;
 
   const config = (integration.config ?? {}) as Record<string, unknown>;
-  const accessToken = config.accessToken as string | undefined;
+  const accessToken = readMetaAccessToken(config);
   if (!accessToken) return null;
 
   const userId = opts?.userId;

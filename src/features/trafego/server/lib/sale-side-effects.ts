@@ -6,6 +6,7 @@ import { allocateTrafegoDiscount } from "@/features/trafego/lib/pricing-tiers";
 import { loadTrafegoSettings } from "./trafego-settings";
 import { fetchTrafegoStripeDiscountCents } from "./stripe-discount";
 import { notifyTrafegoAdmins, recordTrafegoInternalEvent } from "./trafego-alerts";
+import { billedAdBudgetBrlCents, deriveExtraCreativesBrlCents } from "@/features/trafego/lib/order-values";
 
 interface SaleSideEffectsInput {
   orderId: string;
@@ -49,6 +50,7 @@ export async function createTrafegoSaleSideEffects(
       serviceFeeBrlCents: true,
       setupFeeBrlCents: true,
       totalBrlCents: true,
+      adBudgetPaidToMeta: true,
       businessName: true,
       leadId: true,
       stripeSessionId: true,
@@ -83,19 +85,14 @@ export async function createTrafegoSaleSideEffects(
   }
 
   // Criativos extras não têm coluna própria no pedido: são o que sobra do total.
-  const extraCreativesBrlCents = Math.max(
-    0,
-    order.totalBrlCents -
-      order.adBudgetBrlCents -
-      order.serviceFeeBrlCents -
-      order.setupFeeBrlCents,
-  );
+  const extraCreativesBrlCents = deriveExtraCreativesBrlCents(order);
+  // No modelo novo a verba não foi cobrada: o cupom nunca chega nela (spec 0123, CB-9).
   const net = allocateTrafegoDiscount(
     {
       serviceFeeBrlCents: order.serviceFeeBrlCents,
       setupBrlCents: order.setupFeeBrlCents,
       extraCreativesBrlCents,
-      adBudgetBrlCents: order.adBudgetBrlCents,
+      adBudgetBrlCents: billedAdBudgetBrlCents(order),
     },
     discountBrlCents,
   );
@@ -144,7 +141,7 @@ export async function createTrafegoSaleSideEffects(
           categoryId: settings.financeRevenueCategoryId ?? undefined,
           trackingId,
           leadId: order.leadId,
-          notes: `Pedido ${order.code} · ${platformLabel} · Total contratado ${formatBrlFromCents(order.totalBrlCents)} (verba ${formatBrlFromCents(order.adBudgetBrlCents)} + taxa ${formatBrlFromCents(order.serviceFeeBrlCents)}${order.setupFeeBrlCents > 0 ? ` + setup ${formatBrlFromCents(order.setupFeeBrlCents)}` : ""}${extraCreativesBrlCents > 0 ? ` + extras ${formatBrlFromCents(extraCreativesBrlCents)}` : ""})${discountNote}`,
+          notes: `Pedido ${order.code} · ${platformLabel} · Total contratado ${formatBrlFromCents(order.totalBrlCents)} (${order.adBudgetPaidToMeta ? `verba de ${formatBrlFromCents(order.adBudgetBrlCents)} paga pelo cliente à plataforma; ` : `verba ${formatBrlFromCents(order.adBudgetBrlCents)} + `}taxa ${formatBrlFromCents(order.serviceFeeBrlCents)}${order.setupFeeBrlCents > 0 ? ` + setup ${formatBrlFromCents(order.setupFeeBrlCents)}` : ""}${extraCreativesBrlCents > 0 ? ` + extras ${formatBrlFromCents(extraCreativesBrlCents)}` : ""})${discountNote}`,
           createdById: input.buyer.userId,
         },
       });

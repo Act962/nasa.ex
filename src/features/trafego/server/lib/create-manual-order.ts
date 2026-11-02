@@ -11,6 +11,7 @@ import { normalizeWhatsappPhoneBr } from "@/utils/format-phone";
 import { nextTrafegoOrderCode } from "./order-code";
 import { loadTrafegoSettings } from "./trafego-settings";
 import { runTrafegoOrderPostCreation } from "./create-order-and-side-effects";
+import { billedAdBudgetBrlCents, buildTrafegoPlanName } from "@/features/trafego/lib/order-values";
 
 export interface ManualTrafegoOrderInput {
   organizationId: string;
@@ -28,6 +29,8 @@ export interface ManualTrafegoOrderInput {
   whatsappNumber?: string;
   internalNote?: string;
   registerFinance: boolean;
+  /** Spec 0123: verba paga pelo cliente à Meta (padrão). false = a Órbita recebeu a verba. */
+  adBudgetPaidToMeta: boolean;
 }
 
 interface CreatedBy {
@@ -70,7 +73,7 @@ export async function createManualTrafegoOrder(
 ): Promise<ManualTrafegoOrderResult> {
   const settings = await loadTrafegoSettings();
   const totalBrlCents =
-    input.adBudgetBrlCents + input.serviceFeeBrlCents + input.setupFeeBrlCents;
+    billedAdBudgetBrlCents(input) + input.serviceFeeBrlCents + input.setupFeeBrlCents;
   const serviceFeePercent = Math.round(
     (input.serviceFeeBrlCents / input.adBudgetBrlCents) * 100,
   );
@@ -98,7 +101,7 @@ export async function createManualTrafegoOrder(
         code,
         organizationId: organization.id,
         ownerUserId: owner.id,
-        planNameSnapshot: `Tráfego ${(input.adBudgetBrlCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+        planNameSnapshot: buildTrafegoPlanName(input.adBudgetBrlCents),
         campaignType: input.campaignType,
         platform: input.platform,
         objective: input.objective,
@@ -110,6 +113,7 @@ export async function createManualTrafegoOrder(
         serviceFeeBrlCents: input.serviceFeeBrlCents,
         setupFeeBrlCents: input.setupFeeBrlCents,
         totalBrlCents,
+        adBudgetPaidToMeta: input.adBudgetPaidToMeta,
         paymentMethod: input.paymentMethod,
         businessName: input.businessName?.trim() || organization.name,
         whatsappNumber:

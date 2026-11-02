@@ -1,10 +1,7 @@
-import { recordTrafegoAiUsage } from "@/features/trafego/server/lib/record-trafego-ai-usage";
 import "server-only";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateObject } from "ai";
 import { z } from "zod";
 import type { TrafegoPlatform } from "@/generated/prisma/enums";
-import { resolveAnthropicApiKey } from "@/lib/anthropic-key";
 import {
   buildPolicyContext,
   prescreenAdContent,
@@ -12,7 +9,7 @@ import {
   type ComplianceLevel,
   type PolicyHit,
 } from "@/features/trafego/lib/ad-policies";
-import { loadTrafegoSettings } from "./trafego-settings";
+import { recordReviewUsage, resolveReviewModel } from "./review-model";
 
 /**
  * Checagem de políticas em duas camadas.
@@ -68,7 +65,11 @@ export async function checkAdCompliance(
   const prescreen = prescreenAdContent({ platform: input.platform, texts });
 
   if (input.deterministicOnly) {
-    return { level: prescreen.level, issues: prescreen.hits, checkedByModel: false };
+    return {
+      level: prescreen.level,
+      issues: prescreen.hits,
+      checkedByModel: false,
+    };
   }
 
   // Já bloqueado pelo dicionário: o LLM não muda o resultado e custaria à toa.
@@ -78,22 +79,26 @@ export async function checkAdCompliance(
 
   const content = texts.filter((text) => text?.trim()).join("\n");
   if (!content.trim()) {
-    return { level: prescreen.level, issues: prescreen.hits, checkedByModel: false };
+    return {
+      level: prescreen.level,
+      issues: prescreen.hits,
+      checkedByModel: false,
+    };
   }
 
-  const settings = await loadTrafegoSettings().catch(() => null);
-  const apiKey = settings?.agencyOrganizationId
-    ? await resolveAnthropicApiKey(settings.agencyOrganizationId).catch(() => null)
-    : process.env.ANTHROPIC_API_KEY ?? null;
-
-  if (!apiKey) {
-    return { level: prescreen.level, issues: prescreen.hits, checkedByModel: false };
+  // Mesmo modelo da análise do criativo: Claude Haiku ou, sem chave da Anthropic, a OpenAI de reserva.
+  const reviewModel = await resolveReviewModel().catch(() => null);
+  if (!reviewModel) {
+    return {
+      level: prescreen.level,
+      issues: prescreen.hits,
+      checkedByModel: false,
+    };
   }
 
   try {
-    const anthropic = createAnthropic({ apiKey });
     const { object, usage } = await generateObject({
-      model: anthropic("claude-haiku-4-5-20251001"),
+      model: reviewModel.model,
       schema: llmResultSchema,
       system: [
         "Você revisa anúncios antes de irem ao ar, em português do Brasil.",
@@ -113,27 +118,40 @@ export async function checkAdCompliance(
       ].join("\n"),
       maxRetries: 1,
     });
-    await recordTrafegoAiUsage({ feature: "trafego.compliance", provider: "anthropic", modelId: "claude-haiku-4-5", usage, isAgencyKey: apiKey !== process.env.ANTHROPIC_API_KEY });
+    await recordReviewUsage(reviewModel, "trafego.compliance", usage);
 
-    const modelHits: PolicyHit[] = object.issues.map((issue, index) => ({
-      ruleId: `llm-${index}`,
-      label: issue.label,
-      reason: issue.reason,
-      fix: issue.fix,
-      level: issue.level,
-      sourceUrl: "",
-      excerpt: issue.excerpt,
-    }));
+    // O que o dicionário já marcou não se repete pelo modelo.
+    const prescreenLabels = new Set(
+      prescreen.hits.map((hit) => hit.label.toLowerCase()),
+    );
+    const modelHits: PolicyHit[] = object.issues
+      .filter((issue) => !prescreenLabels.has(issue.label.toLowerCase()))
+      .map((issue, index) => ({
+        ruleId: `llm-${index}`,
+        label: issue.label,
+        reason: issue.reason,
+        fix: issue.fix,
+        level: issue.level,
+        sourceUrl: "",
+        excerpt: issue.excerpt,
+      }));
 
     const issues = [...prescreen.hits, ...modelHits];
     return {
       // O determinístico nunca é rebaixado: o pior dos dois vence.
-      level: worstLevel([prescreen.level, ...modelHits.map((hit) => hit.level)]),
+      level: worstLevel([
+        prescreen.level,
+        ...modelHits.map((hit) => hit.level),
+      ]),
       issues,
       checkedByModel: true,
     };
   } catch (error) {
     console.warn("[trafego/compliance] checagem por modelo falhou:", error);
-    return { level: prescreen.level, issues: prescreen.hits, checkedByModel: false };
+    return {
+      level: prescreen.level,
+      issues: prescreen.hits,
+      checkedByModel: false,
+    };
   }
 }

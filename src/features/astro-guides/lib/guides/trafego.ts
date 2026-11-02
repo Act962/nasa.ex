@@ -1,6 +1,46 @@
 import type { GuideDef } from "../types";
+import { GUIDE_RESULT_KINDS } from "../result-kinds";
 
 export const TRAFEGO_GUIDES: GuideDef[] = [
+  // Antes de "trafego.order": publicar pelo painel é mais específico que pedir campanha (spec 0124).
+  {
+    key: "trafego.publish",
+    app: "trafego",
+    title: "Publicar uma campanha de WhatsApp pelo painel",
+    summary: "Monte o anúncio a partir de um post do Instagram e publique você mesmo.",
+    topicPattern:
+      /\b(public\w*|sub\w*|coloc\w* no ar|cri\w*|mont\w*)\b.*\b(campanhas?|anuncios?)\b.*\b(pelo painel|no painel|eu mesm\w*|sozinh\w*|por conta propria|post do instagram)\b/,
+    steps: [
+      {
+        anchor: "trafegoPublishTab",
+                title: "Toque em Publicar e editar",
+        message: "Dentro da campanha, o botão Publicar e editar monta o anúncio passo a passo. Só o dono ou um administrador vê.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: "Abra uma campanha em Minhas campanhas. O botão Publicar e editar aparece para o dono e os administradores da empresa.",
+      },
+      {
+        anchor: "trafegoCreateDraft",
+        title: "Crie o rascunho",
+        message: "Escolha público, post e verba. O rascunho nasce pausado na sua conta: nada vai ao ar ainda.",
+        position: "top",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.trafegoDraftCreated,
+      },
+      {
+        anchor: "trafegoPublishCampaign",
+        title: "Publique",
+        message: "Confira o rascunho e clique em Publicar. A Meta revisa o anúncio antes de entregar.",
+        position: "top",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.trafegoCampaignPublished,
+      },
+    ],
+    finish: {
+      title: "Campanha publicada! 🚀",
+      message: "Acompanhe as conversas e a verba usada na aba Desempenho.",
+    },
+  },
   {
     key: "trafego.order",
     app: "trafego",

@@ -78,23 +78,15 @@ export function PlansSection({
           </SettingsField>
 
           <SettingsField
-            label="Criativos incluídos"
-            hint="Quantas peças o cliente manda sem custo extra (1 a 20)."
+            label="Anúncios incluídos"
+            hint="Pela verba da campanha (spec 0127): até R$ 500 → 3, até R$ 2.000 → 5, acima → 8 anúncios no ar ao mesmo tempo."
           >
-            <Input
-              type="number"
-              min={1}
-              max={20}
-              value={form.includedCreatives}
-              onChange={(event) =>
-                patch({ includedCreatives: event.target.value })
-              }
-            />
+            <p className="text-sm text-muted-foreground">Automático pela faixa de verba</p>
           </SettingsField>
 
           <SettingsField
-            label="Criativo extra (R$)"
-            hint="Cobrado por peça acima do incluído."
+            label="Anúncio extra (R$)"
+            hint="Valor fixo por anúncio a mais no ar ao mesmo tempo."
           >
             <Input
               type="number"

@@ -196,3 +196,4 @@ Depois do teste: cancele o pedido e **apague os dois `PaymentEntry`** criados na
 | --- | --- |
 | 2026-09-17 | Spec criada. Fase A (`allow_promotion_codes: true`) implementada. Fase B desenhada, implementada e **revertida** por decisão do dono: a migration não se justificava para destravar o teste. Desenho preservado aqui; pendência registrada como P-9. |
 | 2026-10-27 | Fase B entregue pela alternativa **sem migration** (§5.2): desconto lido do Stripe no lançamento e no webhook, alocado taxa → setup → extras → verba, aviso quando chega na verba. A regra operacional de "cupom só em teste" deixa de ser necessária. |
+| 2026-10-30 | No modelo novo (spec 0123) a verba não é cobrada: a alocação do cupom passa a ser taxa → setup → extras e nunca chega na verba. Pedidos do modelo antigo seguem como antes. A spec 0124 revoga "clique do cliente não publica anúncio". |

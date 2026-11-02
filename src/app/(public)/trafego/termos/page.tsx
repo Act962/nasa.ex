@@ -10,7 +10,7 @@ export default function TrafegoTermsPage() {
   return (
     <LegalPage
       title="Termos de Serviço"
-      updatedAt="12 de setembro de 2026"
+      updatedAt="30 de outubro de 2026"
       intro="Estes termos regem a contratação do trafeGO, serviço de gestão de tráfego pago e disparos operado pela Órbita. Ao contratar, você declara que leu e concorda com as condições abaixo — em especial as seções sobre criativos e resultados."
       sections={[
         {
@@ -48,10 +48,12 @@ export default function TrafegoTermsPage() {
         {
           title: "Verba de tráfego e taxa de serviço",
           paragraphs: [
-            "O valor pago se divide em verba de tráfego e taxa de serviço, discriminadas no momento da contratação. A verba é integralmente aplicada na plataforma de anúncios; a taxa remunera o nosso trabalho.",
-            "A verba é consumida pela plataforma conforme a veiculação e não é reembolsável após o início da campanha. A taxa de serviço remunera a execução e também não é reembolsável depois que a campanha entra em análise pela equipe.",
+            "A verba de tráfego é paga por você diretamente à plataforma de anúncios (Meta ou Google), no meio de pagamento cadastrado na sua conta de anúncios. Ela não passa pela Órbita: o valor que você paga à Órbita é a taxa de serviço, o setup quando aplicável e os criativos extras.",
+            "A taxa de serviço é de 30% sobre a verba declarada na contratação, com valor mínimo de R$ 150,00 por pedido. Se o gasto real da sua conta de anúncios no período do pedido passar da verba declarada, a Órbita cobra um complemento de 30% sobre a diferença. O gasto considerado é o da conta toda no período, exceto campanhas que a equipe identificar como não sendo do serviço trafeGO.",
+            "O complemento é enviado por link de pagamento. Enquanto um complemento enviado estiver vencido e não pago, as funções de criar e publicar campanhas pelo painel ficam suspensas; as campanhas já publicadas na sua conta não são alteradas pela Órbita.",
+            "A verba é consumida pela plataforma conforme a veiculação e a cobrança dela é entre você e a plataforma. A taxa de serviço remunera a execução e não é reembolsável depois que a campanha entra em análise pela equipe.",
             "O pagamento pode ser feito por cartão de crédito, com confirmação automática, ou por PIX. No PIX, o pagamento é conferido manualmente pela nossa equipe em horário comercial: a campanha só entra na fila depois dessa confirmação, e a cobrança tem validade informada no momento da contratação. Eventual reembolso de pagamento por PIX é feito para a mesma titularidade (CPF ou CNPJ) que originou a transferência.",
-            "A taxa de setup, quando aplicável, é cobrada uma única vez. No tráfego pago, cobre a criação e configuração da conta de anúncios (BM) no seu nome; no disparo por WhatsApp, cobre a aquisição do número e a habilitação dele na API Oficial da Meta.",
+            "A taxa de setup é cobrada uma única vez por empresa. No tráfego pago, é de R$ 450,00 e cobre a configuração inicial feita pela nossa equipe: conectar a sua conta de anúncios à Órbita e conferir página, Instagram, conta de anúncios (BM) e parceria — criando a conta no seu nome quando você ainda não tem. Quem já pagou o setup em uma contratação anterior não paga de novo. No disparo por WhatsApp, cobre a aquisição do número e a habilitação dele na API Oficial da Meta.",
             "A produção de criativos (imagens, vídeos e artes) não está incluída na taxa de serviço nem no setup. É um serviço à parte, orçado sob demanda.",
           ],
         },
@@ -81,8 +83,8 @@ export default function TrafegoTermsPage() {
         {
           title: "Cancelamento e reembolso",
           paragraphs: [
-            "Antes de a campanha entrar em análise pela equipe, o cancelamento pode ser solicitado com reembolso da taxa de serviço e da verba não utilizada.",
-            "Depois que a campanha entra no ar, a verba já consumida pela plataforma e a taxa de serviço do período executado não são reembolsáveis.",
+            "Antes de a campanha entrar em análise pela equipe, o cancelamento pode ser solicitado com reembolso da taxa de serviço.",
+            "Depois que a campanha entra no ar, a taxa de serviço do período executado e os complementos sobre o gasto real não são reembolsáveis. A verba consumida é cobrada pela plataforma diretamente de você.",
             "O direito de arrependimento previsto no art. 49 do Código de Defesa do Consumidor é observado nos sete dias seguintes à contratação, desde que a execução ainda não tenha se iniciado.",
           ],
         },

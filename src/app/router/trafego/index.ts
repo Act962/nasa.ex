@@ -16,8 +16,30 @@ import {
 import { listTrafegoOrders } from "./list-orders";
 import { getTrafegoOrder } from "./get-order";
 import { getTrafegoOrderPerformance } from "./get-order-performance";
+import {
+  getTrafegoAccountBreakdown,
+  getTrafegoAccountOverview,
+  getTrafegoOrderAds,
+  getTrafegoBillingLockProcedure,
+  getTrafegoOrderBudget,
+  getTrafegoServiceFee,
+} from "./performance";
+import {
+  createCampaignDraftProcedure,
+  discardCampaignDraftProcedure,
+  getCampaignBuilderAccess,
+  getCampaignBuilderContext,
+  listCampaignInstagramPosts,
+  publishCampaignProcedure,
+  replaceCampaignAdProcedure,
+  setCampaignDeliveryProcedure,
+  analyzeAdForFixProcedure,
+  applyAdFixProcedure,
+  searchCampaignCities,
+  suggestCampaignAudience,
+  updateCampaignProcedure,
+} from "./campaign-builder";
 import { updateTrafegoBriefing } from "./update-briefing";
-import { activateTrafegoOrder } from "./activate-order";
 import {
   addTrafegoCreative,
   removeTrafegoCreative,
@@ -64,6 +86,13 @@ import {
   listTrafegoMessagesAdmin,
 } from "./admin/orders";
 import { createManualTrafegoOrderProcedure } from "./admin/create-manual-order";
+import { correctTrafegoOrderValues } from "./admin/correct-values";
+import {
+  cancelTrafegoComplement,
+  listTrafegoComplements,
+  sendTrafegoComplement,
+  setTrafegoOutsideCampaigns,
+} from "./admin/complements";
 import {
   getTrafegoSettings,
   updateTrafegoSettings,
@@ -72,6 +101,12 @@ import {
   provisionTrafegoOperationsTrackingProcedure,
   provisionTrafegoBriefingFormProcedure,
 } from "./admin/settings";
+import { analyzeTrafegoCreative, getTrafegoWizardAccountSummary, suggestTrafegoAdCopy } from "./creative-review";
+import { updateTrafegoAccessChecklistAdmin } from "./admin/access-checklist";
+import { setTrafegoRunningAdsLimit } from "./admin/running-ads-limit";
+import { buildTrafegoPublishPrompt, sendTrafegoRecommendationForApproval } from "./admin/publish-prompt";
+import { applyTrafegoReviewFixes, approveTrafegoRecommendation, getTrafegoApprovalPermission } from "./approvals";
+import { approveTrafegoOrderReview, markTrafegoOrderPublished } from "./admin/order-review";
 
 export const trafegoRouter = {
   // ── Público (sem auth) ──
@@ -99,8 +134,39 @@ export const trafegoRouter = {
   listOrders: listTrafegoOrders,
   getOrder: getTrafegoOrder,
   getOrderPerformance: getTrafegoOrderPerformance,
+  performance: {
+    budget: getTrafegoOrderBudget,
+    overview: getTrafegoAccountOverview,
+    ads: getTrafegoOrderAds,
+    breakdown: getTrafegoAccountBreakdown,
+    serviceFee: getTrafegoServiceFee,
+    billingLock: getTrafegoBillingLockProcedure,
+  },
+  // Spec 0124: owner/admin cria, publica e edita a campanha pelo painel.
+  campaignBuilder: {
+    access: getCampaignBuilderAccess,
+    context: getCampaignBuilderContext,
+    suggest: suggestCampaignAudience,
+    searchCities: searchCampaignCities,
+    listInstagramPosts: listCampaignInstagramPosts,
+    createDraft: createCampaignDraftProcedure,
+    publish: publishCampaignProcedure,
+    discardDraft: discardCampaignDraftProcedure,
+    update: updateCampaignProcedure,
+    replaceAd: replaceCampaignAdProcedure,
+    setDelivery: setCampaignDeliveryProcedure,
+    analyzeAdForFix: analyzeAdForFixProcedure,
+    applyAdFix: applyAdFixProcedure,
+  },
+  // Spec 0126: o Astro analisa o criativo (wizard e painel).
+  creativeReview: {
+    analyze: analyzeTrafegoCreative,
+    // Spec 0129: números da conta para os avisos do passo a passo.
+    accountSummary: getTrafegoWizardAccountSummary,
+    // Spec 0130: botão "Gere com IA" do passo Criativo.
+    suggestCopy: suggestTrafegoAdCopy,
+  },
   updateBriefing: updateTrafegoBriefing,
-  activateOrder: activateTrafegoOrder,
 
   creatives: {
     add: addTrafegoCreative,
@@ -132,6 +198,14 @@ export const trafegoRouter = {
     get: getTrafegoRecommendations,
   },
 
+  // Spec 0130: o cliente aprova a recomendação da equipe.
+  approvals: {
+    approve: approveTrafegoRecommendation,
+    permission: getTrafegoApprovalPermission,
+    // Spec 0132: "Avaliar melhorias e aprovar".
+    applyReviewFixes: applyTrafegoReviewFixes,
+  },
+
   support: {
     list: listTrafegoMessages,
     send: sendTrafegoMessage,
@@ -151,6 +225,21 @@ export const trafegoRouter = {
       list: listTrafegoOrdersAdmin,
       get: getTrafegoOrderAdmin,
       createManual: createManualTrafegoOrderProcedure,
+      correctValues: correctTrafegoOrderValues,
+      complements: {
+        list: listTrafegoComplements,
+        send: sendTrafegoComplement,
+        cancel: cancelTrafegoComplement,
+      },
+      setOutsideCampaigns: setTrafegoOutsideCampaigns,
+      updateAccessChecklist: updateTrafegoAccessChecklistAdmin,
+      setRunningAdsLimit: setTrafegoRunningAdsLimit,
+      // Spec 0130: prompt para o Claude da equipe e recomendação para o cliente aprovar.
+      buildPublishPrompt: buildTrafegoPublishPrompt,
+      sendForApproval: sendTrafegoRecommendationForApproval,
+      // Spec 0132: aprovar à mão e marcar como publicado quando a rotina do Claude para.
+      approveReview: approveTrafegoOrderReview,
+      markPublished: markTrafegoOrderPublished,
       updateStatus: updateTrafegoOrderStatus,
       assign: assignTrafegoOrder,
       linkMetaCampaign: linkTrafegoMetaCampaign,

@@ -23,7 +23,7 @@
 | --- | --- | --- | --- |
 | **Aguardando pagamento** | Cliente parou no wizard ou escolheu PIX e ainda não pagou | Comprovante chegou na conversa? Confira **valor**, **data** e se a **referência** (`TGP-xxxx`) bate com a do card | Abra a aba **trafeGO** do card → **Confirmar PIX**. Valor diferente do pedido? Digite o que realmente caiu — fica marcado como divergência |
 | **Pagamento confirmado** | Pago, cliente ainda não criou a senha | Link de ativação foi enviado (evento com "cliente avisado") | *Nada* — vira "Análise da conta" quando o cliente cria a conta |
-| **Análise da conta de tráfego** | Pedido nasceu. Verificar conta de anúncios | O Briefing do card já traz o que o wizard verificou: conta do Instagram/Facebook encontrada, número na API Oficial e se o WhatsApp de contato foi confirmado. Cliente tem BM? Adicionou nosso Business ID como parceiro? No Claude Code: `ads_get_ad_accounts` mostra a conta? Conta sem restrição? Sem BM: criar BM + página (faz parte do setup). WhatsApp Oficial sem número: adquirir e habilitar o número na API (setup) | **Aguardando seus materiais** quando o acesso estiver OK. Conta restrita → **Ajustes solicitados** com o recado do que ele precisa resolver |
+| **Análise da conta de tráfego** | Pedido nasceu. Verificar conta de anúncios | O Briefing do card já traz o que o wizard verificou: conta do Instagram/Facebook encontrada, número na API Oficial e se o WhatsApp de contato foi confirmado. Cliente tem BM? Adicionou nosso Business ID como parceiro? No Claude Code: `ads_get_ad_accounts` mostra a conta? Conta sem restrição? Nos Satélites da org do cliente: Meta com o token do usuário do sistema da Órbita, a conta `act_…` do cliente e "gerenciada pela Órbita" marcado; "Testar conexão" verde. É isso que faz o Desempenho do cliente mostrar a conta real. Valor do pedido digitado errado? Admin → pedido → **Corrigir valores** (só antes de ir ao ar). Marque a lista **Setup: acessos conferidos** no admin do pedido (o cliente não vê mais essa lista, spec 0126). O criativo que o cliente enviou aparece com a análise do Astro (nota, política e o que melhorar): use antes de publicar Sem BM: criar BM + página (faz parte do setup). WhatsApp Oficial sem número: adquirir e habilitar o número na API (setup) | **Aguardando seus materiais** quando o acesso estiver OK. Conta restrita → **Ajustes solicitados** com o recado do que ele precisa resolver |
 | **Aguardando seus materiais** | Cliente precisa subir criativos e copy | Abra a aba **Acessos** do painel dele pelo admin: o checklist mostra o que ele já marcou como liberado. O **Release** (se ele montou) diz o que a empresa vende e o que não pode ser dito — é o que você usa para julgar a copy. Nada a fazer no card; cobrar por WhatsApp se passar de 3 dias | *Nada* — vira "Materiais enviados" sozinho |
 | **Materiais enviados** | Tem ≥1 criativo e ≥1 copy selecionada | Dar uma olhada prévia nos materiais | *Nada* — o cliente clica "Ativar" e o card vai para a fila |
 | **Na fila da equipe** | Cliente ativou; é sua vez | Abrir o pedido no admin: criativos, copy, briefing, destino | **Em análise** ao começar a trabalhar |
@@ -52,6 +52,36 @@ Abra o Claude Code na org da agência com o MCP da Meta conectado e cole o brief
 4. **Revisão** — antes de ativar: pixel/conversão configurados, destino testado, orçamento certo.
 5. **Card** — mover para "Agendada" e, quando começar a rodar, "No ar". O cliente é avisado nas
    duas.
+
+## Cobrança só do serviço e complementos (spec 0123)
+
+Nos pedidos novos o cliente paga a **verba direto à Meta**; a Órbita cobra só o serviço (30% da verba
+declarada, mínimo R$ 150, mais setup e criativos extras). O selo do pedido diz "Verba (paga à Meta)".
+
+- **Complemento**: toda noite, junto do cron de KPIs, o sistema soma o gasto da **conta inteira** do
+  cliente no período do pedido. Se passou da verba declarada, nasce um rascunho `TG-NNNN-C1` no
+  Payment da agência e você recebe o aviso "complemento para enviar".
+- **Admin → pedido → cartão "Complementos"**: confira gasto real, taxa devida e já cobrado.
+  - Campanha da conta que **não é nossa** (outra agência, ação do próprio cliente)? Marque em
+    "Campanhas fora do trafeGO" antes de enviar.
+  - **Enviar cobrança** usa a régua padrão das Cobranças: o cliente recebe link e PIX.
+  - **Cancelar** pede motivo; complemento com pagamento só se ajusta no Payment.
+- **Trava**: complemento enviado e vencido some com o "Nova campanha" e bloqueia criar e publicar pelo
+  painel. As campanhas do cliente no Meta continuam como estão. Você recebe um aviso por complemento.
+
+## Quando o cliente publica pelo painel (spec 0124)
+
+O dono ou um administrador da empresa vê a aba **Publicar** no pedido e monta uma campanha de
+mensagens no WhatsApp a partir de um post do Instagram. Tudo nasce **pausado**; ele publica depois de
+confirmar. Você recebe "campanha publicada pelo cliente" e o pedido vai para **No ar** sozinho (se
+estava pausado pela equipe, continua pausado).
+
+- Antes de liberar, nos Satélites da org do cliente: "Testar conexão" com as permissões de criação
+  (`ads_management`, `pages_manage_ads`, `pages_read_engagement`, `pages_show_list`) e a página com
+  **WhatsApp ligado**. Para ler os posts, o usuário do sistema precisa da tarefa de conteúdo na página.
+- O nome da campanha leva o código (`TG-NNNN — Negócio — Mensagens #chave`): ela aparece no
+  Desempenho com o selo "deste pedido". Nunca renomeie tirando o código.
+- Falha no meio da criação arquiva o que nasceu. Nada é apagado: limpe pelo Gerenciador, se precisar.
 
 ## Release e recomendações — o que o cliente vê antes de você
 
@@ -117,3 +147,42 @@ no wizard, mas confirme na análise da conta para não gerar expectativa de "man
 | Cliente não recebeu WhatsApp | Template não aprovado ou instância fora do ar; e-mail foi | Ver `reason` no evento; cadastrar/aprovar o template nos Ajustes |
 | Comprovante criou outro card | Telefone do wizard diferente do WhatsApp que mandou | Mesclar à mão: mover a conversa/lead e apagar o duplicado |
 | Card e pedido divergem | Alguém mudou por workflow/Astro | A varredura horária realinha; se o card mudou depois do pedido, chega notificação para o admin decidir |
+
+## Nota de qualidade dos anúncios (spec 0128)
+
+- **Período de teste interno:** enquanto `TRAFEGO_QUALITY_SCORE_PUBLIC` não for `true`, só admin do sistema vê a nota e o popover no painel do cliente. Confira a nota de 3 clientes com o Gerenciador por 2 semanas antes de liberar.
+- **Como ler:** 80–100 Ótimo, 60–79 Bom, 40–59 Pode melhorar, abaixo de 40 Fraco. "Aprendendo" e "Dados insuficientes" significam: não mexa ainda.
+- **Testes de escrita (pausar, corrigir, duplicar):** use uma conta de anúncios **sandbox** da Meta (App ÓRBITA TESTE 2026 → Marketing API → Ferramentas → criar conta sandbox). Ela aceita criar e pausar sem veicular nem gastar. Nunca teste escrita na conta de um cliente.
+
+
+## Publicar pelo Claude (spec 0130)
+
+1. No admin do pedido, card **"Publicar pelo Claude"** → **Copiar prompt para o Claude**. O texto já traz conta, regras (tudo pausado, campanha de WhatsApp, nome com o código TG), público, verba, datas, texto, título, mensagem inicial e o link do criativo (vale 24 h; gere de novo se passar).
+2. Se aparecer **"Falta confirmar com o cliente"**, pergunte tudo de uma vez só. Sem criativo ou texto, o prompt nem é gerado.
+3. Cole no Claude com o MCP da Meta. Ele cria tudo pausado e termina com **RECOMENDAÇÕES PARA O CLIENTE**.
+4. Cole esse bloco no campo do mesmo card e clique **Enviar para aprovação**. O cliente recebe um WhatsApp e vê **"Precisa de aprovação"** no painel. Enviar outra substitui a anterior.
+5. Só ative a campanha depois do evento **"Cliente aprovou a recomendação da equipe"** no histórico do pedido. Se a recomendação for "Nenhuma", não precisa enviar.
+
+## Avaliar e publicar pela rotina do Claude (spec 0132)
+
+Com `TRAFEGO_CAMPAIGN_REVIEW=true`, o pedido completo entra sozinho na fila. Uma rotina do Claude roda a cada 2
+horas: avalia os pedidos novos pelo MCP do ÓRBITA e publica pela Meta os que o cliente liberou. Prompt, horário e
+como ligar em [`docs/trafego-rotina-avaliacao.md`](trafego-rotina-avaliacao.md).
+
+- **Aprovado**: o cliente vê "Aprovado, publicar". O clique libera a publicação.
+- **Ajustes**: ele vê "Avaliar melhorias e aprovar". Texto, título, mensagem inicial e público o painel grava
+  sozinho; trocar criativo ele resolve e o pedido volta para a fila.
+- **Liberado**: a rotina cria a campanha pelo MCP da Meta e chama `trafego_mark_published`.
+- **Rotina parada**: no admin do pedido, cartão "Avaliação do Claude" → **Aprovar à mão** ou **Marcar como
+  publicado**.
+
+## Trabalhar o trafeGO pela sua IA (spec 0131)
+
+1. Satélites → **IA externa** → marque **"Incluir ferramentas do trafeGO (equipe)"** (só aparece para admin do sistema) → **Gerar chave** e ligue no Claude Code com o comando que aparece. A chave ganha o selo **trafeGO** na lista.
+2. Na IA, peça: "o que tem para fazer hoje no trafeGO?" (`trafego_list_orders`). Depois "abra o TG-0042" (`trafego_get_order`).
+3. Para montar: "pegue o roteiro do TG-0042 e monte no MCP da Meta" (`trafego_get_publish_brief` + MCP da Meta). Tudo nasce pausado.
+4. "Vincule a campanha 1202… ao TG-0042" (`trafego_link_meta_campaign`) e "envie as recomendações ao cliente" (`trafego_send_recommendation`).
+5. Campanha no ar: "como estão os anúncios do TG-0042?" (`trafego_get_ad_insights`) traz os números e o diagnóstico de cada indicador ruim.
+6. Registre o que fez com `trafego_add_team_note` (nota interna; o cliente não vê).
+
+A chave com trafeGO lê os pedidos de **todas** as empresas: não entregue a quem não é da equipe e revogue se vazar.

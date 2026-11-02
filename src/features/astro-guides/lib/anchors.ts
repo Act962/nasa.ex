@@ -551,6 +551,22 @@ export const GUIDE_ANCHORS = {
     id: "trafego.wizard",
     description: "Assistente de montagem da campanha na página do trafeGO",
   },
+  trafegoPublishTab: {
+    id: "trafego.publish-tab",
+    description: "Botão \"Publicar e editar\" no painel de uma campanha do trafeGO",
+  },
+  trafegoCreateDraft: {
+    id: "trafego.create-draft",
+    description: "Botão \"Criar rascunho\" na revisão da campanha de WhatsApp",
+  },
+  trafegoPublishCampaign: {
+    id: "trafego.publish-campaign",
+    description: "Botão \"Publicar\" de um rascunho de campanha no painel",
+  },
+  trafegoReviewFixes: {
+    id: "trafego.review-fixes",
+    description: "Botão \"Avaliar melhorias e aprovar\" de um rascunho que a equipe pediu ajustes",
+  },
   pagesNewButton: {
     id: "pages.new-button",
     description: "Botão \"Novo site\" em /pages",
