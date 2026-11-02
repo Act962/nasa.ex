@@ -213,6 +213,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0076](leads/0076-vinculados-do-lead.md) | leads | Vinculados do lead (dependentes, filiais) com cobrança pelo Financeiro | implementada |
 | [0077](workflows/0077-correcoes-api-oficial-e-gatilhos-orbita.md) | workflows | Correções API Oficial e Gatilhos ÓRBITA — jornada comentário → WhatsApp → curso → lead ganho | rascunho |
 | [0115](payment/0115-cobrancas-no-orbita-com-confirmacao-de-pagamento.md) | payment | Cobranças dentro do ÓRBITA, com confirmação do pagamento por várias fontes | em-revisao |
+| [0130](payment/0130-banco-inter-pix-com-baixa-automatica.md) | payment | Conectar o Banco Inter para gerar o PIX de cada cobrança e dar baixa sozinho | rascunho |
 
 ---
 
