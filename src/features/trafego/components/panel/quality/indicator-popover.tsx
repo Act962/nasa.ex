@@ -197,7 +197,9 @@ export function IndicatorPopover({
           .filter(Boolean)
           .join(" ")}
         confirmText={pendingMode === "replace" ? "Corrigir" : "Duplicar"}
-        onConfirm={() => pendingMode && runFix(pendingMode)}
+        onConfirm={() => {
+          if (pendingMode) runFix(pendingMode);
+        }}
         onCancel={() => setPendingMode(null)}
         isLoading={applyFix.isPending}
       />

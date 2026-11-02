@@ -20,7 +20,7 @@ export const approveTrafegoOrderReview = base
       orderId: input.orderId,
       verdict: "approved",
       summary: input.summary || "Anúncio conferido e aprovado pela equipe.",
-      actorUserId: context.user.id,
+      actorUserId: context.adminUser.id,
     }).catch(rethrowReviewError),
   );
 
@@ -31,7 +31,7 @@ export const markTrafegoOrderPublished = base
     markOrderPublished({
       orderId: input.orderId,
       metaCampaignId: input.metaCampaignId,
-      actorUserId: context.user.id,
-      viaLabel: `admin · ${context.user.name}`,
+      actorUserId: context.adminUser.id,
+      viaLabel: `admin · ${context.adminUser.name}`,
     }).catch(rethrowReviewError),
   );

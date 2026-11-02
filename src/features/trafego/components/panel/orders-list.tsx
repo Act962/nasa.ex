@@ -62,7 +62,10 @@ export function TrafegoOrdersList() {
       },
     ],
     rightItems: [
-      ...(isBillingLocked ? [] : [{ label: "Nova", href: NEW_CAMPAIGN_HREF, icon: <Plus /> }]),
+      // O dock tem duas posições fixas: com o painel travado, "Nova" dá lugar à página do trafeGO.
+      isBillingLocked
+        ? { label: "trafeGO", href: "/trafego", icon: <MegaphoneIcon /> }
+        : { label: "Nova", href: NEW_CAMPAIGN_HREF, icon: <Plus /> },
       {
         label: "Como funciona",
         href: "/trafego#como-funciona",

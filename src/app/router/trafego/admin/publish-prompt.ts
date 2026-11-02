@@ -35,6 +35,6 @@ export const sendTrafegoRecommendationForApproval = base
     sendRecommendationForApproval({
       orderId: input.orderId,
       recommendation: input.recommendation,
-      actorUserId: context.user.id,
+      actorUserId: context.adminUser.id,
     }).catch(rethrowNotFound),
   );

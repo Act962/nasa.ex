@@ -103,7 +103,7 @@ export async function updateOrderCampaign(
       const endTimeIso = buildEndTimeIso(input.endDate, meta.account.timezoneName);
       for (const adset of liveAdsets) await updateMetaObject(meta.auth, adset.id, { end_time: endTimeIso });
       detail = `${campaign.name} · até ${input.endDate.split("-").reverse().join("/")}`;
-    } else {
+    } else if (input.action === "audience") {
       const targeting = buildTargeting(input.audience);
       for (const adset of liveAdsets) await updateMetaObject(meta.auth, adset.id, { targeting });
       detail = `${campaign.name} · ${input.audience.cityName} + ${input.audience.radiusKm} km, ${input.audience.ageMin}–${input.audience.ageMax} anos`;
