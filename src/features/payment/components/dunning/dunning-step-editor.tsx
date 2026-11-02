@@ -39,6 +39,7 @@ import {
   findRiskyTerms,
   phaseOf,
   renderDunningPreview,
+  splitPixCodeMessage,
 } from "../../lib/dunning-presets";
 import { ConfirmDeleteDialog } from "../shared/confirm-delete-dialog";
 
@@ -86,6 +87,8 @@ export function DunningStepEditor({
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const phase = phaseOf(step.daysOffset);
+  const whatsappPixSplit =
+    step.channel === "WHATSAPP" ? splitPixCodeMessage(body) : { body, hasPixCodeMessage: false };
   const riskyTerms = findRiskyTerms(`${subject} ${body}`);
   const ChannelIcon = step.channel === "EMAIL" ? Mail : MessageSquare;
 
@@ -303,12 +306,24 @@ export function DunningStepEditor({
           ))}
         </div>
         {isPreviewOpen && (
-          <div className="whitespace-pre-wrap rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
-            {step.channel === "EMAIL" && subject && (
-              <p className="mb-2 font-medium">{renderDunningPreview(subject)}</p>
+          <div className="space-y-1.5">
+            <div className="whitespace-pre-wrap rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
+              {step.channel === "EMAIL" && subject && (
+                <p className="mb-2 font-medium">{renderDunningPreview(subject)}</p>
+              )}
+              {renderDunningPreview(whatsappPixSplit.hasPixCodeMessage ? whatsappPixSplit.body : body)}
+            </div>
+            {whatsappPixSplit.hasPixCodeMessage && (
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
+                {renderDunningPreview("{{pix_copia_e_cola}}")}
+              </div>
             )}
-            {renderDunningPreview(body)}
           </div>
+        )}
+        {whatsappPixSplit.hasPixCodeMessage && (
+          <p className="text-[11px] text-muted-foreground">
+            O código PIX vai sozinho numa mensagem logo depois desta, para o cliente copiar só ele.
+          </p>
         )}
         {riskyTerms.length > 0 && (
           <p className="flex items-start gap-1.5 text-[11px] text-warning">

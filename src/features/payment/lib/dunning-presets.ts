@@ -54,6 +54,19 @@ export const DUNNING_VARIABLES: ReadonlyArray<DunningVariable> = [
   { token: "{{outras_pendencias}}", label: "Outras pendências", example: "R$ 0,00" },
 ];
 
+const PIX_CODE_TOKEN = "{{pix_copia_e_cola}}";
+
+/**
+ * No WhatsApp o código PIX sai sozinho na mensagem seguinte: copiar uma mensagem copia ela
+ * inteira, e o cliente precisa colar só o código no banco. Mensagem que é só o código fica como está.
+ */
+export function splitPixCodeMessage(template: string): { body: string; hasPixCodeMessage: boolean } {
+  if (!template.includes(PIX_CODE_TOKEN)) return { body: template, hasPixCodeMessage: false };
+  const body = template.split(PIX_CODE_TOKEN).join("").replace(/\n{3,}/g, "\n\n").trim();
+  if (!body) return { body: template, hasPixCodeMessage: false };
+  return { body, hasPixCodeMessage: true };
+}
+
 export function renderDunningPreview(template: string): string {
   return DUNNING_VARIABLES.reduce(
     (text, variable) => text.split(variable.token).join(variable.example),

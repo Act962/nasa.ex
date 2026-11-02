@@ -224,6 +224,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0130](trafego/0130-trafego-pedido-completo-prompt-e-aprovacao.md) | trafego | Textos do Astro desde o início, pedido completo para publicar, "Copiar prompt para o Claude" no admin e "Precisa de aprovação" no painel | implementada |
 | [0131](trafego/0131-trafego-no-mcp-do-orbita.md) | trafego | Ferramentas do trafeGO no MCP do ÓRBITA para a equipe: listar o que precisa de ação, ler o pedido, números, roteiro de publicação, enviar recomendação e vincular campanha | implementada |
 | [0132](trafego/0132-trafego-avaliacao-do-claude-antes-de-publicar.md) | trafego | O Claude avalia o pedido completo a cada 2 horas pelo MCP, o cliente libera ("Aprovado, publicar" ou "Avaliar melhorias e aprovar") e o Claude publica pelo MCP da Meta | implementada |
+| [0130](payment/0130-banco-inter-pix-com-baixa-automatica.md) | payment | Conectar o Banco Inter para gerar o PIX de cada cobrança e dar baixa sozinho | rascunho |
 
 ---
 

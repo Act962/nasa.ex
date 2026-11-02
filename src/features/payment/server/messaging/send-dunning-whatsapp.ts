@@ -81,3 +81,18 @@ export async function sendDunningWhatsApp(params: {
   });
   return result.isSent ? { ...result, via: "template" } : result;
 }
+
+/** Mensagem logo depois do aviso (o código PIX sozinho). Só vale se o aviso saiu como texto livre. */
+export async function sendDunningWhatsAppFollowUp(params: {
+  organizationId: string;
+  phone: string;
+  text: string;
+}) {
+  const senderTrackingId = await getPaymentSenderTrackingId(params.organizationId);
+  return sendOrganizationWhatsAppText({
+    organizationId: params.organizationId,
+    phone: params.phone,
+    message: params.text,
+    senderTrackingId,
+  });
+}
