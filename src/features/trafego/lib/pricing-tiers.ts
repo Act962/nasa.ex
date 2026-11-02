@@ -6,8 +6,9 @@
  * mínimo de R$ 150 por pedido. Se o gasto real passar da verba declarada, a
  * diferença gera complemento de 30% (ver `complement.ts`).
  *
- * As faixas abaixo decidem só o setup da conta de anúncios (BM), cobrado uma
- * única vez de quem ainda não tem conta.
+ * Setup (spec 0126): R$ 450 pela configuração inicial da equipe (conectar a conta
+ * Meta nos Satélites), cobrado uma única vez por empresa. As faixas abaixo valem
+ * só para o setup do número no WhatsApp Oficial.
  */
 
 export interface TrafegoTier {
@@ -23,6 +24,8 @@ export const TRAFEGO_SERVICE_FEE_PERCENT = 30;
 export const TRAFEGO_MIN_SERVICE_FEE_BRL_CENTS = 15_000; // R$ 150,00
 
 export const MIN_AD_BUDGET_BRL_CENTS = 30_000; // R$ 300,00
+
+export const TRAFEGO_SETUP_BRL_CENTS = 45_000; // R$ 450,00
 
 /**
  * Teto de verba por campanha: R$ 500.000,00. Uma compra self-service acima
@@ -48,7 +51,7 @@ export function clampAdBudget(adBudgetBrlCents: number): number {
   );
 }
 
-/** Faixa de setup que atende a verba. Abaixo do mínimo, devolve a primeira. */
+/** Faixa de setup do WhatsApp Oficial que atende a verba. Abaixo do mínimo, devolve a primeira. */
 export function resolveTier(adBudgetBrlCents: number): TrafegoTier {
   const budget = clampAdBudget(adBudgetBrlCents);
   return (
@@ -88,19 +91,32 @@ export interface TrafegoQuote {
 }
 
 /**
- * Simulação completa. `needsSetup` vem da resposta do cliente sobre ter BM —
- * quem já tem conta de anúncios não paga setup.
+ * Setup da contratação (spec 0126, RF-8). Nos canais da Meta é fixo e cobrado uma
+ * vez por empresa; no WhatsApp Oficial continua por faixa, só para quem não tem número.
  */
+export function resolveTrafegoSetupBrlCents(params: {
+  adBudgetBrlCents: number;
+  isWhatsappChannel: boolean;
+  needsWhatsappNumber: boolean;
+  hasPaidSetupBefore: boolean;
+}): number {
+  if (params.isWhatsappChannel) {
+    return params.needsWhatsappNumber ? resolveTier(params.adBudgetBrlCents).setupBrlCents : 0;
+  }
+  return params.hasPaidSetupBefore ? 0 : TRAFEGO_SETUP_BRL_CENTS;
+}
+
+/** Simulação completa. O setup vem de `resolveTrafegoSetupBrlCents`. */
 export function quoteTrafego(
   adBudgetBrlCents: number,
-  needsSetup: boolean,
+  setupBrlCents: number,
   extraCreatives = 0,
   extraCreativeBrlCents = 0,
 ): TrafegoQuote {
   const budget = clampAdBudget(adBudgetBrlCents);
   const tier = resolveTier(budget);
   const serviceFeeBrlCents = computeTrafegoServiceFee(budget);
-  const setupBrlCents = needsSetup ? tier.setupBrlCents : 0;
+  const safeSetupBrlCents = Math.max(0, Math.round(setupBrlCents));
   const extraCreativesBrlCents =
     Math.max(0, extraCreatives) * Math.max(0, extraCreativeBrlCents);
 
@@ -110,9 +126,9 @@ export function quoteTrafego(
     feePercent: TRAFEGO_SERVICE_FEE_PERCENT,
     isMinimumFee: serviceFeeBrlCents === TRAFEGO_MIN_SERVICE_FEE_BRL_CENTS,
     serviceFeeBrlCents,
-    setupBrlCents,
+    setupBrlCents: safeSetupBrlCents,
     extraCreativesBrlCents,
-    totalBrlCents: serviceFeeBrlCents + setupBrlCents + extraCreativesBrlCents,
+    totalBrlCents: serviceFeeBrlCents + safeSetupBrlCents + extraCreativesBrlCents,
   };
 }
 

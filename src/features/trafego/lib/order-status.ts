@@ -35,6 +35,31 @@ export const ORDER_STATUS_STYLE: Record<TrafegoOrderStatus, string> = {
 };
 
 /**
+ * O que o cliente vê (spec 0126, D-3): quatro estados em vez dos status de operação.
+ * Os status internos continuam para a equipe no admin.
+ */
+export const ORDER_CLIENT_STATUS_LABEL: Record<TrafegoOrderStatus, string> = {
+  PAID: "Configurando sua conta",
+  ACCOUNT_REVIEW: "Configurando sua conta",
+  ONBOARDING: "Configurando sua conta",
+  MATERIALS_SUBMITTED: "Montando a campanha",
+  REQUESTED: "Montando a campanha",
+  IN_REVIEW: "Montando a campanha",
+  CHANGES_REQUESTED: "Montando a campanha",
+  SCHEDULED: "Montando a campanha",
+  RUNNING: "No ar",
+  PAUSED: "Pausada",
+  COMPLETED: "Concluída",
+  CANCELLED: "Cancelada",
+  REFUNDED: "Reembolsada",
+};
+
+/** Antes de ir ao ar: o cliente ainda pode enviar ou trocar o criativo. */
+export function isOrderBeforeLaunch(status: TrafegoOrderStatus): boolean {
+  return ORDER_CLIENT_STATUS_LABEL[status] === "Configurando sua conta" || ORDER_CLIENT_STATUS_LABEL[status] === "Montando a campanha";
+}
+
+/**
  * Ordem exibida na timeline do cliente. Status de exceção (CANCELLED, REFUNDED,
  * PAUSED, CHANGES_REQUESTED) ficam de fora: aparecem como evento, não como etapa.
  */

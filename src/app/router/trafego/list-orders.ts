@@ -17,6 +17,8 @@ export const listTrafegoOrders = base
         id: true,
         code: true,
         planNameSnapshot: true,
+        businessName: true,
+        whatsappNumber: true,
         platform: true,
         campaignType: true,
         objective: true,
@@ -34,6 +36,12 @@ export const listTrafegoOrders = base
         metaCampaignExternalId: true,
         broadcastId: true,
         _count: { select: { creatives: true, copies: true } },
+        // Recomendação da equipe esperando o cliente (spec 0130, RF-8).
+        events: {
+          where: { requiresApproval: true, approvedAt: null, supersededAt: null },
+          select: { id: true },
+          take: 1,
+        },
       },
     });
 
@@ -42,6 +50,8 @@ export const listTrafegoOrders = base
       creativesCount: order._count.creatives,
       copiesCount: order._count.copies,
       hasMetricsLink: Boolean(order.metaCampaignExternalId || order.broadcastId),
+      hasPendingApproval: order.events.length > 0,
+      events: undefined,
       _count: undefined,
     }));
   });

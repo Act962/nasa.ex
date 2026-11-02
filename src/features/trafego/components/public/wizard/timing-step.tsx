@@ -30,6 +30,7 @@ export function TimingStep({
   hasAdAccount,
   reuseSocialConnection = false,
   socialConnectionSource = "previous-order",
+  hasSentMaterials = false,
 }: {
   value: TimingDraft;
   onChange: (value: TimingDraft) => void;
@@ -38,6 +39,8 @@ export function TimingStep({
   reuseSocialConnection?: boolean;
   /** De onde veio a confirmação: pedido anterior ou a Meta conectada nos Satélites (spec 0123). */
   socialConnectionSource?: "previous-order" | "satellites";
+  /** Criativo e texto já enviados no passo Criativo (spec 0129): não pergunta de novo. */
+  hasSentMaterials?: boolean;
 }) {
   const patch = (partial: Partial<TimingDraft>) =>
     onChange({ ...value, ...partial });
@@ -45,7 +48,7 @@ export function TimingStep({
   const estimate = estimateEarliestStart({
     hasAdAccount,
     hasSocialLinked: value.hasSocialLinked,
-    materialsReady: value.materialsReady,
+    materialsReady: hasSentMaterials ? true : value.materialsReady,
   });
   const isTooSoon = isDesiredStartTooSoon(
     value.desiredStartAt,
@@ -85,19 +88,31 @@ export function TimingStep({
             }
           />
         )}
-        <YesNo
-          label={
-            <>
-              Seus criativos e textos já estão prontos?
-              <TechnicalTerm term="creative" className="text-white/50" />
-              <TechnicalTerm term="copy" className="text-white/50" />
-            </>
-          }
-          value={value.materialsReady}
-          onChange={(materialsReady) =>
-            patch({ materialsReady, acknowledged: false })
-          }
-        />
+        {hasSentMaterials ? (
+          <div className="rounded-xl border border-success/30 bg-success/15 p-3">
+            <p className="flex items-center gap-2 text-xs font-medium text-success">
+              <Check className="size-4" />
+              Criativo e texto enviados
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-white/40">
+              Você mandou no primeiro passo. Dá para trocar depois pelo painel.
+            </p>
+          </div>
+        ) : (
+          <YesNo
+            label={
+              <>
+                Seus criativos e textos já estão prontos?
+                <TechnicalTerm term="creative" className="text-white/50" />
+                <TechnicalTerm term="copy" className="text-white/50" />
+              </>
+            }
+            value={value.materialsReady}
+            onChange={(materialsReady) =>
+              patch({ materialsReady, acknowledged: false })
+            }
+          />
+        )}
       </div>
 
       <div className="rounded-2xl border border-white/[0.09] bg-white/[0.03] p-4">

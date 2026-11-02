@@ -11,7 +11,13 @@ import {
 } from "@/features/trafego/lib/campaign-builder/build-meta-payloads";
 import { buildEndTimeIso, estimateBudgetComplement } from "@/features/trafego/lib/campaign-builder/builder-rules";
 import type { BuilderOrder } from "./builder-access";
-import { CampaignBuilderError, requireBuilderPage, requireOrderCampaign, type AccountMeta } from "./builder-context";
+import {
+  CampaignBuilderError,
+  assertRunningAdsLimit,
+  requireBuilderPage,
+  requireOrderCampaign,
+  type AccountMeta,
+} from "./builder-context";
 import {
   assertAdTextAllowed,
   mirrorCampaign,
@@ -67,6 +73,11 @@ export async function updateOrderCampaign(
   const campaign = await requireOrderCampaign(meta, order, campaignId);
   const liveAdsets = campaign.adsets.filter((adset) => adset.status !== "ARCHIVED" && adset.status !== "DELETED");
   let detail = campaign.name;
+
+  if (input.action === "resume") {
+    const adsToActivate = campaign.ads.filter((ad) => ad.status === "ACTIVE").length;
+    await assertRunningAdsLimit(meta, order, { campaignId: campaign.id, adsToActivate });
+  }
 
   try {
     if (input.action === "pause" || input.action === "resume") {

@@ -47,3 +47,11 @@ export async function readThroughMetaCache<T>(key: string, loader: () => Promise
     throw loadError;
   }
 }
+
+/** Depois de uma escrita (pausar, ativar), as leituras da org não podem mostrar o estado antigo. */
+export function forgetMetaReadCacheForOrg(organizationId: string) {
+  const orgPart = `org=${organizationId}`;
+  for (const key of [...cache.keys()]) {
+    if (key.split("|").includes(orgPart)) cache.delete(key);
+  }
+}

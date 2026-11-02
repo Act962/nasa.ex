@@ -13,11 +13,11 @@ export const TRAFEGO_GUIDES: GuideDef[] = [
     steps: [
       {
         anchor: "trafegoPublishTab",
-                title: "Abra a aba Publicar",
-        message: "Dentro da campanha, a aba Publicar monta o anúncio passo a passo. Só o dono ou um administrador vê.",
+                title: "Toque em Publicar e editar",
+        message: "Dentro da campanha, o botão Publicar e editar monta o anúncio passo a passo. Só o dono ou um administrador vê.",
         position: "bottom",
         advanceOn: "click",
-        missingMessage: "Abra uma campanha em Minhas campanhas. A aba Publicar aparece para o dono e os administradores da empresa.",
+        missingMessage: "Abra uma campanha em Minhas campanhas. O botão Publicar e editar aparece para o dono e os administradores da empresa.",
       },
       {
         anchor: "trafegoCreateDraft",

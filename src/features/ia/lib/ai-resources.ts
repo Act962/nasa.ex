@@ -501,6 +501,18 @@ export const AI_RESOURCES: AiResource[] = [
     settingsPlace: "none",
   },
   {
+    id: "trafego.creative_review",
+    app: "Tráfego",
+    label: "Análise do criativo pelo Astro",
+    description: "Nota, política da Meta e o que melhorar na imagem ou no vídeo antes de publicar (spec 0126).",
+    kind: "text",
+    keyRule: "platform-then-company",
+    model: { kind: "fixed", provider: "anthropic", modelId: "claude-haiku-4-5" },
+    usageFeatures: ["trafego.creative_review"],
+    usageActions: ["trafego_creative_review", "trafego_ad_fix"],
+    settingsPlace: "none",
+  },
+  {
     id: "comments.reply",
     app: "Comments",
     label: "Responder comentário com IA",

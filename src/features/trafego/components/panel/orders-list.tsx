@@ -32,6 +32,7 @@ import { BillingLockBanner } from "./billing-lock-banner";
 import { OrderCard } from "./order-card";
 import { PanelPageHeader } from "./panel-page-header";
 import { PanelStatGrid, type PanelStat } from "./panel-stat-grid";
+import { buildOrderTitle } from "@/features/trafego/lib/order-display";
 
 const NEW_CAMPAIGN_HREF = "/trafego?nova=1#montar";
 
@@ -112,7 +113,7 @@ export function TrafegoOrdersList() {
       matchesOrderFilter(order.status, activeFilter) &&
       (normalizedSearch.length === 0 ||
         order.code.toLowerCase().includes(normalizedSearch) ||
-        order.planNameSnapshot.toLowerCase().includes(normalizedSearch)),
+        buildOrderTitle(order).toLowerCase().includes(normalizedSearch)),
   );
 
   return (
@@ -174,7 +175,7 @@ export function TrafegoOrdersList() {
               <Input
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Buscar pelo código ou plano"
+                placeholder="Buscar pela campanha ou código"
                 aria-label="Buscar campanha"
                 className="h-11 rounded-full pl-10 md:h-9"
               />

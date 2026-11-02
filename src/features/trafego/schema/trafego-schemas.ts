@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_AD_BUDGET_BRL_CENTS } from "@/features/trafego/lib/pricing-tiers";
+import { trafegoCreativeDraftSchema } from "@/features/trafego/lib/creative-review/schema";
 
 export const trafegoPlatformSchema = z.enum([
   "META_ADS",
@@ -56,6 +57,8 @@ export const trafegoBriefingSchema = z.object({
     .or(z.literal("")),
   whatsappNumber: z.string().trim().max(30).optional(),
   notes: z.string().trim().max(2000).optional(),
+  /** Passo "Criativo" do wizard (spec 0126, RF-9). Vira `TrafegoCreative` quando o pedido nasce. */
+  creativeDraft: trafegoCreativeDraftSchema.optional(),
 });
 
 export type TrafegoBriefing = z.infer<typeof trafegoBriefingSchema>;

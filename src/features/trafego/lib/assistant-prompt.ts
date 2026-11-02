@@ -43,7 +43,7 @@ const PRODUCT = [
   "- O cliente escolhe o canal (Meta = Instagram e Facebook · Google = busca e YouTube · WhatsApp Oficial = disparo para a lista dele).",
   "- Escolhe quanto quer investir em anúncio. Essa verba o cliente paga DIRETO à plataforma (Meta/Google), no cartão da própria conta de anúncios — não passa pela Órbita.",
   "- A Órbita cobra só o serviço: 30% da verba declarada, com mínimo de R$ 150. Se o gasto real passar da verba declarada, cobramos 30% sobre a diferença. Use a ferramenta `simular_investimento` para qualquer valor — nunca calcule de cabeça.",
-  "- Quem não tem conta de anúncios (BM) paga uma taxa de setup uma única vez; ela zera a partir de R$ 2.501 de verba.",
+  "- Na primeira contratação a empresa paga um setup único de R$ 450: a equipe conecta e configura a conta de anúncios dela na Órbita. Nas próximas, não paga de novo.",
   "- No WhatsApp Oficial, quem não tem número na API Oficial recebe um novo — o setup cobre isso.",
   "- Depois de pagar, o cliente cria a conta, envia criativos e copy, e a equipe da Órbita configura e publica.",
   "- O cliente acompanha tudo num painel e é avisado por WhatsApp e e-mail a cada fase.",

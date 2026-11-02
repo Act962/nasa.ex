@@ -37,6 +37,7 @@ import { transitionTrafegoOrder } from "../transition-order";
 import { getOrderBudgetUsage } from "../meta/order-meta-performance";
 import type { BuilderOrder } from "./builder-access";
 import {
+  assertRunningAdsLimit,
   CampaignBuilderError,
   listOrderCampaigns,
   requireBuilderPage,
@@ -307,6 +308,7 @@ export async function publishCampaign(meta: AccountMeta, order: BuilderOrder, ca
   const campaign = await requireOrderCampaign(meta, order, campaignId);
   const liveAds = campaign.ads.filter((ad) => ad.status !== "ARCHIVED" && ad.status !== "DELETED");
   if (liveAds.length === 0) throw new CampaignBuilderError("BAD_REQUEST", "A campanha não tem anúncio para publicar.");
+  await assertRunningAdsLimit(meta, order, { campaignId: campaign.id, adsToActivate: liveAds.length });
 
   try {
     for (const ad of liveAds) await updateMetaObject(meta.auth, ad.id, { status: "ACTIVE" });

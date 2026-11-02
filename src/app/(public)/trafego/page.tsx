@@ -5,6 +5,7 @@ import {
   TrafegoLanding,
   type ReturningCustomerDefaults,
 } from "@/features/trafego/components/public/trafego-landing";
+import { hasOrgPaidTrafegoSetup } from "@/features/trafego/server/lib/setup-fee";
 
 interface SearchParams {
   cancelado?: string;
@@ -30,7 +31,7 @@ async function buildMemberDefaults(params: {
   organizationId: string;
   user: SessionUser;
 }): Promise<ReturningCustomerDefaults | null> {
-  const [organization, previous, metaIntegration] = await Promise.all([
+  const [organization, previous, metaIntegration, hasPaidSetup] = await Promise.all([
     prisma.organization.findUnique({ where: { id: params.organizationId }, select: { name: true } }),
     prisma.trafegoOrder.findFirst({
       where: {
@@ -61,6 +62,7 @@ async function buildMemberDefaults(params: {
       where: { organizationId_platform: { organizationId: params.organizationId, platform: "META" } },
       select: { isActive: true, config: true },
     }),
+    hasOrgPaidTrafegoSetup(params.organizationId),
   ]);
   if (!organization) return null;
 
@@ -80,6 +82,7 @@ async function buildMemberDefaults(params: {
     campaignType: previous?.campaignType ?? null,
     objective: previous?.objective ?? null,
     isMetaConnected,
+    hasPaidSetup,
     socialHandle: previous?.socialHandle || connectedInstagram,
     hasBusinessManager: isMetaConnected
       ? "yes"

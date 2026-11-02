@@ -397,6 +397,27 @@ export const DEFAULT_STAR_RULES: StarRuleDefinition[] = [
   // Disparadas por procedures novas em src/app/router/brand/* e
   // src/app/router/nasa-planner/* (campaign-brief / ai-chat-route).
   {
+    action: "trafego_ad_fix",
+    label: "Correção de anúncio pelo Astro (trafeGO)",
+    stars: 5,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "trafego_creative_review",
+    label: "Análise do criativo pelo Astro (trafeGO)",
+    stars: 5,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
+    action: "trafego_copy_suggestion",
+    label: "Textos do anúncio gerados pelo Astro (trafeGO)",
+    stars: 2,
+    cooldownHours: null,
+    category: "ai",
+  },
+  {
     action: "brand_extract",
     label: "Extração de Brand Kit (Claude Vision)",
     stars: 5,

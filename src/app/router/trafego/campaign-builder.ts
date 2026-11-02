@@ -30,6 +30,8 @@ import {
   replaceCampaignAd,
   updateOrderCampaign,
 } from "@/features/trafego/server/lib/campaign-builder/builder-edits";
+import { setOrderDeliveryStatus } from "@/features/trafego/server/lib/campaign-builder/builder-delivery";
+import { applyAdFix, suggestAdFix } from "@/features/trafego/server/lib/campaign-builder/builder-quality-fix";
 
 /**
  * Construtor de campanha de WhatsApp do painel (spec 0124). Toda procedure passa pela
@@ -194,6 +196,87 @@ export const updateCampaignProcedure = builderBase
     const access = await requireBuilder(context, input.orderId);
     return runBuilderStep(() =>
       updateOrderCampaign(access.meta, access.order, input.campaignId, input.change, toActor(context)),
+    );
+  });
+
+/** Liga e desliga conjunto ou anúncio pelo cartão do painel (spec 0126). */
+export const setCampaignDeliveryProcedure = builderBase
+  .input(
+    orderInput.extend({
+      objectType: z.enum(["adset", "ad"]),
+      objectId: campaignIdSchema,
+      isActive: z.boolean(),
+    }),
+  )
+  .handler(async ({ input, context }) => {
+    assertWithinRateLimit("edit", context.user.id, 30);
+    const access = await requireBuilder(context, input.orderId);
+    return runBuilderStep(() =>
+      setOrderDeliveryStatus(
+        access.meta,
+        access.order,
+        { objectType: input.objectType, objectId: input.objectId, isActive: input.isActive },
+        toActor(context),
+      ),
+    );
+  });
+
+const adMetricsSchema = z.object({
+  spendCents: z.number(),
+  impressions: z.number(),
+  reach: z.number(),
+  clicks: z.number(),
+  conversations: z.number(),
+  ctr: z.number(),
+  cpcCents: z.number(),
+  cpmCents: z.number(),
+  costPerConversationCents: z.number(),
+  frequency: z.number(),
+  conversationRate: z.number(),
+});
+
+/** O Astro analisa o anúncio e devolve o texto corrigido (spec 0128, RF-8). 5 Stars. */
+export const analyzeAdForFixProcedure = builderBase
+  .input(orderInput.extend({ adId: campaignIdSchema, metrics: adMetricsSchema, benchmark: adMetricsSchema.nullable() }))
+  .handler(async ({ input, context }) => {
+    assertWithinRateLimit("ad-fix-analyze", context.user.id, 20);
+    const access = await requireBuilder(context, input.orderId);
+    return runBuilderStep(() =>
+      suggestAdFix(access.meta, access.order, { adId: input.adId, metrics: input.metrics, benchmark: input.benchmark }, toActor(context)),
+    );
+  });
+
+/** "Fazer correção" (troca) ou "Duplicar com correção" (novo pausado) (spec 0128, RF-9, RF-10). */
+export const applyAdFixProcedure = builderBase
+  .input(
+    orderInput.extend({
+      adId: campaignIdSchema,
+      mode: z.enum(["replace", "duplicate"]),
+      message: z.string().trim().min(1).max(600),
+      headline: z.string().trim().max(60).nullable(),
+      isPolicyWarningConfirmed: z.boolean().default(false),
+    }),
+  )
+  .handler(async ({ input, context }) => {
+    assertWithinRateLimit("ad-fix-apply", context.user.id, 10);
+    const sameAdLimit = takeRateLimit("ad-fix-apply-ad", input.adId, { max: 1, windowMs: 60_000 });
+    if (!sameAdLimit.allowed) {
+      throw new ORPCError("TOO_MANY_REQUESTS", { message: "Já estamos criando a correção deste anúncio. Aguarde um minuto." });
+    }
+    const access = await requireBuilder(context, input.orderId);
+    return runBuilderStep(() =>
+      applyAdFix(
+        access.meta,
+        access.order,
+        {
+          adId: input.adId,
+          mode: input.mode,
+          message: input.message,
+          headline: input.headline || null,
+          isPolicyWarningConfirmed: input.isPolicyWarningConfirmed,
+        },
+        toActor(context),
+      ),
     );
   });
 

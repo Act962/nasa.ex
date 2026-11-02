@@ -128,6 +128,11 @@ const TERMS = {
     description:
       "Quantas pessoas começaram uma conversa com a empresa (WhatsApp, Messenger ou Direct) depois de ver o anúncio.",
   },
+  conversationRate: {
+    label: "Taxa de conversa",
+    description:
+      "De quem clicou no anúncio, quantos mandaram mensagem. Baixa indica problema na mensagem inicial ou no WhatsApp, não no criativo.",
+  },
   costPerConversation: {
     label: "Custo por conversa",
     description: "Valor médio da verba gasto para cada conversa iniciada.",

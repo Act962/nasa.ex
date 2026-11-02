@@ -7,7 +7,7 @@ import { orpc } from "@/lib/orpc";
 
 export function useExternalAiTokens() {
   const { data, isLoading } = useQuery(orpc.externalAi.tokens.list.queryOptions());
-  return { tokens: data?.tokens ?? [], isLoading };
+  return { tokens: data?.tokens ?? [], canIncludeTrafego: data?.canIncludeTrafego === true, isLoading };
 }
 
 function useInvalidateTokens() {

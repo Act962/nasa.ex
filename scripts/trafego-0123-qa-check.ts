@@ -4,7 +4,7 @@
 //
 //   pnpm tsx scripts/trafego-0123-qa-check.ts
 
-import { computeTrafegoServiceFee, quoteTrafego } from "../src/features/trafego/lib/pricing-tiers";
+import { TRAFEGO_SETUP_BRL_CENTS, computeTrafegoServiceFee, quoteTrafego } from "../src/features/trafego/lib/pricing-tiers";
 import { deriveExtraCreativesBrlCents } from "../src/features/trafego/lib/order-values";
 import {
   computeComplementDue,
@@ -47,8 +47,9 @@ console.log("\nPreço (CA-1)");
 check("CA-1", "R$ 300 → taxa R$ 150 (mínimo)", computeTrafegoServiceFee(30_000), 15_000);
 check("CA-1", "R$ 1.000 → taxa R$ 300", computeTrafegoServiceFee(100_000), 30_000);
 check("CA-1", "R$ 5.000 → taxa R$ 1.500", computeTrafegoServiceFee(500_000), 150_000);
-check("CA-1", "R$ 300 sem conta → setup R$ 500", quoteTrafego(30_000, true).setupBrlCents, 50_000);
-check("CA-2", "total cobrado sem a verba", quoteTrafego(100_000, false).totalBrlCents, 30_000);
+// O setup por faixa virou o setup único de R$ 450 na spec 0126 (CA-4 de lá).
+check("CA-1", "R$ 300 → setup único R$ 450 (spec 0126)", quoteTrafego(30_000, TRAFEGO_SETUP_BRL_CENTS).setupBrlCents, 45_000);
+check("CA-2", "total cobrado sem a verba", quoteTrafego(100_000, 0).totalBrlCents, 30_000);
 
 console.log("\nCriativos extras por modelo (CA-4)");
 check(

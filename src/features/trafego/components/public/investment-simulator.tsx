@@ -20,23 +20,26 @@ const SLIDER_MAX = 1_000_000; // R$ 10.000 — acima disso, digita no campo
 interface InvestmentSimulatorProps {
   adBudgetBrlCents: number;
   onChangeBudget: (brlCents: number) => void;
-  needsSetup: boolean;
+  setupBrlCents: number;
   setupLabel: string;
+  /** Só no WhatsApp Oficial o setup ainda varia por faixa de verba. */
+  showSetupTiers: boolean;
 }
 
 /**
  * Simulador do serviço (spec 0123). A verba declarada só calcula a taxa: ela é
- * paga pelo cliente à Meta. O que a Órbita cobra é serviço + setup.
+ * paga pelo cliente à Meta. O que a Órbita cobra é serviço + setup (R$ 450 uma vez por empresa, spec 0126).
  */
 export function InvestmentSimulator({
   adBudgetBrlCents,
   onChangeBudget,
-  needsSetup,
+  setupBrlCents,
   setupLabel,
+  showSetupTiers,
 }: InvestmentSimulatorProps) {
   const quote = useMemo(
-    () => quoteTrafego(adBudgetBrlCents, needsSetup),
-    [adBudgetBrlCents, needsSetup],
+    () => quoteTrafego(adBudgetBrlCents, setupBrlCents),
+    [adBudgetBrlCents, setupBrlCents],
   );
   const sliderValue = Math.min(quote.adBudgetBrlCents, SLIDER_MAX);
 
@@ -104,7 +107,7 @@ export function InvestmentSimulator({
       </div>
 
       <div className="rounded-2xl border border-white/[0.09] bg-white/[0.03] p-4 sm:p-5">
-        <OrderSummary quote={quote} needsSetup={needsSetup} setupLabel={setupLabel} />
+        <OrderSummary quote={quote} setupLabel={setupLabel} />
       </div>
 
       <p className="flex items-start gap-2.5 rounded-xl border border-info/30 bg-info/10 p-3.5 text-xs leading-relaxed text-foreground/85">
@@ -117,12 +120,12 @@ export function InvestmentSimulator({
         </span>
       </p>
 
-      {needsSetup && <SetupTable currentTierId={quote.tier.id} />}
+      {showSetupTiers && <SetupTable currentTierId={quote.tier.id} />}
     </div>
   );
 }
 
-/** Colapsada por padrão: o setup varia pela faixa de verba e só vale para quem não tem conta. */
+/** Colapsada por padrão: no WhatsApp Oficial o setup do número varia pela faixa de verba. */
 function SetupTable({ currentTierId }: { currentTierId: string }) {
   const [isOpen, setIsOpen] = useState(false);
 

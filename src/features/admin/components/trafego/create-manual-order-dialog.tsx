@@ -30,7 +30,7 @@ import {
   PLATFORM_SHORT_LABEL,
 } from "@/features/trafego/lib/catalog-labels";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
-import { quoteTrafego } from "@/features/trafego/lib/pricing-tiers";
+import { quoteTrafego, TRAFEGO_SETUP_BRL_CENTS } from "@/features/trafego/lib/pricing-tiers";
 import { useAdminPath } from "@/features/trafego/lib/base-path";
 import { OrganizationCombobox } from "./settings/organization-combobox";
 import {
@@ -55,7 +55,7 @@ function centsToBrlInput(cents: number): string {
 }
 
 function tableFeesFor(adBudgetBrl: string) {
-  const quote = quoteTrafego(brlInputToCents(adBudgetBrl), true);
+  const quote = quoteTrafego(brlInputToCents(adBudgetBrl), TRAFEGO_SETUP_BRL_CENTS);
   return {
     serviceFeeBrl: centsToBrlInput(quote.serviceFeeBrlCents),
     setupFeeBrl: centsToBrlInput(quote.setupBrlCents),

@@ -9,12 +9,10 @@ import type { TrafegoQuote } from "@/features/trafego/lib/pricing-tiers";
  */
 export function OrderSummary({
   quote,
-  needsSetup,
   setupLabel,
   compact,
 }: {
   quote: TrafegoQuote;
-  needsSetup: boolean;
   setupLabel: string;
   compact?: boolean;
 }) {
@@ -31,16 +29,11 @@ export function OrderSummary({
         hint="gestão, criativos e otimização"
         value={formatBrlFromCents(quote.serviceFeeBrlCents)}
       />
-      {needsSetup && (
+      {quote.setupBrlCents > 0 && (
         <Row
           label={setupLabel}
-          hint={quote.tier.setupBrlCents === 0 ? "grátis nesta faixa" : "cobrado uma única vez"}
-          value={
-            quote.tier.setupBrlCents === 0
-              ? "Grátis"
-              : formatBrlFromCents(quote.setupBrlCents)
-          }
-          highlight={quote.tier.setupBrlCents === 0}
+          hint="cobrado uma única vez"
+          value={formatBrlFromCents(quote.setupBrlCents)}
         />
       )}
       {quote.extraCreativesBrlCents > 0 && (

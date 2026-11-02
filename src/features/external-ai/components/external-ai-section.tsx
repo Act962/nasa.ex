@@ -43,12 +43,14 @@ function CopyBlock({ text }: { text: string }) {
 
 export function ExternalAiSection() {
   const { clients } = usePlannerClients();
-  const { tokens } = useExternalAiTokens();
+  const { tokens, canIncludeTrafego } = useExternalAiTokens();
   const createToken = useCreateExternalAiToken();
   const revokeToken = useRevokeExternalAiToken();
   const [label, setLabel] = useState("Claude Code");
   const [selectedOrganizationIds, setSelectedOrganizationIds] = useState<string[]>([]);
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
+  // Spec 0131: ferramentas do trafeGO na chave, só para a equipe.
+  const [shouldIncludeTrafego, setShouldIncludeTrafego] = useState(false);
   const creatableClients = clients.filter((client) => client.permissions.canCreate);
   const organizationIds = selectedOrganizationIds.length ? selectedOrganizationIds : creatableClients.slice(0, 1).map((client) => client.id);
 
@@ -60,7 +62,7 @@ export function ExternalAiSection() {
 
   const generate = () =>
     createToken.mutate(
-      { label, organizationIds },
+      { label, organizationIds, includeTrafego: canIncludeTrafego && shouldIncludeTrafego },
       { onSuccess: ({ token }) => setRevealedToken(token), onError: (error) => toast.error(error.message) },
     );
 
@@ -95,6 +97,23 @@ export function ExternalAiSection() {
               </button>
             ))}
           </div>
+          {canIncludeTrafego && (
+            <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-xl bg-card p-3">
+              <input
+                type="checkbox"
+                checked={shouldIncludeTrafego}
+                onChange={(event) => setShouldIncludeTrafego(event.target.checked)}
+                className="mt-0.5 size-4 accent-current"
+              />
+              <span className="text-sm">
+                <span className="font-medium">Incluir ferramentas do trafeGO (equipe)</span>
+                <span className="block text-xs text-muted-foreground">
+                  A IA lê os pedidos do trafeGO de todas as empresas, envia recomendações para o cliente aprovar e vincula
+                  campanhas. Não mexe na Meta nem em dinheiro. Entregue esta chave só a quem é da equipe.
+                </span>
+              </span>
+            </label>
+          )}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
@@ -130,7 +149,12 @@ export function ExternalAiSection() {
               <div key={token.id} className="flex items-center gap-2 rounded-xl bg-card p-2.5">
                 <KeyRound className="size-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{token.label}</p>
+                  <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+                    {token.label}
+                    {token.scopes.includes("trafego") && (
+                      <span className="rounded-full bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold text-info">trafeGO</span>
+                    )}
+                  </p>
                   <p className="truncate text-[11px] text-muted-foreground">
                     {token.tokenPrefix}… · {token.organizationNames.join(", ")} ·{" "}
                     {token.lastUsedAt ? `usada ${formatDistanceToNow(new Date(token.lastUsedAt), { locale: ptBR, addSuffix: true })}` : "nunca usada"}

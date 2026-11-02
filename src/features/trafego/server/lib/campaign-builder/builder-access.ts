@@ -31,6 +31,7 @@ export const BUILDER_ORDER_SELECT = {
   metaAdCampaignId: true,
   startedAt: true,
   durationDays: true,
+  maxCreatives: true,
 } as const;
 
 export interface BuilderOrder {
@@ -46,6 +47,8 @@ export interface BuilderOrder {
   metaAdCampaignId: string | null;
   startedAt: Date | null;
   durationDays: number;
+  /** Anúncios rodando ao mesmo tempo (spec 0127). */
+  maxCreatives: number;
 }
 
 export type BuilderAccess =

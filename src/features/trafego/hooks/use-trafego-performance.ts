@@ -26,6 +26,18 @@ export const useTrafegoAccountOverview = (
   });
 };
 
+export const useTrafegoOrderAds = (
+  orderId: string,
+  range: PerformanceRange,
+  options?: { enabled?: boolean },
+) => {
+  return useQuery({
+    ...orpc.trafego.performance.ads.queryOptions({ input: { orderId, range } }),
+    enabled: (options?.enabled ?? true) && Boolean(orderId),
+    refetchInterval: REFETCH_INTERVAL_MS,
+  });
+};
+
 export const useTrafegoAccountBreakdown = (
   orderId: string,
   range: PerformanceRange,

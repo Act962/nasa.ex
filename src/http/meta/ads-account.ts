@@ -4,7 +4,7 @@
  */
 
 import { actId } from "./ads-management";
-import { metaGraphPaginate, metaGraphRequest, type MetaRequestAuth } from "./graph-client";
+import { MetaGraphError, metaGraphPaginate, metaGraphRequest, type MetaRequestAuth } from "./graph-client";
 
 export interface MetaTokenOwner {
   id: string;
@@ -83,11 +83,11 @@ export async function getAdAccountInfo(auth: MetaRequestAuth, adAccountId: strin
     currency: string;
     timezone_name?: string;
     min_daily_budget?: number | string;
-    business?: { id: string; name?: string };
   }>(actId(adAccountId), {
     auth,
-    query: { fields: "id,account_id,name,account_status,currency,timezone_name,min_daily_budget,business{id,name}" },
+    query: { fields: "id,account_id,name,account_status,currency,timezone_name,min_daily_budget" },
   });
+  const business = await readAdAccountBusiness(auth, adAccountId);
   const minDailyBudget = Number(account.min_daily_budget ?? NaN);
   return {
     id: account.id,
@@ -97,9 +97,27 @@ export async function getAdAccountInfo(auth: MetaRequestAuth, adAccountId: strin
     currency: account.currency,
     timezoneName: account.timezone_name ?? null,
     minDailyBudgetCents: Number.isFinite(minDailyBudget) ? minDailyBudget : null,
-    businessId: account.business?.id ?? null,
-    businessName: account.business?.name ?? null,
+    businessId: business?.id ?? null,
+    businessName: business?.name ?? null,
   };
+}
+
+/** O campo `business` exige `business_management`: sem ela, a conta é lida igual e o BM fica em branco. */
+async function readAdAccountBusiness(
+  auth: MetaRequestAuth,
+  adAccountId: string,
+): Promise<{ id: string; name?: string } | null> {
+  try {
+    const result = await metaGraphRequest<{ business?: { id: string; name?: string } }>(actId(adAccountId), {
+      auth,
+      query: { fields: "business{id,name}" },
+    });
+    return result.business ?? null;
+  } catch (error) {
+    // A Meta responde #100 "Requires business_management permission", fora da faixa de permissão (10, 2xx).
+    if (error instanceof MetaGraphError && (error.kind === "permission" || error.code === 100)) return null;
+    throw error;
+  }
 }
 
 export interface MetaPromotablePage {

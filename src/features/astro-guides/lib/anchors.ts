@@ -545,7 +545,7 @@ export const GUIDE_ANCHORS = {
   },
   trafegoPublishTab: {
     id: "trafego.publish-tab",
-    description: "Aba \"Publicar\" no painel de uma campanha do trafeGO",
+    description: "Botão \"Publicar e editar\" no painel de uma campanha do trafeGO",
   },
   trafegoCreateDraft: {
     id: "trafego.create-draft",
@@ -554,6 +554,10 @@ export const GUIDE_ANCHORS = {
   trafegoPublishCampaign: {
     id: "trafego.publish-campaign",
     description: "Botão \"Publicar\" de um rascunho de campanha no painel",
+  },
+  trafegoReviewFixes: {
+    id: "trafego.review-fixes",
+    description: "Botão \"Avaliar melhorias e aprovar\" de um rascunho que a equipe pediu ajustes",
   },
   pagesNewButton: {
     id: "pages.new-button",

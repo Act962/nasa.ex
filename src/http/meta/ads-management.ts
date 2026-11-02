@@ -73,6 +73,14 @@ export interface InsightRow {
   /** Preenchidos quando a consulta usa `time_increment`. */
   dateStart?: string;
   dateStop?: string;
+  /** Pedidos com `extraFields` (nível de anúncio, spec 0128). */
+  objective?: string;
+  qualityRanking?: string;
+  engagementRanking?: string;
+  conversionRanking?: string;
+  /** Preenchidos quando a consulta usa `breakdowns` (spec 0129). */
+  age?: string;
+  gender?: string;
   /** Conversas iniciadas por mensagem (WhatsApp, Messenger, Direct), janela de 7 dias. */
   messagingConversations: number;
   costPerMessagingConversation: number;
@@ -170,6 +178,12 @@ function parseInsightRow(raw: Record<string, unknown>): InsightRow {
     cpv: videoPlays > 0 ? spend / videoPlays : 0,
     conversions, leads, conversionValue, conversionRate, roas,
     videoPlays, thruPlays, avgWatchTime,
+    objective: raw.objective as string | undefined,
+    qualityRanking: raw.quality_ranking as string | undefined,
+    engagementRanking: raw.engagement_rate_ranking as string | undefined,
+    conversionRanking: raw.conversion_rate_ranking as string | undefined,
+    age: raw.age as string | undefined,
+    gender: raw.gender as string | undefined,
   };
 }
 
@@ -194,6 +208,9 @@ export interface AdsInsightsOptions {
   /** Mesma atribuição do Gerenciador de Anúncios (spec 0122, D-3). */
   unifiedAttribution?: boolean;
   maxPages?: number;
+  /** Campos a mais, ex.: classificações de qualidade (só existem no nível de anúncio). */
+  extraFields?: string[];
+  breakdowns?: ("age" | "gender")[];
 }
 
 export async function fetchAdsInsightsDetailed(
@@ -206,7 +223,7 @@ export async function fetchAdsInsightsDetailed(
       auth,
       maxPages: opts.maxPages,
       query: {
-        fields: INSIGHTS_FIELDS,
+        fields: opts.extraFields?.length ? `${INSIGHTS_FIELDS},${opts.extraFields.join(",")}` : INSIGHTS_FIELDS,
         level: opts.level,
         limit: 500,
         ...(opts.timeRange
@@ -215,6 +232,7 @@ export async function fetchAdsInsightsDetailed(
         ...(opts.filtering?.length ? { filtering: JSON.stringify(opts.filtering) } : {}),
         ...(opts.timeIncrement ? { time_increment: opts.timeIncrement } : {}),
         ...(opts.unifiedAttribution ? { use_unified_attribution_setting: true } : {}),
+        ...(opts.breakdowns?.length ? { breakdowns: opts.breakdowns.join(",") } : {}),
       },
     },
   );

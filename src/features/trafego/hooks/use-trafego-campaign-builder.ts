@@ -96,3 +96,36 @@ export const useReplaceCampaignAd = () => {
     }),
   );
 };
+
+/** Liga e desliga conjunto ou anúncio no cartão do painel; relê os números do pedido. */
+export const useSetCampaignDelivery = () => {
+  const queryClient = useQueryClient();
+  const invalidate = useBuilderInvalidation();
+  return useMutation(
+    orpc.trafego.campaignBuilder.setDelivery.mutationOptions({
+      onSuccess: (_data, variables) => {
+        invalidate(variables.orderId);
+        queryClient.invalidateQueries({ queryKey: orpc.trafego.performance.key() });
+      },
+    }),
+  );
+};
+
+/** O Astro sugere a correção do anúncio (spec 0128); não muda nada na Meta. */
+export const useAnalyzeAdForFix = () => {
+  return useMutation(orpc.trafego.campaignBuilder.analyzeAdForFix.mutationOptions());
+};
+
+/** Aplica a correção: troca o anúncio ou duplica pausado; relê os números do pedido. */
+export const useApplyAdFix = () => {
+  const queryClient = useQueryClient();
+  const invalidate = useBuilderInvalidation();
+  return useMutation(
+    orpc.trafego.campaignBuilder.applyAdFix.mutationOptions({
+      onSuccess: (_data, variables) => {
+        invalidate(variables.orderId);
+        queryClient.invalidateQueries({ queryKey: orpc.trafego.performance.key() });
+      },
+    }),
+  );
+};

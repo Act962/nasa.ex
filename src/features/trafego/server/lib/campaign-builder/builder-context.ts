@@ -20,6 +20,7 @@ import { buildMetaReadCacheKey, readThroughMetaCache } from "../meta/meta-read-c
 import { getOrderBudgetUsage } from "../meta/order-meta-performance";
 import type { BuilderOrder } from "./builder-access";
 import type { OrderMetaAccess } from "../meta/order-meta-access";
+import { countRunningAds, runningAdsLimitMessage } from "@/features/trafego/lib/creative-limits";
 
 /** Leituras do construtor de campanha (spec 0124, RF-3..RF-5, RF-10). Nada aqui escreve na Meta. */
 
@@ -214,5 +215,18 @@ export async function listBuilderInstagramPosts(meta: AccountMeta, page: Builder
       };
     }
     throw error;
+  }
+}
+
+/** Recusa quando os anúncios no ar passariam do limite da campanha (spec 0127, RF-4). */
+export async function assertRunningAdsLimit(
+  meta: AccountMeta,
+  order: BuilderOrder,
+  params: { campaignId: string; adsToActivate: number },
+) {
+  const campaigns = await listOrderCampaigns(meta, order);
+  const runningAds = countRunningAds(campaigns, { excludeCampaignId: params.campaignId });
+  if (runningAds + params.adsToActivate > order.maxCreatives) {
+    throw new CampaignBuilderError("BAD_REQUEST", runningAdsLimitMessage(order.maxCreatives));
   }
 }

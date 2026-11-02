@@ -155,6 +155,9 @@ export interface MetaCampaignTree {
     endTime: string | null;
     pageId: string | null;
     targeting: Record<string, unknown> | null;
+    /** LEARNING | SUCCESS | FAIL (spec 0128, RF-5). */
+    learningStatus: string | null;
+    changedAt: string | null;
   }[];
   ads: {
     id: string;
@@ -162,9 +165,34 @@ export interface MetaCampaignTree {
     adsetId: string;
     status: string | null;
     effectiveStatus: string | null;
+    createdAt: string | null;
     previewUrl: string | null;
     previewLink: string | null;
+    creative: MetaAdCreativeInfo | null;
   }[];
+}
+
+/** Criativo do anúncio, para a correção e a mensagem inicial (spec 0128). */
+export interface MetaAdCreativeInfo {
+  id: string | null;
+  imageHash: string | null;
+  imageUrl: string | null;
+  message: string | null;
+  headline: string | null;
+  pageId: string | null;
+  initialMessage: string | null;
+}
+
+/** Texto pronto do anúncio de WhatsApp: o JSON de `page_welcome_message` varia; procura o texto pré-preenchido. */
+export function readInitialMessage(rawWelcomeMessage: string | undefined): string | null {
+  if (!rawWelcomeMessage) return null;
+  try {
+    const parsed = JSON.parse(rawWelcomeMessage) as Record<string, unknown>;
+    const textFormat = parsed.text_format as { message?: { autofill_message?: { content?: string }; text?: string } } | undefined;
+    return textFormat?.message?.autofill_message?.content ?? textFormat?.message?.text ?? null;
+  } catch {
+    return rawWelcomeMessage.trim() || null;
+  }
 }
 
 type RawCampaignTree = {
@@ -183,6 +211,9 @@ type RawCampaignTree = {
       end_time?: string;
       promoted_object?: { page_id?: string };
       targeting?: Record<string, unknown>;
+      learning_stage_info?: { status?: string };
+      updated_time?: string;
+      created_time?: string;
     }[];
   };
   ads?: {
@@ -192,7 +223,16 @@ type RawCampaignTree = {
       adset_id: string;
       status?: string;
       effective_status?: string;
-      creative?: { thumbnail_url?: string; image_url?: string };
+      created_time?: string;
+      creative?: {
+        id?: string;
+        thumbnail_url?: string;
+        image_url?: string;
+        image_hash?: string;
+        body?: string;
+        title?: string;
+        object_story_spec?: { page_id?: string; link_data?: { message?: string; name?: string; image_hash?: string; page_welcome_message?: string } };
+      };
       preview_shareable_link?: string;
     }[];
   };
@@ -205,8 +245,8 @@ const CAMPAIGN_TREE_FIELDS = [
   "effective_status",
   "lifetime_budget",
   "account_id",
-  "adsets.limit(25){id,name,status,effective_status,end_time,promoted_object,targeting}",
-  "ads.limit(50){id,name,adset_id,status,effective_status,preview_shareable_link,creative{thumbnail_url,image_url}}",
+  "adsets.limit(25){id,name,status,effective_status,end_time,promoted_object,targeting,learning_stage_info,updated_time,created_time}",
+  "ads.limit(50){id,name,adset_id,status,effective_status,created_time,preview_shareable_link,creative{id,thumbnail_url,image_url,image_hash,body,title,object_story_spec}}",
 ].join(",");
 
 function toTree(raw: RawCampaignTree): MetaCampaignTree {
@@ -225,6 +265,8 @@ function toTree(raw: RawCampaignTree): MetaCampaignTree {
       endTime: adset.end_time ?? null,
       pageId: adset.promoted_object?.page_id ?? null,
       targeting: adset.targeting ?? null,
+      learningStatus: adset.learning_stage_info?.status ?? null,
+      changedAt: adset.updated_time ?? adset.created_time ?? null,
     })),
     ads: (raw.ads?.data ?? []).map((ad) => ({
       id: ad.id,
@@ -232,8 +274,20 @@ function toTree(raw: RawCampaignTree): MetaCampaignTree {
       adsetId: ad.adset_id,
       status: ad.status ?? null,
       effectiveStatus: ad.effective_status ?? null,
+      createdAt: ad.created_time ?? null,
       previewUrl: ad.creative?.thumbnail_url ?? ad.creative?.image_url ?? null,
       previewLink: ad.preview_shareable_link ?? null,
+      creative: ad.creative
+        ? {
+            id: ad.creative.id ?? null,
+            imageHash: ad.creative.image_hash ?? ad.creative.object_story_spec?.link_data?.image_hash ?? null,
+            imageUrl: ad.creative.image_url ?? null,
+            message: ad.creative.body ?? ad.creative.object_story_spec?.link_data?.message ?? null,
+            headline: ad.creative.title ?? ad.creative.object_story_spec?.link_data?.name ?? null,
+            pageId: ad.creative.object_story_spec?.page_id ?? null,
+            initialMessage: readInitialMessage(ad.creative.object_story_spec?.link_data?.page_welcome_message),
+          }
+        : null,
     })),
   };
 }
