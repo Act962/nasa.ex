@@ -33,7 +33,9 @@ export function ClientSelect({
   const selectedClient = options.find((candidate) => candidate.id === selectedOrganizationId);
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    // `modal`: no Novo conteúdo o Dialog trava a rolagem fora dele, e a lista abre num portal
+    // fora do Dialog; como modal, o Popover libera a rolagem do próprio conteúdo.
+    <Popover open={isOpen} onOpenChange={setIsOpen} modal>
       <PopoverTrigger asChild>
         <button
           type="button"

@@ -218,6 +218,7 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0119](orbita-station/0119-orbita-station-etapa-2-estacao-da-empresa.md) | orbita-station | Órbita Station 3D, etapa 2 — a estação da empresa no banco, avatar no servidor e colegas ao vivo | rascunho |
 | [0120](orbita-station/0120-orbita-station-etapa-3-salas-ligadas-aos-modulos.md) | orbita-station | Órbita Station 3D, etapa 3 — salas ligadas aos módulos, portas trancadas e interação por perto | em-revisao |
 | [0121](orbita-station/0121-orbita-station-etapa-4-dados-reais-nas-salas.md) | orbita-station | Órbita Station 3D, etapa 4 — dados reais nas salas, painel "O que pede atenção" e fila de leads do chat | em-revisao |
+| [0130](payment/0130-banco-inter-pix-com-baixa-automatica.md) | payment | Conectar o Banco Inter para gerar o PIX de cada cobrança e dar baixa sozinho | rascunho |
 
 ---
 

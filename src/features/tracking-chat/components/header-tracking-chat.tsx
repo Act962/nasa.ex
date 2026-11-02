@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +49,14 @@ import { useLeadDetailsStore } from "./lead-sidebar/use-lead-details-store";
 import type { HeatLevel } from "@/features/leads/components/lead-audit/lead-heat";
 import { SeiLeadProcessDialog } from "@/features/sei/components/lead-process-dialog";
 import { FullscreenControls } from "@/components/fullscreen-controls/fullscreen-controls";
+import { useMutationLeadUpdate } from "@/features/leads/hooks/use-lead-update";
+import { cn } from "@/lib/utils";
+import { useResizeObserver } from "usehooks-ts";
+
+// Abaixo disso (lateral do lead aberta, tablet, celular) os botões da barra vão para o menu "⋮".
+const MIN_HEADER_WIDTH_FOR_INLINE_ACTIONS_PX = 448;
+// Selo de atendimento ou botão da IA, quando aparecem na barra.
+const AI_CONTROL_WIDTH_PX = 224;
 
 interface HeaderProps {
   name: string;
@@ -97,6 +106,63 @@ export function Header({
   // o item só marca o pedido, e o painel abre quando o menu termina de fechar.
   const shouldOpenSummaryRef = useRef(false);
   const [seiOpen, setSeiOpen] = useState(false);
+  const updateLead = useMutationLeadUpdate(leadId, trackingId);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [draftName, setDraftName] = useState(name);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  // Esc tira o foco do input; o blur precisa saber que é para descartar, não salvar.
+  const shouldDiscardNameRef = useRef(false);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const { width: headerWidth } = useResizeObserver({
+    ref: headerRef as React.RefObject<HTMLDivElement>,
+  });
+  const hasAiControl = isAttendanceManaged || IS_LEAD_AI_PAUSE_ENABLED;
+  const minWidthForInlineActions =
+    MIN_HEADER_WIDTH_FOR_INLINE_ACTIONS_PX +
+    (hasAiControl ? AI_CONTROL_WIDTH_PX : 0);
+  const isCompactHeader =
+    headerWidth !== undefined && headerWidth < minWidthForInlineActions;
+
+  useEffect(() => {
+    setDraftName(name);
+  }, [name]);
+
+  useEffect(() => {
+    if (isEditingName) {
+      nameInputRef.current?.focus();
+      nameInputRef.current?.select();
+    }
+  }, [isEditingName]);
+
+  const handleSaveName = () => {
+    const trimmedName = draftName.trim();
+    if (shouldDiscardNameRef.current || !trimmedName || trimmedName === name) {
+      shouldDiscardNameRef.current = false;
+      setDraftName(name);
+      setIsEditingName(false);
+      return;
+    }
+    updateLead.mutate(
+      { id: leadId, name: trimmedName },
+      {
+        onSuccess: () => {
+          setDraftName(trimmedName);
+          setIsEditingName(false);
+        },
+        onError: () => {
+          setDraftName(name);
+          setIsEditingName(false);
+        },
+      },
+    );
+  };
+
+  const handleNameKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") shouldDiscardNameRef.current = true;
+    if (event.key === "Enter" || event.key === "Escape") {
+      event.currentTarget.blur();
+    }
+  };
 
   const backHref = withSearchParams(`/tracking-chat`, searchParams);
   const openLeadDetails = useLeadDetailsStore((state) => state.requestOpen);
@@ -188,7 +254,10 @@ export function Header({
     // Header com fundo opaco do tema (bg-background) — independente de
     // qualquer customização do chat por baixo, garante contraste correto
     // do texto em Claro/Escuro. text-foreground força a cor seguir o tema.
-    <div className="bg-background text-foreground w-full flex sm:px-4 py-3 px-4 lg:px-6 justify-between items-center">
+    <div
+      ref={headerRef}
+      className="bg-background text-foreground w-full flex gap-3 sm:px-4 py-3 px-4 lg:px-6 justify-between items-center"
+    >
       <div className="flex gap-2 items-center min-w-0">
         <Button
           variant="ghost"
@@ -215,13 +284,27 @@ export function Header({
         </button>
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <button
-              type="button"
-              onClick={openLeadDetails}
-              className="text-foreground hover:underline underline-offset-3 truncate font-medium text-left"
-            >
-              {name || "Sem nome"}
-            </button>
+            {isEditingName ? (
+              <Input
+                ref={nameInputRef}
+                disabled={updateLead.isPending}
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                onBlur={handleSaveName}
+                onKeyDown={handleNameKeyDown}
+                aria-label="Nome do lead"
+                className="h-7 w-64 max-w-full px-2 font-medium"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditingName(true)}
+                title="Clique para editar o nome"
+                className="text-foreground hover:underline underline-offset-3 truncate font-medium text-left cursor-text"
+              >
+                {draftName || "Sem nome"}
+              </button>
+            )}
             <InChatStatusBadge trackingId={trackingId} />
           </div>
           {/* Breadcrumb tracking > status — substitui o telefone que
@@ -247,14 +330,26 @@ export function Header({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2 lg:gap-4">
+      {/* No header estreito o "⋮" sai enquanto o nome é editado, para o campo ter largura. */}
+      <div
+        className={cn(
+          "flex items-center gap-2 lg:gap-4",
+          isEditingName && isCompactHeader && "hidden",
+        )}
+      >
         {/* Os ícones de ligação (telefone + vídeo) saíram da barra
             principal e foram pro dropdown "..." abaixo — alinhado à UX
             mais clean do WhatsApp Web, e libera espaço pra ações
             primárias (Finalizar, IA). O Resumo também mora no "...". */}
 
-        {/* Desktop only: standalone buttons */}
-        <div className="hidden lg:flex items-center gap-4">
+        {/* Header largo: botões soltos. Ficam montados (só escondidos) porque o
+            item "Sincronizar mensagens" do menu abre o diálogo do SyncMessagesButton. */}
+        <div
+          className={cn(
+            "items-center gap-4",
+            isCompactHeader ? "hidden" : "flex",
+          )}
+        >
           <SyncMessagesButton
             conversationId={conversationId}
             open={syncOpen}
@@ -351,43 +446,45 @@ export function Header({
               Arquivar contato
             </DropdownMenuItem>
 
-            {/* Mobile/tablet-only actions */}
-            <div className="lg:hidden">
-              <DropdownMenuSeparator />
-              {(isAttendanceManaged || IS_LEAD_AI_PAUSE_ENABLED) && (
+            {/* Header estreito: ações que saíram da barra */}
+            {isCompactHeader && (
+              <>
+                <DropdownMenuSeparator />
+                {(isAttendanceManaged || IS_LEAD_AI_PAUSE_ENABLED) && (
+                  <DropdownMenuItem
+                    className="flex items-center justify-between gap-2"
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <span className="flex items-center gap-2">
+                      <BotIcon className="size-4" />
+                      {isAttendanceManaged ? "Atendimento" : "IA do lead"}
+                    </span>
+                    {isAttendanceManaged ? (
+                      <AttendanceStateBadge
+                        statusFlow={statusFlow}
+                        isAiAnswering={
+                          !isLeadAiPaused({ isActive: initialActive })
+                        }
+                      />
+                    ) : (
+                      <CheckIaLead
+                        size="sm"
+                        active={initialActive}
+                        leadId={leadId}
+                        trackingId={trackingId}
+                      />
+                    )}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
-                  className="flex items-center justify-between gap-2"
-                  onSelect={(e) => e.preventDefault()}
+                  onClick={handleFinishLead}
+                  disabled={statusFlow === "FINISHED" || mutation.isPending}
                 >
-                  <span className="flex items-center gap-2">
-                    <BotIcon className="size-4" />
-                    {isAttendanceManaged ? "Atendimento" : "IA do lead"}
-                  </span>
-                  {isAttendanceManaged ? (
-                    <AttendanceStateBadge
-                      statusFlow={statusFlow}
-                      isAiAnswering={
-                        !isLeadAiPaused({ isActive: initialActive })
-                      }
-                    />
-                  ) : (
-                    <CheckIaLead
-                      size="sm"
-                      active={initialActive}
-                      leadId={leadId}
-                      trackingId={trackingId}
-                    />
-                  )}
+                  <CheckIcon className="size-4" />
+                  Finalizar atendimento
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuItem
-                onClick={handleFinishLead}
-                disabled={statusFlow === "FINISHED" || mutation.isPending}
-              >
-                <CheckIcon className="size-4" />
-                Finalizar atendimento
-              </DropdownMenuItem>
-            </div>
+              </>
+            )}
 
             <DropdownMenuSeparator />
 

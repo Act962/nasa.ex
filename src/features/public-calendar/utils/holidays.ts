@@ -33,6 +33,28 @@ function easterDate(year: number): Dayjs {
   return dayjs(new Date(year, mo - 1, dy));
 }
 
+// Dias em que o comércio para (o mapa de exibição mistura datas comerciais, como o Dia das Mães).
+// Carnaval e Corpus Christi são ponto facultativo pela lei, mas entram: quase ninguém trabalha.
+const NATIONAL_FIXED_HOLIDAYS = new Set([
+  "01-01", "04-21", "05-01", "09-07", "10-12", "11-02", "11-15", "11-20", "12-25",
+]);
+const CARNIVAL_MONDAY_FROM_EASTER_DAYS = -48;
+const CARNIVAL_TUESDAY_FROM_EASTER_DAYS = -47;
+const GOOD_FRIDAY_FROM_EASTER_DAYS = -2;
+const CORPUS_CHRISTI_FROM_EASTER_DAYS = 60;
+
+/** Feriado nacional na data de calendário "YYYY-MM-DD". */
+export function isNationalHoliday(calendarDate: string): boolean {
+  if (NATIONAL_FIXED_HOLIDAYS.has(calendarDate.slice(5))) return true;
+  const easter = easterDate(Number(calendarDate.slice(0, 4)));
+  return [
+    CARNIVAL_MONDAY_FROM_EASTER_DAYS,
+    CARNIVAL_TUESDAY_FROM_EASTER_DAYS,
+    GOOD_FRIDAY_FROM_EASTER_DAYS,
+    CORPUS_CHRISTI_FROM_EASTER_DAYS,
+  ].some((offsetDays) => easter.add(offsetDays, "day").format("YYYY-MM-DD") === calendarDate);
+}
+
 export function buildVariableHolidays(
   years: Set<number>,
 ): Record<string, CalendarEventInfo> {
