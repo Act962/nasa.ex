@@ -5,8 +5,8 @@ dominio: payment
 status: rascunho
 autor: Weydson
 criada: 2026-10-31
-atualizada: 2026-10-31
-branch: feature/W-payment-banco-inter-20261031
+atualizada: 2026-11-02
+branch: feature/payment-banco-inter-20261102
 pr:
 peso: completa
 ---
@@ -135,6 +135,7 @@ dispara — sem ninguém digitar nada.
 | CB-9 | Duas contas Inter conectadas na mesma empresa | Só a marcada como padrão gera PIX; avisos das duas são aceitos (cada uma com o próprio token). |
 | CB-10 | Token do Inter expirado no meio de uma operação | Pede outro e tenta uma vez; falhou, reserva (RF-8). |
 | CB-11 | `.crt` e `.key` que não formam par, ou arquivo `.pfx` em vez de PEM | Erro na conexão explicando o formato esperado; nada gravado. |
+| CB-13 | Conta a receber cancelada (PIX removido no Inter) e depois reaberta | O Bacen não deixa recriar um `txid` removido. O adapter devolve `PixChargeRemovedError` e vale a reserva (RF-8). Se o caso for comum, o `txid` ganha sufixo de revisão (ex.: `orb` + id + `r1`), ainda dentro de 35 caracteres. |
 | CB-12 | Certificado vence com cobranças PIX do Inter já enviadas | Os PIX já gerados continuam pagáveis no Inter; o aviso de pagamento depende do webhook, que é do Inter, mas a consulta de conferência (RF-6) falha sem certificado → movimento "a identificar" até renovar. |
 
 ## 6. Decisões de design
@@ -186,9 +187,15 @@ dispara — sem ninguém digitar nada.
 - **Escolha**: a varredura de PIX recebidos (RF-11) roda dentro de `mark-overdue-receivables`, só para contas com Inter conectado, antes de marcar atrasadas.
 - **Alternativas descartadas**: (a) cron novo (S11: o plano do Inngest já estourou); (b) confiar só no webhook — o Inter desiste depois de ~4 h de tentativas, e um aviso perdido vira cobrança indevida no dia seguinte.
 
+### D-9 — Porta de cobrança bancária, com o Inter como primeiro adapter
+
+- **Escolha**: `features/payment/server/bank-charges/ports.ts` define `BankChargeProvider` com quatro operações — `upsertPixCharge`, `cancelPixCharge`, `confirmPixPayment` e `listPixPayments` — e o `txid` (`buildPixTxid`/`parsePixTxid`). O adapter `inter-charge-provider.ts` usa o cliente fino de `src/http/inter/` e não conhece o banco de dados: recebe as credenciais já decifradas e uma função que devolve o token guardado (D-6).
+- **Por quê**: a régua, a página `/cobranca/<token>` e a baixa automática passam a depender da porta, não do Inter. O Asaas da spec 0115 (RF-1) é o segundo caso já previsto, então não é generalização prematura (S5). A porta é o lado "para fora" que o `StatementProvider` (entrada de extrato) não cobre.
+- **`upsertPixCharge` consulta antes de gravar** (`GET` → `PUT` ou `PATCH`): cobre a corrida da CB-6 e a repetição sem depender do carimbo gravado na conta a receber.
+
 ### Segurança dos dados (LGPD)
 
-- **O que entra**: credenciais da empresa (não de pessoa) e, de cada PIX pago, `endToEndId`, valor, horário, nome e CPF/CNPJ do pagador (`infoPagador`). Os dados do pagador já são guardados hoje no movimento bancário do extrato (`counterpartyName`/`counterpartyDocument`); nada novo de pessoa física além disso.
+- **O que entra**: credenciais da empresa (não de pessoa) e, de cada PIX pago, `endToEndId`, valor, horário e, quando a consulta trouxer, nome e CPF/CNPJ do pagador (`pagador`). `infoPagador` é só o texto livre que o pagador digita (referência da API, 2026-11-02). Os dados do pagador já são guardados hoje no movimento bancário do extrato (`counterpartyName`/`counterpartyDocument`); nada novo de pessoa física além disso.
 - **Quem vê**: credenciais, ninguém (nem dono: não há "revelar"). Movimentos e pagadores, quem já tem acesso à Conciliação do Financeiro.
 - **O que sai**: nada vai para o cliente além do que a página da cobrança já mostra hoje. O webhook nunca devolve dado.
 - **Furo de permissão conferido antes**: as procedures novas usam `requireOrgMiddleware` + `isOrgOwnerOrAdmin`; a rota genérica de integrações (`upsertPlatformIntegration`) **não** é usada, porque só exige estar logado.
@@ -200,11 +207,11 @@ Respondidas pela pesquisa (fontes em `research_notes/API do Banco Inter para Ór
 `txid` (D-2), cancelamento por `PATCH` de status (D-2), tarifa (D-2), limites e validade do token
 (RNF-9, D-6) e conteúdo do aviso — `endToEndId`, `txid`, `valor`, `horario`, `infoPagador` (D-4).
 
-- **P-1** — A `cobv` exige `devedor` (CPF/CNPJ + nome)? O exemplo do Inter sempre traz. Se exigir, contato sem documento usa a cobrança imediata (`cob`, escopo `cob.*`) com expiração até o vencimento + validade, ou cai na reserva. Hoje, 17 das 29 cobranças da ORBITA HUB não têm nem telefone; documento, menos ainda.
+- **P-1** — A `cobv` exige `devedor` (CPF/CNPJ + nome)? *Parcial (2026-11-02)*: a referência marca `devedor` como obrigatório, mas diz que os campos dentro dele são opcionais (e que `nome` exige `cpf` ou `cnpj`). O `scripts/inter-sandbox-check.ts` testa sem `devedor` e com `devedor` vazio para fechar a dúvida. O exemplo do Inter sempre traz. Se exigir, contato sem documento usa a cobrança imediata (`cob`, escopo `cob.*`) com expiração até o vencimento + validade, ou cai na reserva. Hoje, 17 das 29 cobranças da ORBITA HUB não têm nem telefone; documento, menos ainda.
 - **P-2** — Qual `validadeAposVencimento` usar na ORBITA HUB? Proposta: 30 dias (passa do último aviso da régua, +7) e configurável por empresa. Não há teto documentado.
 - **P-3** — Qual tempo máximo de espera do Inter na página da cobrança (RNF-8)? Proposta: 3 s.
 - **P-5** — O Inter entrega o aviso numa URL atrás do Cloudflare, sem pedir certificado de cliente? Testar com o validador de URL do portal e com um PIX real de R$ 1,00 **antes do código**. Se o Inter recusar a entrega, D-4 muda para uma das alternativas.
-- **P-9** — O sandbox estava "indisponível" em 23/10 e, quando funciona, tem escopos fixos, certificado de 30 dias e só 10 chamadas/min. Se continuar fora, os testes viram produção com cobranças de R$ 1,00 pagas pela própria equipe e canceladas depois.
+- **P-9** — *Respondida (2026-11-02)*: o sandbox funciona de segunda a sexta, das 8h às 20h, com escopos fixos, certificado de 30 dias e 10 chamadas/min. Tem rota própria para **simular o pagamento** da `cobv` (`POST /pix/v2/cobv/pagar/{txid}`, escopo `pix.write`, só no sandbox): a baixa automática pode ser testada sem dinheiro. Texto original: o sandbox estava "indisponível" em 23/10 e, quando funciona, tem escopos fixos, certificado de 30 dias e só 10 chamadas/min. Se continuar fora, os testes viram produção com cobranças de R$ 1,00 pagas pela própria equipe e canceladas depois.
 - **P-10** — As credenciais recebidas em 31/10 são de **produção** e de qual pacote de permissões? Conferir no Internet Banking antes de conectar (RF-2).
 
 ## 7. Impacto
@@ -215,7 +222,8 @@ Respondidas pela pesquisa (fontes em `research_notes/API do Banco Inter para Ór
 - [x] Automações (Inngest) — **função nova** `payment-bank-pix-received` (por evento, ~1 por PIX pago; ~200/mês hoje, ~2.000 com 10x; `concurrency` 1 por conta para não estourar os limites do Inter). Alteradas: `payment-dunning-fire` (pede o PIX do Inter), `mark-overdue-receivables` (rede de segurança, RF-11) e `detect-broken-integrations` (certificado, RF-9). **Nenhum cron novo.** Depois do deploy, "Resync" do Inngest.
 - [x] Env vars novas — `BANK_SECRETS_KEY` (D-7), documentada no CLAUDE.md. Não é `NEXT_PUBLIC_*`; não entra no build.
 - [ ] Breaking change — não. Sem o Inter conectado, tudo funciona como hoje.
-- [x] Código novo de infraestrutura — cliente HTTP fino em `src/http/inter/` (token, `cobv`, `pix`, `webhook`), com `node:https` e certificado em memória. Não há SDK oficial do Inter em Node.
+- [x] Código novo de infraestrutura — cliente HTTP fino em `src/http/inter/` (`client`, `cobv`, `pix`, `webhook`, `certificate`, `scopes`), com `node:https` e certificado em memória. Não há SDK oficial do Inter em Node. Porta e adapter em `features/payment/server/bank-charges/` (D-9). Roteiro do sandbox em `scripts/inter-sandbox-check.ts`.
+- [x] Apoio ao desenvolvimento — o **MCP do Inter** (`https://cdpj-sandbox.partners.uatinter.co/mcp/v1/mcp`, login com a conta do Portal do Desenvolvedor) consulta documentação, escopos e checklists do sandbox. Não executa operações na conta nem substitui o cliente da aplicação.
 - [x] Documentação — CLAUDE.md (env var), guia do Astro "Conectar o Inter" com âncora na tela de conexão (regra 21), inventário LGPD, e changelog da spec 0115 citando esta (conexão bancária implementada aqui).
 
 ## 8. Plano de testes
@@ -263,3 +271,4 @@ com o id no nome quando o runner existir. Credenciais de produção só em produ
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-10-31 | Weydson | Criada a partir da pesquisa de 23/10 e das credenciais liberadas pelo Inter em 31/10. |
+| 2026-11-02 | João Gabriel | D-9 (porta `BankChargeProvider` + adapter Inter); P-9 respondida (sandbox com pagamento simulado); P-1 parcial; CB-13 (txid removido não volta); correção: `infoPagador` é texto livre, o documento vem em `pagador`. Cliente HTTP, porta, adapter e roteiro do sandbox escritos, sem migration nem tela ainda. |
