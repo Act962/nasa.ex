@@ -5,6 +5,7 @@ import { parseCalendarDate } from "@/features/payment/lib/dates";
 import { ENTRY_INCLUDE, formatCents } from "./entry-include";
 import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
 import { scheduleDunningForEntry } from "@/features/payment/server/dunning/schedule";
+import { syncEntryBankPix } from "@/features/payment/server/bank-charges/charge-pix";
 
 // Edição de lançamento com o estado de caixa revalidado (spec 0023): `amount`,
 // `paidAmount` e `status` só são gravados juntos se descreverem o mesmo fato.
@@ -125,6 +126,8 @@ export async function updatePaymentEntryRecord(params: {
       : {}),
   });
   await queueJournalSync(params.organizationId, [entry.id]);
+  // Valor, vencimento ou status mudou: o PIX do banco acompanha (spec 0130, RF-5 e RF-7).
+  await syncEntryBankPix({ organizationId: params.organizationId, entryId: entry.id });
 
   // Avisos agendados para o vencimento antigo são descartados no disparo; aqui saem os do novo.
   // Cobrança reaberta (cancelada ou paga voltando a ter saldo) também precisa dos avisos futuros.

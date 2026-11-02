@@ -165,7 +165,7 @@ export const paymentDunningFire = inngest.createFunction(
     const chargeVariables = await step.run("charge-variables", async () => {
       const openAmountCents = getOpenAmountCents(entry);
       const [pixCode, otherOverdueCents] = await Promise.all([
-        buildChargePixCode({ organizationId, entryId, amountCents: openAmountCents }),
+        buildChargePixCode({ organizationId, entryId, amountCents: openAmountCents, bankTimeoutMs: 15_000 }),
         sumOtherOverdueReceivablesCents(entry),
       ]);
       return {

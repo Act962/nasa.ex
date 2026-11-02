@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { ENTRY_INCLUDE, formatCents, type PaymentActor } from "./entry-include";
 import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
+import { syncEntryBankPix } from "@/features/payment/server/bank-charges/charge-pix";
 
 // Baixa (total ou parcial) de um lançamento. Devolve um resultado
 // discriminado em vez de lançar, para que a procedure escolha o erro HTTP e a
@@ -114,6 +115,9 @@ export async function payPaymentEntryRecord(params: {
   });
 
   await queueJournalSync(organizationId, [entry.id]);
+  // Quitada: o PIX do banco sai do ar (RF-7). Parcial: é revisado para o saldo, para o
+  // cliente não pagar o valor cheio pelo copia e cola que já recebeu (spec 0130).
+  await syncEntryBankPix({ organizationId, entryId: entry.id });
 
   return { ok: true, entry, status };
 }

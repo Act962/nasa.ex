@@ -7,6 +7,8 @@ import {
   loadSettledMovementsByAccount,
   withComputedBalance,
 } from "@/features/payment/server/accounts/settled-movements";
+import { toBankConnectionSummary } from "@/features/payment/server/bank-charges/connection-store";
+import { bankConnectionShape } from "./bank-connections";
 import { z } from "zod";
 
 const accountShape = z.object({
@@ -29,6 +31,8 @@ const accountShape = z.object({
   settledIn: z.number(),
   settledOut: z.number(),
   computedBalance: z.number(),
+  // Conexão com a API do banco (spec 0130): só o resumo, nunca os segredos.
+  bankConnection: bankConnectionShape.nullable().optional(),
 });
 
 export const listPaymentAccounts = base
@@ -44,10 +48,16 @@ export const listPaymentAccounts = base
         prisma.paymentBankAccount.findMany({
           where: { organizationId: context.org.id, isActive: true },
           orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+          include: { bankConnection: true },
         }),
         loadSettledMovementsByAccount(context.org.id),
       ]);
-      return { accounts: accounts.map((account) => withComputedBalance(account, movements)) };
+      return {
+        accounts: accounts.map(({ bankConnection, ...account }) => ({
+          ...withComputedBalance(account, movements),
+          bankConnection: bankConnection ? toBankConnectionSummary(bankConnection) : null,
+        })),
+      };
     } catch (err) {
       console.error("[payment/accounts/listPaymentAccounts]", err);
       throw errors.INTERNAL_SERVER_ERROR;

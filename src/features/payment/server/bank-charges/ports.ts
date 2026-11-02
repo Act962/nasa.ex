@@ -55,6 +55,50 @@ export interface BankChargeProvider {
   listPixPayments(period: { since: Date; until: Date }): Promise<ConfirmedPixPayment[]>;
 }
 
+/** Credenciais de uma conexão, já decifradas, só em memória. */
+export interface BankCredentials {
+  environment: "production" | "sandbox";
+  clientId: string;
+  clientSecret: string;
+  certificatePem: string | null;
+  privateKeyPem: string | null;
+  pixKey: string;
+  accountNumber: string | null;
+}
+
+export interface BankAccessToken {
+  accessToken: string;
+  expiresAt: Date;
+  scopes: string[];
+}
+
+/** Erro com mensagem em português, pronta para a tela. */
+export class BankConnectionError extends Error {
+  constructor(message: string, readonly isCredentialProblem = false) {
+    super(message);
+    this.name = "BankConnectionError";
+  }
+}
+
+/**
+ * Tudo o que o ÓRBITA precisa de um banco: conferir e guardar a conexão, renovar o token,
+ * cadastrar o aviso de pagamento e montar o `BankChargeProvider`. Banco novo = um adapter
+ * novo registrado em `bank-adapters.ts`; tela, régua e baixa não mudam.
+ */
+export interface BankAdapter {
+  readonly provider: BankChargeProviderName;
+  /** Confere os arquivos antes de chamar o banco. Lança `BankConnectionError`. */
+  inspectCredentials(credentials: BankCredentials): { certificateValidTo: Date | null };
+  requestAccessToken(credentials: BankCredentials): Promise<BankAccessToken>;
+  /** Escopos concedidos que permitem tirar dinheiro da conta (a tela avisa em vermelho). */
+  findMoneyMovingScopes(scopes: readonly string[]): string[];
+  createChargeProvider(credentials: BankCredentials, getAccessToken: () => Promise<string>): BankChargeProvider;
+  registerPaymentWebhook(credentials: BankCredentials, accessToken: string, webhookUrl: string): Promise<void>;
+  removePaymentWebhook(credentials: BankCredentials, accessToken: string): Promise<void>;
+  /** Mensagem em português para um erro do banco; `null` se não for erro dele. */
+  describeError(error: unknown): { message: string; isCredentialProblem: boolean } | null;
+}
+
 const TXID_PREFIX = "orb";
 const TXID_PATTERN = /^[a-zA-Z0-9]{26,35}$/;
 

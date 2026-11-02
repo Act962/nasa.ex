@@ -104,17 +104,25 @@ export function createInterChargeProvider(connection: InterConnection): BankChar
       const context = await buildContext();
       const amount = centsToReais(request.amountCents);
       const calendario = { dataDeVencimento: request.dueDate, validadeAposVencimento: request.daysValidAfterDue };
-      const existing = await findCobv(context, request.txid);
+      let existing = await findCobv(context, request.txid);
 
       if (!existing) {
-        const created = await createInterCobv(context, request.txid, {
-          calendario,
-          devedor: toInterDebtor(request.debtor),
-          valor: { original: amount },
-          chave: connection.pixKey,
-          solicitacaoPagador: request.payerMessage?.slice(0, 140),
-        });
-        return toPixCharge(created);
+        try {
+          const created = await createInterCobv(context, request.txid, {
+            calendario,
+            devedor: toInterDebtor(request.debtor),
+            valor: { original: amount },
+            chave: connection.pixKey,
+            solicitacaoPagador: request.payerMessage?.slice(0, 140),
+          });
+          return toPixCharge(created);
+        } catch (error) {
+          // Outra chamada criou o mesmo txid entre o GET e o PUT (página aberta junto com a
+          // régua): segue com o que ela criou, em vez de cair no PIX estático.
+          const raced = error instanceof InterApiError ? await findCobv(context, request.txid) : null;
+          if (!raced) throw error;
+          existing = raced;
+        }
       }
 
       if (existing.status === "REMOVIDA_PELO_USUARIO_RECEBEDOR" || existing.status === "REMOVIDA_PELO_PSP") {

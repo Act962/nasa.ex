@@ -85,3 +85,13 @@ export function addCalendarMonths(date: Date, months: number): Date {
     Date.UTC(year, month + months, Math.min(day, lastDayOfTargetMonth), NOON, 0, 0, 0),
   );
 }
+
+export const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Dia de calendário de um instante no fuso da operação (America/Sao_Paulo), no formato do
+ * `<input type="date">`. Para o servidor, onde `todayAsDateInput` usaria o fuso do container.
+ */
+export function toSaoPauloDateInput(instant: Date = new Date()): string {
+  return instant.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}

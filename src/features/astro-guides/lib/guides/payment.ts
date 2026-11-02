@@ -6,6 +6,45 @@ const NO_ACCESS_MESSAGE =
 
 export const PAYMENT_GUIDES: GuideDef[] = [
   {
+    key: "payment.connect-bank",
+    app: "payment",
+    title: "Conectar o banco (PIX com baixa automática)",
+    summary: "Ligue a conta do Banco Inter para cada cobrança ter um PIX próprio e ser baixada sozinha.",
+    topicPattern: /\b(conect\w*|integr\w*|lig\w*)\b.*\b(banco|inter|api do banco)\b|\bbaixa autom\w*|\bpix autom\w*/,
+    steps: [
+      {
+        anchor: "paymentTabsBar",
+        route: "/payment?tab=accounts",
+        skipWhenVisible: "paymentBankConnect",
+        title: "Abra a aba Contas",
+        message: "É onde ficam as contas bancárias da empresa.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: NO_ACCESS_MESSAGE,
+      },
+      {
+        anchor: "paymentBankConnect",
+        title: "Clique em Conectar",
+        message: "Aparece na conta do Banco Inter. Se ela não estiver na lista, crie a conta com o banco Inter antes.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: "Não achei conta do Banco Inter. Crie uma em Nova conta, escolhendo o banco Inter.",
+      },
+      {
+        anchor: "paymentBankConnectSubmit",
+        title: "Preencha e clique em Conectar e testar",
+        message: "Use o client_id, o client_secret, o .crt e o .key do pacote do Inter e a chave PIX da conta. Só o dono ou um administrador conecta.",
+        position: "top",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.bankConnected,
+      },
+    ],
+    finish: {
+      title: "Banco conectado! 🏦",
+      message: "As próximas cobranças saem com o PIX do banco e são baixadas sozinhas quando o cliente paga.",
+    },
+  },
+  {
     key: "payment.register-payment",
     app: "payment",
     title: "Dar baixa numa conta",

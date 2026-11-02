@@ -5,11 +5,12 @@ import type { InterCallContext, InterWebhookConfig } from "./types";
 // Webhook de PIX Cobrança, um por chave PIX. O Inter acrescenta `/pix` à URL cadastrada
 // e tenta de novo até 4 vezes (20, 30, 60 e 120 min) quando não recebe 2xx.
 
+/** Na rota do webhook a chave telefone vai sem o "+" (na cobrança ela vai com). */
 function webhookPath(pixKey: string): string {
-  return `/pix/v2/webhook/${encodeURIComponent(pixKey)}`;
+  return `/pix/v2/webhook/${encodeURIComponent(pixKey.replace(/^\+/, ""))}`;
 }
 
-/** Escopo `webhook.write`. Chave telefone vai sem o "+". */
+/** Escopo `webhook.write`. */
 export async function registerInterPixWebhook(
   context: InterCallContext,
   pixKey: string,
