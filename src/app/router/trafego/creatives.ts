@@ -11,6 +11,7 @@ import {
   trafegoMaterialsProfileLinkSchema,
 } from "@/features/trafego/schema/trafego-schemas";
 import { maybeMarkMaterialsSubmitted } from "@/features/trafego/server/lib/materials-submitted";
+import { MAX_UPLOADED_CREATIVES } from "@/features/trafego/lib/creative-limits";
 
 /** Registra um criativo já enviado ao R2. O upload em si é feito via /api/s3/*. */
 export const addTrafegoCreative = base
@@ -20,9 +21,10 @@ export const addTrafegoCreative = base
   .handler(async ({ input, context }) => {
     const order = await assertOrderEditable(input.orderId, context.org.id);
 
-    if (order.creativesCount >= order.maxCreatives) {
+    // O limite de verdade é de anúncios no ar (spec 0127); aqui é só um teto contra abuso.
+    if (order.creativesCount >= MAX_UPLOADED_CREATIVES) {
       throw new ORPCError("BAD_REQUEST", {
-        message: `Seu plano permite até ${order.maxCreatives} criativos.`,
+        message: `Cada campanha guarda até ${MAX_UPLOADED_CREATIVES} arquivos. Apague um que não vai usar.`,
       });
     }
 

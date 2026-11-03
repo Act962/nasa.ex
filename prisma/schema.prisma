@@ -165,6 +165,7 @@ model User {
   trafegoOrdersOwned         TrafegoOrder[]           @relation("TrafegoOrderOwner")
   trafegoOrdersAssigned      TrafegoOrder[]           @relation("TrafegoOrderAssignee")
   trafegoOrderEvents         TrafegoOrderEvent[]      @relation("TrafegoEventActor")
+  trafegoApprovedEvents      TrafegoOrderEvent[]      @relation("TrafegoEventApprover")
   trafegoCreatives           TrafegoCreative[]        @relation("TrafegoCreativeUploader")
   trafegoSupportMessages     TrafegoSupportMessage[]  @relation("TrafegoSupportAuthor")
   trafegoInfoTipsSeen        TrafegoInfoTipSeen[]
@@ -5217,6 +5218,8 @@ model ExternalAiAccessToken {
   tokenHash       String    @unique @map("token_hash")
   tokenPrefix     String    @map("token_prefix")
   organizationIds String[]  @map("organization_ids")
+  /// O que a chave alcança no MCP: "planner" e, só para admin do sistema, "trafego" (spec 0131, D-1).
+  scopes          String[]  @default(["planner"])
   lastUsedAt      DateTime? @map("last_used_at")
   revokedAt       DateTime? @map("revoked_at")
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -10368,6 +10371,8 @@ model TrafegoPendingPurchase {
   /// Setup da BM, cobrado uma única vez de quem não tem conta de anúncios.
   setupFeeBrlCents   Int @default(0) @map("setup_fee_brl_cents")
   amountBrlCents     Int @map("amount_brl_cents")
+  /// Spec 0123: verba paga pelo cliente direto à Meta; `amountBrlCents` é só o serviço. false = modelo antigo.
+  adBudgetPaidToMeta Boolean @default(false) @map("ad_budget_paid_to_meta")
 
   stripeSessionId       String?                      @map("stripe_session_id")
   stripePaymentIntentId String?                      @map("stripe_payment_intent_id")
@@ -10494,6 +10499,10 @@ model TrafegoOrder {
   serviceFeeBrlCents    Int       @map("service_fee_brl_cents")
   setupFeeBrlCents      Int       @default(0) @map("setup_fee_brl_cents")
   totalBrlCents         Int       @map("total_brl_cents")
+  /// Spec 0123: verba paga pelo cliente direto à Meta; o total é só o que a Órbita cobrou. false = modelo antigo (verba + taxa).
+  adBudgetPaidToMeta    Boolean   @default(false) @map("ad_budget_paid_to_meta")
+  /// Spec 0123: campanhas da conta que a equipe tirou da base do complemento (não são do trafeGO).
+  metaCampaignIdsOutsideService String[] @default([]) @map("meta_campaign_ids_outside_service")
   /// null = cliente não soube responder no wizard.
   hasBusinessManager    Boolean?  @map("has_business_manager")
   acceptedTermsAt       DateTime? @map("accepted_terms_at")
@@ -10520,6 +10529,13 @@ model TrafegoOrder {
   metaAdCampaignId       String? @map("meta_ad_campaign_id")
   /// ID Meta da campanha = MetaAdsKpiSnapshot.entityId com level=CAMPAIGN.
   metaCampaignExternalId String? @map("meta_campaign_external_id")
+  /// Avaliação do Claude antes de publicar (spec 0132, D-2). Entrada na fila de avaliação.
+  reviewRequestedAt      DateTime? @map("review_requested_at")
+  /// Impressão digital da versão aprovada: o que muda depois volta para a fila (RF-6).
+  reviewFingerprint      String?   @map("review_fingerprint")
+  /// Melhorias que o painel aplica sozinho, validadas por Zod (`orderReviewFixesSchema`).
+  reviewFixes            Json?     @map("review_fixes")
+  reviewNotes            String[]  @default([]) @map("review_notes")
   /// Org dona dos snapshots — a da AGÊNCIA, que detém a PlatformIntegration(META).
   /// Sem isto o dashboard do cliente volta vazio: os KPIs não nascem na org dele.
   metricsOrganizationId  String? @map("metrics_organization_id")
@@ -10597,6 +10613,7 @@ model TrafegoOrder {
 
   @@index([organizationId, status])
   @@index([status, requestedAt])
+  @@index([status, reviewRequestedAt])
   @@index([metaCampaignExternalId])
   @@index([leadId])
   @@map("trafego_order")
@@ -10620,12 +10637,20 @@ model TrafegoOrderEvent {
   source           TrafegoTransitionSource?
   /// Quando o cliente foi avisado (WhatsApp/e-mail) desta mudança.
   clientNotifiedAt DateTime?                @map("client_notified_at")
+  /// Recomendação da equipe que o cliente precisa aprovar (spec 0130, D-1).
+  requiresApproval Boolean                  @default(false) @map("requires_approval")
+  approvedAt       DateTime?                @map("approved_at")
+  approvedByUserId String?                  @map("approved_by_user_id")
+  /// Outra recomendação foi enviada antes da resposta a esta (RF-10).
+  supersededAt     DateTime?                @map("superseded_at")
   createdAt        DateTime                 @default(now()) @map("created_at")
 
-  order TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  actor User?        @relation("TrafegoEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  order      TrafegoOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor      User?        @relation("TrafegoEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  approvedBy User?        @relation("TrafegoEventApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([orderId, createdAt])
+  @@index([orderId, requiresApproval, approvedAt])
   @@map("trafego_order_event")
 }
 
@@ -10648,6 +10673,8 @@ model TrafegoCreative {
   metaImageHash    String?               @map("meta_image_hash")
   metaVideoId      String?               @map("meta_video_id")
   reviewNote       String?               @map("review_note")
+  /// Análise do Astro (spec 0126, D-7): relatório só para exibir, nunca filtrado.
+  astroReview      Json?                 @map("astro_review")
   uploadedByUserId String                @map("uploaded_by_user_id")
   createdAt        DateTime              @default(now()) @map("created_at")
 

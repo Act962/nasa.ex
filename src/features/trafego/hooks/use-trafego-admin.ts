@@ -65,6 +65,82 @@ export const useCreateManualTrafegoOrder = () => {
   );
 };
 
+/** "Corrigir valores" antes de ir ao ar (spec 0122, RF-16). */
+export const useCorrectTrafegoOrderValues = () => {
+  const invalidate = useAdminOrderInvalidation();
+  return useMutation(
+    orpc.trafego.admin.orders.correctValues.mutationOptions({
+      onSuccess: (_data, variables) => invalidate(variables.orderId),
+    }),
+  );
+};
+
+/** Lista de acessos marcada pela equipe no setup (spec 0126, RF-7). */
+export const useUpdateTrafegoAccessChecklistAdmin = () => {
+  const invalidate = useAdminOrderInvalidation();
+  return useMutation(
+    orpc.trafego.admin.orders.updateAccessChecklist.mutationOptions({
+      onSuccess: (_data, variables) => invalidate(variables.orderId),
+    }),
+  );
+};
+
+/** Libera mais anúncios no ar depois de cobrar o extra (spec 0127, RF-6). */
+export const useSetTrafegoRunningAdsLimit = () => {
+  const invalidate = useAdminOrderInvalidation();
+  return useMutation(
+    orpc.trafego.admin.orders.setRunningAdsLimit.mutationOptions({
+      onSuccess: (_data, variables) => invalidate(variables.orderId),
+    }),
+  );
+};
+
+/** Complementos da taxa pelo gasto real (spec 0123, RF-13). */
+export const useTrafegoComplements = (orderId: string, options?: { enabled?: boolean }) => {
+  return useQuery({
+    ...orpc.trafego.admin.orders.complements.list.queryOptions({ input: { orderId } }),
+    enabled: (options?.enabled ?? true) && Boolean(orderId),
+  });
+};
+
+function useComplementInvalidation() {
+  const queryClient = useQueryClient();
+  const invalidateOrder = useAdminOrderInvalidation();
+  return (orderId: string) => {
+    invalidateOrder(orderId);
+    queryClient.invalidateQueries({
+      queryKey: orpc.trafego.admin.orders.complements.list.key({ input: { orderId } }),
+    });
+  };
+}
+
+export const useSendTrafegoComplement = () => {
+  const invalidate = useComplementInvalidation();
+  return useMutation(
+    orpc.trafego.admin.orders.complements.send.mutationOptions({
+      onSuccess: (_data, variables) => invalidate(variables.orderId),
+    }),
+  );
+};
+
+export const useCancelTrafegoComplement = () => {
+  const invalidate = useComplementInvalidation();
+  return useMutation(
+    orpc.trafego.admin.orders.complements.cancel.mutationOptions({
+      onSuccess: (_data, variables) => invalidate(variables.orderId),
+    }),
+  );
+};
+
+export const useSetTrafegoOutsideCampaigns = () => {
+  const invalidate = useComplementInvalidation();
+  return useMutation(
+    orpc.trafego.admin.orders.setOutsideCampaigns.mutationOptions({
+      onSuccess: (_data, variables) => invalidate(variables.orderId),
+    }),
+  );
+};
+
 export const useAssignTrafegoOrder = () => {
   const invalidate = useAdminOrderInvalidation();
   return useMutation(
@@ -253,6 +329,40 @@ export const useProvisionTrafegoBriefingForm = () => {
   return useMutation(
     orpc.trafego.admin.settings.provisionBriefingForm.mutationOptions({
       onSuccess: invalidate,
+    }),
+  );
+};
+
+/** Prompt para a equipe colar no Claude e montar a campanha (spec 0130, RF-6). Sob demanda: gera link novo do criativo. */
+export const useBuildTrafegoPublishPrompt = () =>
+  useMutation(orpc.trafego.admin.orders.buildPublishPrompt.mutationOptions());
+
+/** Aprovação à mão quando a rotina do Claude para (spec 0132, RF-9). */
+export const useApproveTrafegoOrderReview = () => {
+  const invalidate = useAdminOrderInvalidation();
+  return useMutation(
+    orpc.trafego.admin.orders.approveReview.mutationOptions({
+      onSuccess: (_data, variables) => invalidate(variables.orderId),
+    }),
+  );
+};
+
+/** Marca como publicado depois de criar a campanha por fora (spec 0132, RF-9). */
+export const useMarkTrafegoOrderPublished = () => {
+  const invalidate = useAdminOrderInvalidation();
+  return useMutation(
+    orpc.trafego.admin.orders.markPublished.mutationOptions({
+      onSuccess: (_data, variables) => invalidate(variables.orderId),
+    }),
+  );
+};
+
+/** Recomendação do Claude enviada ao cliente para aprovar (spec 0130, RF-7). */
+export const useSendTrafegoRecommendation = () => {
+  const invalidate = useAdminOrderInvalidation();
+  return useMutation(
+    orpc.trafego.admin.orders.sendForApproval.mutationOptions({
+      onSuccess: (_data, variables) => invalidate(variables.orderId),
     }),
   );
 };

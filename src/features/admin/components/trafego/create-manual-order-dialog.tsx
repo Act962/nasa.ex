@@ -30,7 +30,7 @@ import {
   PLATFORM_SHORT_LABEL,
 } from "@/features/trafego/lib/catalog-labels";
 import { formatBrlFromCents } from "@/features/trafego/lib/pricing";
-import { quoteTrafego } from "@/features/trafego/lib/pricing-tiers";
+import { quoteTrafego, TRAFEGO_SETUP_BRL_CENTS } from "@/features/trafego/lib/pricing-tiers";
 import { useAdminPath } from "@/features/trafego/lib/base-path";
 import { OrganizationCombobox } from "./settings/organization-combobox";
 import {
@@ -55,7 +55,7 @@ function centsToBrlInput(cents: number): string {
 }
 
 function tableFeesFor(adBudgetBrl: string) {
-  const quote = quoteTrafego(brlInputToCents(adBudgetBrl), true);
+  const quote = quoteTrafego(brlInputToCents(adBudgetBrl), TRAFEGO_SETUP_BRL_CENTS);
   return {
     serviceFeeBrl: centsToBrlInput(quote.serviceFeeBrlCents),
     setupFeeBrl: centsToBrlInput(quote.setupBrlCents),
@@ -79,6 +79,7 @@ const emptyManualOrderForm = {
   whatsappNumber: "",
   internalNote: "",
   registerFinance: true,
+  adBudgetPaidToMeta: true,
 };
 
 /** Pedido de cliente que pagou fora da landing (spec 0116). */
@@ -97,7 +98,8 @@ export function CreateManualOrderDialog({
   const adBudgetBrlCents = brlInputToCents(form.adBudgetBrl);
   const serviceFeeBrlCents = brlInputToCents(form.serviceFeeBrl);
   const setupFeeBrlCents = brlInputToCents(form.setupFeeBrl);
-  const totalBrlCents = adBudgetBrlCents + serviceFeeBrlCents + setupFeeBrlCents;
+  const totalBrlCents =
+    (form.adBudgetPaidToMeta ? 0 : adBudgetBrlCents) + serviceFeeBrlCents + setupFeeBrlCents;
 
   const isValid =
     Boolean(form.organizationId) &&
@@ -140,6 +142,7 @@ export function CreateManualOrderDialog({
         whatsappNumber: form.whatsappNumber.trim() || undefined,
         internalNote: form.internalNote.trim() || undefined,
         registerFinance: form.registerFinance,
+        adBudgetPaidToMeta: form.adBudgetPaidToMeta,
       },
       {
         onSuccess: ({ orderId, code }) => {
@@ -275,7 +278,7 @@ export function CreateManualOrderDialog({
 
           <div className="rounded-lg border bg-muted/40 p-3 text-sm sm:col-span-2">
             <div className="flex justify-between text-muted-foreground">
-              <span>Verba</span>
+              <span>Verba{form.adBudgetPaidToMeta ? " (paga pelo cliente à Meta)" : ""}</span>
               <span className="tabular-nums">{formatBrlFromCents(adBudgetBrlCents)}</span>
             </div>
             <div className="mt-1 flex justify-between text-muted-foreground">
@@ -292,10 +295,18 @@ export function CreateManualOrderDialog({
 
           <label className="flex items-center gap-2 text-xs sm:col-span-2">
             <Switch
+              checked={!form.adBudgetPaidToMeta}
+              onCheckedChange={(isAdBudgetPaidToOrbita) => patch({ adBudgetPaidToMeta: !isAdBudgetPaidToOrbita })}
+            />
+            A verba foi paga à Órbita (modelo antigo, exceção)
+          </label>
+
+          <label className="flex items-center gap-2 text-xs sm:col-span-2">
+            <Switch
               checked={form.registerFinance}
               onCheckedChange={(registerFinance) => patch({ registerFinance })}
             />
-            Lançar no financeiro (receita da taxa + setup e repasse da verba)
+            Lançar no financeiro (receita da taxa + setup{form.adBudgetPaidToMeta ? "" : " e repasse da verba"})
           </label>
           {!form.registerFinance && (
             <SettingsNotice tone="info">

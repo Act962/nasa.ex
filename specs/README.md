@@ -218,6 +218,17 @@ rascunho ──▶ em-revisao ──▶ aprovada ──▶ implementada
 | [0119](orbita-station/0119-orbita-station-etapa-2-estacao-da-empresa.md) | orbita-station | Órbita Station 3D, etapa 2 — a estação da empresa no banco, avatar no servidor e colegas ao vivo | rascunho |
 | [0120](orbita-station/0120-orbita-station-etapa-3-salas-ligadas-aos-modulos.md) | orbita-station | Órbita Station 3D, etapa 3 — salas ligadas aos módulos, portas trancadas e interação por perto | em-revisao |
 | [0121](orbita-station/0121-orbita-station-etapa-4-dados-reais-nas-salas.md) | orbita-station | Órbita Station 3D, etapa 4 — dados reais nas salas, painel "O que pede atenção" e fila de leads do chat | em-revisao |
+| [0122](trafego/0122-trafego-base-meta-e-desempenho.md) | trafego | Base Meta pelos Satélites, Desempenho com a conta real do cliente e "Corrigir valores" | implementada |
+| [0123](trafego/0123-trafego-cobranca-so-do-servico.md) | trafego | Cobra só o serviço (30%, mín. R$ 150), complemento pelo gasto real e wizard da org logada | implementada |
+| [0124](trafego/0124-trafego-campanha-pelo-painel.md) | trafego | Owner/admin cria, publica e edita campanha de WhatsApp pelo painel | implementada |
+| [0125](astro/0125-astro-meta-ads-pelo-mcp-oficial.md) | astro | Astro gerencia contas de anúncio pelo MCP oficial da Meta (sai o "MCP" de mentira) | implementada |
+| [0126](trafego/0126-trafego-painel-enxuto-e-criativo-com-astro.md) | trafego | Painel sem abas com anúncio e números, setup único de R$ 450 e criativo analisado pelo Astro | implementada |
+| [0127](trafego/0127-trafego-limite-de-anuncios-ativos.md) | trafego | Limite de anúncios rodando ao mesmo tempo por faixa de verba (3/5/8); troca livre | implementada |
+| [0128](trafego/0128-trafego-nota-de-qualidade-e-correcao-pelo-astro.md) | trafego | Nota de qualidade 0–100 por anúncio e conjunto, popover nos indicadores vermelhos e correção/duplicação guiada pelo Astro | aprovada |
+| [0129](trafego/0129-trafego-passo-a-passo-guiado-pelo-criativo.md) | trafego | Passo a passo do /trafego começa pelo criativo; Astro sugere objetivo, público, texto e verba com os números da conta e avisa em cada campo | implementada |
+| [0130](trafego/0130-trafego-pedido-completo-prompt-e-aprovacao.md) | trafego | Textos do Astro desde o início, pedido completo para publicar, "Copiar prompt para o Claude" no admin e "Precisa de aprovação" no painel | implementada |
+| [0131](trafego/0131-trafego-no-mcp-do-orbita.md) | trafego | Ferramentas do trafeGO no MCP do ÓRBITA para a equipe: listar o que precisa de ação, ler o pedido, números, roteiro de publicação, enviar recomendação e vincular campanha | implementada |
+| [0132](trafego/0132-trafego-avaliacao-do-claude-antes-de-publicar.md) | trafego | O Claude avalia o pedido completo a cada 2 horas pelo MCP, o cliente libera ("Aprovado, publicar" ou "Avaliar melhorias e aprovar") e o Claude publica pelo MCP da Meta | implementada |
 | [0130](payment/0130-banco-inter-pix-com-baixa-automatica.md) | payment | Conectar o Banco Inter para gerar o PIX de cada cobrança e dar baixa sozinho | rascunho |
 
 ---

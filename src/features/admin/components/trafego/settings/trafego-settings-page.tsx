@@ -85,7 +85,7 @@ const SECTIONS: SectionSpec[] = [
     id: "planos",
     label: "Planos e preços",
     icon: Tag,
-    fields: ["defaultServiceFeePercent", "includedCreatives", "extraCreativeBrl"],
+    fields: ["defaultServiceFeePercent", "extraCreativeBrl"],
     status: () => null,
   },
   {

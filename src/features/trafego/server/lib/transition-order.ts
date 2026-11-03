@@ -242,5 +242,11 @@ export async function transitionTrafegoOrder(
     }).catch((error) => console.error("[trafego/transition] encadeamento falhou:", error));
   }
 
+  // Pedido completo entra sozinho na avaliação do Claude (spec 0132, RF-1). Import tardio: order-review usa esta função.
+  if (input.toStatus === "MATERIALS_SUBMITTED") {
+    const { enqueueOrderReview } = await import("./order-review");
+    await enqueueOrderReview(order.id).catch((error) => console.error("[trafego/transition] fila de avaliação falhou:", error));
+  }
+
   return { changed: true, fromStatus, eventId: committed.eventId };
 }

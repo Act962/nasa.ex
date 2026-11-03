@@ -3,6 +3,7 @@ import { upsertPlatformIntegration } from "./upsert";
 import { deletePlatformIntegration } from "./delete";
 import { getChannelOrbit } from "./get-channel-orbit";
 import { organizationAiCreditsRouter } from "./ai-credits";
+import { getMetaConnectionStatus, testMetaConnection } from "./meta-connection";
 
 export const platformIntegrationsRouter = {
   getMany: getManyPlatformIntegrations,
@@ -10,4 +11,8 @@ export const platformIntegrationsRouter = {
   delete: deletePlatformIntegration,
   channelOrbit: getChannelOrbit,
   aiCredits: organizationAiCreditsRouter,
+  metaConnection: {
+    status: getMetaConnectionStatus,
+    test: testMetaConnection,
+  },
 };

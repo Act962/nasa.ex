@@ -78,6 +78,24 @@ export const POLICY_RULES: PolicyRule[] = [
     terms: ["replica", "replicas", "primeira linha", "falsificado", "falsificados", "tipo original", "aaa importado"],
   },
   {
+    // Spec 0124 (CA-6): a Meta recusa texto que afirma ou insinua condição de quem vê o anúncio.
+    id: "personal-attributes",
+    label: "Atributos pessoais",
+    reason:
+      "A Meta recusa anúncio que afirma ou insinua algo pessoal de quem vê: saúde, peso, dívida, aparência. \"Você sofre de…?\" é o exemplo clássico.",
+    fix: "Fale do serviço, não da pessoa: troque \"Você sofre de dor nas costas?\" por \"Tratamento para dor nas costas\".",
+    level: "BLOCKED",
+    platforms: ["META_ADS"],
+    sourceId: "meta-ad-standards",
+    terms: [],
+    patterns: [
+      /\bvoc[eê]\s+(sofre|padece|luta|convive|vive)\s+(de|com|contra)\b/i,
+      /\bvoc[eê]\s+(tem|est[aá]\s+com)\s+(diabetes|depress[aã]o|ansiedade|c[aâ]ncer|obesidade|calv[ií]cie|celulite|estrias|acne|d[ií]vidas?|dores?)\b/i,
+      /\bvoc[eê]\s+(é|est[aá])\s+(obes[oa]|diab[eé]tic[oa]|depressiv[oa]|ansios[oa]|endividad[oa]|calv[oa]|acima do peso)\b/i,
+      /\b(seu|sua)\s+(diabetes|depress[aã]o|ansiedade|obesidade|calv[ií]cie|d[ií]vida)\b/i,
+    ],
+  },
+  {
     id: "illicit-services",
     label: "Serviço ilícito",
     reason: "Facilitar fraude, invasão de contas ou documentos falsos é proibido e é crime.",

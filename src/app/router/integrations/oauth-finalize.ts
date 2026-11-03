@@ -7,6 +7,8 @@ import { consumeSession, getSessionByProvider } from "@/features/integrations/li
 import { z } from "zod";
 import { disablePublishAccountsOutsideSelection, upsertPublishAccounts } from "@/features/nasa-planner/server/publishing/publish-accounts";
 import { refreshMetaLinkedChannels } from "@/features/social-accounts/server/meta-login-channel";
+import { sealMetaSecret } from "@/features/integrations/lib/integration-api-key";
+import { assertCanManageMetaIntegration } from "@/features/integrations/lib/meta-integration-access";
 
 const FinalizeInput = z.object({
   oauthSessionId: z.string().min(8),
@@ -41,8 +43,10 @@ export const oauthFinalize = base
       const firstPage = sess.pages.find((p) => input.selectedPageIds.includes(p.id));
       const pageAccessToken = firstPage?.access_token ?? "";
 
+      const sealedAccessToken = sealMetaSecret(sess.accessToken);
       const config = {
-        accessToken: sess.accessToken,
+        accessToken: sealedAccessToken.sealed,
+        accessTokenLast4: sealedAccessToken.last4,
         adAccountId: firstAdAccount ? (firstAdAccount.startsWith("act_") ? firstAdAccount : `act_${firstAdAccount}`) : "",
         expiresAt: sess.expiresAt,
         scopes: sess.scopes,
@@ -57,6 +61,16 @@ export const oauthFinalize = base
         page_access_token: pageAccessToken,
         page_id: firstPage?.id ?? "",
       };
+
+      const currentMetaIntegration = await prisma.platformIntegration.findUnique({
+        where: { organizationId_platform: { organizationId: orgId, platform: IntegrationPlatform.META } },
+        select: { config: true },
+      });
+      await assertCanManageMetaIntegration({
+        organizationId: orgId,
+        userId: context.user.id,
+        currentConfig: currentMetaIntegration?.config as Record<string, unknown> | null,
+      });
 
       const integration = await prisma.platformIntegration.upsert({
         where: { organizationId_platform: { organizationId: orgId, platform: IntegrationPlatform.META } },

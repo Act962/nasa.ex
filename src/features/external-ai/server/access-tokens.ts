@@ -11,8 +11,24 @@ const VISIBLE_PREFIX_LENGTH = TOKEN_PREFIX.length + 4;
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
-export async function createExternalAiToken(input: { userId: string; label: string; organizationIds: string[] }) {
+export const TRAFEGO_SCOPE = "trafego";
+
+/** Escopo do trafeGO é só da equipe: o dono da chave precisa ser admin do sistema (spec 0131, RF-1, RF-2). */
+export async function isSystemAdmin(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isSystemAdmin: true } });
+  return user?.isSystemAdmin === true;
+}
+
+export async function createExternalAiToken(input: {
+  userId: string;
+  label: string;
+  organizationIds: string[];
+  includeTrafego?: boolean;
+}) {
   if (input.organizationIds.length === 0) throw new ORPCError("BAD_REQUEST", { message: "Escolha ao menos uma empresa." });
+  if (input.includeTrafego && !(await isSystemAdmin(input.userId))) {
+    throw new ORPCError("FORBIDDEN", { message: "Só a equipe do ÓRBITA pode incluir as ferramentas do trafeGO." });
+  }
   for (const organizationId of input.organizationIds) {
     await assertPlannerOrganizationAccess(input.userId, organizationId, "create");
   }
@@ -24,6 +40,7 @@ export async function createExternalAiToken(input: { userId: string; label: stri
       tokenHash: hashToken(token),
       tokenPrefix: token.slice(0, VISIBLE_PREFIX_LENGTH),
       organizationIds: input.organizationIds,
+      scopes: input.includeTrafego ? ["planner", TRAFEGO_SCOPE] : ["planner"],
     },
     select: { id: true },
   });
@@ -34,7 +51,7 @@ export async function listExternalAiTokens(userId: string) {
   const tokens = await prisma.externalAiAccessToken.findMany({
     where: { createdById: userId, revokedAt: null },
     orderBy: { createdAt: "desc" },
-    select: { id: true, label: true, tokenPrefix: true, organizationIds: true, lastUsedAt: true, createdAt: true },
+    select: { id: true, label: true, tokenPrefix: true, organizationIds: true, scopes: true, lastUsedAt: true, createdAt: true },
   });
   const organizationIds = [...new Set(tokens.flatMap((token) => token.organizationIds))];
   const organizations = await prisma.organization.findMany({ where: { id: { in: organizationIds } }, select: { id: true, name: true } });
@@ -51,6 +68,7 @@ export interface ExternalAiCaller {
   label: string;
   userId: string;
   organizationIds: string[];
+  scopes: string[];
 }
 
 /** Confere o Bearer. Devolve null quando a chave não existe ou foi revogada. */
@@ -59,11 +77,17 @@ export async function authenticateExternalAiToken(authorizationHeader: string | 
   if (!token?.startsWith(TOKEN_PREFIX)) return null;
   const accessToken = await prisma.externalAiAccessToken.findUnique({
     where: { tokenHash: hashToken(token) },
-    select: { id: true, label: true, createdById: true, organizationIds: true, revokedAt: true },
+    select: { id: true, label: true, createdById: true, organizationIds: true, scopes: true, revokedAt: true },
   });
   if (!accessToken || accessToken.revokedAt) return null;
   await prisma.externalAiAccessToken.update({ where: { id: accessToken.id }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
-  return { tokenId: accessToken.id, label: accessToken.label, userId: accessToken.createdById, organizationIds: accessToken.organizationIds };
+  return {
+    tokenId: accessToken.id,
+    label: accessToken.label,
+    userId: accessToken.createdById,
+    organizationIds: accessToken.organizationIds,
+    scopes: accessToken.scopes,
+  };
 }
 
 /** Empresa liberada na chave + permissão atual do dono no Planner dela (RNF-2). */

@@ -87,7 +87,7 @@ const TERMS = {
   adBudget: {
     label: "Verba de tráfego",
     description:
-      "Valor enviado à plataforma para distribuir os anúncios. Não inclui a taxa de serviço da agência.",
+      "Valor que você paga direto à plataforma (Meta), no cartão da sua conta de anúncios, para distribuir os anúncios. Serve de base para o serviço trafeGO.",
   },
   setup: {
     label: "Setup",
@@ -122,6 +122,28 @@ const TERMS = {
     label: "Custo por clique (CPC)",
     description:
       "Valor médio da verba gasto para gerar cada clique no anúncio.",
+  },
+  conversation: {
+    label: "Conversas iniciadas",
+    description:
+      "Quantas pessoas começaram uma conversa com a empresa (WhatsApp, Messenger ou Direct) depois de ver o anúncio.",
+  },
+  conversationRate: {
+    label: "Taxa de conversa",
+    description:
+      "De quem clicou no anúncio, quantos mandaram mensagem. Baixa indica problema na mensagem inicial ou no WhatsApp, não no criativo.",
+  },
+  costPerConversation: {
+    label: "Custo por conversa",
+    description: "Valor médio da verba gasto para cada conversa iniciada.",
+  },
+  cpm: {
+    label: "CPM",
+    description: "Custo para o anúncio aparecer mil vezes. Ajuda a comparar o preço de alcançar o público.",
+  },
+  frequency: {
+    label: "Frequência",
+    description: "Quantas vezes, em média, cada pessoa viu o anúncio no período.",
   },
 } as const;
 

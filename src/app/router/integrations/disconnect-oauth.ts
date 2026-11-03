@@ -4,6 +4,8 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { IntegrationPlatform } from "@/generated/prisma/enums";
 import prisma from "@/lib/prisma";
 import { revokeMetaToken } from "@/features/integrations/lib/oauth/meta-config";
+import { readMetaAccessToken } from "@/features/integrations/lib/integration-api-key";
+import { assertCanManageMetaIntegration } from "@/features/integrations/lib/meta-integration-access";
 import { revokeGoogleToken } from "@/features/integrations/lib/oauth/google-config";
 import { z } from "zod";
 
@@ -23,10 +25,18 @@ export const disconnectOAuth = base
       const integrations = await prisma.platformIntegration.findMany({
         where: { organizationId: orgId, platform: { in: platforms } },
       });
+      const metaIntegration = integrations.find((integration) => integration.platform === IntegrationPlatform.META);
+      if (metaIntegration) {
+        await assertCanManageMetaIntegration({
+          organizationId: orgId,
+          userId: context.user.id,
+          currentConfig: metaIntegration.config as Record<string, unknown> | null,
+        });
+      }
 
       for (const integration of integrations) {
         const cfg = (integration.config ?? {}) as Record<string, unknown>;
-        const token = cfg.accessToken as string | undefined;
+        const token = readMetaAccessToken(cfg);
         const fbUserId = cfg.userId as string | undefined;
         if (token && fbUserId) {
           await revokeMetaToken(token, fbUserId);

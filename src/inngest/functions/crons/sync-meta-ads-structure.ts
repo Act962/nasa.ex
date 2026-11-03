@@ -15,6 +15,7 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
+import { readMetaAccessToken } from "@/features/integrations/lib/integration-api-key";
 import { autoLinkTrafegoMetaCampaigns } from "@/features/trafego/server/lib/auto-link-meta-campaigns";
 import {
   listMetaCampaigns,
@@ -44,11 +45,12 @@ export const syncMetaAdsStructure = inngest.createFunction(
 
     for (const integ of integrations) {
       const config = (integ.config ?? {}) as Record<string, string>;
-      if (!config.accessToken || !config.adAccountId) continue;
+      const accessToken = readMetaAccessToken(config);
+      if (!accessToken || !config.adAccountId) continue;
       orgsProcessed++;
 
       const auth = {
-        accessToken: config.accessToken,
+        accessToken,
         adAccountId: config.adAccountId,
       };
 

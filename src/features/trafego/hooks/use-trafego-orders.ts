@@ -53,15 +53,6 @@ export const useUpdateTrafegoBriefing = () => {
   );
 };
 
-export const useActivateTrafegoOrder = () => {
-  const invalidate = useOrderInvalidation();
-  return useMutation(
-    orpc.trafego.activateOrder.mutationOptions({
-      onSuccess: (_data, variables) => invalidate(variables.orderId),
-    }),
-  );
-};
-
 export const useAddTrafegoCreative = () => {
   const invalidate = useOrderInvalidation();
   return useMutation(

@@ -24,8 +24,10 @@ import { Prisma } from "@/generated/prisma/client";
 import { clientIpFromHeaders, takeRateLimit } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe";
 import { getPostHogClient } from "@/lib/posthog-server";
-import { STRIPE_MIN_BRL_CENTS } from "@/features/trafego/lib/pricing";
-import { quoteTrafego } from "@/features/trafego/lib/pricing-tiers";
+import { formatBrlFromCents, STRIPE_MIN_BRL_CENTS } from "@/features/trafego/lib/pricing";
+import { quoteTrafego, resolveTrafegoSetupBrlCents } from "@/features/trafego/lib/pricing-tiers";
+import { hasOrgPaidTrafegoSetup } from "@/features/trafego/server/lib/setup-fee";
+import { resolveIncludedAds } from "@/features/trafego/lib/creative-limits";
 import { trafegoCheckoutBodySchema } from "@/features/trafego/schema/trafego-schemas";
 import { PLATFORM_SHORT_LABEL } from "@/features/trafego/lib/catalog-labels";
 import { TRAFEGO_TERMS_VERSION } from "@/features/trafego/lib/legal";
@@ -153,22 +155,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // "unsure" é tratado como quem não tem: se na verificação a conta existir, a
-  // equipe estorna o setup. Melhor sobrar do que descobrir depois que faltou.
-  // No WhatsApp Oficial o setup é o número na API (aquisição + configuração).
+  // No WhatsApp Oficial o setup é o número na API; "unsure" conta como quem não tem.
+  // Nos canais da Meta é o setup único da empresa (spec 0126, RF-8).
   const isWhatsappChannel = platform === "WHATSAPP_OFICIAL";
-  const needsSetup = isWhatsappChannel
-    ? (hasOfficialNumber ?? "unsure") !== "yes"
-    : hasBusinessManager !== "yes";
+  const setupBrlCents = resolveTrafegoSetupBrlCents({
+    adBudgetBrlCents,
+    isWhatsappChannel,
+    needsWhatsappNumber: (hasOfficialNumber ?? "unsure") !== "yes",
+    hasPaidSetupBefore:
+      isAuthenticatedFlow && organizationId ? await hasOrgPaidTrafegoSetup(organizationId) : false,
+  });
   const settings = await loadTrafegoSettings();
-  const creativeCount = desiredCreativeCount ?? settings.includedCreatives;
-  const extraCreatives = Math.max(
-    0,
-    creativeCount - settings.includedCreatives,
-  );
+  // Anúncios ao mesmo tempo por faixa de verba (spec 0127); acima disso, extra com valor fixo.
+  const includedAds = resolveIncludedAds(adBudgetBrlCents);
+  const creativeCount = Math.max(desiredCreativeCount ?? includedAds, includedAds);
+  const extraCreatives = creativeCount - includedAds;
   const quote = quoteTrafego(
     adBudgetBrlCents,
-    needsSetup,
+    setupBrlCents,
     extraCreatives,
     settings.extraCreativeBrlCents,
   );
@@ -341,6 +345,7 @@ export async function POST(req: NextRequest) {
       serviceFeeBrlCents: quote.serviceFeeBrlCents,
       setupFeeBrlCents: quote.setupBrlCents,
       amountBrlCents: quote.totalBrlCents,
+      adBudgetPaidToMeta: true,
       status: "PENDING",
     },
     select: { id: true },
@@ -482,26 +487,16 @@ export async function POST(req: NextRequest) {
     objective,
   };
 
+  // A verba não entra: o cliente paga a Meta direto (spec 0123). Só o serviço é cobrado aqui.
   const lineItems = [
-    {
-      quantity: 1,
-      price_data: {
-        currency: "brl" as const,
-        unit_amount: quote.adBudgetBrlCents,
-        product_data: {
-          name: "Verba de tráfego",
-          description: `${platformLabel} · investido integralmente nos anúncios`,
-        },
-      },
-    },
     {
       quantity: 1,
       price_data: {
         currency: "brl" as const,
         unit_amount: quote.serviceFeeBrlCents,
         product_data: {
-          name: `Serviço Órbita (${quote.feePercent}%)`,
-          description: "Criação, configuração, acompanhamento e otimização",
+          name: `Serviço Órbita (${quote.feePercent}%${quote.isMinimumFee ? ", mínimo" : ""})`,
+          description: `Criação, configuração, acompanhamento e otimização · verba de ${formatBrlFromCents(quote.adBudgetBrlCents)} paga direto na ${platformLabel}`,
         },
       },
     },

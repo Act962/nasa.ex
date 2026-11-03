@@ -3,7 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
-import { canManageMcpAuthorizations } from "@/lib/meta-mcp/authorization";
+import { canManageMcpAuthorizations } from "@/features/astro-meta-ads/server/authorization";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 

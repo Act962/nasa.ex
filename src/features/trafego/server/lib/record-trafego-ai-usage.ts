@@ -6,7 +6,15 @@ import { loadTrafegoSettings } from "./trafego-settings";
 // com a chave da própria operação, então o uso é lançado na empresa da agência. Sem agência
 // configurada não há a quem atribuir e nada é gravado.
 
-type TrafegoAiFeature = "trafego.assistant" | "trafego.recommendations" | "trafego.release" | "trafego.copies" | "trafego.compliance";
+export type TrafegoAiFeature =
+  | "trafego.assistant"
+  | "trafego.recommendations"
+  | "trafego.release"
+  | "trafego.copies"
+  | "trafego.compliance"
+  | "trafego.creative_review"
+  | "trafego.copy_suggestion"
+  | "trafego.ad_fix";
 
 export async function recordTrafegoAiUsage(input: {
   feature: TrafegoAiFeature;
@@ -19,7 +27,10 @@ export async function recordTrafegoAiUsage(input: {
   const settings = await loadTrafegoSettings().catch(() => null);
   if (!settings?.agencyOrganizationId) return;
   await recordAiUsage({
-    resourceId: input.feature === "trafego.compliance" ? "trafego.compliance" : "trafego.assistant",
+    resourceId:
+      input.feature === "trafego.compliance" || input.feature === "trafego.creative_review"
+        ? input.feature
+        : "trafego.assistant",
     feature: input.feature,
     organizationId: settings.agencyOrganizationId,
     provider: input.provider,

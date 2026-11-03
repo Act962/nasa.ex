@@ -37,6 +37,7 @@ export const createManualTrafegoOrderProcedure = base
         whatsappNumber: z.string().trim().max(30).optional(),
         internalNote: z.string().trim().max(2000).optional(),
         registerFinance: z.boolean(),
+        adBudgetPaidToMeta: z.boolean().default(true),
       })
       .refine(
         (input) => OBJECTIVES_BY_PLATFORM[input.platform].includes(input.objective),
