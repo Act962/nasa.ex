@@ -1,13 +1,17 @@
 import "server-only";
 import { InterApiError, requestInterToken } from "@/http/inter/client";
+import { deleteInterBoletoWebhook, registerInterBoletoWebhook } from "@/http/inter/boleto";
 import { inspectInterCertificate } from "@/http/inter/certificate";
-import { INTER_CHARGE_SCOPES, findMoneyMovingScopes } from "@/http/inter/scopes";
+import { checkInterPermissions } from "@/http/inter/permissions";
+import { INTER_BOLETO_SCOPES, INTER_CHARGE_SCOPES, findMoneyMovingScopes } from "@/http/inter/scopes";
 import type { InterCallContext } from "@/http/inter/types";
 import { deleteInterPixWebhook, registerInterPixWebhook } from "@/http/inter/webhook";
+import { createInterBoletoProvider } from "./inter-boleto-provider";
 import { createInterChargeProvider } from "./inter-charge-provider";
 import { BankConnectionError, type BankAdapter, type BankCredentials } from "./ports";
 
-// O Inter na porta `BankAdapter`: mTLS com `.crt`/`.key`, token de 60 min e webhook por chave PIX.
+// O Inter na porta `BankAdapter`: mTLS com `.crt`/`.key`, token de 60 min, webhook de PIX por
+// chave e de boleto por conta.
 
 const CREDENTIAL_ERROR_STATUSES = new Set([401, 403, 406]);
 
@@ -22,12 +26,17 @@ function requireMtls(credentials: BankCredentials) {
   };
 }
 
+function toAppCredentials(credentials: BankCredentials) {
+  return { ...requireMtls(credentials), clientId: credentials.clientId, clientSecret: credentials.clientSecret };
+}
+
 function buildCallContext(credentials: BankCredentials, accessToken: string): InterCallContext {
   return { ...requireMtls(credentials), accountNumber: credentials.accountNumber, accessToken };
 }
 
 export const interBankAdapter: BankAdapter = {
   provider: "INTER",
+  permissionScopes: { pix: INTER_CHARGE_SCOPES, boleto: INTER_BOLETO_SCOPES },
 
   inspectCredentials(credentials) {
     const mtls = requireMtls(credentials);
@@ -36,16 +45,21 @@ export const interBankAdapter: BankAdapter = {
     return { certificateValidTo: inspected.info.validTo };
   },
 
-  async requestAccessToken(credentials) {
-    const token = await requestInterToken(
-      { ...requireMtls(credentials), clientId: credentials.clientId, clientSecret: credentials.clientSecret },
-      INTER_CHARGE_SCOPES,
-    );
+  async requestAccessToken(credentials, options) {
+    const scopes = options?.includeBoleto ? [...INTER_CHARGE_SCOPES, ...INTER_BOLETO_SCOPES] : INTER_CHARGE_SCOPES;
+    const token = await requestInterToken(toAppCredentials(credentials), scopes);
     return {
       accessToken: token.access_token,
       expiresAt: new Date(Date.now() + token.expires_in * 1000),
       scopes: token.scope.split(" ").filter(Boolean),
     };
+  },
+
+  async checkPermissions(credentials) {
+    return checkInterPermissions(toAppCredentials(credentials), {
+      pixKey: credentials.pixKey,
+      accountNumber: credentials.accountNumber,
+    });
   },
 
   findMoneyMovingScopes,
@@ -65,6 +79,18 @@ export const interBankAdapter: BankAdapter = {
 
   async removePaymentWebhook(credentials, accessToken) {
     await deleteInterPixWebhook(buildCallContext(credentials, accessToken), credentials.pixKey);
+  },
+
+  createBoletoProvider(credentials, getAccessToken) {
+    return createInterBoletoProvider(async () => buildCallContext(credentials, await getAccessToken()));
+  },
+
+  async registerBoletoWebhook(credentials, accessToken, webhookUrl) {
+    await registerInterBoletoWebhook(buildCallContext(credentials, accessToken), webhookUrl);
+  },
+
+  async removeBoletoWebhook(credentials, accessToken) {
+    await deleteInterBoletoWebhook(buildCallContext(credentials, accessToken));
   },
 
   describeError(error) {

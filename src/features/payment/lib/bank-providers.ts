@@ -25,7 +25,7 @@ export const BANK_PROVIDERS: Record<BankProviderId, BankProviderInfo> = {
     namePattern: /\binter(?![a-zà-ú])/i,
     setupSteps: [
       "No Internet Banking do Inter Empresas, abra Soluções para sua empresa → Nova integração.",
-      "Marque as permissões de Cobrança com vencimento (cobv), Consulta de PIX e Webhook. Não marque Pagamentos nem Envio de PIX.",
+      "Marque as permissões de Cobrança com vencimento (cobv), Consulta de PIX e Webhook. Para boleto, marque também Cobrança (boleto). Não marque Pagamentos nem Envio de PIX: elas tiram dinheiro da conta.",
       "Baixe o pacote da integração: ele traz o client_id, o client_secret, o certificado (.crt) e a chave (.key).",
     ],
     requiredScopes: ["cobv.read", "cobv.write", "pix.read", "webhook.read", "webhook.write"],
@@ -34,6 +34,23 @@ export const BANK_PROVIDERS: Record<BankProviderId, BankProviderInfo> = {
 };
 
 /** Pelo código COMPE ou, em conta antiga cadastrada só com o nome, pelo nome do banco. */
+/** Nome de cada permissão como aparece (aproximadamente) na tela de integração do banco. */
+export const BANK_PERMISSION_LABELS: Record<string, string> = {
+  "cobv.read": "Consultar cobrança PIX com vencimento",
+  "cobv.write": "Emitir cobrança PIX com vencimento",
+  "pix.read": "Consultar PIX recebidos",
+  "webhook.read": "Consultar webhook do PIX",
+  "webhook.write": "Cadastrar webhook do PIX",
+  "boleto-cobranca.read": "Consultar boleto (Cobrança)",
+  "boleto-cobranca.write": "Emitir boleto (Cobrança)",
+  "pagamento-pix.write": "Enviar PIX (Pagamentos)",
+  "pagamento-boleto.write": "Pagar boletos (Pagamentos)",
+};
+
+export function describeBankPermissions(scopes: readonly string[]): string {
+  return scopes.map((scope) => BANK_PERMISSION_LABELS[scope] ?? scope).join(", ");
+}
+
 export function findBankProvider(account: {
   bankCode?: string | null;
   bankName?: string | null;

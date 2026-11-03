@@ -6,6 +6,7 @@ import { isOrgOwnerOrAdmin } from "@/features/permissions/server/is-org-admin";
 import {
   disconnectBankConnection,
   saveBankConnection,
+  setBankChargeMethod,
   setChargeConnection,
   testBankConnection,
   type BankConnectionResult,
@@ -34,6 +35,18 @@ export const bankConnectionShape = z.object({
   lastErrorAt: z.date().nullable(),
   connectedAt: z.date(),
   status: z.enum(["ACTIVE", "CERTIFICATE_EXPIRED", "WEBHOOK_PENDING", "ERROR"]),
+  // Spec 0133: permissões conferidas na API (`null` = ainda não conferidas) e forma de cobrar.
+  permissionsCheckedAt: z.date().nullable(),
+  missingForPix: z.array(z.string()).nullable(),
+  missingForBoleto: z.array(z.string()).nullable(),
+  isBoletoSupported: z.boolean(),
+  chargeMethod: z.enum(["PIX", "BOLETO_PIX"]),
+  isBoletoActive: z.boolean(),
+  boletoWebhookRegisteredAt: z.date().nullable(),
+  boletoFinePercent: z.number().nullable(),
+  boletoInterestMonthlyPercent: z.number().nullable(),
+  boletoDiscountPercent: z.number().nullable(),
+  boletoDiscountDays: z.number().nullable(),
 });
 
 const ownerOrAdminProcedure = base
@@ -122,4 +135,32 @@ export const disconnectBankConnectionProcedure = ownerOrAdminProcedure
     });
     if (!result.ok) throw errors.NOT_FOUND({ message: result.message });
     return { ok: true };
+  });
+
+const PERCENT_SCHEMA = z.number().min(0).max(100).nullable();
+
+export const setBankChargeMethodProcedure = ownerOrAdminProcedure
+  .route({ method: "POST", summary: "Choose PIX or boleto with PIX for charges", tags: ["Payment"] })
+  .input(
+    z.object({
+      connectionId: z.string(),
+      chargeMethod: z.enum(["PIX", "BOLETO_PIX"]),
+      finePercent: PERCENT_SCHEMA,
+      interestMonthlyPercent: PERCENT_SCHEMA,
+      discountPercent: PERCENT_SCHEMA,
+      discountDays: z.number().int().min(0).max(60).nullable(),
+    }),
+  )
+  .output(z.object({ connection: bankConnectionShape }))
+  .handler(async ({ input, context, errors }) => {
+    const { connectionId, ...chargeMethodInput } = input;
+    return unwrapConnection(
+      await setBankChargeMethod({
+        organizationId: context.org.id,
+        actor: toActor(context.user),
+        connectionId,
+        input: chargeMethodInput,
+      }),
+      errors,
+    );
   });

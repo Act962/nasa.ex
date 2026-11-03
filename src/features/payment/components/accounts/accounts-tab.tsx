@@ -172,6 +172,7 @@ export function AccountsTab() {
                   <button
                     type="button"
                     className="mt-1"
+                    data-guide={GUIDE_ANCHORS.paymentBankConnectionBadge.id}
                     onClick={() => bankProvider && setBankSheet({ accountId: account.id, provider: bankProvider })}
                   >
                     <BankConnectionStatusBadge

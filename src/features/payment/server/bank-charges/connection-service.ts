@@ -3,21 +3,29 @@ import { randomBytes } from "node:crypto";
 import prisma from "@/lib/prisma";
 import { hasSecretKey } from "@/lib/crypto";
 import { logActivity } from "@/features/admin/lib/activity-logger";
-import { normalizePixKey } from "@/features/payment/lib/bank-providers";
+import { describeBankPermissions, normalizePixKey } from "@/features/payment/lib/bank-providers";
 import type { PaymentBankConnection } from "@/generated/prisma/client";
 import { getBankAdapter } from "./bank-adapters";
 import {
   buildBankWebhookUrl,
   encryptBankSecret,
+  hasBoletoPermission,
   openConnectedBank,
   readConnectionCredentials,
   toBankConnectionSummary,
   type BankConnectionSummary,
 } from "./connection-store";
-import { cancelOpenBankPixOfConnection } from "./charge-pix";
-import { BankConnectionError, type BankChargeProviderName, type BankCredentials } from "./ports";
+import { cancelOpenBankChargesOfConnection } from "./charge-pix";
+import {
+  BankConnectionError,
+  type BankAccessToken,
+  type BankChargeProviderName,
+  type BankCredentials,
+  type BankPermissionReport,
+} from "./ports";
 
-// Conectar, testar, desconectar e escolher a conta das cobranças (spec 0130, RF-1, RF-3, RF-10).
+// Conectar, testar, desconectar e escolher a conta das cobranças (spec 0130, RF-1, RF-3, RF-10),
+// com as permissões conferidas na API e a escolha entre PIX e boleto (spec 0133).
 // Quem chama já conferiu que a pessoa é dona ou administradora.
 
 export interface BankActor {
@@ -61,6 +69,53 @@ async function registerWebhook(connection: PaymentBankConnection, accessToken: s
       lastErrorAt: new Date(),
     };
   }
+}
+
+async function registerBoletoWebhook(connection: PaymentBankConnection, accessToken: string) {
+  const adapter = getBankAdapter(connection.provider);
+  const webhookUrl = buildBankWebhookUrl(connection);
+  if (!adapter.registerBoletoWebhook || !webhookUrl?.startsWith("https://")) return { boletoWebhookRegisteredAt: null };
+  try {
+    await adapter.registerBoletoWebhook(readConnectionCredentials(connection), accessToken, webhookUrl);
+    return { boletoWebhookRegisteredAt: new Date() };
+  } catch (error) {
+    return {
+      boletoWebhookRegisteredAt: null,
+      lastErrorMessage: `O banco não aceitou o aviso de pagamento do boleto: ${describeBankFailure(connection.provider, error)}`,
+      lastErrorAt: new Date(),
+    };
+  }
+}
+
+/**
+ * Valida as credenciais, confere as permissões chamando a API e devolve o token de trabalho.
+ * Quatro tokens no total, dentro dos cinco por minuto do Inter.
+ */
+async function verifyBankAccess(
+  provider: BankChargeProviderName,
+  credentials: BankCredentials,
+): Promise<{ ok: true; report: BankPermissionReport; token: BankAccessToken } | { ok: false; message: string }> {
+  const adapter = getBankAdapter(provider);
+  try {
+    await adapter.requestAccessToken(credentials);
+    const report = await adapter.checkPermissions(credentials);
+    if (report.missingForPix.length > 0) {
+      return {
+        ok: false,
+        message: `A integração no banco não tem as permissões que o PIX precisa: ${describeBankPermissions(report.missingForPix)}. Marque-as na integração e tente de novo.`,
+      };
+    }
+    const includeBoleto = report.missingForBoleto !== null && report.missingForBoleto.length === 0;
+    const token = await adapter.requestAccessToken(credentials, { includeBoleto });
+    return { ok: true, report, token };
+  } catch (error) {
+    if (error instanceof BankConnectionError) return { ok: false, message: error.message };
+    return { ok: false, message: describeBankFailure(provider, error) };
+  }
+}
+
+function toPermissionData(report: BankPermissionReport) {
+  return { scopes: [...report.granted, ...report.moneyMoving].join(" "), permissionsCheckedAt: new Date() };
 }
 
 async function logBankActivity(params: {
@@ -131,21 +186,15 @@ export async function saveBankConnection(params: {
     return failure("invalid", "Informe o client_id e o client_secret da integração.");
   }
 
-  const adapter = getBankAdapter(input.provider);
   let certificateValidTo: Date | null;
-  let accessToken: string;
-  let accessTokenExpiresAt: Date;
-  let scopes: string[];
   try {
-    certificateValidTo = adapter.inspectCredentials(credentials).certificateValidTo;
-    const token = await adapter.requestAccessToken(credentials);
-    accessToken = token.accessToken;
-    accessTokenExpiresAt = token.expiresAt;
-    scopes = token.scopes;
+    certificateValidTo = getBankAdapter(input.provider).inspectCredentials(credentials).certificateValidTo;
   } catch (error) {
     if (error instanceof BankConnectionError) return failure("invalid", error.message);
     return failure("invalid", describeBankFailure(input.provider, error));
   }
+  const access = await verifyBankAccess(input.provider, credentials);
+  if (!access.ok) return failure("invalid", access.message);
 
   const hasOtherChargeConnection = await prisma.paymentBankConnection.count({
     where: { organizationId, isDefaultForCharges: true, NOT: { accountId: account.id } },
@@ -159,11 +208,11 @@ export async function saveBankConnection(params: {
     privateKeyEnc: credentials.privateKeyPem ? encryptBankSecret(organizationId, credentials.privateKeyPem) : null,
     certificateValidTo,
     certificateAlertDays: null,
-    scopes: scopes.join(" "),
+    ...toPermissionData(access.report),
     pixKey: credentials.pixKey,
     accountNumber: credentials.accountNumber,
-    accessTokenEnc: encryptBankSecret(organizationId, accessToken),
-    accessTokenExpiresAt,
+    accessTokenEnc: encryptBankSecret(organizationId, access.token.accessToken),
+    accessTokenExpiresAt: access.token.expiresAt,
   };
   const saved = await prisma.paymentBankConnection.upsert({
     where: { accountId: account.id },
@@ -178,8 +227,15 @@ export async function saveBankConnection(params: {
     update: secretsData,
   });
 
-  const webhookState = await registerWebhook(saved, accessToken);
-  const connection = await prisma.paymentBankConnection.update({ where: { id: saved.id }, data: webhookState });
+  const webhookState = await registerWebhook(saved, access.token.accessToken);
+  const boletoWebhookState =
+    saved.chargeMethod === "BOLETO_PIX" && hasBoletoPermission(saved)
+      ? await registerBoletoWebhook(saved, access.token.accessToken)
+      : {};
+  const connection = await prisma.paymentBankConnection.update({
+    where: { id: saved.id },
+    data: { ...webhookState, ...boletoWebhookState },
+  });
 
   await logBankActivity({
     organizationId,
@@ -200,7 +256,7 @@ async function findConnection(organizationId: string, connectionId: string) {
   });
 }
 
-/** Pede um token novo, relê os escopos e tenta de novo o aviso de pagamento, se faltar. */
+/** Confere credenciais e permissões de novo e tenta outra vez os avisos de pagamento que faltam. */
 export async function testBankConnection(params: {
   organizationId: string;
   connectionId: string;
@@ -208,30 +264,98 @@ export async function testBankConnection(params: {
   const connection = await findConnection(params.organizationId, params.connectionId);
   if (!connection) return failure("not_found", "Conexão não encontrada.");
 
-  const credentials = readConnectionCredentials(connection);
-  let token;
-  try {
-    token = await getBankAdapter(connection.provider).requestAccessToken(credentials);
-  } catch (error) {
-    const message = describeBankFailure(connection.provider, error);
+  const access = await verifyBankAccess(connection.provider, readConnectionCredentials(connection));
+  if (!access.ok) {
     await prisma.paymentBankConnection.update({
       where: { id: connection.id },
-      data: { lastErrorMessage: message, lastErrorAt: new Date() },
+      data: { lastErrorMessage: access.message, lastErrorAt: new Date() },
     });
-    return failure("invalid", message);
+    return failure("invalid", access.message);
   }
 
-  const tokenData = {
-    scopes: token.scopes.join(" "),
-    accessTokenEnc: encryptBankSecret(connection.organizationId, token.accessToken),
-    accessTokenExpiresAt: token.expiresAt,
-  };
-  const webhookState = await registerWebhook(connection, token.accessToken);
+  const checked = await prisma.paymentBankConnection.update({
+    where: { id: connection.id },
+    data: {
+      ...toPermissionData(access.report),
+      accessTokenEnc: encryptBankSecret(connection.organizationId, access.token.accessToken),
+      accessTokenExpiresAt: access.token.expiresAt,
+    },
+  });
+  const webhookState = await registerWebhook(checked, access.token.accessToken);
+  const boletoWebhookState =
+    checked.chargeMethod === "BOLETO_PIX" && hasBoletoPermission(checked)
+      ? await registerBoletoWebhook(checked, access.token.accessToken)
+      : {};
   const updated = await prisma.paymentBankConnection.update({
     where: { id: connection.id },
-    data: { ...tokenData, ...webhookState },
+    data: { ...webhookState, ...boletoWebhookState },
   });
   return { ok: true, connection: toBankConnectionSummary(updated) };
+}
+
+export interface BankChargeMethodInput {
+  chargeMethod: "PIX" | "BOLETO_PIX";
+  finePercent: number | null;
+  interestMonthlyPercent: number | null;
+  discountPercent: number | null;
+  discountDays: number | null;
+}
+
+function toBps(percent: number | null): number | null {
+  return percent === null || percent <= 0 ? null : Math.round(percent * 100);
+}
+
+/** Spec 0133, RF-1 e RF-2: PIX ou boleto com PIX, e multa, juros e desconto do boleto. */
+export async function setBankChargeMethod(params: {
+  organizationId: string;
+  actor: BankActor;
+  connectionId: string;
+  input: BankChargeMethodInput;
+}): Promise<BankConnectionResult> {
+  const connection = await findConnection(params.organizationId, params.connectionId);
+  if (!connection) return failure("not_found", "Conexão não encontrada.");
+  const { input } = params;
+
+  if (input.chargeMethod === "BOLETO_PIX" && !hasBoletoPermission(connection)) {
+    const adapter = getBankAdapter(connection.provider);
+    if (!adapter.permissionScopes.boleto) return failure("invalid", "Este banco não emite boleto pela API.");
+    return failure(
+      "invalid",
+      connection.permissionsCheckedAt
+        ? `A integração no banco não tem as permissões do boleto: ${describeBankPermissions(adapter.permissionScopes.boleto)}. Marque-as na integração e clique em "Testar conexão".`
+        : 'As permissões desta conexão ainda não foram conferidas. Clique em "Testar conexão" e tente de novo.',
+    );
+  }
+  const hasDiscount = toBps(input.discountPercent) !== null;
+  const updated = await prisma.paymentBankConnection.update({
+    where: { id: connection.id },
+    data: {
+      chargeMethod: input.chargeMethod,
+      boletoFineBps: toBps(input.finePercent),
+      boletoInterestMonthlyBps: toBps(input.interestMonthlyPercent),
+      boletoDiscountBps: toBps(input.discountPercent),
+      boletoDiscountDays: hasDiscount ? Math.max(input.discountDays ?? 0, 0) : null,
+    },
+  });
+
+  let final = updated;
+  if (input.chargeMethod === "BOLETO_PIX" && !updated.boletoWebhookRegisteredAt) {
+    const boletoWebhookState = await registerBoletoWebhook(updated, await openConnectedBank(updated).getAccessToken());
+    final = await prisma.paymentBankConnection.update({ where: { id: updated.id }, data: boletoWebhookState });
+  }
+
+  await logBankActivity({
+    organizationId: params.organizationId,
+    actor: params.actor,
+    action: "payment.bank.charge_method_changed",
+    actionLabel:
+      input.chargeMethod === "BOLETO_PIX"
+        ? `Passou a cobrar com boleto e PIX pela conta "${connection.account.name}"`
+        : `Passou a cobrar só com PIX pela conta "${connection.account.name}"`,
+    accountId: connection.account.id,
+    accountName: connection.account.name,
+  });
+  return { ok: true, connection: toBankConnectionSummary(final) };
 }
 
 /** RF-10: apaga os segredos e o token e tira o aviso de pagamento do banco, quando der. */
@@ -243,14 +367,17 @@ export async function disconnectBankConnection(params: {
   const connection = await findConnection(params.organizationId, params.connectionId);
   if (!connection) return { ok: false, reason: "not_found", message: "Conexão não encontrada." };
 
-  // Antes de apagar: sem a conexão, ninguém mais cancela nem dá baixa nesses PIX.
-  const { cancelled } = await cancelOpenBankPixOfConnection(connection.id);
-  if (cancelled > 0) console.info("[bank-connection] open PIX cancelled on disconnect", { connectionId: connection.id, cancelled });
+  // Antes de apagar: sem a conexão, ninguém mais cancela nem dá baixa nesses PIX e boletos.
+  const { cancelled } = await cancelOpenBankChargesOfConnection(connection.id);
+  if (cancelled > 0) console.info("[bank-connection] open charges cancelled on disconnect", { connectionId: connection.id, cancelled });
 
-  if (connection.webhookRegisteredAt) {
+  const adapter = getBankAdapter(connection.provider);
+  if (connection.webhookRegisteredAt || connection.boletoWebhookRegisteredAt) {
     try {
       const bank = openConnectedBank(connection);
-      await getBankAdapter(connection.provider).removePaymentWebhook(bank.credentials, await bank.getAccessToken());
+      const accessToken = await bank.getAccessToken();
+      if (connection.webhookRegisteredAt) await adapter.removePaymentWebhook(bank.credentials, accessToken);
+      if (connection.boletoWebhookRegisteredAt) await adapter.removeBoletoWebhook?.(bank.credentials, accessToken);
     } catch (error) {
       console.warn("[bank-connection] webhook removal failed", describeBankFailure(connection.provider, error));
     }

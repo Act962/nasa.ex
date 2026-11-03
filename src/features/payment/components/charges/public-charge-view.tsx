@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { CheckCircle2, Copy } from "lucide-react";
+import { CheckCircle2, Copy, FileDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "../../lib/format";
 import { formatCalendarDate } from "../../lib/dates";
@@ -19,6 +19,11 @@ export type PublicChargeViewData = {
   paidAt: Date | null;
   installmentLabel: string | null;
   pixCode: string | null;
+  /** Boleto com PIX do banco (spec 0133). */
+  boletoDigitableLine: string | null;
+  boletoPdfUrl: string | null;
+  /** O banco ainda está gerando o boleto (leva segundos). */
+  isBoletoProcessing: boolean;
 };
 
 const STATUS_TEXT: Record<PublicChargeViewData["status"], string> = {
@@ -29,17 +34,17 @@ const STATUS_TEXT: Record<PublicChargeViewData["status"], string> = {
 };
 
 export function PublicChargeView({ charge }: { charge: PublicChargeViewData }) {
-  const [isCopied, setIsCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<"pix" | "boleto" | null>(null);
   const isOpen = charge.status === "OPEN" || charge.status === "OVERDUE";
 
-  async function handleCopyPix() {
-    if (!charge.pixCode) return;
+  async function handleCopy(field: "pix" | "boleto", value: string | null) {
+    if (!value) return;
     try {
-      await navigator.clipboard.writeText(charge.pixCode);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2500);
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2500);
     } catch {
-      setIsCopied(false);
+      setCopiedField(null);
     }
   }
 
@@ -98,9 +103,9 @@ export function PublicChargeView({ charge }: { charge: PublicChargeViewData }) {
               <QRCodeSVG value={charge.pixCode} size={208} />
             </div>
             <p className="break-all rounded-lg border bg-muted/40 p-3 font-mono text-xs">{charge.pixCode}</p>
-            <Button className="w-full gap-2" onClick={handleCopyPix}>
+            <Button className="w-full gap-2" onClick={() => void handleCopy("pix", charge.pixCode)}>
               <Copy className="size-4" />
-              {isCopied ? "Código copiado" : "Copiar código PIX"}
+              {copiedField === "pix" ? "Código copiado" : "Copiar código PIX"}
             </Button>
             <p className="text-xs text-muted-foreground">
               Abra o app do seu banco, escolha PIX copia e cola ou leia o QR Code. A confirmação pode levar
@@ -109,7 +114,35 @@ export function PublicChargeView({ charge }: { charge: PublicChargeViewData }) {
           </section>
         )}
 
-        {isOpen && !charge.pixCode && (
+        {isOpen && charge.boletoDigitableLine && (
+          <section className="space-y-3 border-t pt-5">
+            <p className="text-sm font-medium">Ou pague com boleto</p>
+            <p className="break-all rounded-lg border bg-muted/40 p-3 font-mono text-xs">{charge.boletoDigitableLine}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="gap-2" onClick={() => void handleCopy("boleto", charge.boletoDigitableLine)}>
+                <Copy className="size-4" />
+                {copiedField === "boleto" ? "Copiado" : "Copiar linha"}
+              </Button>
+              {charge.boletoPdfUrl && (
+                <Button variant="outline" className="gap-2" asChild>
+                  <a href={charge.boletoPdfUrl} target="_blank" rel="noopener noreferrer">
+                    <FileDown className="size-4" />
+                    Baixar boleto
+                  </a>
+                </Button>
+              )}
+            </div>
+          </section>
+        )}
+
+        {isOpen && charge.isBoletoProcessing && (
+          <p className="flex items-center gap-2 rounded-xl border p-4 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            O banco está gerando o boleto. Atualize a página em alguns segundos.
+          </p>
+        )}
+
+        {isOpen && !charge.pixCode && !charge.isBoletoProcessing && (
           <p className="rounded-xl border p-4 text-sm text-muted-foreground">
             Para pagar, fale com {charge.organizationName}.
           </p>
