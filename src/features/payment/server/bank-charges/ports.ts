@@ -81,20 +81,104 @@ export class BankConnectionError extends Error {
 }
 
 /**
+ * Permissões conferidas chamando a API do banco (spec 0133): o token do Inter repete qualquer
+ * escopo pedido, então ele não prova nada. `null` em `missingForBoleto` = o banco não tem boleto.
+ */
+export interface BankPermissionReport {
+  granted: string[];
+  missingForPix: string[];
+  missingForBoleto: string[] | null;
+  /** Permissões que tiram dinheiro da conta. O ÓRBITA nunca usa; a tela pede para remover. */
+  moneyMoving: string[];
+  /** Token de trabalho emitido na conferência (com o boleto, se ele estiver liberado). */
+  workingToken: BankAccessToken;
+}
+
+export interface BoletoPayer {
+  document: string;
+  name: string;
+  street: string;
+  number: string | null;
+  complement: string | null;
+  neighborhood: string | null;
+  city: string;
+  state: string;
+  zipCode: string;
+  email: string | null;
+}
+
+export interface BoletoRequest {
+  /** Referência curta da conta a receber (o banco aceita até 15 caracteres). */
+  reference: string;
+  amountCents: number;
+  /** "AAAA-MM-DD". */
+  dueDate: string;
+  /** Dias depois do vencimento até o boleto expirar no banco. */
+  daysValidAfterDue: number;
+  payer: BoletoPayer;
+  finePercent: number | null;
+  interestMonthlyPercent: number | null;
+  discount: { percent: number; daysBeforeDue: number } | null;
+  message: string | null;
+}
+
+export type BankBoletoStatus = "PROCESSING" | "ACTIVE" | "PAID" | "CANCELLED" | "EXPIRED" | "FAILED";
+
+export interface BankBoleto {
+  requestId: string;
+  /** A referência enviada na emissão (`BoletoRequest.reference`). */
+  reference: string | null;
+  status: BankBoletoStatus;
+  amountCents: number;
+  dueDate: string;
+  digitableLine: string | null;
+  barcode: string | null;
+  pixCopyPaste: string | null;
+  paidAmountCents: number | null;
+  paidAt: Date | null;
+  paidVia: "BOLETO" | "PIX" | null;
+  payerName: string | null;
+  payerDocument: string | null;
+  raw: Record<string, unknown>;
+}
+
+/** Boleto com PIX no banco (spec 0133). Emissão assíncrona: o boleto pronto vem depois. */
+export interface BankBoletoProvider {
+  /** Devolve o identificador do pedido; o boleto fica pronto em segundos. */
+  issueBoleto(request: BoletoRequest): Promise<string>;
+  getBoleto(requestId: string): Promise<BankBoleto | null>;
+  /** Pode levar até 30 min para valer no banco. */
+  reviseBoleto(requestId: string, revision: { amountCents: number; dueDate: string }): Promise<void>;
+  cancelBoleto(requestId: string, reason: string): Promise<void>;
+  /** PDF em base64. */
+  getBoletoPdf(requestId: string): Promise<string>;
+  listPaidBoletos(period: { since: Date; until: Date }): Promise<BankBoleto[]>;
+}
+
+/**
  * Tudo o que o ÓRBITA precisa de um banco: conferir e guardar a conexão, renovar o token,
  * cadastrar o aviso de pagamento e montar o `BankChargeProvider`. Banco novo = um adapter
  * novo registrado em `bank-adapters.ts`; tela, régua e baixa não mudam.
  */
 export interface BankAdapter {
   readonly provider: BankChargeProviderName;
+  /** Permissões que cada forma de cobrar exige. `boleto: null` = o banco não emite boleto pela API. */
+  readonly permissionScopes: { pix: readonly string[]; boleto: readonly string[] | null };
   /** Confere os arquivos antes de chamar o banco. Lança `BankConnectionError`. */
   inspectCredentials(credentials: BankCredentials): { certificateValidTo: Date | null };
-  requestAccessToken(credentials: BankCredentials): Promise<BankAccessToken>;
-  /** Escopos concedidos que permitem tirar dinheiro da conta (a tela avisa em vermelho). */
+  /** Token de trabalho: permissões do PIX e, se pedido, as do boleto. */
+  requestAccessToken(credentials: BankCredentials, options?: { includeBoleto?: boolean }): Promise<BankAccessToken>;
+  /** Confere de verdade o que a integração pode fazer, sem criar nada no banco. Também valida as credenciais. */
+  checkPermissions(credentials: BankCredentials): Promise<BankPermissionReport>;
+  /** Escopos que tiram dinheiro da conta, entre os informados. */
   findMoneyMovingScopes(scopes: readonly string[]): string[];
   createChargeProvider(credentials: BankCredentials, getAccessToken: () => Promise<string>): BankChargeProvider;
   registerPaymentWebhook(credentials: BankCredentials, accessToken: string, webhookUrl: string): Promise<void>;
   removePaymentWebhook(credentials: BankCredentials, accessToken: string): Promise<void>;
+  /** Ausentes quando o banco não emite boleto pela API. */
+  createBoletoProvider?(credentials: BankCredentials, getAccessToken: () => Promise<string>): BankBoletoProvider;
+  registerBoletoWebhook?(credentials: BankCredentials, accessToken: string, webhookUrl: string): Promise<void>;
+  removeBoletoWebhook?(credentials: BankCredentials, accessToken: string): Promise<void>;
   /** Mensagem em português para um erro do banco; `null` se não for erro dele. */
   describeError(error: unknown): { message: string; isCredentialProblem: boolean } | null;
 }

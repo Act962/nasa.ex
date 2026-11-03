@@ -52,6 +52,7 @@ export const DUNNING_VARIABLES: ReadonlyArray<DunningVariable> = [
   { token: "{{link_pagamento}}", label: "Link de pagamento", example: "https://…/cobranca/abc" },
   { token: "{{pix_copia_e_cola}}", label: "PIX copia e cola", example: "00020126…" },
   { token: "{{outras_pendencias}}", label: "Outras pendências", example: "R$ 0,00" },
+  { token: "{{linha_digitavel}}", label: "Linha digitável do boleto", example: "07790.00116 12345.678901 23456.789012 3 98760000010000" },
 ];
 
 const PIX_CODE_TOKEN = "{{pix_copia_e_cola}}";

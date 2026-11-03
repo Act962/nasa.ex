@@ -6220,6 +6220,17 @@ enum PaymentBankProvider {
   INTER
 }
 
+enum PaymentBankChargeMethod {
+  PIX
+  BOLETO_PIX
+}
+
+enum PaymentBoletoStatus {
+  PROCESSING
+  ACTIVE
+  FAILED
+}
+
 /// Conexão de uma conta bancária com a API do banco (spec 0130): gera o PIX de cada
 /// cobrança e recebe o aviso de pagamento. 1:1 com a conta e em tabela à parte para os
 /// segredos nunca saírem nas consultas que já leem a conta inteira. Segredos (`*Enc`)
@@ -6252,6 +6263,17 @@ model PaymentBankConnection {
   lastErrorAt          DateTime?           @map("last_error_at")
   // Último aviso de certificado vencendo já enviado (90, 30 ou 7 dias).
   certificateAlertDays Int?                @map("certificate_alert_days")
+  // Permissões conferidas chamando a API (o token repete qualquer escopo pedido): `scopes`
+  // guarda só as confirmadas. Spec 0133.
+  permissionsCheckedAt DateTime?                @map("permissions_checked_at")
+  // Como as cobranças saem por esta conexão (spec 0133, D-2).
+  chargeMethod             PaymentBankChargeMethod @default(PIX) @map("charge_method")
+  // Multa, juros ao mês e desconto do boleto em centésimos de ponto percentual (200 = 2%).
+  boletoFineBps            Int?                    @map("boleto_fine_bps")
+  boletoInterestMonthlyBps Int?                    @map("boleto_interest_monthly_bps")
+  boletoDiscountBps        Int?                    @map("boleto_discount_bps")
+  boletoDiscountDays       Int?                    @map("boleto_discount_days")
+  boletoWebhookRegisteredAt DateTime?              @map("boleto_webhook_registered_at")
   connectedById        String?             @map("connected_by_id")
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
@@ -6317,6 +6339,14 @@ model PaymentContact {
   /// Regime do fornecedor: Simples transfere crédito de IBS/CBS diferente (spec 0051).
   taxRegime         TaxRegime? @map("tax_regime")
   stateRegistration String?    @map("state_registration")
+  // Endereço de cobrança: o boleto exige (spec 0133, D-7).
+  addressZipCode      String? @map("address_zip_code")
+  addressStreet       String? @map("address_street")
+  addressNumber       String? @map("address_number")
+  addressComplement   String? @map("address_complement")
+  addressNeighborhood String? @map("address_neighborhood")
+  addressCity         String? @map("address_city")
+  addressState        String? @map("address_state")
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
 
@@ -6428,6 +6458,15 @@ model PaymentEntry {
   pixConnectionId  String?              @map("pix_connection_id")
   pixAmountCents   Int?                 @map("pix_amount_cents")
   pixDueDate       DateTime?            @map("pix_due_date")
+  // Boleto com PIX emitido no banco (spec 0133). `pixConnectionId` diz por qual conexão; o
+  // copia e cola do PIX do boleto fica em `pixCopyPaste`. Carimbo = valor + vencimento.
+  boletoRequestId     String?              @unique @map("boleto_request_id")
+  boletoStatus        PaymentBoletoStatus? @map("boleto_status")
+  boletoDigitableLine String?              @map("boleto_digitable_line")
+  boletoBarcode       String?              @map("boleto_barcode")
+  boletoAmountCents   Int?                 @map("boleto_amount_cents")
+  boletoDueDate       DateTime?            @map("boleto_due_date")
+  boletoIssuedAt      DateTime?            @map("boleto_issued_at")
 
   createdById String?  @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")

@@ -3,8 +3,9 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { buildPixBrCode } from "@/features/form-records/lib/pix-br-code";
 import { getPixSettings } from "@/features/form-records/server/record-pix";
-import { resolveEntryBankPix, type BankPixFallbackReason } from "@/features/payment/server/bank-charges/charge-pix";
-import { readChargeToken } from "@/features/payment/lib/charge-link";
+import { resolveEntryBankCharge, type BankPixFallbackReason } from "@/features/payment/server/bank-charges/charge-pix";
+import type { BoletoSkipReason } from "@/features/payment/server/bank-charges/charge-boleto";
+import { buildChargeUrl, readChargeToken } from "@/features/payment/lib/charge-link";
 import { PENDING_ENTRY_STATUSES } from "@/features/payment/server/entries/entry-include";
 import type { PublicChargeViewData } from "@/features/payment/components/charges/public-charge-view";
 
@@ -24,6 +25,10 @@ export interface ChargePix {
   /** `BANK` = gerado no banco, com baixa automática; `STATIC` = chave da empresa. */
   source: "BANK" | "STATIC" | null;
   bankFallbackReason: BankPixFallbackReason | null;
+  /** Boleto com PIX do banco (spec 0133); `code` é o PIX dele. */
+  boleto: { digitableLine: string } | null;
+  /** Boleto ligado, mas esta conta saiu só com PIX: por quê. */
+  boletoSkippedReason: BoletoSkipReason | null;
 }
 
 interface ChargePixParams {
@@ -38,19 +43,40 @@ interface ChargePixParams {
  * banco ou ele falhar, o estático montado com a chave da empresa (RF-8).
  */
 export async function resolveChargePix(params: ChargePixParams): Promise<ChargePix> {
-  if (params.amountCents <= 0) return { code: null, source: null, bankFallbackReason: null };
-  const bankPix = await resolveEntryBankPix({
+  const empty = { code: null, source: null, bankFallbackReason: null, boleto: null, boletoSkippedReason: null };
+  if (params.amountCents <= 0) return empty;
+  const bankCharge = await resolveEntryBankCharge({
     organizationId: params.organizationId,
     entryId: params.entryId,
     amountCents: params.amountCents,
     timeoutMs: params.bankTimeoutMs ?? BANK_PIX_PAGE_TIMEOUT_MS,
   });
-  if (bankPix.ok) return { code: bankPix.copyPaste, source: "BANK", bankFallbackReason: null };
+  if (bankCharge.ok && bankCharge.kind === "BOLETO") {
+    return {
+      ...empty,
+      code: bankCharge.copyPaste,
+      source: bankCharge.copyPaste ? "BANK" : null,
+      boleto: { digitableLine: bankCharge.digitableLine },
+    };
+  }
+  if (bankCharge.ok) {
+    return { ...empty, code: bankCharge.copyPaste, source: "BANK", boletoSkippedReason: bankCharge.boletoSkippedReason };
+  }
 
-  const bankFallbackReason = bankPix.reason === "no_connection" ? null : bankPix.reason;
+  // Boleto sendo gerado no banco: nada de PIX estático, que não teria baixa automática e
+  // deixaria duas formas de pagar a mesma conta. A página pede para atualizar.
+  const isBoletoProcessing =
+    bankCharge.reason === "boleto_processing" ||
+    (bankCharge.reason === "timeout" &&
+      (await prisma.paymentEntry.count({
+        where: { id: params.entryId, organizationId: params.organizationId, boletoStatus: "PROCESSING" },
+      })) > 0);
+  if (isBoletoProcessing) return { ...empty, bankFallbackReason: "boleto_processing" };
+
+  const bankFallbackReason = bankCharge.reason === "no_connection" ? null : bankCharge.reason;
   const pixSettings = await getPixSettings(params.organizationId);
   if (!pixSettings.pixKey || !pixSettings.receiverName || !pixSettings.receiverCity) {
-    return { code: null, source: null, bankFallbackReason };
+    return { ...empty, bankFallbackReason };
   }
   const code = buildPixBrCode({
     pixKey: pixSettings.pixKey,
@@ -59,7 +85,7 @@ export async function resolveChargePix(params: ChargePixParams): Promise<ChargeP
     amountCents: params.amountCents,
     transactionId: params.entryId,
   });
-  return { code, source: "STATIC", bankFallbackReason };
+  return { ...empty, code, source: "STATIC", bankFallbackReason };
 }
 
 export async function buildChargePixCode(params: ChargePixParams): Promise<string | null> {
@@ -118,6 +144,9 @@ export async function loadPublicCharge(token: string): Promise<PublicChargeViewD
 
   const isOpen = (PENDING_ENTRY_STATUSES as readonly string[]).includes(entry.status);
   const openAmountCents = getOpenAmountCents(entry);
+  const chargePix = isOpen
+    ? await resolveChargePix({ organizationId: entry.organizationId, entryId: entry.id, amountCents: openAmountCents })
+    : null;
   const status: PublicChargeViewData["status"] =
     entry.status === "PAID"
       ? "PAID"
@@ -141,12 +170,9 @@ export async function loadPublicCharge(token: string): Promise<PublicChargeViewD
       entry.installmentCurrent && entry.installmentTotal
         ? `Parcela ${entry.installmentCurrent} de ${entry.installmentTotal}`
         : null,
-    pixCode: isOpen
-      ? await buildChargePixCode({
-          organizationId: entry.organizationId,
-          entryId: entry.id,
-          amountCents: openAmountCents,
-        })
-      : null,
+    pixCode: chargePix?.code ?? null,
+    boletoDigitableLine: chargePix?.boleto?.digitableLine ?? null,
+    boletoPdfUrl: chargePix?.boleto ? `${buildChargeUrl(entry.organizationId, entry.id)}/boleto.pdf` : null,
+    isBoletoProcessing: chargePix?.bankFallbackReason === "boleto_processing",
   };
 }

@@ -374,3 +374,8 @@ export function useDeletePaymentContact() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: orpc.payment.key() }); },
   });
 }
+
+/** Endereço pelo CEP (spec 0133). Não invalida nada: só lê. */
+export function useLookupPaymentContactCep() {
+  return useMutation(orpc.payment.contacts.lookupCep.mutationOptions());
+}

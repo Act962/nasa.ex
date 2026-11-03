@@ -6,6 +6,45 @@ const NO_ACCESS_MESSAGE =
 
 export const PAYMENT_GUIDES: GuideDef[] = [
   {
+    key: "payment.enable-boleto",
+    app: "payment",
+    title: "Cobrar com boleto e PIX",
+    summary: "Faça as cobranças saírem como boleto com QR Code PIX, com baixa automática.",
+    topicPattern: /\bboletos?\b.*\b(cobr\w*|emit\w*|lig\w*|ativ\w*|gerar|usar)\b|\b(cobr\w*|emit\w*|lig\w*|ativ\w*|gerar|usar)\b.*\bboletos?\b/,
+    steps: [
+      {
+        anchor: "paymentTabsBar",
+        route: "/payment?tab=accounts",
+        skipWhenVisible: "paymentBankConnectionBadge",
+        title: "Abra a aba Contas",
+        message: "O boleto sai pela conta do banco conectada.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: NO_ACCESS_MESSAGE,
+      },
+      {
+        anchor: "paymentBankConnectionBadge",
+        title: "Abra a conexão com o banco",
+        message: "Clique no selo do banco na conta conectada.",
+        position: "bottom",
+        advanceOn: "click",
+        missingMessage: "Nenhuma conta está conectada ao banco ainda. Me peça: \"como conecto o banco?\"",
+      },
+      {
+        anchor: "paymentBankChargeMethod",
+        title: "Escolha Boleto com PIX e salve",
+        message: "Multa, juros e desconto são opcionais. O boleto precisa do CPF/CNPJ e do endereço do cliente no contato.",
+        position: "left",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.bankChargeMethodSaved,
+      },
+    ],
+    finish: {
+      title: "Boleto ligado! 🧾",
+      message: "As próximas cobranças de clientes com endereço saem com boleto e PIX.",
+    },
+  },
+  {
     key: "payment.connect-bank",
     app: "payment",
     title: "Conectar o banco (PIX com baixa automática)",

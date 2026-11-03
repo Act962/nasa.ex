@@ -28,6 +28,8 @@ export const getPaymentChargeLink = base
       openAmountCents: z.number(),
       pixSource: z.enum(["BANK", "STATIC"]).nullable(),
       bankFallbackReason: z.string().nullable(),
+      boletoDigitableLine: z.string().nullable(),
+      boletoSkippedReason: z.string().nullable(),
     }),
   )
   .handler(async ({ input, context, errors }) => {
@@ -52,6 +54,8 @@ export const getPaymentChargeLink = base
       openAmountCents,
       pixSource: chargePix.source,
       bankFallbackReason: chargePix.bankFallbackReason,
+      boletoDigitableLine: chargePix.boleto?.digitableLine ?? null,
+      boletoSkippedReason: chargePix.boletoSkippedReason,
     };
   });
 
