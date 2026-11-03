@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Copy, ExternalLink, TriangleAlert } from "lucide-react";
+import { Zap, Copy, ExternalLink, TriangleAlert } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,15 @@ interface Props {
   entryName?: string;
   onClose: () => void;
 }
+
+// Por que a cobrança saiu com o PIX estático mesmo com o banco conectado (spec 0130, RF-8).
+const BANK_FALLBACK_LABELS: Record<string, string> = {
+  no_debtor_document: "o cliente não tem CPF ou CNPJ cadastrado, e o banco exige.",
+  certificate_expired: "o certificado do banco venceu. Troque em Contas para voltar a baixa automática.",
+  charge_removed: "o PIX desta conta foi cancelado no banco e não pode ser reaberto.",
+  bank_error: "o banco recusou ou está fora do ar. Veja a conexão em Contas.",
+  timeout: "o banco demorou a responder. Abra de novo em instantes.",
+};
 
 export function ChargeLinkDialog({ entryId, entryName, onClose }: Props) {
   const chargeLink = usePaymentChargeLink();
@@ -79,6 +88,17 @@ export function ChargeLinkDialog({ entryId, entryName, onClose }: Props) {
               <p className="text-sm text-muted-foreground">
                 Valor em aberto: <span className="font-medium text-foreground">{formatCurrency(linkData.openAmountCents)}</span>
               </p>
+
+              {linkData.pixSource === "BANK" && (
+                <p className="flex items-center gap-1.5 text-xs text-success">
+                  <Zap className="size-3.5" /> PIX gerado no banco: a conta é baixada sozinha quando o cliente pagar.
+                </p>
+              )}
+              {linkData.pixSource === "STATIC" && linkData.bankFallbackReason && (
+                <p className="text-xs text-warning">
+                  PIX com a chave da empresa, sem baixa automática: {BANK_FALLBACK_LABELS[linkData.bankFallbackReason] ?? "o banco não respondeu."}
+                </p>
+              )}
 
               {!linkData.hasPixKey && (
                 <div className="flex gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">

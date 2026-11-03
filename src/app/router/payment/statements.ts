@@ -47,7 +47,8 @@ const reviewResultShape = z.object({
 const transactionShape = z.object({
   id: z.string(),
   accountId: z.string(),
-  source: z.enum(STATEMENT_SOURCES),
+  // `BANK_API` não é extrato importado: é o PIX confirmado pela API do banco (spec 0130).
+  source: z.enum([...STATEMENT_SOURCES, "BANK_API"]),
   direction: z.enum(["CREDIT", "DEBIT"]),
   amountCents: z.number(),
   postedAt: z.date(),

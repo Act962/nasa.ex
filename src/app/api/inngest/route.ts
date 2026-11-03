@@ -104,6 +104,7 @@ import {
 } from "@/inngest/functions/agent-workflow-triggers";
 // ── NASA Payment Fase 2 (governança + cobrança event-driven) ──
 import { paymentDunningFire }      from "@/inngest/functions/payment/dunning-fire";
+import { paymentBankPixReceived }  from "@/inngest/functions/payment/bank-pix-received";
 import { paymentApprovalReminder } from "@/inngest/functions/payment/approval-reminder";
 import { paymentGoalDailyCheck }    from "@/inngest/functions/payment/goal-daily-check";
 import { paymentGoalWeeklySummary } from "@/inngest/functions/payment/goal-weekly-summary";
@@ -239,6 +240,7 @@ export const { GET, POST, PUT } = serve({
     agentTriggerComplianceItemDueFn,
     // ── NASA Payment Fase 2 — event-driven, sem cron ──
     paymentDunningFire,
+    paymentBankPixReceived,
     paymentApprovalReminder,
     paymentGoalDailyCheck,
     paymentGoalWeeklySummary,

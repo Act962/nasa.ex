@@ -39,6 +39,7 @@ export const GUIDE_RESULT_KINDS = {
   instagramConnected: "comments.instagram-connected",
   commentAutomationCreated: "comments.automation-created",
   astroChatSiteCreated: "astro-chat.site-created",
+  bankConnected: "payment.bank-connected",
   trafegoDraftCreated: "trafego.draft-created",
   trafegoCampaignPublished: "trafego.campaign-published",
 } as const;

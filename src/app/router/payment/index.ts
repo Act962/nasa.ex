@@ -22,6 +22,12 @@ import {
   deletePaymentAccount,
 } from "./accounts";
 import {
+  saveBankConnectionProcedure,
+  testBankConnectionProcedure,
+  setChargeConnectionProcedure,
+  disconnectBankConnectionProcedure,
+} from "./bank-connections";
+import {
   listPaymentCategories,
   createPaymentCategory,
   updatePaymentCategory,
@@ -132,6 +138,12 @@ export const paymentRouter = {
     create: createPaymentAccount,
     update: updatePaymentAccount,
     delete: deletePaymentAccount,
+  },
+  bankConnections: {
+    save: saveBankConnectionProcedure,
+    test: testBankConnectionProcedure,
+    setChargeAccount: setChargeConnectionProcedure,
+    disconnect: disconnectBankConnectionProcedure,
   },
   categories: {
     list: listPaymentCategories,

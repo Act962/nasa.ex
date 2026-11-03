@@ -459,6 +459,14 @@ export const GUIDE_ANCHORS = {
     id: "payment.charges-view",
     description: "Aba Cobranças do Financeiro: cada receita com cliente, o status do pagamento e o envio dos avisos",
   },
+  paymentBankConnect: {
+    id: "payment.bank-connect",
+    description: "Botão que abre o passo a passo para conectar a conta à API do banco (PIX com baixa automática), na aba Contas do Financeiro",
+  },
+  paymentBankConnectSubmit: {
+    id: "payment.bank-connect-submit",
+    description: "Botão \"Conectar e testar\" do passo a passo de conexão com o banco",
+  },
   paymentEntryChargeSettings: {
     id: "payment.entry-charge-settings",
     description: "Bloco opcional \"Cobrança automática\" no formulário de nova receita (escolha da régua)",
