@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -201,251 +202,252 @@ export function EntryForm({ type, onSubmit, onCancel, isLoading }: EntryFormProp
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label>Descrição *</Label>
-        <Input
-          placeholder="Ex: Mensalidade cliente..."
-          value={description}
-          data-guide={GUIDE_ANCHORS.paymentEntryDescription.id}
-          aria-invalid={!!fieldErrors.description}
-          className={fieldErrors.description ? fieldErrorClass : undefined}
-          onChange={(e) => {
-            setDescription(e.target.value);
-            clearFieldError("description");
-          }}
-        />
-        <FieldError message={fieldErrors.description} />
-        {recentDescriptions.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {recentDescriptions.map((recent) => (
-              <button
-                key={recent}
-                type="button"
-                onClick={() => {
-                  setDescription(recent);
-                  clearFieldError("description");
-                }}
-                className="max-w-full truncate rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                title={recent}
-              >
-                {recent}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+      <DialogBody className="space-y-4">
         <div className="space-y-2">
-          <Label>Valor *</Label>
+          <Label>Descrição *</Label>
           <Input
-            placeholder="R$ 0,00"
-            inputMode="numeric"
-            value={amountStr}
-            data-guide={GUIDE_ANCHORS.paymentEntryAmount.id}
-            aria-invalid={!!fieldErrors.amount}
-            className={fieldErrors.amount ? fieldErrorClass : undefined}
+            placeholder="Ex: Mensalidade cliente..."
+            value={description}
+            data-guide={GUIDE_ANCHORS.paymentEntryDescription.id}
+            aria-invalid={!!fieldErrors.description}
+            className={fieldErrors.description ? fieldErrorClass : undefined}
             onChange={(e) => {
-              setAmountStr(maskCurrency(e.target.value));
-              clearFieldError("amount");
+              setDescription(e.target.value);
+              clearFieldError("description");
             }}
           />
-          <FieldError message={fieldErrors.amount} />
-        </div>
-        <div className="space-y-2">
-          <Label>Vencimento *</Label>
-          <DateField
-            value={dueDate}
-            isInvalid={!!fieldErrors.dueDate}
-            className={fieldErrors.dueDate ? fieldErrorClass : undefined}
-            onChange={(value) => {
-              setDueDate(value);
-              clearFieldError("dueDate");
-            }}
-          />
-          <FieldError message={fieldErrors.dueDate} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label>Categoria</Label>
-          <Select value={categoryId} onValueChange={setCategoryId}>
-            <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-            <SelectContent position="popper" className={dropdownContentClass}>
-              <SelectItem value="__none__">Sem categoria</SelectItem>
-              {categoriesData?.categories.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+          <FieldError message={fieldErrors.description} />
+          {recentDescriptions.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {recentDescriptions.map((recent) => (
+                <button
+                  key={recent}
+                  type="button"
+                  onClick={() => {
+                    setDescription(recent);
+                    clearFieldError("description");
+                  }}
+                  className="max-w-full truncate rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title={recent}
+                >
+                  {recent}
+                </button>
               ))}
-            </SelectContent>
-          </Select>
+            </div>
+          )}
         </div>
-        <div className="space-y-2">
-          <Label>Conta Bancária</Label>
-          <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-            <SelectContent position="popper" className={dropdownContentClass}>
-              <SelectItem value="__none__">Sem conta</SelectItem>
-              {accountsData?.accounts.map((a) => (
-                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
 
-      {type === "RECEIVABLE" && (
-        <div
-          className="space-y-3 rounded-lg border border-border/60 p-3"
-          data-guide={GUIDE_ANCHORS.paymentEntryChargeSettings.id}
-        >
-          <div className="flex items-center gap-2">
-            <BellRing className="size-4 text-muted-foreground" />
-            <p className="text-sm font-medium">Cobrança automática</p>
-            <span className="text-[11px] text-muted-foreground">opcional</span>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label>Valor *</Label>
+            <Input
+              placeholder="R$ 0,00"
+              inputMode="numeric"
+              value={amountStr}
+              data-guide={GUIDE_ANCHORS.paymentEntryAmount.id}
+              aria-invalid={!!fieldErrors.amount}
+              className={fieldErrors.amount ? fieldErrorClass : undefined}
+              onChange={(e) => {
+                setAmountStr(maskCurrency(e.target.value));
+                clearFieldError("amount");
+              }}
+            />
+            <FieldError message={fieldErrors.amount} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Cliente</Label>
-              <CustomerPicker value={customer} onChange={setCustomer} />
-            </div>
-            <div className="space-y-2">
-              <Label>Régua de cobrança</Label>
-              <Select value={dunningRuleId} onValueChange={handleRuleChange}>
-                <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                <SelectContent position="popper" className={dropdownContentClass}>
-                  <SelectItem value="__none__">Sem cobrança automática</SelectItem>
-                  {availableRules.map((rule) => (
-                    <SelectItem key={rule.id} value={rule.id}>
-                      {rule.name}{rule.isDefault ? " (padrão)" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label>Vencimento *</Label>
+            <DateField
+              value={dueDate}
+              isInvalid={!!fieldErrors.dueDate}
+              className={fieldErrors.dueDate ? fieldErrorClass : undefined}
+              onChange={(value) => {
+                setDueDate(value);
+                clearFieldError("dueDate");
+              }}
+            />
+            <FieldError message={fieldErrors.dueDate} />
           </div>
-          {availableRules.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground">
-              Nenhuma régua ativa. Crie uma em Cobranças → Réguas e mensagens para avisar o cliente sozinho.
-            </p>
-          ) : selectedRule ? (
-            <div className="space-y-1">
-              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                {describeRuleChannels(selectedRule.steps)}
-                <span>·</span>
-                {describeRuleTiming(selectedRule.steps)}
-              </p>
-              {customerWarning && (
-                <p className="flex items-start gap-1 text-[11px] text-warning">
-                  <TriangleAlert className="mt-px size-3 shrink-0" />
-                  {customerWarning}
-                </p>
-              )}
-            </div>
-          ) : null}
         </div>
-      )}
 
-      <div className="overflow-hidden rounded-lg border border-border/60">
-        <button
-          type="button"
-          onClick={() => setShowMoreOptions((open) => !open)}
-          className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60"
-          aria-expanded={showMoreOptions}
-        >
-          Mais opções
-          <ChevronDown
-            className={`size-4 shrink-0 text-muted-foreground transition-transform ${
-              showMoreOptions ? "rotate-180" : ""
-            }`}
-          />
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label>Categoria</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+              <SelectContent position="popper" className={dropdownContentClass}>
+                <SelectItem value="__none__">Sem categoria</SelectItem>
+                {categoriesData?.categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Conta Bancária</Label>
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+              <SelectContent position="popper" className={dropdownContentClass}>
+                <SelectItem value="__none__">Sem conta</SelectItem>
+                {accountsData?.accounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-        {showMoreOptions && (
-          <div className="space-y-3 border-t p-3">
+        {type === "RECEIVABLE" && (
+          <div
+            className="space-y-3 rounded-lg border border-border/60 p-3"
+            data-guide={GUIDE_ANCHORS.paymentEntryChargeSettings.id}
+          >
+            <div className="flex items-center gap-2">
+              <BellRing className="size-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Cobrança automática</p>
+              <span className="text-[11px] text-muted-foreground">opcional</span>
+            </div>
             <div className="grid grid-cols-2 gap-3">
-              {type === "PAYABLE" && (
-                <div className="space-y-2">
-                  <Label>Fornecedor</Label>
-                  <Select value={contactId} onValueChange={setContactId}>
-                    <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                    <SelectContent position="popper" className={dropdownContentClass}>
-                      <SelectItem value="__none__">Sem contato</SelectItem>
-                      {contactsData?.contacts.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
               <div className="space-y-2">
-                <Label>Parcelas</Label>
-                <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v))}>
-                  <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
+                <Label>Cliente</Label>
+                <CustomerPicker value={customer} onChange={setCustomer} />
+              </div>
+              <div className="space-y-2">
+                <Label>Régua de cobrança</Label>
+                <Select value={dunningRuleId} onValueChange={handleRuleChange}>
+                  <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                   <SelectContent position="popper" className={dropdownContentClass}>
-                    {Array.from({ length: MAX_INSTALLMENTS }, (_, i) => i + 1).map((n) => (
-                      <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                    <SelectItem value="__none__">Sem cobrança automática</SelectItem>
+                    {availableRules.map((rule) => (
+                      <SelectItem key={rule.id} value={rule.id}>
+                        {rule.name}{rule.isDefault ? " (padrão)" : ""}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label>Nº do Documento</Label>
-              <Input placeholder="Ex: NF-0001" value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
-            </div>
+            {availableRules.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">
+                Nenhuma régua ativa. Crie uma em Cobranças → Réguas e mensagens para avisar o cliente sozinho.
+              </p>
+            ) : selectedRule ? (
+              <div className="space-y-1">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                  {describeRuleChannels(selectedRule.steps)}
+                  <span>·</span>
+                  {describeRuleTiming(selectedRule.steps)}
+                </p>
+                {customerWarning && (
+                  <p className="flex items-start gap-1 text-[11px] text-warning">
+                    <TriangleAlert className="mt-px size-3 shrink-0" />
+                    {customerWarning}
+                  </p>
+                )}
+              </div>
+            ) : null}
           </div>
         )}
-      </div>
 
-      <div className="space-y-2">
-        <Label>Anexos</Label>
-        <AttachmentUploader onChange={setAttachmentIds} disabled={isLoading} />
-      </div>
+        <div className="overflow-hidden rounded-lg border border-border/60">
+          <button
+            type="button"
+            onClick={() => setShowMoreOptions((open) => !open)}
+            className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60"
+            aria-expanded={showMoreOptions}
+          >
+            Mais opções
+            <ChevronDown
+              className={`size-4 shrink-0 text-muted-foreground transition-transform ${
+                showMoreOptions ? "rotate-180" : ""
+              }`}
+            />
+          </button>
 
-      <div className="space-y-2">
-        <Label>Observações</Label>
-        <Textarea
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="max-h-32 overflow-y-auto scroll-cols-tracking resize-none"
-        />
-      </div>
+          {showMoreOptions && (
+            <div className="space-y-3 border-t p-3">
+              <div className="grid grid-cols-2 gap-3">
+                {type === "PAYABLE" && (
+                  <div className="space-y-2">
+                    <Label>Fornecedor</Label>
+                    <Select value={contactId} onValueChange={setContactId}>
+                      <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                      <SelectContent position="popper" className={dropdownContentClass}>
+                        <SelectItem value="__none__">Sem contato</SelectItem>
+                        {contactsData?.contacts.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label>Parcelas</Label>
+                  <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v))}>
+                    <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
+                    <SelectContent position="popper" className={dropdownContentClass}>
+                      {Array.from({ length: MAX_INSTALLMENTS }, (_, i) => i + 1).map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-      <label
-        className="flex items-start gap-3 rounded-md border border-warning/30 bg-warning/5 p-3 cursor-pointer hover:bg-warning/10 transition-colors"
-        title="Marca esse lançamento como exigindo aprovação manual antes de virar PENDENTE no fluxo de pagamento"
-      >
-        <input
-          type="checkbox"
-          checked={requiresApproval}
-          onChange={(e) => setRequiresApproval(e.target.checked)}
-          className="mt-0.5 size-4 accent-warning"
-        />
-        <div className="space-y-0.5">
-          <p className="text-xs font-medium">Exigir aprovação manual</p>
-          <p className="text-[11px] text-muted-foreground">
-            Vai pra aba "Aprovações" e só entra em PENDENTE depois que um aprovador
-            (Master, Adm ou usuário permissionado) liberar. Configuração de threshold
-            automático fica em Settings → Governança.
-          </p>
+              <div className="space-y-2">
+                <Label>Nº do Documento</Label>
+                <Input placeholder="Ex: NF-0001" value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
+              </div>
+            </div>
+          )}
         </div>
-      </label>
 
-      <div className="flex gap-2 pt-2">
-        <Button type="button" variant="ghost" onClick={onCancel} className="flex-1">Cancelar</Button>
+        <div className="space-y-2">
+          <Label>Anexos</Label>
+          <AttachmentUploader onChange={setAttachmentIds} disabled={isLoading} />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Observações</Label>
+          <Textarea
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="max-h-32 overflow-y-auto scroll-cols-tracking resize-none"
+          />
+        </div>
+
+        <label
+          className="flex items-start gap-3 rounded-md border border-warning/30 bg-warning/5 p-3 cursor-pointer hover:bg-warning/10 transition-colors"
+          title="Marca esse lançamento como exigindo aprovação manual antes de virar PENDENTE no fluxo de pagamento"
+        >
+          <input
+            type="checkbox"
+            checked={requiresApproval}
+            onChange={(e) => setRequiresApproval(e.target.checked)}
+            className="mt-0.5 size-4 accent-warning"
+          />
+          <div className="space-y-0.5">
+            <p className="text-xs font-medium">Exigir aprovação manual</p>
+            <p className="text-[11px] text-muted-foreground">
+              Vai pra aba "Aprovações" e só entra em PENDENTE depois que um aprovador
+              (Master, Adm ou usuário permissionado) liberar. Configuração de threshold
+              automático fica em Settings → Governança.
+            </p>
+          </div>
+        </label>
+      </DialogBody>
+      <DialogFooter>
+        <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
         <Button
           type="submit"
           disabled={isLoading}
-          className="flex-1 bg-info hover:bg-info/90 text-white"
+          className="min-w-36 bg-info hover:bg-info/90 text-white"
           data-guide={GUIDE_ANCHORS.paymentEntrySave.id}
         >
           {isLoading ? "Salvando..." : "Salvar"}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   );
 }

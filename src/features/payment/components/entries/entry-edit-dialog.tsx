@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -182,200 +184,200 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
 
   return (
     <Dialog open={!!entry} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[88vh] max-w-lg overflow-y-auto scroll-cols-tracking">
+      <DialogContent scrollable className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Editar Lançamento</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          <div className="space-y-2">
-            <Label>Descrição *</Label>
-            <Input
-              value={description}
-              aria-invalid={!!fieldErrors.description}
-              className={fieldErrors.description ? fieldErrorClass : undefined}
-              onChange={(event) => {
-                setDescription(event.target.value);
-                clearFieldError("description");
-              }}
-              autoFocus
-            />
-            <FieldError message={fieldErrors.description} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <DialogBody className="space-y-4">
             <div className="space-y-2">
-              <Label>Valor *</Label>
+              <Label>Descrição *</Label>
               <Input
-                placeholder="R$ 0,00"
-                value={amountStr}
-                aria-invalid={!!fieldErrors.amount}
-                className={fieldErrors.amount ? fieldErrorClass : undefined}
+                value={description}
+                aria-invalid={!!fieldErrors.description}
+                className={fieldErrors.description ? fieldErrorClass : undefined}
                 onChange={(event) => {
-                  setAmountStr(event.target.value);
-                  clearFieldError("amount");
+                  setDescription(event.target.value);
+                  clearFieldError("description");
                 }}
+                autoFocus
               />
-              <FieldError message={fieldErrors.amount} />
+              <FieldError message={fieldErrors.description} />
             </div>
-            <div className="space-y-2">
-              <Label>Vencimento *</Label>
-              <DateField
-                value={dueDate}
-                isInvalid={!!fieldErrors.dueDate}
-                className={fieldErrors.dueDate ? fieldErrorClass : undefined}
-                onChange={(value) => {
-                  setDueDate(value);
-                  clearFieldError("dueDate");
-                }}
-              />
-              <FieldError message={fieldErrors.dueDate} />
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Valor *</Label>
+                <Input
+                  placeholder="R$ 0,00"
+                  value={amountStr}
+                  aria-invalid={!!fieldErrors.amount}
+                  className={fieldErrors.amount ? fieldErrorClass : undefined}
+                  onChange={(event) => {
+                    setAmountStr(event.target.value);
+                    clearFieldError("amount");
+                  }}
+                />
+                <FieldError message={fieldErrors.amount} />
+              </div>
+              <div className="space-y-2">
+                <Label>Vencimento *</Label>
+                <DateField
+                  value={dueDate}
+                  isInvalid={!!fieldErrors.dueDate}
+                  className={fieldErrors.dueDate ? fieldErrorClass : undefined}
+                  onChange={(value) => {
+                    setDueDate(value);
+                    clearFieldError("dueDate");
+                  }}
+                />
+                <FieldError message={fieldErrors.dueDate} />
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Categoria</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Sem categoria</SelectItem>
-                  {categoriesData?.categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select value={categoryId} onValueChange={setCategoryId}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Sem categoria</SelectItem>
+                    {categoriesData?.categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Conta bancária</Label>
+                <Select value={accountId} onValueChange={setAccountId}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Sem conta</SelectItem>
+                    {accountsData?.accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Conta bancária</Label>
-              <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Sem conta</SelectItem>
-                  {accountsData?.accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
 
-          <div className="overflow-hidden rounded-lg border border-border/60">
-            <button
-              type="button"
-              onClick={() => setShowMoreOptions((open) => !open)}
-              className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60"
-              aria-expanded={showMoreOptions}
-            >
-              Mais opções
-              <ChevronDown
-                className={`size-4 shrink-0 text-muted-foreground transition-transform ${
-                  showMoreOptions ? "rotate-180" : ""
-                }`}
-              />
-            </button>
+            <div className="overflow-hidden rounded-lg border border-border/60">
+              <button
+                type="button"
+                onClick={() => setShowMoreOptions((open) => !open)}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted/60"
+                aria-expanded={showMoreOptions}
+              >
+                Mais opções
+                <ChevronDown
+                  className={`size-4 shrink-0 text-muted-foreground transition-transform ${
+                    showMoreOptions ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
 
-            {showMoreOptions && (
-              <div className="space-y-3 border-t p-3">
-                <div className="space-y-2">
-                  <Label>{contactLabel}</Label>
-                  <Select value={contactId} onValueChange={setContactId}>
-                    <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Sem contato</SelectItem>
-                      {contactsData?.contacts.map((contact) => (
-                        <SelectItem key={contact.id} value={contact.id}>{contact.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Nº do documento</Label>
-                  <Input
-                    placeholder="Ex: NF-0001"
-                    value={documentNumber}
-                    onChange={(event) => setDocumentNumber(event.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2 border-t border-border/60 pt-3">
-                  <Label>Parcelas</Label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Parcela</span>
+              {showMoreOptions && (
+                <div className="space-y-3 border-t p-3">
+                  <div className="space-y-2">
+                    <Label>{contactLabel}</Label>
+                    <Select value={contactId} onValueChange={setContactId}>
+                      <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>Sem contato</SelectItem>
+                        {contactsData?.contacts.map((contact) => (
+                          <SelectItem key={contact.id} value={contact.id}>{contact.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Nº do documento</Label>
                     <Input
-                      type="number"
-                      min={1}
-                      max={MAX_INSTALLMENTS}
-                      className="w-16"
-                      value={installmentCurrentStr}
-                      disabled={!isInstallment}
-                      onChange={(event) => setInstallmentCurrentStr(event.target.value)}
-                    />
-                    <span className="text-sm text-muted-foreground">de</span>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={MAX_INSTALLMENTS}
-                      className="w-16"
-                      value={installmentTotalStr}
-                      disabled={!isInstallment}
-                      onChange={(event) => setInstallmentTotalStr(event.target.value)}
+                      placeholder="Ex: NF-0001"
+                      value={documentNumber}
+                      onChange={(event) => setDocumentNumber(event.target.value)}
                     />
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Checkbox
-                      checked={!isInstallment}
-                      onCheckedChange={(checked) => setIsInstallment(!checked)}
-                    />
-                    Lançamento avulso (sem parcela)
-                  </label>
-                  <p className="text-xs text-muted-foreground">
-                    Corrige só o rótulo deste lançamento. Não cria nem apaga nada.
-                  </p>
 
-                  {isInstallment && (
-                    <div className="space-y-1.5 rounded-lg border border-border/60 p-2.5">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        disabled={missingInstallments === 0 || generateInstallments.isPending}
-                        onClick={handleGenerateInstallments}
-                      >
-                        {generateInstallments.isPending
-                          ? "Gerando..."
-                          : "Gerar parcelas seguintes"}
-                      </Button>
-                      <p className="text-xs text-muted-foreground">
-                        {missingInstallments === 0
-                          ? "Esta já é a última parcela da série."
-                          : `Cria as parcelas ${installmentCurrent + 1} a ${installmentTotal}, ` +
-                            `mês a mês a partir deste vencimento, no mesmo valor. ` +
-                            `As que já existirem são preservadas.`}
-                      </p>
+                  <div className="space-y-2 border-t border-border/60 pt-3">
+                    <Label>Parcelas</Label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Parcela</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={MAX_INSTALLMENTS}
+                        className="w-16"
+                        value={installmentCurrentStr}
+                        disabled={!isInstallment}
+                        onChange={(event) => setInstallmentCurrentStr(event.target.value)}
+                      />
+                      <span className="text-sm text-muted-foreground">de</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={MAX_INSTALLMENTS}
+                        className="w-16"
+                        value={installmentTotalStr}
+                        disabled={!isInstallment}
+                        onChange={(event) => setInstallmentTotalStr(event.target.value)}
+                      />
                     </div>
-                  )}
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Checkbox
+                        checked={!isInstallment}
+                        onCheckedChange={(checked) => setIsInstallment(!checked)}
+                      />
+                      Lançamento avulso (sem parcela)
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      Corrige só o rótulo deste lançamento. Não cria nem apaga nada.
+                    </p>
+
+                    {isInstallment && (
+                      <div className="space-y-1.5 rounded-lg border border-border/60 p-2.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={missingInstallments === 0 || generateInstallments.isPending}
+                          onClick={handleGenerateInstallments}
+                        >
+                          {generateInstallments.isPending
+                            ? "Gerando..."
+                            : "Gerar parcelas seguintes"}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          {missingInstallments === 0
+                            ? "Esta já é a última parcela da série."
+                            : `Cria as parcelas ${installmentCurrent + 1} a ${installmentTotal}, ` +
+                              `mês a mês a partir deste vencimento, no mesmo valor. ` +
+                              `As que já existirem são preservadas.`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          <div className="space-y-2">
-            <Label>Observações</Label>
-            <Textarea
-              rows={2}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                rows={2}
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+              />
+            </div>
 
-          {entry && <EntryAttachmentsSection entryId={entry.id} />}
-
-          <div className="flex gap-2 pt-2">
+            {entry && <EntryAttachmentsSection entryId={entry.id} />}
+          </DialogBody>
+          <DialogFooter>
             <Button
               type="button"
               variant="ghost"
-              className="flex-1"
               onClick={onClose}
             >
               Cancelar
@@ -383,11 +385,11 @@ export function EntryEditDialog({ entry, onClose }: EntryEditDialogProps) {
             <Button
               type="submit"
               disabled={updateEntry.isPending}
-              className="flex-1 bg-info hover:bg-info/90 text-white"
+              className="min-w-36 bg-info hover:bg-info/90 text-white"
             >
               {updateEntry.isPending ? "Salvando..." : "Salvar"}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -17,13 +19,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Plus,
@@ -64,6 +59,8 @@ import { CONTACT_TYPE_LABELS } from "../../lib/format";
 import { toast } from "sonner";
 import { describePaymentError } from "../../lib/describe-error";
 import { cn } from "@/lib/utils";
+import { PhoneCountryInput } from "@/components/phone-country-input";
+import { formatPhoneWithCountry, toInternationalPhoneDigits } from "@/utils/format-phone";
 import { validateCNPJ, validateCPF } from "@/utils/validate-data";
 import { useDebouncedValue } from "@/hooks/use-debounced";
 import {
@@ -76,6 +73,76 @@ import {
 // ── CPF/CNPJ validation ───────────────────────────────────────────────────────
 
 type DocType = "CPF" | "CNPJ";
+
+const DOC_TYPE_OPTIONS = [
+  { value: "CPF", label: "CPF" },
+  { value: "CNPJ", label: "CNPJ" },
+] as const satisfies readonly { value: DocType; label: string }[];
+
+const CONTACT_TYPE_OPTIONS = [
+  { value: "CUSTOMER", label: "Cliente" },
+  { value: "SUPPLIER", label: "Fornecedor" },
+  { value: "BOTH", label: "Ambos" },
+] as const;
+
+function SegmentedChoice<TValue extends string>({
+  options,
+  value,
+  onChange,
+  size = "md",
+}: {
+  options: readonly { value: TValue; label: string }[];
+  value: string;
+  onChange: (value: TValue) => void;
+  size?: "sm" | "md";
+}) {
+  return (
+    <div
+      role="radiogroup"
+      className={cn(
+        "flex rounded-full border border-border bg-card p-0.5 font-medium",
+        size === "sm" ? "text-[11px]" : "h-9 w-full text-sm",
+      )}
+    >
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="radio"
+          aria-checked={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={cn(
+            "rounded-full transition-colors",
+            size === "sm" ? "px-2 py-0.5" : "flex-1",
+            value === option.value ? "bg-info text-white" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ContactFormSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 function maskCPF(value: string): string {
   return value
@@ -103,19 +170,6 @@ function maskDocument(value: string, type: DocType): string {
 /** Detecta o tipo a partir da qtd de dígitos (usado ao importar contatos). */
 function detectDocType(value: string): DocType {
   return value.replace(/\D/g, "").length > 11 ? "CNPJ" : "CPF";
-}
-
-/** Máscara de telefone BR: fixo (00) 0000-0000 ou celular (00) 00000-0000. */
-function maskPhone(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-  if (digits.length <= 10) {
-    return digits
-      .replace(/(\d{2})(\d)/, "($1) $2")
-      .replace(/(\d{4})(\d{1,4})$/, "$1-$2");
-  }
-  return digits
-    .replace(/(\d{2})(\d)/, "($1) $2")
-    .replace(/(\d{5})(\d{1,4})$/, "$1-$2");
 }
 
 type DocStatus = "idle" | "valid" | "invalid" | "loading";
@@ -212,7 +266,7 @@ function ImportCombobox({
                       <p className="text-xs text-muted-foreground truncate">
                         {c.sourceLabel}
                         {c.email ? ` · ${c.email}` : ""}
-                        {c.phone ? ` · ${c.phone}` : ""}
+                        {c.phone ? ` · ${formatPhoneWithCountry(c.phone)}` : ""}
                       </p>
                     </div>
                   </button>
@@ -233,11 +287,14 @@ function DocumentInput({
   docType,
   onChange,
   onNameFromCNPJ,
+  leading,
 }: {
   value: string;
   docType: DocType;
   onChange: (v: string) => void;
   onNameFromCNPJ?: (name: string) => void;
+  /** Fica dentro do campo, à esquerda (o seletor CPF/CNPJ). */
+  leading?: React.ReactNode;
 }) {
   const [status, setStatus] = useState<DocStatus>("idle");
   const digits = value.replace(/\D/g, "");
@@ -295,6 +352,7 @@ function DocumentInput({
 
   return (
     <div className="relative">
+      {leading && <div className="absolute left-1.5 top-1/2 z-10 -translate-y-1/2">{leading}</div>}
       <Input
         placeholder={
           docType === "CPF" ? "000.000.000-00" : "00.000.000/0001-00"
@@ -304,6 +362,7 @@ function DocumentInput({
         onChange={(e) => onChange(maskDocument(e.target.value, docType))}
         className={cn(
           "pr-8",
+          Boolean(leading) && "pl-24",
           status === "valid" &&
             "border-success focus-visible:ring-success/30",
           status === "invalid" &&
@@ -383,7 +442,7 @@ export function ContactsTab() {
     setEditingId(null);
     setName(c.name);
     setEmail(c.email ?? "");
-    setPhone(c.phone ? maskPhone(c.phone) : "");
+    setPhone(toInternationalPhoneDigits(c.phone));
     setDocType(type);
     setDocument(c.document ? maskDocument(c.document, type) : "");
     setContactType("CUSTOMER");
@@ -397,7 +456,7 @@ export function ContactsTab() {
     setEditingId(contact.id);
     setName(contact.name);
     setEmail(contact.email ?? "");
-    setPhone(contact.phone ? maskPhone(contact.phone) : "");
+    setPhone(toInternationalPhoneDigits(contact.phone));
     setDocType(type);
     setDocument(contact.document ? maskDocument(contact.document, type) : "");
     setContactType(contact.contactType ?? "BOTH");
@@ -601,7 +660,7 @@ export function ContactsTab() {
                     {c.email ?? "—"}
                   </td>
                   <td className="hidden lg:table-cell px-4 py-3 text-muted-foreground">
-                    {c.phone ?? "—"}
+                    {c.phone ? formatPhoneWithCountry(c.phone) : "—"}
                   </td>
                   <td className="px-4 py-3">
                     <DropdownMenu>
@@ -653,97 +712,90 @@ export function ContactsTab() {
           if (!open) resetForm();
         }}
       >
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto scroll-cols-tracking">
+        <DialogContent scrollable className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               {isEditing ? "Editar Contato" : "Novo Contato"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nome *</Label>
-              <Input
-                placeholder="Nome completo ou razão social"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Tipo</Label>
-                <Select value={contactType} onValueChange={setContactType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CUSTOMER">Cliente</SelectItem>
-                    <SelectItem value="SUPPLIER">Fornecedor</SelectItem>
-                    <SelectItem value="BOTH">Ambos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Label>{docType === "CPF" ? "CPF" : "CNPJ"}</Label>
-                  <div className="inline-flex rounded-md border border-border p-0.5 text-[11px] font-medium">
-                    {(["CPF", "CNPJ"] as const).map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => handleDocTypeChange(type)}
-                        className={cn(
-                          "px-2 py-0.5 rounded-[5px] transition-colors",
-                          docType === type
-                            ? "bg-info text-white"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        {type}
-                      </button>
-                    ))}
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <DialogBody className="space-y-6">
+              <ContactFormSection title="Dados do contato">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="contact-name">Nome *</Label>
+                    <Input
+                      id="contact-name"
+                      placeholder="Nome completo ou razão social"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Documento</Label>
+                    <DocumentInput
+                      value={document}
+                      docType={docType}
+                      onChange={setDocument}
+                      onNameFromCNPJ={(n) => {
+                        if (!name.trim()) setName(n);
+                      }}
+                      leading={
+                        <SegmentedChoice
+                          size="sm"
+                          options={DOC_TYPE_OPTIONS}
+                          value={docType}
+                          onChange={handleDocTypeChange}
+                        />
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Tipo</Label>
+                    <SegmentedChoice
+                      options={CONTACT_TYPE_OPTIONS}
+                      value={contactType}
+                      onChange={setContactType}
+                    />
                   </div>
                 </div>
-                <DocumentInput
-                  value={document}
-                  docType={docType}
-                  onChange={setDocument}
-                  onNameFromCNPJ={(n) => {
-                    if (!name.trim()) setName(n);
-                  }}
+              </ContactFormSection>
+              <ContactFormSection title="Contato">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact-email">E-mail</Label>
+                    <Input
+                      id="contact-email"
+                      type="email"
+                      placeholder="nome@empresa.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="contact-phone">Telefone</Label>
+                    <PhoneCountryInput id="contact-phone" key={editingId ?? "new"} value={phone} onChange={setPhone} />
+                  </div>
+                </div>
+              </ContactFormSection>
+              <ContactFormSection
+                title="Endereço de cobrança"
+                description="Necessário para emitir boleto. Digite o CEP e o resto se preenche."
+              >
+                <ContactAddressFields address={address} onChange={setAddress} />
+              </ContactFormSection>
+              <ContactFormSection title="Observações">
+                <Textarea
+                  rows={2}
+                  placeholder="Algo que a equipe precisa saber sobre este contato"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="max-h-32 overflow-y-auto scroll-cols-tracking resize-none"
                 />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>E-mail</Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Telefone</Label>
-                <Input
-                  placeholder="(00) 00000-0000"
-                  inputMode="numeric"
-                  value={phone}
-                  onChange={(e) => setPhone(maskPhone(e.target.value))}
-                />
-              </div>
-            </div>
-            <ContactAddressFields address={address} onChange={setAddress} />
-            <div className="space-y-2">
-              <Label>Observações</Label>
-              <Textarea
-                rows={2}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="max-h-32 overflow-y-auto scroll-cols-tracking resize-none"
-              />
-            </div>
-            <div className="flex gap-2">
+              </ContactFormSection>
+            </DialogBody>
+            <DialogFooter>
               <Button
                 type="button"
                 variant="ghost"
@@ -751,14 +803,13 @@ export function ContactsTab() {
                   setShowForm(false);
                   resetForm();
                 }}
-                className="flex-1"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={createContact.isPending || updateContact.isPending}
-                className="flex-1 bg-info hover:bg-info/90 text-white"
+                className="min-w-36 bg-info hover:bg-info/90 text-white"
               >
                 {createContact.isPending || updateContact.isPending
                   ? "Salvando..."
@@ -766,7 +817,7 @@ export function ContactsTab() {
                     ? "Salvar Alterações"
                     : "Criar Contato"}
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

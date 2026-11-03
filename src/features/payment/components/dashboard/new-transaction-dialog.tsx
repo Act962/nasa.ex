@@ -70,12 +70,12 @@ export function NewTransactionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] max-w-lg overflow-y-auto scroll-cols-tracking">
+      <DialogContent scrollable className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Nova transação</DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid shrink-0 grid-cols-2 gap-2 px-6 pt-5">
           {TYPE_OPTIONS.map((option) => {
             const isActive = type === option.value;
             return (

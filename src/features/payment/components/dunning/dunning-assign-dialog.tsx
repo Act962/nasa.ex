@@ -11,6 +11,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -68,44 +69,46 @@ export function DunningAssignDialog({ entryId, initialRuleId, entryName, onClose
 
   return (
     <Dialog open={!!entryId} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent scrollable className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Atribuir régua de cobrança</DialogTitle>
         </DialogHeader>
+        <DialogBody className="space-y-4">
 
-        <div className="space-y-3">
-          {entryName && (
-            <p className="text-xs text-muted-foreground">
-              Lançamento: <span className="font-medium text-foreground">{entryName}</span>
-            </p>
-          )}
-          <div className="space-y-2">
-            <Label className="text-xs">Régua</Label>
-            <Select value={selectedRuleId} onValueChange={setSelectedRuleId} disabled={isLoading}>
-              <SelectTrigger>
-                <SelectValue placeholder={isLoading ? "Carregando…" : "Selecionar"} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Sem régua</SelectItem>
-                {activeRules.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    {r.name}{r.isDefault ? " (padrão)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {activeRules.length === 0 && !isLoading && (
-              <p className="text-[11px] text-muted-foreground">
-                Nenhuma régua ativa. Crie e ative em Cobranças → Réguas e mensagens.
+          <div className="space-y-3">
+            {entryName && (
+              <p className="text-xs text-muted-foreground">
+                Lançamento: <span className="font-medium text-foreground">{entryName}</span>
               </p>
             )}
-            <p className="text-[11px] text-muted-foreground">
-              Steps são agendados via Inngest no momento da atribuição (event-driven,
-              sem cron). Mudanças na régua valem só pra novos eventos agendados.
-            </p>
+            <div className="space-y-2">
+              <Label className="text-xs">Régua</Label>
+              <Select value={selectedRuleId} onValueChange={setSelectedRuleId} disabled={isLoading}>
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoading ? "Carregando…" : "Selecionar"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem régua</SelectItem>
+                  {activeRules.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}{r.isDefault ? " (padrão)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {activeRules.length === 0 && !isLoading && (
+                <p className="text-[11px] text-muted-foreground">
+                  Nenhuma régua ativa. Crie e ative em Cobranças → Réguas e mensagens.
+                </p>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Steps são agendados via Inngest no momento da atribuição (event-driven,
+                sem cron). Mudanças na régua valem só pra novos eventos agendados.
+              </p>
+            </div>
           </div>
-        </div>
 
+        </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={assignMut.isPending}>
             Cancelar
