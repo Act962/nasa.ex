@@ -13,7 +13,7 @@ import {
 import { splitPixCodeMessage } from "@/features/payment/lib/dunning-presets";
 import { moveIntoBusinessHours } from "@/features/payment/server/dunning/schedule";
 import {
-  buildChargePixCode,
+  resolveChargePix,
   getOpenAmountCents,
   sumOtherOverdueReceivablesCents,
 } from "@/features/payment/server/charges/charge-details";
@@ -164,13 +164,15 @@ export const paymentDunningFire = inngest.createFunction(
 
     const chargeVariables = await step.run("charge-variables", async () => {
       const openAmountCents = getOpenAmountCents(entry);
-      const [pixCode, otherOverdueCents] = await Promise.all([
-        buildChargePixCode({ organizationId, entryId, amountCents: openAmountCents, bankTimeoutMs: 15_000 }),
+      // Boleto ainda sendo gerado no banco: espera até 30 s (spec 0133, RF-6); senão vai com o link.
+      const [chargePix, otherOverdueCents] = await Promise.all([
+        resolveChargePix({ organizationId, entryId, amountCents: openAmountCents, bankTimeoutMs: 30_000 }),
         sumOtherOverdueReceivablesCents(entry),
       ]);
       return {
         chargeUrl: buildChargeUrl(organizationId, entryId),
-        pixCode: pixCode ?? "",
+        pixCode: chargePix.code ?? "",
+        digitableLine: chargePix.boleto?.digitableLine ?? "",
         otherOverdue: otherOverdueCents > 0 ? formatBrl(otherOverdueCents) : "",
       };
     });
@@ -187,7 +189,8 @@ export const paymentDunningFire = inngest.createFunction(
         .replace(/\{\{descricao\}\}/g, entry.description)
         .replace(/\{\{(link_pagamento|boleto_link)\}\}/g, chargeVariables.chargeUrl)
         .replace(/\{\{pix_copia_e_cola\}\}/g, chargeVariables.pixCode)
-        .replace(/\{\{outras_pendencias\}\}/g, chargeVariables.otherOverdue);
+        .replace(/\{\{outras_pendencias\}\}/g, chargeVariables.otherOverdue)
+        .replace(/\{\{linha_digitavel\}\}/g, chargeVariables.digitableLine);
     }
 
     const body = interpolate(dunStep.templateBody);

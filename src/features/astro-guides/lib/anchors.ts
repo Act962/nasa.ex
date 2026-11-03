@@ -463,6 +463,14 @@ export const GUIDE_ANCHORS = {
     id: "payment.bank-connect",
     description: "Botão que abre o passo a passo para conectar a conta à API do banco (PIX com baixa automática), na aba Contas do Financeiro",
   },
+  paymentBankConnectionBadge: {
+    id: "payment.bank-connection-badge",
+    description: "Selo da conexão com o banco na conta, na aba Contas do Financeiro: abre o painel da conexão",
+  },
+  paymentBankChargeMethod: {
+    id: "payment.bank-charge-method",
+    description: "Seção \"Como cobrar\" do painel da conexão com o banco: só PIX ou boleto com PIX, com multa, juros e desconto",
+  },
   paymentBankConnectSubmit: {
     id: "payment.bank-connect-submit",
     description: "Botão \"Conectar e testar\" do passo a passo de conexão com o banco",

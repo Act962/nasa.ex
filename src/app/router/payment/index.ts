@@ -25,6 +25,7 @@ import {
   saveBankConnectionProcedure,
   testBankConnectionProcedure,
   setChargeConnectionProcedure,
+  setBankChargeMethodProcedure,
   disconnectBankConnectionProcedure,
 } from "./bank-connections";
 import {
@@ -37,6 +38,7 @@ import {
   listPaymentContacts,
   createPaymentContact,
   updatePaymentContact,
+  lookupPaymentContactCep,
   deletePaymentContact,
 } from "./contacts";
 import {
@@ -143,6 +145,7 @@ export const paymentRouter = {
     save: saveBankConnectionProcedure,
     test: testBankConnectionProcedure,
     setChargeAccount: setChargeConnectionProcedure,
+    setChargeMethod: setBankChargeMethodProcedure,
     disconnect: disconnectBankConnectionProcedure,
   },
   categories: {
@@ -155,6 +158,7 @@ export const paymentRouter = {
     list: listPaymentContacts,
     create: createPaymentContact,
     update: updatePaymentContact,
+    lookupCep: lookupPaymentContactCep,
     delete: deletePaymentContact,
   },
   entries: {

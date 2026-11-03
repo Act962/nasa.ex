@@ -40,6 +40,7 @@ export const GUIDE_RESULT_KINDS = {
   commentAutomationCreated: "comments.automation-created",
   astroChatSiteCreated: "astro-chat.site-created",
   bankConnected: "payment.bank-connected",
+  bankChargeMethodSaved: "payment.bank-charge-method-saved",
   trafegoDraftCreated: "trafego.draft-created",
   trafegoCampaignPublished: "trafego.campaign-published",
 } as const;

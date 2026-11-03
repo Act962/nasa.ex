@@ -30,6 +30,14 @@ const BANK_FALLBACK_LABELS: Record<string, string> = {
   charge_removed: "o PIX desta conta foi cancelado no banco e não pode ser reaberto.",
   bank_error: "o banco recusou ou está fora do ar. Veja a conexão em Contas.",
   timeout: "o banco demorou a responder. Abra de novo em instantes.",
+  boleto_processing: "o banco ainda está gerando o boleto. Abra de novo em instantes.",
+};
+
+// Boleto ligado, mas esta conta saiu só com PIX (spec 0133, RF-3).
+const BOLETO_SKIP_LABELS: Record<string, string> = {
+  missing_address: "falta o endereço completo do cliente (CEP, rua, cidade e UF). Preencha no contato.",
+  below_minimum: "o banco só emite boleto a partir de R$ 2,50.",
+  boleto_failed: "o banco não conseguiu emitir o boleto desta conta.",
 };
 
 export function ChargeLinkDialog({ entryId, entryName, onClose }: Props) {
@@ -89,7 +97,17 @@ export function ChargeLinkDialog({ entryId, entryName, onClose }: Props) {
                 Valor em aberto: <span className="font-medium text-foreground">{formatCurrency(linkData.openAmountCents)}</span>
               </p>
 
-              {linkData.pixSource === "BANK" && (
+              {linkData.boletoDigitableLine && (
+                <p className="flex items-center gap-1.5 text-xs text-success">
+                  <Zap className="size-3.5" /> Boleto com PIX gerado no banco: baixa automática pelos dois.
+                </p>
+              )}
+              {linkData.boletoSkippedReason && (
+                <p className="text-xs text-warning">
+                  Esta cobrança sai só com PIX: {BOLETO_SKIP_LABELS[linkData.boletoSkippedReason] ?? "o boleto não pôde ser emitido."}
+                </p>
+              )}
+              {linkData.pixSource === "BANK" && !linkData.boletoDigitableLine && (
                 <p className="flex items-center gap-1.5 text-xs text-success">
                   <Zap className="size-3.5" /> PIX gerado no banco: a conta é baixada sozinha quando o cliente pagar.
                 </p>

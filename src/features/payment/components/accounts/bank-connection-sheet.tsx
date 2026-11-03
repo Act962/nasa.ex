@@ -8,7 +8,6 @@ import {
   KeyRound,
   Loader2,
   RefreshCw,
-  ShieldAlert,
   TriangleAlert,
   Unplug,
   Zap,
@@ -24,20 +23,22 @@ import {
   useSetChargeBankConnection,
   useTestBankConnection,
 } from "../../hooks/use-payment-bank-connections";
+import { BankChargeMethod, type BankChargeMethodView } from "./bank-charge-method";
 import { BankConnectForm } from "./bank-connect-form";
+import { BankPermissionsCheck, type BankPermissionsView } from "./bank-permissions-check";
 import { BankConnectionStatusBadge, daysUntil, type BankConnectionStatus } from "./bank-connection-status";
 
 // Painel da conexão de uma conta com a API do banco (spec 0130): conectar, ver o estado,
-// escolher se gera o PIX das cobranças, testar, trocar o certificado e desconectar.
+// escolher se gera as cobranças, as permissões e como cobrar (spec 0133), testar, trocar o
+// certificado e desconectar.
 
-export interface BankConnectionView {
+export interface BankConnectionView extends BankPermissionsView, BankChargeMethodView {
   id: string;
   provider: BankProviderId;
   environment: "production" | "sandbox";
   clientIdLast4: string;
   certificateValidTo: Date | null;
   scopes: string[];
-  moneyMovingScopes: string[];
   pixKey: string;
   accountNumber: string | null;
   isDefaultForCharges: boolean;
@@ -144,15 +145,9 @@ function ConnectedPanel({
         </label>
       </div>
 
-      {connection.moneyMovingScopes.length > 0 && (
-        <div className="flex gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm">
-          <ShieldAlert className="mt-0.5 size-4 shrink-0 text-destructive" />
-          <p>
-            A integração no banco permite tirar dinheiro da conta ({connection.moneyMovingScopes.join(", ")}). O ÓRBITA não
-            usa essas permissões: peça ao banco para removê-las.
-          </p>
-        </div>
-      )}
+      <BankPermissionsCheck permissions={connection} isChecking={testConnection.isPending} onCheck={() => void handleTest()} />
+
+      <BankChargeMethod key={`${connection.chargeMethod}-${String(connection.permissionsCheckedAt)}`} connection={connection} />
 
       <div className="divide-y rounded-xl border px-4">
         <InfoRow icon={Zap} label="Baixa automática">

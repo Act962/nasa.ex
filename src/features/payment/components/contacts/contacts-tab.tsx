@@ -53,6 +53,13 @@ import {
   useDeletePaymentContact,
   useExternalContacts,
 } from "../../hooks/use-payment";
+import {
+  ContactAddressFields,
+  EMPTY_CONTACT_ADDRESS,
+  toContactAddress,
+  toContactAddressInput,
+  type ContactAddress,
+} from "./contact-address-fields";
 import { CONTACT_TYPE_LABELS } from "../../lib/format";
 import { toast } from "sonner";
 import { describePaymentError } from "../../lib/describe-error";
@@ -326,7 +333,7 @@ type ContactRow = {
   phone?: string | null;
   contactType?: string | null;
   notes?: string | null;
-};
+} & Partial<Record<keyof ContactAddress, string | null>>;
 
 export function ContactsTab() {
   const [search, setSearch] = useState("");
@@ -344,6 +351,7 @@ export function ContactsTab() {
   const [phone, setPhone] = useState("");
   const [contactType, setContactType] = useState("BOTH");
   const [notes, setNotes] = useState("");
+  const [address, setAddress] = useState<ContactAddress>(EMPTY_CONTACT_ADDRESS);
 
   const debouncedSearch = useDebouncedValue(search.trim(), PAYMENT_SEARCH_DEBOUNCE_MS);
 
@@ -380,6 +388,7 @@ export function ContactsTab() {
     setDocument(c.document ? maskDocument(c.document, type) : "");
     setContactType("CUSTOMER");
     setNotes("");
+    setAddress(EMPTY_CONTACT_ADDRESS);
     setShowForm(true);
   }
 
@@ -393,6 +402,7 @@ export function ContactsTab() {
     setDocument(contact.document ? maskDocument(contact.document, type) : "");
     setContactType(contact.contactType ?? "BOTH");
     setNotes(contact.notes ?? "");
+    setAddress(toContactAddress(contact));
     setShowForm(true);
   }
 
@@ -405,6 +415,7 @@ export function ContactsTab() {
     setPhone("");
     setNotes("");
     setContactType("BOTH");
+    setAddress(EMPTY_CONTACT_ADDRESS);
   }
 
   // Troca de tipo re-aplica a máscara correta ao valor já digitado (trunca dígitos
@@ -438,6 +449,7 @@ export function ContactsTab() {
           phone: phone || null,
           contactType,
           notes: notes || null,
+          ...toContactAddressInput(address),
         });
         toast.success("Contato atualizado!");
       } else {
@@ -448,6 +460,7 @@ export function ContactsTab() {
           phone: phone || undefined,
           contactType,
           notes: notes || undefined,
+          ...toContactAddressInput(address),
         });
         toast.success("Contato criado!");
       }
@@ -720,6 +733,7 @@ export function ContactsTab() {
                 />
               </div>
             </div>
+            <ContactAddressFields address={address} onChange={setAddress} />
             <div className="space-y-2">
               <Label>Observações</Label>
               <Textarea

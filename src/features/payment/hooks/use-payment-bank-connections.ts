@@ -35,6 +35,14 @@ export function useSetChargeBankConnection() {
   });
 }
 
+export function useSetBankChargeMethod() {
+  const invalidatePayment = useInvalidatePayment();
+  return useMutation({
+    ...orpc.payment.bankConnections.setChargeMethod.mutationOptions(),
+    onSuccess: invalidatePayment,
+  });
+}
+
 export function useDisconnectBankConnection() {
   const invalidatePayment = useInvalidatePayment();
   return useMutation({

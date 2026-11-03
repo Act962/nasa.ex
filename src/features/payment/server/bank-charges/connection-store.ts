@@ -4,7 +4,7 @@ import { decryptSecret, encryptSecret, last4, type SecretOptions } from "@/lib/c
 import { resolvePublicOrigin } from "@/lib/public-origin";
 import type { PaymentBankConnection } from "@/generated/prisma/client";
 import { getBankAdapter } from "./bank-adapters";
-import type { BankChargeProvider, BankCredentials } from "./ports";
+import type { BankBoletoProvider, BankChargeProvider, BankCredentials } from "./ports";
 
 // Lê e grava a conexão bancária (spec 0130). Única porta de entrada para os segredos:
 // decifra só aqui, e nada daqui volta para o navegador além de `toBankConnectionSummary`.
@@ -36,6 +36,19 @@ export function readConnectionCredentials(connection: PaymentBankConnection): Ba
  * Token reaproveitado até 5 min antes de vencer (D-6): o Inter aceita só 5 pedidos de token
  * por minuto. A gravação é condicional, para dois renovadores simultâneos não se atropelarem.
  */
+/** O banco emite boleto e a integração tem as permissões conferidas (spec 0133). */
+export function hasBoletoPermission(connection: PaymentBankConnection): boolean {
+  const boletoScopes = getBankAdapter(connection.provider).permissionScopes.boleto;
+  if (!boletoScopes || !connection.permissionsCheckedAt) return false;
+  const granted = new Set(connection.scopes.split(" "));
+  return boletoScopes.every((scope) => granted.has(scope));
+}
+
+/** As cobranças novas saem como boleto. Boleto já emitido segue sendo gerido mesmo desligado. */
+export function isBoletoEnabled(connection: PaymentBankConnection): boolean {
+  return connection.chargeMethod === "BOLETO_PIX" && hasBoletoPermission(connection);
+}
+
 async function getConnectionAccessToken(
   connection: PaymentBankConnection,
   credentials: BankCredentials,
@@ -53,13 +66,15 @@ async function getConnectionAccessToken(
     return decryptSecret(current.accessTokenEnc, options);
   }
 
-  const token = await getBankAdapter(connection.provider).requestAccessToken(credentials);
+  // `scopes` guarda as permissões conferidas na API; o token não as prova, então não as sobrescreve.
+  const token = await getBankAdapter(connection.provider).requestAccessToken(credentials, {
+    includeBoleto: hasBoletoPermission(connection),
+  });
   await prisma.paymentBankConnection.updateMany({
     where: { id: connection.id, accessTokenExpiresAt: current?.accessTokenExpiresAt ?? null },
     data: {
       accessTokenEnc: encryptSecret(token.accessToken, options),
       accessTokenExpiresAt: token.expiresAt,
-      scopes: token.scopes.join(" "),
     },
   });
   return token.accessToken;
@@ -69,6 +84,8 @@ export interface ConnectedBank {
   connection: PaymentBankConnection;
   credentials: BankCredentials;
   provider: BankChargeProvider;
+  /** `null` quando o banco não emite boleto ou a integração não tem a permissão. */
+  boletoProvider: BankBoletoProvider | null;
   getAccessToken: () => Promise<string>;
 }
 
@@ -82,11 +99,16 @@ export function openConnectedBank(connection: PaymentBankConnection): ConnectedB
     });
     return accessTokenPromise;
   };
+  const adapter = getBankAdapter(connection.provider);
   return {
     connection,
     credentials,
     getAccessToken,
-    provider: getBankAdapter(connection.provider).createChargeProvider(credentials, getAccessToken),
+    provider: adapter.createChargeProvider(credentials, getAccessToken),
+    boletoProvider:
+      hasBoletoPermission(connection) && adapter.createBoletoProvider
+        ? adapter.createBoletoProvider(credentials, getAccessToken)
+        : null,
   };
 }
 
@@ -132,8 +154,17 @@ export function buildBankWebhookUrl(connection: Pick<PaymentBankConnection, "id"
 
 export type BankConnectionStatus = "ACTIVE" | "CERTIFICATE_EXPIRED" | "WEBHOOK_PENDING" | "ERROR";
 
+function bpsToPercent(basisPoints: number | null): number | null {
+  return basisPoints === null ? null : basisPoints / 100;
+}
+
 export function toBankConnectionSummary(connection: PaymentBankConnection) {
+  const adapter = getBankAdapter(connection.provider);
   const scopes = connection.scopes.split(" ").filter(Boolean);
+  const granted = new Set(scopes);
+  // Antes da conferência (conexões da 0130), as listas de faltando ficam desconhecidas.
+  const isChecked = connection.permissionsCheckedAt !== null;
+  const missingOf = (required: readonly string[]) => (isChecked ? required.filter((scope) => !granted.has(scope)) : null);
   const status: BankConnectionStatus = isCertificateExpired(connection)
     ? "CERTIFICATE_EXPIRED"
     : !connection.webhookRegisteredAt
@@ -148,7 +179,18 @@ export function toBankConnectionSummary(connection: PaymentBankConnection) {
     clientIdLast4: last4(connection.clientId),
     certificateValidTo: connection.certificateValidTo,
     scopes,
-    moneyMovingScopes: getBankAdapter(connection.provider).findMoneyMovingScopes(scopes),
+    moneyMovingScopes: adapter.findMoneyMovingScopes(scopes),
+    permissionsCheckedAt: connection.permissionsCheckedAt,
+    missingForPix: missingOf(adapter.permissionScopes.pix),
+    missingForBoleto: adapter.permissionScopes.boleto ? missingOf(adapter.permissionScopes.boleto) : null,
+    isBoletoSupported: adapter.permissionScopes.boleto !== null,
+    chargeMethod: connection.chargeMethod,
+    isBoletoActive: isBoletoEnabled(connection),
+    boletoWebhookRegisteredAt: connection.boletoWebhookRegisteredAt,
+    boletoFinePercent: bpsToPercent(connection.boletoFineBps),
+    boletoInterestMonthlyPercent: bpsToPercent(connection.boletoInterestMonthlyBps),
+    boletoDiscountPercent: bpsToPercent(connection.boletoDiscountBps),
+    boletoDiscountDays: connection.boletoDiscountDays,
     pixKey: connection.pixKey,
     accountNumber: connection.accountNumber,
     isDefaultForCharges: connection.isDefaultForCharges,

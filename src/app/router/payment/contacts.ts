@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import prisma from "@/lib/prisma";
+import { getAddressByCep } from "@/http/viacep/get-address";
 import { z } from "zod";
 
 const contactShape = z.object({
@@ -16,6 +17,14 @@ const contactShape = z.object({
   notes: z.string().nullable(),
   isActive: z.boolean(),
   creditLimit: z.number(),
+  // Endereço de cobrança: o boleto exige (spec 0133, D-7).
+  addressZipCode: z.string().nullable(),
+  addressStreet: z.string().nullable(),
+  addressNumber: z.string().nullable(),
+  addressComplement: z.string().nullable(),
+  addressNeighborhood: z.string().nullable(),
+  addressCity: z.string().nullable(),
+  addressState: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -80,6 +89,13 @@ export const createPaymentContact = base
     contactType: z.string().default("BOTH"),
     notes: z.string().optional(),
     creditLimit: z.number().default(0),
+    addressZipCode: z.string().max(9).nullable().optional(),
+    addressStreet: z.string().max(100).nullable().optional(),
+    addressNumber: z.string().max(10).nullable().optional(),
+    addressComplement: z.string().max(30).nullable().optional(),
+    addressNeighborhood: z.string().max(60).nullable().optional(),
+    addressCity: z.string().max(60).nullable().optional(),
+    addressState: z.string().max(2).nullable().optional(),
   }))
   .output(z.object({ contact: contactShape }))
   .handler(async ({ input, context, errors }) => {
@@ -108,6 +124,13 @@ export const updatePaymentContact = base
     contactType: z.string().optional(),
     notes: z.string().nullable().optional(),
     creditLimit: z.number().optional(),
+    addressZipCode: z.string().max(9).nullable().optional(),
+    addressStreet: z.string().max(100).nullable().optional(),
+    addressNumber: z.string().max(10).nullable().optional(),
+    addressComplement: z.string().max(30).nullable().optional(),
+    addressNeighborhood: z.string().max(60).nullable().optional(),
+    addressCity: z.string().max(60).nullable().optional(),
+    addressState: z.string().max(2).nullable().optional(),
   }))
   .output(z.object({ contact: contactShape }))
   .handler(async ({ input, context, errors }) => {
@@ -150,5 +173,28 @@ export const deletePaymentContact = base
     } catch (err) {
       console.error("[payment/contacts/delete]", err);
       throw errors.INTERNAL_SERVER_ERROR;
+    }
+  });
+
+/** Endereço pelo CEP, para preencher o contato (spec 0133). Sem resposta do ViaCEP, `null`. */
+export const lookupPaymentContactCep = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("contacts", "view"))
+  .route({ method: "POST", summary: "Look up an address by CEP", tags: ["Payment"] })
+  .input(z.object({ cep: z.string().max(9) }))
+  .output(
+    z.object({
+      address: z
+        .object({ street: z.string(), neighborhood: z.string(), city: z.string(), state: z.string() })
+        .nullable(),
+    }),
+  )
+  .handler(async ({ input }) => {
+    try {
+      const found = await getAddressByCep(input.cep.replace(/\D/g, ""));
+      return { address: { street: found.logradouro, neighborhood: found.bairro, city: found.localidade, state: found.uf } };
+    } catch {
+      return { address: null };
     }
   });
