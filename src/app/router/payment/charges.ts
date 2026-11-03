@@ -5,7 +5,7 @@ import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { buildChargeUrl } from "@/features/payment/lib/charge-link";
-import { buildChargePixCode, getOpenAmountCents } from "@/features/payment/server/charges/charge-details";
+import { getOpenAmountCents, resolveChargePix } from "@/features/payment/server/charges/charge-details";
 import { PENDING_ENTRY_STATUSES } from "@/features/payment/server/entries/entry-include";
 import { listCharges } from "@/features/payment/server/charges/list-charges";
 import { scheduleDunningForEntry } from "@/features/payment/server/dunning/schedule";
@@ -21,7 +21,15 @@ export const getPaymentChargeLink = base
   .use(requirePaymentAccess("entries", "view"))
   .route({ method: "POST", summary: "Get the public payment link of a receivable", tags: ["Payment"] })
   .input(z.object({ entryId: z.string() }))
-  .output(z.object({ url: z.string(), hasPixKey: z.boolean(), openAmountCents: z.number() }))
+  .output(
+    z.object({
+      url: z.string(),
+      hasPixKey: z.boolean(),
+      openAmountCents: z.number(),
+      pixSource: z.enum(["BANK", "STATIC"]).nullable(),
+      bankFallbackReason: z.string().nullable(),
+    }),
+  )
   .handler(async ({ input, context, errors }) => {
     const entry = await prisma.paymentEntry.findFirst({
       where: { id: input.entryId, organizationId: context.org.id },
@@ -33,15 +41,17 @@ export const getPaymentChargeLink = base
     }
 
     const openAmountCents = getOpenAmountCents(entry);
-    const pixCode = await buildChargePixCode({
+    const chargePix = await resolveChargePix({
       organizationId: context.org.id,
       entryId: entry.id,
       amountCents: openAmountCents,
     });
     return {
       url: buildChargeUrl(context.org.id, entry.id),
-      hasPixKey: pixCode !== null,
+      hasPixKey: chargePix.code !== null,
       openAmountCents,
+      pixSource: chargePix.source,
+      bankFallbackReason: chargePix.bankFallbackReason,
     };
   });
 

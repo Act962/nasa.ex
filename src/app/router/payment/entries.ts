@@ -14,6 +14,7 @@ import { generateEntryInstallments } from "@/features/payment/server/entries/gen
 import { MAX_INSTALLMENTS } from "@/features/payment/schemas/entry-form-schema";
 import { formatCents } from "@/features/payment/server/entries/entry-include";
 import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
+import { cancelEntryBankPix } from "@/features/payment/server/bank-charges/charge-pix";
 
 // As procedures validam contrato e traduzem resultado em erro HTTP; a lógica
 // mora em `features/payment/server/entries/*`, compartilhada com o Astro.
@@ -371,6 +372,7 @@ export const deletePaymentEntry = base
         data: { status: "CANCELLED" },
       });
       await queueJournalSync(context.org.id, [input.id]);
+      await cancelEntryBankPix({ organizationId: context.org.id, entryId: input.id });
       return { ok: true };
     } catch (err) {
       console.error("[payment/entries cancel]", err);
@@ -398,6 +400,8 @@ export const removePaymentEntry = base
     }
 
     try {
+      // Antes do delete: depois dele não há mais `txid` para tirar o PIX do banco.
+      await cancelEntryBankPix({ organizationId: context.org.id, entryId: input.id });
       await prisma.paymentEntry.delete({
         where: { id: input.id, organizationId: context.org.id },
       });

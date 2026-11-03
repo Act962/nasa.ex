@@ -3,6 +3,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { buildPixBrCode } from "@/features/form-records/lib/pix-br-code";
 import { getPixSettings } from "@/features/form-records/server/record-pix";
+import { resolveEntryBankPix, type BankPixFallbackReason } from "@/features/payment/server/bank-charges/charge-pix";
 import { readChargeToken } from "@/features/payment/lib/charge-link";
 import { PENDING_ENTRY_STATUSES } from "@/features/payment/server/entries/entry-include";
 import type { PublicChargeViewData } from "@/features/payment/components/charges/public-charge-view";
@@ -15,21 +16,54 @@ export function getOpenAmountCents(entry: { amount: number; paidAmount: number }
   return Math.max(entry.amount - entry.paidAmount, 0);
 }
 
-export async function buildChargePixCode(params: {
+/** P-3 da spec 0130: a página da cobrança espera o banco no máximo isto antes do PIX estático. */
+const BANK_PIX_PAGE_TIMEOUT_MS = 3_000;
+
+export interface ChargePix {
+  code: string | null;
+  /** `BANK` = gerado no banco, com baixa automática; `STATIC` = chave da empresa. */
+  source: "BANK" | "STATIC" | null;
+  bankFallbackReason: BankPixFallbackReason | null;
+}
+
+interface ChargePixParams {
   organizationId: string;
   entryId: string;
   amountCents: number;
-}): Promise<string | null> {
-  if (params.amountCents <= 0) return null;
+  bankTimeoutMs?: number;
+}
+
+/**
+ * PIX da cobrança: o do banco conectado (com baixa automática, spec 0130) ou, se não houver
+ * banco ou ele falhar, o estático montado com a chave da empresa (RF-8).
+ */
+export async function resolveChargePix(params: ChargePixParams): Promise<ChargePix> {
+  if (params.amountCents <= 0) return { code: null, source: null, bankFallbackReason: null };
+  const bankPix = await resolveEntryBankPix({
+    organizationId: params.organizationId,
+    entryId: params.entryId,
+    amountCents: params.amountCents,
+    timeoutMs: params.bankTimeoutMs ?? BANK_PIX_PAGE_TIMEOUT_MS,
+  });
+  if (bankPix.ok) return { code: bankPix.copyPaste, source: "BANK", bankFallbackReason: null };
+
+  const bankFallbackReason = bankPix.reason === "no_connection" ? null : bankPix.reason;
   const pixSettings = await getPixSettings(params.organizationId);
-  if (!pixSettings.pixKey || !pixSettings.receiverName || !pixSettings.receiverCity) return null;
-  return buildPixBrCode({
+  if (!pixSettings.pixKey || !pixSettings.receiverName || !pixSettings.receiverCity) {
+    return { code: null, source: null, bankFallbackReason };
+  }
+  const code = buildPixBrCode({
     pixKey: pixSettings.pixKey,
     receiverName: pixSettings.receiverName,
     receiverCity: pixSettings.receiverCity,
     amountCents: params.amountCents,
     transactionId: params.entryId,
   });
+  return { code, source: "STATIC", bankFallbackReason };
+}
+
+export async function buildChargePixCode(params: ChargePixParams): Promise<string | null> {
+  return (await resolveChargePix(params)).code;
 }
 
 /** Total vencido do mesmo cliente em outras contas a receber (`{{outras_pendencias}}`). */

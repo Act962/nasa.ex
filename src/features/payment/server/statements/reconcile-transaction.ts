@@ -5,6 +5,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { applyPaymentToEntry } from "./apply-payment";
 import { statementFailure, type StatementActor, type StatementFailure } from "./service-result";
 import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
+import { syncEntryBankPix } from "@/features/payment/server/bank-charges/charge-pix";
 
 // Casa uma transação do extrato com um lançamento em aberto e dá a baixa.
 // A validação é exportada à parte para a proposta do Astro recusar cedo.
@@ -100,6 +101,7 @@ export async function reconcileStatementTransactionRecord(params: {
   });
 
   await queueJournalSync(params.organizationId, [entry.id]);
+  await syncEntryBankPix({ organizationId: params.organizationId, entryId: entry.id });
 
   return {
     ok: true,

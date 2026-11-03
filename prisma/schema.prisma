@@ -401,6 +401,7 @@ model Organization {
   companyCertificates         CompanyCertificate[]
   regularitySnapshots         RegularityScoreSnapshot[]
   paymentBankTransactions     PaymentBankTransaction[]
+  paymentBankConnections      PaymentBankConnection[]
 
   // NASA Campaign Planner
   nasaCampaignPlanners NasaCampaignPlanner[]
@@ -6203,9 +6204,58 @@ model PaymentBankAccount {
   entries          PaymentEntry[]
   statementImports PaymentStatementImport[]
   bankTransactions PaymentBankTransaction[]
+  bankConnection   PaymentBankConnection?
 
   @@index([organizationId])
   @@map("payment_bank_accounts")
+}
+
+enum PaymentBankProvider {
+  INTER
+}
+
+/// Conexão de uma conta bancária com a API do banco (spec 0130): gera o PIX de cada
+/// cobrança e recebe o aviso de pagamento. 1:1 com a conta e em tabela à parte para os
+/// segredos nunca saírem nas consultas que já leem a conta inteira. Segredos (`*Enc`)
+/// cifrados com `BANK_SECRETS_KEY`, presos à empresa. Desconectar apaga a linha.
+model PaymentBankConnection {
+  id                   String              @id @default(cuid())
+  organizationId       String              @map("organization_id")
+  accountId            String              @unique @map("account_id")
+  provider             PaymentBankProvider
+  // "production" | "sandbox"
+  environment          String
+  clientId             String              @map("client_id")
+  clientSecretEnc      String              @map("client_secret_enc")
+  certificateEnc       String?             @map("certificate_enc")
+  privateKeyEnc        String?             @map("private_key_enc")
+  certificateValidTo   DateTime?           @map("certificate_valid_to")
+  // Escopos concedidos pelo banco, separados por espaço.
+  scopes               String
+  pixKey               String              @map("pix_key")
+  // Conta corrente com dígito, para o cabeçalho `x-conta-corrente` do Inter.
+  accountNumber        String?             @map("account_number")
+  // Token OAuth guardado para não estourar o limite de pedidos do banco (D-6).
+  accessTokenEnc       String?             @map("access_token_enc")
+  accessTokenExpiresAt DateTime?           @map("access_token_expires_at")
+  // Segredo da URL do aviso de pagamento (≥ 128 bits).
+  webhookToken         String              @map("webhook_token")
+  webhookRegisteredAt  DateTime?           @map("webhook_registered_at")
+  isDefaultForCharges  Boolean             @default(false) @map("is_default_for_charges")
+  lastErrorMessage     String?             @map("last_error_message")
+  lastErrorAt          DateTime?           @map("last_error_at")
+  // Último aviso de certificado vencendo já enviado (90, 30 ou 7 dias).
+  certificateAlertDays Int?                @map("certificate_alert_days")
+  connectedById        String?             @map("connected_by_id")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      PaymentBankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  pixEntries   PaymentEntry[]
+
+  @@index([organizationId, isDefaultForCharges])
+  @@map("payment_bank_connections")
 }
 
 model PaymentCategory {
@@ -6363,6 +6413,16 @@ model PaymentEntry {
   // saem no fim dela — no máximo um por dia ao cliente.
   dunningPausedUntil DateTime? @map("dunning_paused_until")
 
+  // ── PIX gerado no banco (spec 0130) ────────────────────────
+  // Copia e cola e o "carimbo" (valor + vencimento) do PIX criado na API do banco. Carimbo
+  // diferente da conta = o PIX é revisado no banco antes de ser mostrado de novo.
+  pixTxid          String?              @unique @map("pix_txid")
+  pixCopyPaste     String?              @map("pix_copy_paste")
+  pixProvider      PaymentBankProvider? @map("pix_provider")
+  pixConnectionId  String?              @map("pix_connection_id")
+  pixAmountCents   Int?                 @map("pix_amount_cents")
+  pixDueDate       DateTime?            @map("pix_due_date")
+
   createdById String?  @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -6372,6 +6432,7 @@ model PaymentEntry {
   costCenter        PaymentCostCenter?        @relation(fields: [costCenterId], references: [id])
   contact           PaymentContact?           @relation(fields: [contactId], references: [id])
   account           PaymentBankAccount?       @relation(fields: [accountId], references: [id])
+  pixConnection     PaymentBankConnection?    @relation(fields: [pixConnectionId], references: [id], onDelete: SetNull)
   tracking          Tracking?                 @relation(fields: [trackingId], references: [id], onDelete: SetNull)
   lead              Lead?                     @relation(fields: [leadId], references: [id], onDelete: SetNull)
   createdBy         User?                     @relation("PaymentEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -6395,6 +6456,7 @@ model PaymentEntry {
   @@index([trackingId])
   @@index([leadId])
   @@index([dunningRuleId])
+  @@index([pixConnectionId])
   @@map("payment_entries")
 }
 
@@ -6661,6 +6723,8 @@ enum PaymentBankTxSource {
   AGGREGATOR
   // Extrato em PDF lido por IA (spec 0016). O `externalId` é sintético.
   PDF_UPLOAD
+  // PIX confirmado pela API do banco (spec 0130). O `externalId` é o `endToEndId`.
+  BANK_API
 }
 
 // ─────────────────────────────────────────────

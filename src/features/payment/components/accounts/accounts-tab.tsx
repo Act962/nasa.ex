@@ -24,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Landmark, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { Landmark, MoreHorizontal, Pencil, Plus, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { describePaymentError } from "../../lib/describe-error";
 import {
@@ -35,6 +35,10 @@ import {
 import { ACCOUNT_TYPE_LABELS, formatCurrency } from "../../lib/format";
 import { BankPicker } from "./bank-picker";
 import { AccountBalanceDialog, type AdjustableAccount } from "./account-balance-dialog";
+import { BankConnectionSheet, type BankConnectionAccount } from "./bank-connection-sheet";
+import { BankConnectionStatusBadge } from "./bank-connection-status";
+import { findBankProvider, type BankProviderId } from "../../lib/bank-providers";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
 type AccountType = "CHECKING" | "SAVINGS" | "CASH" | "DIGITAL";
 
@@ -46,6 +50,7 @@ export function AccountsTab() {
   const [type, setType] = useState<AccountType>("CHECKING");
   const [balance, setBalance] = useState("");
   const [accountToAdjust, setAccountToAdjust] = useState<AdjustableAccount | null>(null);
+  const [bankSheet, setBankSheet] = useState<{ accountId: string; provider: BankProviderId } | null>(null);
 
   const { data } = usePaymentAccounts();
   const createAccount = useCreatePaymentAccount();
@@ -59,6 +64,15 @@ export function AccountsTab() {
     0,
   );
   const totalOpening = accounts.reduce((sum, account) => sum + account.balance, 0);
+  // Conta de banco com API ainda sem conexão: o convite aparece até a primeira ser conectada.
+  const hasAnyBankConnection = accounts.some((account) => account.bankConnection);
+  const connectableAccount = hasAnyBankConnection
+    ? null
+    : accounts.find((account) => findBankProvider(account));
+  const connectableProvider = connectableAccount ? findBankProvider(connectableAccount) : null;
+  const bankSheetAccount: BankConnectionAccount | null = bankSheet
+    ? accounts.find((account) => account.id === bankSheet.accountId) ?? null
+    : null;
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
@@ -111,8 +125,32 @@ export function AccountsTab() {
         </Button>
       </div>
 
+      {connectableAccount && connectableProvider && (
+        <div className="flex flex-col gap-3 rounded-xl border border-info/30 bg-info/5 p-4 sm:flex-row sm:items-center">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-info/15">
+            <Zap className="size-5 text-info" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Receba PIX com baixa automática</p>
+            <p className="text-xs text-muted-foreground">
+              Conecte a conta {connectableAccount.name} ao {connectableProvider.name}: cada cobrança ganha um PIX próprio e a conta é
+              baixada sozinha quando o cliente paga.
+            </p>
+          </div>
+          <Button
+            data-guide={GUIDE_ANCHORS.paymentBankConnect.id}
+            onClick={() => setBankSheet({ accountId: connectableAccount.id, provider: connectableProvider.id })}
+            className="h-9 shrink-0 gap-1.5 bg-info text-white hover:bg-info/90"
+          >
+            Conectar
+          </Button>
+        </div>
+      )}
+
       <div className="space-y-2">
-        {accounts.map((account) => (
+        {accounts.map((account) => {
+          const bankProvider = account.bankConnection?.provider ?? findBankProvider(account)?.id ?? null;
+          return (
           <div
             key={account.id}
             className="flex items-center justify-between gap-3 rounded-xl border border-border/30 bg-muted/30 px-3 py-2.5"
@@ -130,6 +168,18 @@ export function AccountsTab() {
                     ? ` • ${account.bankCode ? `${account.bankCode} ` : ""}${account.bankName}`
                     : ""}
                 </p>
+                {account.bankConnection && (
+                  <button
+                    type="button"
+                    className="mt-1"
+                    onClick={() => bankProvider && setBankSheet({ accountId: account.id, provider: bankProvider })}
+                  >
+                    <BankConnectionStatusBadge
+                      provider={account.bankConnection.provider}
+                      status={account.bankConnection.status}
+                    />
+                  </button>
+                )}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -169,6 +219,15 @@ export function AccountsTab() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {bankProvider && (
+                    <DropdownMenuItem
+                      onClick={() => setBankSheet({ accountId: account.id, provider: bankProvider })}
+                      className="gap-2"
+                    >
+                      <Zap className="size-3.5" />
+                      {account.bankConnection ? "Conexão com o banco" : "Conectar banco (PIX automático)"}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onClick={() => setAccountToAdjust(account)}
                     className="gap-2"
@@ -185,7 +244,8 @@ export function AccountsTab() {
               </DropdownMenu>
             </div>
           </div>
-        ))}
+          );
+        })}
 
         {accounts.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-12 text-center">
@@ -202,6 +262,12 @@ export function AccountsTab() {
       <AccountBalanceDialog
         account={accountToAdjust}
         onClose={() => setAccountToAdjust(null)}
+      />
+
+      <BankConnectionSheet
+        account={bankSheetAccount}
+        provider={bankSheet?.provider ?? "INTER"}
+        onClose={() => setBankSheet(null)}
       />
 
       <Dialog open={showForm} onOpenChange={setShowForm}>

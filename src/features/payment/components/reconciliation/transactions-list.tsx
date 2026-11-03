@@ -153,6 +153,15 @@ export function TransactionsList({
                           PDF
                         </Badge>
                       )}
+                      {transaction.source === "BANK_API" && (
+                        <Badge
+                          variant="outline"
+                          className="border-success/30 bg-success/10 text-[10px] text-success"
+                          title="PIX confirmado pela API do banco (baixa automática)"
+                        >
+                          API do banco
+                        </Badge>
+                      )}
                     </div>
                     <p className="truncate text-xs text-muted-foreground">
                       {formatDate(transaction.postedDate)}
