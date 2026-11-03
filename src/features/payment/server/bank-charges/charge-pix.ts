@@ -8,6 +8,7 @@ import {
   BOLETO_MIN_AMOUNT_CENTS,
   buildBoletoPayer,
   cancelEntryBoleto,
+  toDocumentDigits,
   upsertEntryBoleto,
   type BoletoSkipReason,
 } from "./charge-boleto";
@@ -56,6 +57,7 @@ const ADDRESS_SELECT = {
   addressNeighborhood: true,
   addressCity: true,
   addressState: true,
+  updatedAt: true,
 } as const;
 
 const ENTRY_CHARGE_SELECT = {
@@ -75,6 +77,7 @@ const ENTRY_CHARGE_SELECT = {
   boletoDigitableLine: true,
   boletoAmountCents: true,
   boletoDueDate: true,
+  boletoIssuedAt: true,
   contact: { select: ADDRESS_SELECT },
   lead: { select: ADDRESS_SELECT },
 } as const;
@@ -98,9 +101,8 @@ function isStoredDueDateUsable(storedDueDate: string, entryDueDate: string, toda
 }
 
 function toDebtor(person: { name: string; document: string | null } | null) {
-  const digits = person?.document?.replace(/\D/g, "") ?? "";
-  if (!person || (digits.length !== 11 && digits.length !== 14)) return null;
-  return { name: person.name, document: digits };
+  const document = toDocumentDigits(person?.document ?? null);
+  return person && document ? { name: person.name, document } : null;
 }
 
 async function raceWithTimeout<T>(work: Promise<T>, timeoutMs: number, onTimeout: T): Promise<T> {
@@ -187,23 +189,39 @@ async function upsertEntryPix(
   }
 }
 
+type BoletoDecision =
+  | { action: "pix"; skippedReason: BoletoSkipReason | null }
+  /** Boleto em uso que não pode seguir (saldo abaixo do mínimo do banco): sai do banco e entra o PIX. */
+  | { action: "cancel_boleto_then_pix"; skippedReason: BoletoSkipReason }
+  | { action: "boleto"; payer: ReturnType<typeof buildBoletoPayer>; isRetryAfterFailure: boolean };
+
+/** Os dados do cliente mudaram depois da emissão que falhou: vale tentar de novo. */
+function hasPayerChangedSince(entry: EntryForCharge, since: Date | null): boolean {
+  if (!since) return true;
+  return [entry.contact?.updatedAt, entry.lead?.updatedAt].some((updatedAt) => updatedAt && updatedAt > since);
+}
+
 /**
  * Boleto para esta conta? Boleto já emitido por esta conexão segue valendo mesmo com o boleto
  * desligado depois (RNF-2). Senão, por que não (vai para a tela).
  */
-function decideBoleto(connection: PaymentBankConnection, entry: EntryForCharge, amountCents: number) {
+function decideBoleto(connection: PaymentBankConnection, entry: EntryForCharge, amountCents: number): BoletoDecision {
   const payer = buildBoletoPayer(entry.contact, entry.lead);
-  const hasOwnBoleto =
-    entry.boletoRequestId !== null && entry.pixConnectionId === connection.id && isBoletoInUse(entry.boletoStatus);
-  if (hasOwnBoleto) return { useBoleto: true, payer, skippedReason: null };
-  if (!isBoletoEnabled(connection)) return { useBoleto: false, payer: null, skippedReason: null };
-  if (amountCents < BOLETO_MIN_AMOUNT_CENTS) return { useBoleto: false, payer: null, skippedReason: "below_minimum" as const };
-  if (entry.boletoStatus === "FAILED" && entry.pixConnectionId === connection.id) {
-    return { useBoleto: false, payer: null, skippedReason: "boleto_failed" as const };
+  const isOwnConnection = entry.boletoRequestId !== null && entry.pixConnectionId === connection.id;
+  if (isOwnConnection && isBoletoInUse(entry.boletoStatus)) {
+    return amountCents < BOLETO_MIN_AMOUNT_CENTS
+      ? { action: "cancel_boleto_then_pix", skippedReason: "below_minimum" }
+      : { action: "boleto", payer, isRetryAfterFailure: false };
   }
-  return payer
-    ? { useBoleto: true, payer, skippedReason: null }
-    : { useBoleto: false, payer: null, skippedReason: "missing_address" as const };
+  if (!isBoletoEnabled(connection)) return { action: "pix", skippedReason: null };
+  if (amountCents < BOLETO_MIN_AMOUNT_CENTS) return { action: "pix", skippedReason: "below_minimum" };
+  if (!payer) return { action: "pix", skippedReason: "missing_address" };
+  if (isOwnConnection && entry.boletoStatus === "FAILED") {
+    return hasPayerChangedSince(entry, entry.boletoIssuedAt)
+      ? { action: "boleto", payer, isRetryAfterFailure: true }
+      : { action: "pix", skippedReason: "boleto_failed" };
+  }
+  return { action: "boleto", payer, isRetryAfterFailure: false };
 }
 
 async function upsertEntryBankCharge(params: { organizationId: string; entryId: string; amountCents: number }): Promise<BankChargeResult> {
@@ -216,15 +234,29 @@ async function upsertEntryBankCharge(params: { organizationId: string; entryId: 
     return { ok: false, reason: "no_connection" };
   }
 
-  const boleto = decideBoleto(connection, entry, params.amountCents);
+  const decision = decideBoleto(connection, entry, params.amountCents);
   const bank = openConnectedBank(connection);
-  if (!boleto.useBoleto || !bank.boletoProvider) {
-    return upsertEntryPix(connection, entry, params.amountCents, boleto.skippedReason);
+  if (decision.action === "cancel_boleto_then_pix" && bank.boletoProvider && entry.boletoRequestId) {
+    await cancelEntryBoleto({
+      entryId: entry.id,
+      requestId: entry.boletoRequestId,
+      provider: bank.boletoProvider,
+      reason: "Saldo abaixo do mínimo do boleto",
+    });
+  }
+  if (decision.action !== "boleto" || !bank.boletoProvider) {
+    return upsertEntryPix(connection, entry, params.amountCents, decision.action === "boleto" ? null : decision.skippedReason);
   }
 
+  const hadBoletoInUse = isBoletoInUse(entry.boletoStatus);
   // RNF-2: uma cobrança só no banco por conta. O PIX da 0130 sai antes de o boleto entrar.
-  if (entry.pixTxid && entry.pixCopyPaste && !isBoletoInUse(entry.boletoStatus) && entry.pixConnectionId === connection.id) {
+  if (entry.pixTxid && entry.pixCopyPaste && !hadBoletoInUse && entry.pixConnectionId === connection.id) {
     await removeEntryPix(entry.id, entry.pixTxid, connection);
+  }
+  if (decision.isRetryAfterFailure) {
+    // Solta o boleto que falhou para emitir outro com os dados novos do cliente.
+    await prisma.paymentEntry.update({ where: { id: entry.id }, data: { boletoStatus: null } });
+    entry.boletoStatus = null;
   }
   try {
     const result = await upsertEntryBoleto({
@@ -233,7 +265,7 @@ async function upsertEntryBankCharge(params: { organizationId: string; entryId: 
       entry,
       amountCents: params.amountCents,
       entryDueDate: toDateInputValue(entry.dueDate),
-      payer: boleto.payer,
+      payer: decision.payer,
     });
     if (!result.ok) {
       return result.reason === "boleto_failed"
@@ -244,6 +276,8 @@ async function upsertEntryBankCharge(params: { organizationId: string; entryId: 
     return { ok: true, kind: "BOLETO", copyPaste: result.copyPaste, digitableLine: result.digitableLine, boletoRequestId: result.requestId };
   } catch (error) {
     await describeAndRecordFailure(connection, entry.id, error);
+    // Boleto ativo (a revisão falhou): nada de PIX ao lado dele, que deixaria duas cobranças.
+    if (hadBoletoInUse) return { ok: false, reason: "bank_error" };
     return upsertEntryPix(connection, entry, params.amountCents, "boleto_failed");
   }
 }

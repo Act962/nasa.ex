@@ -90,6 +90,8 @@ export interface BankPermissionReport {
   missingForBoleto: string[] | null;
   /** Permissões que tiram dinheiro da conta. O ÓRBITA nunca usa; a tela pede para remover. */
   moneyMoving: string[];
+  /** Token de trabalho emitido na conferência (com o boleto, se ele estiver liberado). */
+  workingToken: BankAccessToken;
 }
 
 export interface BoletoPayer {
@@ -124,6 +126,8 @@ export type BankBoletoStatus = "PROCESSING" | "ACTIVE" | "PAID" | "CANCELLED" | 
 
 export interface BankBoleto {
   requestId: string;
+  /** A referência enviada na emissão (`BoletoRequest.reference`). */
+  reference: string | null;
   status: BankBoletoStatus;
   amountCents: number;
   dueDate: string;
@@ -164,7 +168,7 @@ export interface BankAdapter {
   inspectCredentials(credentials: BankCredentials): { certificateValidTo: Date | null };
   /** Token de trabalho: permissões do PIX e, se pedido, as do boleto. */
   requestAccessToken(credentials: BankCredentials, options?: { includeBoleto?: boolean }): Promise<BankAccessToken>;
-  /** Confere de verdade o que a integração pode fazer, sem criar nada no banco. */
+  /** Confere de verdade o que a integração pode fazer, sem criar nada no banco. Também valida as credenciais. */
   checkPermissions(credentials: BankCredentials): Promise<BankPermissionReport>;
   /** Escopos que tiram dinheiro da conta, entre os informados. */
   findMoneyMovingScopes(scopes: readonly string[]): string[];

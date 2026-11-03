@@ -42,6 +42,7 @@ export function toBankBoleto(boleto: InterBoleto): BankBoleto {
   const isPaid = status === "PAID";
   return {
     requestId: cobranca.codigoSolicitacao,
+    reference: cobranca.seuNumero || null,
     status,
     amountCents: toCents(cobranca.valorNominal) ?? 0,
     dueDate: cobranca.dataVencimento,

@@ -89,7 +89,7 @@ async function registerBoletoWebhook(connection: PaymentBankConnection, accessTo
 
 /**
  * Valida as credenciais, confere as permissões chamando a API e devolve o token de trabalho.
- * Quatro tokens no total, dentro dos cinco por minuto do Inter.
+ * Três tokens no total, dentro dos cinco por minuto do Inter.
  */
 async function verifyBankAccess(
   provider: BankChargeProviderName,
@@ -97,7 +97,6 @@ async function verifyBankAccess(
 ): Promise<{ ok: true; report: BankPermissionReport; token: BankAccessToken } | { ok: false; message: string }> {
   const adapter = getBankAdapter(provider);
   try {
-    await adapter.requestAccessToken(credentials);
     const report = await adapter.checkPermissions(credentials);
     if (report.missingForPix.length > 0) {
       return {
@@ -105,9 +104,7 @@ async function verifyBankAccess(
         message: `A integração no banco não tem as permissões que o PIX precisa: ${describeBankPermissions(report.missingForPix)}. Marque-as na integração e tente de novo.`,
       };
     }
-    const includeBoleto = report.missingForBoleto !== null && report.missingForBoleto.length === 0;
-    const token = await adapter.requestAccessToken(credentials, { includeBoleto });
-    return { ok: true, report, token };
+    return { ok: true, report, token: report.workingToken };
   } catch (error) {
     if (error instanceof BankConnectionError) return { ok: false, message: error.message };
     return { ok: false, message: describeBankFailure(provider, error) };

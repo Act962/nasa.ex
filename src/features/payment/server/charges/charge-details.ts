@@ -63,6 +63,16 @@ export async function resolveChargePix(params: ChargePixParams): Promise<ChargeP
     return { ...empty, code: bankCharge.copyPaste, source: "BANK", boletoSkippedReason: bankCharge.boletoSkippedReason };
   }
 
+  // Boleto sendo gerado no banco: nada de PIX estático, que não teria baixa automática e
+  // deixaria duas formas de pagar a mesma conta. A página pede para atualizar.
+  const isBoletoProcessing =
+    bankCharge.reason === "boleto_processing" ||
+    (bankCharge.reason === "timeout" &&
+      (await prisma.paymentEntry.count({
+        where: { id: params.entryId, organizationId: params.organizationId, boletoStatus: "PROCESSING" },
+      })) > 0);
+  if (isBoletoProcessing) return { ...empty, bankFallbackReason: "boleto_processing" };
+
   const bankFallbackReason = bankCharge.reason === "no_connection" ? null : bankCharge.reason;
   const pixSettings = await getPixSettings(params.organizationId);
   if (!pixSettings.pixKey || !pixSettings.receiverName || !pixSettings.receiverCity) {

@@ -30,9 +30,14 @@ interface PersonWithAddress {
   addressState: string | null;
 }
 
-function documentDigits(person: PersonWithAddress | null): string | null {
-  const digits = person?.document?.replace(/\D/g, "") ?? "";
+/** CPF (11) ou CNPJ (14) só com números; qualquer outra coisa não serve ao banco. */
+export function toDocumentDigits(document: string | null): string | null {
+  const digits = document?.replace(/\D/g, "") ?? "";
   return digits.length === 11 || digits.length === 14 ? digits : null;
+}
+
+function documentDigits(person: PersonWithAddress | null): string | null {
+  return toDocumentDigits(person?.document ?? null);
 }
 
 function addressOf(person: PersonWithAddress | null) {
@@ -76,9 +81,17 @@ export function resolveBoletoDueDate(entryDueDate: string): string {
   return entryDueDate < earliest ? earliest : entryDueDate;
 }
 
+/**
+ * O Inter devolve linha digitável e PIX ainda "em processamento" (conferido em 2026-11-03,
+ * vencimento no mesmo dia): com eles em mãos, o boleto já pode ser mostrado.
+ */
+function isBoletoReady(boleto: BankBoleto): boolean {
+  return boleto.status !== "PROCESSING" || Boolean(boleto.digitableLine);
+}
+
 /** Grava na conta a receber o que o banco diz do boleto. Usado pela página, pela régua e pelo aviso. */
 export async function applyBoletoState(entryId: string, boleto: BankBoleto): Promise<void> {
-  if (boleto.status === "PROCESSING") return;
+  if (!isBoletoReady(boleto)) return;
   if (boleto.status === "CANCELLED" || boleto.status === "EXPIRED") {
     // RF-9: liberado para emitir outro na próxima vez.
     await prisma.paymentEntry.updateMany({
@@ -118,7 +131,7 @@ async function waitForBoleto(provider: BankBoletoProvider, requestId: string): P
   const deadline = Date.now() + BOLETO_POLL_MAX_MS;
   while (Date.now() < deadline) {
     const boleto = await provider.getBoleto(requestId);
-    if (boleto && boleto.status !== "PROCESSING") return boleto;
+    if (boleto && isBoletoReady(boleto)) return boleto;
     await new Promise((resolve) => setTimeout(resolve, BOLETO_POLL_INTERVAL_MS));
   }
   return null;

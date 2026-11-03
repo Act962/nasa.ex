@@ -127,8 +127,18 @@ export async function recordConfirmedBankBoleto(connection: SettlementConnection
     where: { boletoRequestId: boleto.requestId, organizationId: connection.organizationId, type: "RECEIVABLE" },
     select: { id: true, amount: true, paidAmount: true, status: true, leadId: true, trackingId: true },
   });
-  // Boleto emitido fora do ÓRBITA (no app do banco): continua chegando pelo extrato.
-  if (!entry) return { outcome: "not_ours" };
+  if (!entry) {
+    // Boleto do ÓRBITA que já foi trocado por outro (cancelamento pedido, conta reaberta) e foi
+    // pago assim mesmo: entra como "a identificar", o sinal de pagamento em dobro. Boleto
+    // emitido fora do ÓRBITA (no app do banco) continua chegando pelo extrato.
+    const isOwnReplacedBoleto =
+      boleto.reference !== null &&
+      (await prisma.paymentEntry.count({
+        where: { organizationId: connection.organizationId, type: "RECEIVABLE", id: { endsWith: boleto.reference } },
+      })) > 0;
+    if (!isOwnReplacedBoleto) return { outcome: "not_ours" };
+    return recordUnmatchedBoleto(connection, boleto);
+  }
 
   const outstandingCents = entry.amount - entry.paidAmount;
   const isMatchable = (PENDING_ENTRY_STATUSES as readonly string[]).includes(entry.status) && outstandingCents > 0;
@@ -186,6 +196,33 @@ export async function recordConfirmedBankBoleto(connection: SettlementConnection
     extra: { entryId: entry.id },
   });
   return { outcome: "settled", entryId: entry.id };
+}
+
+async function recordUnmatchedBoleto(connection: SettlementConnection, boleto: BankBoleto): Promise<BankPixSettlement> {
+  const paidAt = boleto.paidAt ?? new Date();
+  try {
+    await prisma.paymentBankTransaction.create({
+      data: {
+        organizationId: connection.organizationId,
+        accountId: connection.accountId,
+        source: "BANK_API",
+        externalId: `${BOLETO_PAYMENT_EXTERNAL_PREFIX}${boleto.requestId}`,
+        direction: "CREDIT",
+        amountCents: boleto.paidAmountCents ?? 0,
+        postedAt: paidAt,
+        postedDate: toPostedDate(paidAt),
+        memo: "Boleto substituído pago pela API do banco: confira se houve pagamento em dobro",
+        memoKind: boleto.paidVia === "PIX" ? "PIX" : "BOLETO",
+        counterpartyName: boleto.payerName,
+        counterpartyDocument: boleto.payerDocument,
+        rawPayload: boleto.raw as Prisma.InputJsonValue,
+      },
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) return { outcome: "duplicate" };
+    throw error;
+  }
+  return { outcome: "unmatched" };
 }
 
 /**
