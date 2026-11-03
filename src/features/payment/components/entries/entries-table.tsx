@@ -702,7 +702,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
 
       {/* Create Entry Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto scroll-cols-tracking">
+        <DialogContent scrollable className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span className={`text-base ${color}`}>{type === "RECEIVABLE" ? "💚" : "🔴"}</span>

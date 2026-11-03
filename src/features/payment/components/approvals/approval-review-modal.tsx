@@ -13,6 +13,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -105,80 +106,82 @@ export function ApprovalReviewModal({ request, onClose }: Props) {
 
   return (
     <Dialog open={!!request} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent scrollable className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Revisar pagamento</DialogTitle>
         </DialogHeader>
+        <DialogBody className="space-y-4">
 
-        <div className="space-y-3 text-sm">
-          <div>
-            <Label className="text-xs text-muted-foreground">Descrição</Label>
-            <p className="font-medium">{request.entry.description}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3 text-sm">
             <div>
-              <Label className="text-xs text-muted-foreground">Valor</Label>
-              <p className="font-semibold text-base">{valor}</p>
+              <Label className="text-xs text-muted-foreground">Descrição</Label>
+              <p className="font-medium">{request.entry.description}</p>
             </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Vencimento</Label>
-              <p>{dueLabel}</p>
-            </div>
-          </div>
 
-          {request.entry.contact && (
-            <div>
-              <Label className="text-xs text-muted-foreground">
-                {request.entry.type === "PAYABLE" ? "Fornecedor" : "Cliente"}
-              </Label>
-              <p>{request.entry.contact.name}</p>
-            </div>
-          )}
-
-          {request.entry.category && (
-            <div>
-              <Label className="text-xs text-muted-foreground">Categoria</Label>
-              <div className="mt-0.5">
-                <Badge
-                  variant="outline"
-                  style={
-                    request.entry.category.color
-                      ? {
-                          borderColor: request.entry.category.color,
-                          color: request.entry.category.color,
-                        }
-                      : undefined
-                  }
-                >
-                  {request.entry.category.name}
-                </Badge>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Valor</Label>
+                <p className="font-semibold text-base">{valor}</p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Vencimento</Label>
+                <p>{dueLabel}</p>
               </div>
             </div>
-          )}
 
-          <div>
-            <Label className="text-xs text-muted-foreground">Solicitado por</Label>
-            <p>{request.requestedBy.name} · {request.requestedBy.email}</p>
+            {request.entry.contact && (
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  {request.entry.type === "PAYABLE" ? "Fornecedor" : "Cliente"}
+                </Label>
+                <p>{request.entry.contact.name}</p>
+              </div>
+            )}
+
+            {request.entry.category && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Categoria</Label>
+                <div className="mt-0.5">
+                  <Badge
+                    variant="outline"
+                    style={
+                      request.entry.category.color
+                        ? {
+                            borderColor: request.entry.category.color,
+                            color: request.entry.category.color,
+                          }
+                        : undefined
+                    }
+                  >
+                    {request.entry.category.name}
+                  </Badge>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label className="text-xs text-muted-foreground">Solicitado por</Label>
+              <p>{request.requestedBy.name} · {request.requestedBy.email}</p>
+            </div>
+
+            <div>
+              <Label htmlFor="reason" className="text-xs">
+                Motivo <span className="text-muted-foreground">(obrigatório na rejeição)</span>
+              </Label>
+              <Textarea
+                id="reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Ex.: OK pagar / cliente confirmou desconto / valor incorreto"
+                rows={3}
+                className="mt-1"
+                maxLength={500}
+              />
+            </div>
           </div>
 
-          <div>
-            <Label htmlFor="reason" className="text-xs">
-              Motivo <span className="text-muted-foreground">(obrigatório na rejeição)</span>
-            </Label>
-            <Textarea
-              id="reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Ex.: OK pagar / cliente confirmou desconto / valor incorreto"
-              rows={3}
-              className="mt-1"
-              maxLength={500}
-            />
-          </div>
-        </div>
-
-        <DialogFooter className="gap-2">
+        </DialogBody>
+        <DialogFooter>
           <Button
             variant="outline"
             onClick={handleReject}

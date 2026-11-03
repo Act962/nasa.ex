@@ -92,60 +92,76 @@ export function ContactAddressFields({ address, onChange }: ContactAddressFields
   }
 
   return (
-    <div className="space-y-3 rounded-xl border border-border/40 p-3">
-      <div>
-        <p className="text-sm font-medium">Endereço de cobrança</p>
-        <p className="text-xs text-muted-foreground">Necessário para emitir boleto. Digite o CEP e o resto se preenche.</p>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="contact-zip-code">CEP</Label>
-          <div className="relative">
-            <Input
-              id="contact-zip-code"
-              inputMode="numeric"
-              placeholder="00000-000"
-              value={address.addressZipCode}
-              onChange={(event) => handleZipCodeChange(event.target.value)}
-            />
-            {lookupCep.isPending && (
-              <Loader2 className="absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
-            )}
-          </div>
-        </div>
-        <div className="col-span-2 space-y-1.5">
-          <Label htmlFor="contact-street">Rua</Label>
-          <Input id="contact-street" value={address.addressStreet} onChange={(event) => setField("addressStreet", event.target.value)} />
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="contact-number">Número</Label>
-          <Input id="contact-number" value={address.addressNumber} onChange={(event) => setField("addressNumber", event.target.value)} />
-        </div>
-        <div className="col-span-2 space-y-1.5">
-          <Label htmlFor="contact-complement">Complemento</Label>
-          <Input id="contact-complement" value={address.addressComplement} onChange={(event) => setField("addressComplement", event.target.value)} />
-        </div>
-      </div>
-      <div className="grid grid-cols-5 gap-2">
-        <div className="col-span-2 space-y-1.5">
-          <Label htmlFor="contact-neighborhood">Bairro</Label>
-          <Input id="contact-neighborhood" value={address.addressNeighborhood} onChange={(event) => setField("addressNeighborhood", event.target.value)} />
-        </div>
-        <div className="col-span-2 space-y-1.5">
-          <Label htmlFor="contact-city">Cidade</Label>
-          <Input id="contact-city" value={address.addressCity} onChange={(event) => setField("addressCity", event.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="contact-state">UF</Label>
+    <div className="grid grid-cols-6 gap-3">
+      <div className="col-span-6 space-y-1.5 sm:col-span-2">
+        <Label htmlFor="contact-zip-code">CEP</Label>
+        <div className="relative">
           <Input
-            id="contact-state"
-            maxLength={2}
-            value={address.addressState}
-            onChange={(event) => setField("addressState", event.target.value.toUpperCase())}
+            id="contact-zip-code"
+            inputMode="numeric"
+            placeholder="00000-000"
+            value={address.addressZipCode}
+            onChange={(event) => handleZipCodeChange(event.target.value)}
           />
+          {lookupCep.isPending && (
+            <Loader2 className="absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
+          )}
         </div>
+      </div>
+      <div className="col-span-6 space-y-1.5 sm:col-span-4">
+        <Label htmlFor="contact-street">Rua</Label>
+        <Input
+          id="contact-street"
+          placeholder="Rua, avenida…"
+          value={address.addressStreet}
+          onChange={(event) => setField("addressStreet", event.target.value)}
+        />
+      </div>
+      <div className="col-span-2 space-y-1.5">
+        <Label htmlFor="contact-number">Número</Label>
+        <Input
+          id="contact-number"
+          placeholder="123 ou S/N"
+          value={address.addressNumber}
+          onChange={(event) => setField("addressNumber", event.target.value)}
+        />
+      </div>
+      <div className="col-span-4 space-y-1.5">
+        <Label htmlFor="contact-complement">Complemento</Label>
+        <Input
+          id="contact-complement"
+          placeholder="Sala, apto, bloco (opcional)"
+          value={address.addressComplement}
+          onChange={(event) => setField("addressComplement", event.target.value)}
+        />
+      </div>
+      <div className="col-span-6 space-y-1.5 sm:col-span-3">
+        <Label htmlFor="contact-neighborhood">Bairro</Label>
+        <Input
+          id="contact-neighborhood"
+          placeholder="Centro"
+          value={address.addressNeighborhood}
+          onChange={(event) => setField("addressNeighborhood", event.target.value)}
+        />
+      </div>
+      <div className="col-span-4 space-y-1.5 sm:col-span-2">
+        <Label htmlFor="contact-city">Cidade</Label>
+        <Input
+          id="contact-city"
+          placeholder="Teresina"
+          value={address.addressCity}
+          onChange={(event) => setField("addressCity", event.target.value)}
+        />
+      </div>
+      <div className="col-span-2 space-y-1.5 sm:col-span-1">
+        <Label htmlFor="contact-state">UF</Label>
+        <Input
+          id="contact-state"
+          placeholder="PI"
+          maxLength={2}
+          value={address.addressState}
+          onChange={(event) => setField("addressState", event.target.value.toUpperCase())}
+        />
       </div>
     </div>
   );
