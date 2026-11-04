@@ -13,8 +13,6 @@ import {
   CheckCircle2,
   History,
   Link2,
-  Mail,
-  MessageSquare,
   MessageSquareText,
   MoreHorizontal,
   PauseCircle,
@@ -22,6 +20,7 @@ import {
   RotateCcw,
   Receipt,
   Search,
+  Send,
   TriangleAlert,
   X,
   XCircle,
@@ -56,7 +55,7 @@ import {
 } from "../../store/use-payment-filters-store";
 import { formatCurrency, formatDate, formatTimestampDate } from "../../lib/format";
 import { describeDunningFailure } from "../../lib/dunning-failure";
-import { phoneMaskFull } from "@/utils/format-phone";
+import { formatPhoneWithCountry } from "@/utils/format-phone";
 import {
   PAYMENT_SEARCH_DEBOUNCE_MS,
   PaymentPagination,
@@ -64,6 +63,8 @@ import {
 } from "../shared/payment-pagination";
 import { ChargeLinkDialog } from "./charge-link-dialog";
 import { DunningHistoryDrawer } from "../dunning/dunning-history-drawer";
+import { DunningSendNowDialog, type DunningSendNowTarget } from "../dunning/dunning-send-now-dialog";
+import { DUNNING_CHANNEL_META } from "../dunning/dunning-channel-meta";
 import { DunningRulesTab } from "../dunning/dunning-rules-tab";
 import { PayEntryDialog } from "../entries/pay-entry-dialog";
 import { ConfirmDeleteDialog } from "../shared/confirm-delete-dialog";
@@ -85,10 +86,10 @@ const STATUS_META: Record<ChargeRow["status"], { label: string; className: strin
   AWAITING_APPROVAL: { label: "Em aprovação", className: "border-info/40 bg-info/10 text-info" },
 };
 
-const CHANNEL_META = {
-  WHATSAPP: { label: "WhatsApp", Icon: MessageSquare, className: "text-success" },
-  EMAIL: { label: "E-mail", Icon: Mail, className: "text-info" },
-  SMS: { label: "SMS", Icon: MessageSquare, className: "text-muted-foreground" },
+const CHANNEL_CLASS_NAMES = {
+  WHATSAPP: "text-success",
+  EMAIL: "text-info",
+  SMS: "text-muted-foreground",
 } as const;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -123,6 +124,7 @@ export function ChargesTab() {
   const [page, setPage] = useState(1);
   const [payEntry, setPayEntry] = useState<{ id: string; openAmountCents: number } | null>(null);
   const [linkEntry, setLinkEntry] = useState<{ id: string; name: string } | null>(null);
+  const [sendNowEntry, setSendNowEntry] = useState<DunningSendNowTarget | null>(null);
   const [historyEntry, setHistoryEntry] = useState<{ id: string; name: string } | null>(null);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [expandedRowKeys, setExpandedRowKeys] = useState<Set<string>>(new Set());
@@ -264,6 +266,12 @@ export function ChargesTab() {
         <DropdownMenuContent align="end">
           {charge.isOpen && (
             <>
+              <DropdownMenuItem
+                onClick={() => setSendNowEntry({ id: charge.id, name: charge.description, ruleId: charge.rule?.id ?? null })}
+              >
+                <Send className="size-4" />
+                Enviar cobrança agora
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setLinkEntry({ id: charge.id, name: charge.description })}>
                 <Link2 className="size-4" />
                 Link de pagamento
@@ -331,9 +339,9 @@ export function ChargesTab() {
             <span className="text-xs text-muted-foreground">Régua sem avisos</span>
           ) : (
             charge.channels.map((channel) => {
-              const meta = CHANNEL_META[channel];
+              const meta = DUNNING_CHANNEL_META[channel];
               return (
-                <span key={channel} className={cn("inline-flex items-center gap-1 text-xs", meta.className)}>
+                <span key={channel} className={cn("inline-flex items-center gap-1 text-xs", CHANNEL_CLASS_NAMES[channel])}>
                   <meta.Icon className="size-3.5" />
                   {meta.label}
                 </span>
@@ -563,7 +571,7 @@ export function ChargesTab() {
                       <td className="max-w-56 px-4 py-3">
                         <p className="truncate font-medium">{charge.customer?.name ?? "—"}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {charge.customer?.phone ? phoneMaskFull(charge.customer.phone) : charge.customer?.email ?? "Sem contato"}
+                          {charge.customer?.phone ? formatPhoneWithCountry(charge.customer.phone) : charge.customer?.email ?? "Sem contato"}
                         </p>
                       </td>
                       <td className="max-w-56 px-4 py-3">
@@ -615,6 +623,7 @@ export function ChargesTab() {
         entryName={linkEntry?.name}
         onClose={() => setLinkEntry(null)}
       />
+      <DunningSendNowDialog entry={sendNowEntry} onClose={() => setSendNowEntry(null)} />
       <DunningHistoryDrawer
         entryId={historyEntry?.id ?? null}
         entryName={historyEntry?.name ?? null}

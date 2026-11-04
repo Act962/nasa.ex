@@ -52,6 +52,7 @@ import { EntryDetailsDialog } from "./entry-details-dialog";
 import { DunningAssignDialog } from "../dunning/dunning-assign-dialog";
 import { ChargeLinkDialog } from "../charges/charge-link-dialog";
 import { DunningHistoryDrawer } from "../dunning/dunning-history-drawer";
+import { DunningSendNowDialog, type DunningSendNowTarget } from "../dunning/dunning-send-now-dialog";
 import {
   usePaymentEntries,
   useCreatePaymentEntry,
@@ -135,6 +136,7 @@ export function EntriesTable({ type }: EntriesTableProps) {
   const [assignDunning, setAssignDunning] = useState<{ id: string; ruleId: string | null; name: string } | null>(null);
   const [historyDunning, setHistoryDunning] = useState<{ id: string; name: string } | null>(null);
   const [chargeLinkEntry, setChargeLinkEntry] = useState<{ id: string; name: string } | null>(null);
+  const [sendNowEntry, setSendNowEntry] = useState<DunningSendNowTarget | null>(null);
 
   // Período em ISO (e não como `Date`): o seletor de `Date` devolve objetos
   // novos a cada render, e o reset de página abaixo compara por valor.
@@ -472,6 +474,9 @@ export function EntriesTable({ type }: EntriesTableProps) {
                   onEdit={() => setEditEntry(entry)}
                   onAssignDunning={() => openAssignDunning(entry)}
                   onChargeLink={() => setChargeLinkEntry({ id: entry.id, name: entry.description })}
+                  onSendDunningNow={() =>
+                    setSendNowEntry({ id: entry.id, name: entry.description, ruleId: entry.dunningRuleId ?? null })
+                  }
                   onDunningHistory={() =>
                     setHistoryDunning({ id: entry.id, name: entry.description })
                   }
@@ -639,6 +644,9 @@ export function EntriesTable({ type }: EntriesTableProps) {
                       onEdit={() => setEditEntry(entry)}
                       onAssignDunning={() => openAssignDunning(entry)}
                       onChargeLink={() => setChargeLinkEntry({ id: entry.id, name: entry.description })}
+                      onSendDunningNow={() =>
+                        setSendNowEntry({ id: entry.id, name: entry.description, ruleId: entry.dunningRuleId ?? null })
+                      }
                       onDunningHistory={() =>
                         setHistoryDunning({ id: entry.id, name: entry.description })
                       }
@@ -727,6 +735,8 @@ export function EntriesTable({ type }: EntriesTableProps) {
         entryName={assignDunning?.name}
         onClose={() => setAssignDunning(null)}
       />
+
+      <DunningSendNowDialog entry={sendNowEntry} onClose={() => setSendNowEntry(null)} />
 
       <ChargeLinkDialog
         entryId={chargeLinkEntry?.id ?? null}

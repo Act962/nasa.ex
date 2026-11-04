@@ -6744,13 +6744,18 @@ model PaymentDunningExecution {
   // Confirmações do WhatsApp oficial (webhook de status da Meta). Uazapi não manda.
   deliveredAt  DateTime?                     @map("delivered_at")
   readAt       DateTime?                     @map("read_at")
+  // "Enviar cobrança agora": id do envio manual, um registro por envio. Vazio = aviso da régua,
+  // um só por conta e etapa (é o que impede o mesmo aviso agendado de sair duas vezes).
+  manualKey    String                        @default("") @map("manual_key")
+  manualByUserId String?                     @map("manual_by_user_id")
   createdAt    DateTime                      @default(now()) @map("created_at")
   updatedAt    DateTime                      @updatedAt @map("updated_at")
 
   entry PaymentEntry       @relation(fields: [entryId], references: [id], onDelete: Cascade)
   step  PaymentDunningStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
 
-  @@unique([entryId, stepId])
+  @@unique([entryId, stepId, manualKey])
+  @@index([entryId, status])
   @@index([status, scheduledFor])
   @@index([messageId])
   @@map("payment_dunning_executions")

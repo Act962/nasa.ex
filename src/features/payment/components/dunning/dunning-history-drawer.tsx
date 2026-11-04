@@ -17,9 +17,6 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Mail,
-  MessageSquare,
-  Smartphone,
   CheckCircle2,
   XCircle,
   Clock,
@@ -28,18 +25,7 @@ import {
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { useDunningExecutionsByEntry } from "../../hooks/use-payment-dunning";
 import { describeDunningFailure } from "../../lib/dunning-failure";
-
-const CHANNEL_ICONS = {
-  EMAIL:    Mail,
-  WHATSAPP: MessageSquare,
-  SMS:      Smartphone,
-} as const;
-
-const CHANNEL_LABELS = {
-  EMAIL:    "E-mail",
-  WHATSAPP: "WhatsApp",
-  SMS:      "SMS",
-} as const;
+import { DUNNING_CHANNEL_META } from "./dunning-channel-meta";
 
 const STATUS_META = {
   PENDING: { label: "Agendado",  Icon: Clock,         color: "text-warning bg-warning/10 border-warning/30" },
@@ -85,7 +71,8 @@ export function DunningHistoryDrawer({ entryId, entryName, onClose }: Props) {
             data.executions.map((exec) => {
               const meta    = STATUS_META[exec.status];
               const StatusIcon = meta.Icon;
-              const ChannelIcon = CHANNEL_ICONS[exec.channel] ?? Mail;
+              const channelMeta = DUNNING_CHANNEL_META[exec.channel];
+              const ChannelIcon = channelMeta.Icon;
               const scheduledLabel = new Date(exec.scheduledFor).toLocaleString("pt-BR");
               const executedLabel  = exec.executedAt
                 ? new Date(exec.executedAt).toLocaleString("pt-BR")
@@ -104,8 +91,11 @@ export function DunningHistoryDrawer({ entryId, entryName, onClose }: Props) {
                         </Badge>
                         <Badge variant="outline" className="text-[10px] h-4 gap-1">
                           <ChannelIcon className="size-2.5" />
-                          {CHANNEL_LABELS[exec.channel] ?? exec.channel}
+                          {channelMeta.label}
                         </Badge>
+                        {exec.isManual && (
+                          <Badge variant="outline" className="text-[10px] h-4">Envio manual</Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         Agendado pra: <span className="text-foreground">{scheduledLabel}</span>

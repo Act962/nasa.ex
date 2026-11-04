@@ -115,6 +115,7 @@ import {
   updateDunningStep,
   deleteDunningStep,
   assignDunningRuleToEntry,
+  sendDunningNow,
   listDunningExecutionsByEntry,
 } from "./dunning";
 import { getPaymentChargeLink, listPaymentCharges, reopenCharge, setChargeDunningPause } from "./charges";
@@ -257,6 +258,7 @@ export const paymentRouter = {
     },
     entries: {
       assignRule: assignDunningRuleToEntry,
+      sendNow: sendDunningNow,
     },
     executions: {
       listByEntry: listDunningExecutionsByEntry,
