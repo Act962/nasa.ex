@@ -46,14 +46,17 @@ export const paymentDunningFire = inngest.createFunction(
   },
   { event: "payment/dunning.fire" },
   async ({ event, step, logger }) => {
-    const { entryId, stepId, organizationId, dueDateMs } = event.data as {
+    const { entryId, stepId, organizationId, dueDateMs, manualExecutionId } = event.data as {
       entryId:        string;
       stepId:         string;
       organizationId: string;
       scheduledForMs: number;
       /** Ausente nos eventos agendados antes de o reagendamento existir. */
       dueDateMs?:     number;
+      /** "Enviar cobrança agora": registro já criado por `sendDunningStepNow`, um por envio. */
+      manualExecutionId?: string;
     };
+    const isManual = Boolean(manualExecutionId);
 
     // ── 1) Guard: ainda faz sentido disparar? ─────────────────────────────
     const guard = await step.run("guard", async () => {
@@ -68,30 +71,35 @@ export const paymentDunningFire = inngest.createFunction(
         }),
         prisma.paymentDunningStep.findUnique({
           where: { id: stepId },
-          include: { rule: { select: { isActive: true } } },
+          include: { rule: { select: { isActive: true, organizationId: true } } },
         }),
-        prisma.paymentDunningExecution.findUnique({
-          where: { entryId_stepId: { entryId, stepId } },
-        }),
+        manualExecutionId
+          ? prisma.paymentDunningExecution.findFirst({ where: { id: manualExecutionId, entryId, stepId } })
+          : prisma.paymentDunningExecution.findUnique({
+              where: { entryId_stepId_manualKey: { entryId, stepId, manualKey: "" } },
+            }),
       ]);
 
-      if (!entry) return { skip: "entry-not-found" as const };
+      if (!entry || entry.organizationId !== organizationId) return { skip: "entry-not-found" as const };
       if (!dunStep || !dunStep.enabled) return { skip: "step-disabled" as const };
       if (!dunStep.rule.isActive) return { skip: "rule-inactive" as const };
-      // Régua trocada ou removida depois do agendamento: o evento da régua antiga não vale mais.
-      if (entry.dunningRuleId !== dunStep.ruleId) return { skip: "rule-changed" as const };
       if (["PAID", "CANCELLED"].includes(entry.status)) {
         return { skip: "entry-terminal" as const };
+      }
+      // Régua trocada ou removida depois do agendamento: o evento da régua antiga não vale mais.
+      // No envio manual a pessoa escolhe o aviso, de qualquer régua da empresa.
+      if (isManual ? dunStep.rule.organizationId !== organizationId : entry.dunningRuleId !== dunStep.ruleId) {
+        return { skip: "rule-changed" as const };
       }
       // O vencimento mudou depois do agendamento: o evento das datas novas já foi enviado.
       if (dueDateMs !== undefined && entry.dueDate.getTime() !== dueDateMs) {
         return { skip: "due-date-changed" as const };
       }
-      if (existing && existing.status !== "PENDING") {
+      if (isManual ? existing?.status !== "PENDING" : existing && existing.status !== "PENDING") {
         return { skip: "already-executed" as const };
       }
       // Cliente prometeu pagar: o aviso volta para o fim da pausa em vez de sair agora.
-      if (entry.dunningPausedUntil && entry.dunningPausedUntil.getTime() > Date.now()) {
+      if (!isManual && entry.dunningPausedUntil && entry.dunningPausedUntil.getTime() > Date.now()) {
         return { skip: "paused" as const, resumeAtMs: moveIntoBusinessHours(entry.dunningPausedUntil).getTime() };
       }
       // Domingo, feriado ou sábado à tarde (inclusive eventos agendados antes dessa regra existir).
@@ -100,9 +108,15 @@ export const paymentDunningFire = inngest.createFunction(
       if (sendWindowOpensAt.getTime() !== now.getTime()) {
         return { skip: "outside-send-window" as const, resumeAtMs: sendWindowOpensAt.getTime() };
       }
-      if (await wasCustomerNotifiedTodayForAnotherEntry(entry)) {
+      if (isManual && existing) {
+        return { skip: false as const, entry, step: dunStep, executionId: existing.id };
+      }
+
+      // A régua não manda o segundo aviso do dia: outra cobrança do cliente ou um envio manual desta.
+      const notifiedTodayReason = await findNotifiedTodayReason(entry);
+      if (notifiedTodayReason) {
         await prisma.paymentDunningExecution.upsert({
-          where:  { entryId_stepId: { entryId, stepId } },
+          where:  { entryId_stepId_manualKey: { entryId, stepId, manualKey: "" } },
           create: {
             entryId,
             stepId,
@@ -110,16 +124,16 @@ export const paymentDunningFire = inngest.createFunction(
             status:       "SKIPPED",
             channel:      dunStep.channel,
             executedAt:   new Date(),
-            errorMessage: "customer-already-notified-today",
+            errorMessage: notifiedTodayReason,
           },
-          update: { status: "SKIPPED", executedAt: new Date(), errorMessage: "customer-already-notified-today" },
+          update: { status: "SKIPPED", executedAt: new Date(), errorMessage: notifiedTodayReason },
         });
-        return { skip: "customer-already-notified-today" as const };
+        return { skip: notifiedTodayReason };
       }
 
       // Cria/atualiza execution(PENDING) — placeholder pra evitar dupes em race.
       const execution = await prisma.paymentDunningExecution.upsert({
-        where:  { entryId_stepId: { entryId, stepId } },
+        where:  { entryId_stepId_manualKey: { entryId, stepId, manualKey: "" } },
         create: {
           entryId,
           stepId,
@@ -142,8 +156,8 @@ export const paymentDunningFire = inngest.createFunction(
       const { resumeAtMs } = guard;
       await step.sendEvent(`reschedule-${guard.skip}`, {
         name: "payment/dunning.fire",
-        id: `dunning-${entryId}-${stepId}-${dueDateMs ?? "legacy"}-${guard.skip}-${resumeAtMs}`,
-        data: { entryId, stepId, organizationId, scheduledForMs: resumeAtMs, dueDateMs },
+        id: `dunning-${entryId}-${stepId}-${manualExecutionId ?? dueDateMs ?? "legacy"}-${guard.skip}-${resumeAtMs}`,
+        data: { entryId, stepId, organizationId, scheduledForMs: resumeAtMs, dueDateMs, manualExecutionId },
         ts: resumeAtMs,
       });
       logger.info(`[dunning] ${guard.skip}, rescheduled`, { entryId, stepId, resumeAtMs });
@@ -308,11 +322,12 @@ export const paymentDunningFire = inngest.createFunction(
         subAppSlug: "payment-dunning",
         featureKey: `payment.dunning.${sendResult.status.toLowerCase()}`,
         action:     `payment.dunning.${sendResult.status.toLowerCase()}`,
-        actionLabel: `Régua enviou ${dunStep.channel} para "${entry.description}" — ${sendResult.status}`,
+        actionLabel: `Régua enviou ${dunStep.channel} para "${entry.description}"${isManual ? " (envio manual)" : ""} — ${sendResult.status}`,
         resource:    entry.description,
         resourceId:  entryId,
         metadata: {
           stepId,
+          manualExecutionId: manualExecutionId ?? null,
           channel: dunStep.channel,
           status: sendResult.status,
           reason: sendResult.reason,
@@ -338,22 +353,35 @@ function formatBrl(cents: number): string {
 const BRAZIL_UTC_OFFSET_HOURS = 3;
 const HOUR_MS = 60 * 60 * 1000;
 
-/** Um aviso por cliente por dia (spec 0115, RNF-2): outra cobrança dele já avisou hoje? */
-async function wasCustomerNotifiedTodayForAnotherEntry(entry: {
+/**
+ * Um aviso por cliente por dia (spec 0115, RNF-2): outra cobrança dele já avisou hoje, ou alguém
+ * mandou esta cobrança à mão hoje ("Enviar cobrança agora")?
+ */
+async function findNotifiedTodayReason(entry: {
   id: string;
   organizationId: string;
   contactId: string | null;
   leadId: string | null;
-}): Promise<boolean> {
+}): Promise<"customer-already-notified-today" | "manual-sent-today" | null> {
+  const nowInBrazil = new Date(Date.now() - BRAZIL_UTC_OFFSET_HOURS * HOUR_MS);
+  nowInBrazil.setUTCHours(0, 0, 0, 0);
+  const startOfTodayInBrazil = new Date(nowInBrazil.getTime() + BRAZIL_UTC_OFFSET_HOURS * HOUR_MS);
+
+  const manualToday = await prisma.paymentDunningExecution.findFirst({
+    where: {
+      entryId: entry.id,
+      manualKey: { not: "" },
+      OR: [{ status: "SENT", executedAt: { gte: startOfTodayInBrazil } }, { status: "PENDING" }],
+    },
+    select: { id: true },
+  });
+  if (manualToday) return "manual-sent-today";
+
   const customerFilters = [
     ...(entry.contactId ? [{ contactId: entry.contactId }] : []),
     ...(entry.leadId ? [{ leadId: entry.leadId }] : []),
   ];
-  if (customerFilters.length === 0) return false;
-
-  const nowInBrazil = new Date(Date.now() - BRAZIL_UTC_OFFSET_HOURS * HOUR_MS);
-  nowInBrazil.setUTCHours(0, 0, 0, 0);
-  const startOfTodayInBrazil = new Date(nowInBrazil.getTime() + BRAZIL_UTC_OFFSET_HOURS * HOUR_MS);
+  if (customerFilters.length === 0) return null;
 
   const sentToday = await prisma.paymentDunningExecution.findFirst({
     where: {
@@ -367,5 +395,5 @@ async function wasCustomerNotifiedTodayForAnotherEntry(entry: {
     },
     select: { id: true },
   });
-  return sentToday !== null;
+  return sentToday ? "customer-already-notified-today" : null;
 }
