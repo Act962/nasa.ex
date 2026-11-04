@@ -14,6 +14,7 @@ import {
   Link2,
   MoreHorizontal,
   Pencil,
+  Send,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -42,6 +43,7 @@ export function EntryActionsMenu({
   onEdit,
   onAssignDunning,
   onChargeLink,
+  onSendDunningNow,
   onDunningHistory,
   onCancel,
   onDelete,
@@ -52,6 +54,7 @@ export function EntryActionsMenu({
   onEdit: () => void;
   onAssignDunning: () => void;
   onChargeLink: () => void;
+  onSendDunningNow: () => void;
   onDunningHistory: () => void;
   onCancel: () => void;
   onDelete: () => void;
@@ -90,10 +93,16 @@ export function EntryActionsMenu({
         {entry.type === "RECEIVABLE" && (
           <>
             {PAYABLE_STATUSES.includes(entry.status) && (
-              <DropdownMenuItem onClick={onChargeLink} className="gap-2">
-                <Link2 className="size-4 text-primary" />
-                Link de pagamento
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem onClick={onSendDunningNow} className="gap-2">
+                  <Send className="size-4 text-success" />
+                  Enviar cobrança agora
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onChargeLink} className="gap-2">
+                  <Link2 className="size-4 text-primary" />
+                  Link de pagamento
+                </DropdownMenuItem>
+              </>
             )}
             <DropdownMenuItem onClick={onAssignDunning} className="gap-2">
               <Bell className="size-4 text-warning" />

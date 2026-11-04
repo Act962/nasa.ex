@@ -2,6 +2,7 @@
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -61,7 +62,7 @@ export function EntryDetailsDialog({
 
   return (
     <Dialog open={Boolean(entry)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto scroll-cols-tracking">
+      <DialogContent scrollable className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 pr-6 text-left">
             <span className={`text-base ${color}`}>{isReceivable ? "💚" : "🔴"}</span>
@@ -69,7 +70,7 @@ export function EntryDetailsDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <DialogBody className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className={`text-2xl font-black tabular-nums ${color}`}>
               {formatCurrency(entry.amount)}
@@ -140,7 +141,7 @@ export function EntryDetailsDialog({
           <Separator />
 
           <RemindersPanel entryId={entry.id} />
-        </div>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );

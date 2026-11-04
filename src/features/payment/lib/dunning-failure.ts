@@ -9,6 +9,8 @@ const KNOWN_REASONS: Record<string, string> = {
   no_connected_whatsapp_instance: "nenhum WhatsApp conectado",
   whatsapp_send_failed: "o WhatsApp recusou o envio",
   "customer-already-notified-today": "o cliente já recebeu um aviso hoje",
+  "manual-sent-today": "esta cobrança já foi enviada à mão hoje",
+  "queue-unavailable": "o envio não entrou na fila; tente de novo",
   "SMS not implemented": "SMS ainda não é enviado",
   "unknown-channel": "canal desconhecido",
   "email-error": "o serviço de e-mail recusou o envio",

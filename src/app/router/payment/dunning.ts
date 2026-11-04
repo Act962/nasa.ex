@@ -15,11 +15,13 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { requirePaymentAccess } from "@/app/middlewares/payment-access";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { scheduleDunningForEntry } from "@/features/payment/server/dunning/schedule";
+import { sendDunningStepNow } from "@/features/payment/server/dunning/send-now";
 import { describeRuleLimitProblem } from "@/features/payment/lib/dunning-presets";
 
 const channelEnum = z.enum(["EMAIL", "WHATSAPP", "SMS"]);
@@ -346,6 +348,22 @@ export const assignDunningRuleToEntry = base
     return { scheduled: result.scheduled };
   });
 
+export const sendDunningNow = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .use(requirePaymentAccess("entries", "edit"))
+  .route({ method: "POST", summary: "Send a dunning notice of a payment entry now", tags: ["Payment"] })
+  .input(z.object({ entryId: z.string(), stepId: z.string() }))
+  .output(z.object({ channel: channelEnum }))
+  .handler(async ({ input, context }) => {
+    return sendDunningStepNow({
+      organizationId: context.org.id,
+      entryId: input.entryId,
+      stepId: input.stepId,
+      triggeredByUserId: context.user.id,
+    });
+  });
+
 // ── Executions list (histórico) ────────────────────────────────────────────
 
 export const listDunningExecutionsByEntry = base
@@ -365,6 +383,7 @@ export const listDunningExecutionsByEntry = base
       messageId:    z.string().nullable(),
       deliveredAt:  z.date().nullable(),
       readAt:       z.date().nullable(),
+      isManual:     z.boolean(),
     })),
   }))
   .handler(async ({ input, context }) => {
@@ -379,5 +398,7 @@ export const listDunningExecutionsByEntry = base
       where: { entryId: input.entryId },
       orderBy: { scheduledFor: "desc" },
     });
-    return { executions };
+    return {
+      executions: executions.map((execution) => ({ ...execution, isManual: execution.manualKey !== "" })),
+    };
   });

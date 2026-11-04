@@ -2,6 +2,7 @@
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -32,91 +33,93 @@ export function CashflowDayDialog({
 
   return (
     <Dialog open={Boolean(date)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto scroll-cols-tracking">
+      <DialogContent scrollable className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             Movimentação de {date ? formatDate(date) : ""}
           </DialogTitle>
         </DialogHeader>
+        <DialogBody>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-            <OrbitaSpinner className="size-4 " />
-            Carregando...
-          </div>
-        ) : entries.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            Nenhum lançamento neste dia.
-          </p>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                <div className="flex items-center gap-1.5 text-success">
-                  <ArrowDownCircle className="size-3.5" />
-                  <span className="text-xs font-medium">Entradas</span>
-                </div>
-                <p className="mt-0.5 text-lg font-black tabular-nums text-success">
-                  {formatCurrency(data?.totals.receivable ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-                <div className="flex items-center gap-1.5 text-destructive">
-                  <ArrowUpCircle className="size-3.5" />
-                  <span className="text-xs font-medium">Saídas</span>
-                </div>
-                <p className="mt-0.5 text-lg font-black tabular-nums text-destructive">
-                  {formatCurrency(data?.totals.payable ?? 0)}
-                </p>
-              </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+              <OrbitaSpinner className="size-4 " />
+              Carregando...
             </div>
+          ) : entries.length === 0 ? (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Nenhum lançamento neste dia.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                  <div className="flex items-center gap-1.5 text-success">
+                    <ArrowDownCircle className="size-3.5" />
+                    <span className="text-xs font-medium">Entradas</span>
+                  </div>
+                  <p className="mt-0.5 text-lg font-black tabular-nums text-success">
+                    {formatCurrency(data?.totals.receivable ?? 0)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                  <div className="flex items-center gap-1.5 text-destructive">
+                    <ArrowUpCircle className="size-3.5" />
+                    <span className="text-xs font-medium">Saídas</span>
+                  </div>
+                  <p className="mt-0.5 text-lg font-black tabular-nums text-destructive">
+                    {formatCurrency(data?.totals.payable ?? 0)}
+                  </p>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              {entries.map((entry) => {
-                const isIn = entry.type === "RECEIVABLE";
-                const color = isIn ? "text-success" : "text-destructive";
-                const isPartial = entry.cashAmount !== entry.amount;
-                return (
-                  <div
-                    key={entry.id}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-border/40 p-2.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{entry.description}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {entry.contactName ?? "Sem contato"}
-                        {entry.categoryName ? ` · ${entry.categoryName}` : ""}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] ${STATUS_COLORS[entry.status] ?? ""}`}
-                        >
-                          {STATUS_LABELS[entry.status] ?? entry.status}
-                        </Badge>
-                        <span className="text-[10px] text-muted-foreground">
-                          {entry.paidAt
-                            ? `pago em ${formatDate(entry.paidAt)}`
-                            : `vence ${formatDate(entry.dueDate)}`}
-                        </span>
+              <div className="space-y-2">
+                {entries.map((entry) => {
+                  const isIn = entry.type === "RECEIVABLE";
+                  const color = isIn ? "text-success" : "text-destructive";
+                  const isPartial = entry.cashAmount !== entry.amount;
+                  return (
+                    <div
+                      key={entry.id}
+                      className="flex items-start justify-between gap-3 rounded-lg border border-border/40 p-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{entry.description}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {entry.contactName ?? "Sem contato"}
+                          {entry.categoryName ? ` · ${entry.categoryName}` : ""}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] ${STATUS_COLORS[entry.status] ?? ""}`}
+                          >
+                            {STATUS_LABELS[entry.status] ?? entry.status}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground">
+                            {entry.paidAt
+                              ? `pago em ${formatDate(entry.paidAt)}`
+                              : `vence ${formatDate(entry.dueDate)}`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className={`text-sm font-bold tabular-nums ${color}`}>
+                          {isIn ? "+" : "-"} {formatCurrency(entry.cashAmount)}
+                        </p>
+                        {isPartial && (
+                          <p className="text-[10px] text-muted-foreground">
+                            de {formatCurrency(entry.amount)}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <p className={`text-sm font-bold tabular-nums ${color}`}>
-                        {isIn ? "+" : "-"} {formatCurrency(entry.cashAmount)}
-                      </p>
-                      {isPartial && (
-                        <p className="text-[10px] text-muted-foreground">
-                          de {formatCurrency(entry.amount)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );

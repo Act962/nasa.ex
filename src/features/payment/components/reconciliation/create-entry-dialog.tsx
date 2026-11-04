@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -76,7 +78,7 @@ export function CreateEntryDialog({
 
   return (
     <Dialog open={Boolean(transaction)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent scrollable className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             Novo {isCredit ? "recebimento" : "pagamento"} a partir do extrato
@@ -84,72 +86,73 @@ export function CreateEntryDialog({
         </DialogHeader>
 
         {transaction && (
-          <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-            <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
-              <p
-                className={`text-lg font-black tabular-nums ${
-                  isCredit ? "text-success" : "text-destructive"
-                }`}
-              >
-                {formatCurrency(transaction.amountCents)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {formatDate(transaction.postedDate)} · já consta como{" "}
-                {isCredit ? "recebido" : "pago"}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Descrição *</Label>
-              <Input
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Categoria</Label>
-                <Select value={categoryId} onValueChange={setCategoryId}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Sem categoria</SelectItem>
-                    {categoriesData?.categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <DialogBody className="space-y-4">
+              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                <p
+                  className={`text-lg font-black tabular-nums ${
+                    isCredit ? "text-success" : "text-destructive"
+                  }`}
+                >
+                  {formatCurrency(transaction.amountCents)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatDate(transaction.postedDate)} · já consta como{" "}
+                  {isCredit ? "recebido" : "pago"}
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label>{isCredit ? "Cliente" : "Fornecedor"}</Label>
-                <Select value={contactId} onValueChange={setContactId}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Sem contato</SelectItem>
-                    {contactsData?.contacts.map((contact) => (
-                      <SelectItem key={contact.id} value={contact.id}>
-                        {contact.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            <div className="flex gap-2 pt-1">
-              <Button type="button" variant="ghost" className="flex-1" onClick={onClose}>
+              <div className="space-y-2">
+                <Label>Descrição *</Label>
+                <Input
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Categoria</Label>
+                  <Select value={categoryId} onValueChange={setCategoryId}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Sem categoria</SelectItem>
+                      {categoriesData?.categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{isCredit ? "Cliente" : "Fornecedor"}</Label>
+                  <Select value={contactId} onValueChange={setContactId}>
+                    <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Sem contato</SelectItem>
+                      {contactsData?.contacts.map((contact) => (
+                        <SelectItem key={contact.id} value={contact.id}>
+                          {contact.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </DialogBody>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={onClose}>
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={createEntry.isPending}
-                className="flex-1 bg-info text-white hover:bg-info/90"
+                className="min-w-36 bg-info text-white hover:bg-info/90"
               >
                 {createEntry.isPending ? "Criando..." : "Criar"}
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         )}
       </DialogContent>

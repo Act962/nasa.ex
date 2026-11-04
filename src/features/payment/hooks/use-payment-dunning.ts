@@ -63,6 +63,14 @@ export function useAssignDunningRuleToEntry() {
   });
 }
 
+export function useSendDunningNow() {
+  const qc = useQueryClient();
+  return useMutation({
+    ...orpc.payment.dunning.entries.sendNow.mutationOptions(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.payment.key() }),
+  });
+}
+
 export function useDunningExecutionsByEntry(entryId: string | null) {
   return useQuery({
     ...orpc.payment.dunning.executions.listByEntry.queryOptions({

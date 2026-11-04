@@ -37,6 +37,7 @@ import { BankPicker } from "./bank-picker";
 import { AccountBalanceDialog, type AdjustableAccount } from "./account-balance-dialog";
 import { BankConnectionSheet, type BankConnectionAccount } from "./bank-connection-sheet";
 import { BankConnectionStatusBadge } from "./bank-connection-status";
+import { ConfirmDeleteDialog } from "../shared/confirm-delete-dialog";
 import { findBankProvider, type BankProviderId } from "../../lib/bank-providers";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 
@@ -55,6 +56,25 @@ export function AccountsTab() {
   const { data } = usePaymentAccounts();
   const createAccount = useCreatePaymentAccount();
   const removeAccount = useDeletePaymentAccount();
+  const [accountToRemove, setAccountToRemove] = useState<{
+    id: string;
+    name: string;
+    hasBankConnection: boolean;
+  } | null>(null);
+
+  function handleRemoveAccount() {
+    if (!accountToRemove) return;
+    removeAccount.mutate(
+      { id: accountToRemove.id },
+      {
+        onSuccess: () => {
+          toast.success("Conta removida");
+          setAccountToRemove(null);
+        },
+        onError: (error) => toast.error(describePaymentError(error, "Não foi possível remover a conta")),
+      },
+    );
+  }
 
   const accounts = data?.accounts ?? [];
   // `balance` é o saldo inicial digitado; `computedBalance` já soma as baixas
@@ -236,7 +256,9 @@ export function AccountsTab() {
                     <Pencil className="size-3.5" /> Ajustar saldo
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => removeAccount.mutate({ id: account.id })}
+                    onClick={() =>
+                      setAccountToRemove({ id: account.id, name: account.name, hasBankConnection: Boolean(account.bankConnection) })
+                    }
                     className="gap-2 text-destructive"
                   >
                     <Trash2 className="size-3.5" /> Remover
@@ -263,6 +285,20 @@ export function AccountsTab() {
       <AccountBalanceDialog
         account={accountToAdjust}
         onClose={() => setAccountToAdjust(null)}
+      />
+
+      <ConfirmDeleteDialog
+        isOpen={accountToRemove !== null}
+        title={`Remover a conta "${accountToRemove?.name ?? ""}"?`}
+        description={
+          accountToRemove?.hasBankConnection
+            ? "A conta sai da lista e a conexão com o banco para de gerar cobranças. Os lançamentos e o histórico continuam guardados."
+            : "A conta sai da lista. Os lançamentos e o histórico continuam guardados."
+        }
+        confirmLabel="Remover"
+        isPending={removeAccount.isPending}
+        onConfirm={handleRemoveAccount}
+        onClose={() => setAccountToRemove(null)}
       />
 
       <BankConnectionSheet

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -116,80 +117,82 @@ export function ReminderCreateDialog({ open, onOpenChange, entryId }: ReminderCr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent scrollable className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Novo lembrete</DialogTitle>
           <DialogDescription>
             Envia a mensagem e o documento na data escolhida. Cada envio consome 1★.
           </DialogDescription>
         </DialogHeader>
+        <DialogBody className="space-y-4">
 
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Quando enviar</Label>
-            <DatePicker
-              value={remindAtLocal ? new Date(remindAtLocal) : undefined}
-              onChange={(date) => setRemindAtLocal(toLocalDateTimeInputValue(date))}
-              fromDate={new Date()}
-              placeholder="Escolha dia e horário"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Canais</Label>
-            <div className="flex gap-4">
-              {PAYMENT_REMINDER_CHANNELS.map((channel) => (
-                <label key={channel} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={channels.includes(channel)}
-                    onCheckedChange={(checked) => toggleChannel(channel, checked === true)}
-                  />
-                  {REMINDER_CHANNEL_LABELS[channel]}
-                </label>
-              ))}
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Quando enviar</Label>
+              <DatePicker
+                value={remindAtLocal ? new Date(remindAtLocal) : undefined}
+                onChange={(date) => setRemindAtLocal(toLocalDateTimeInputValue(date))}
+                fromDate={new Date()}
+                placeholder="Escolha dia e horário"
+              />
             </div>
-          </div>
 
-          <ReminderRecipientsField recipients={recipients} onChange={setRecipients} />
-
-          <div className="space-y-1.5">
-            <Label>Documento</Label>
-            <Select value={attachmentChoice} onValueChange={setAttachmentChoice}>
-              <SelectTrigger>
-                <SelectValue placeholder="Escolha o documento" />
-              </SelectTrigger>
-              <SelectContent>
-                {entryId && (
-                  <SelectItem value={AUTO_ATTACHMENT_VALUE}>Mais recente do lançamento</SelectItem>
-                )}
-                <SelectItem value={NO_ATTACHMENT_VALUE}>Sem documento</SelectItem>
-                {attachments.map((attachment) => (
-                  <SelectItem key={attachment.id} value={attachment.id}>
-                    {attachment.fileName}
-                  </SelectItem>
+            <div className="space-y-1.5">
+              <Label>Canais</Label>
+              <div className="flex gap-4">
+                {PAYMENT_REMINDER_CHANNELS.map((channel) => (
+                  <label key={channel} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={channels.includes(channel)}
+                      onCheckedChange={(checked) => toggleChannel(channel, checked === true)}
+                    />
+                    {REMINDER_CHANNEL_LABELS[channel]}
+                  </label>
                 ))}
-              </SelectContent>
-            </Select>
+              </div>
+            </div>
+
+            <ReminderRecipientsField recipients={recipients} onChange={setRecipients} />
+
+            <div className="space-y-1.5">
+              <Label>Documento</Label>
+              <Select value={attachmentChoice} onValueChange={setAttachmentChoice}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Escolha o documento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {entryId && (
+                    <SelectItem value={AUTO_ATTACHMENT_VALUE}>Mais recente do lançamento</SelectItem>
+                  )}
+                  <SelectItem value={NO_ATTACHMENT_VALUE}>Sem documento</SelectItem>
+                  {attachments.map((attachment) => (
+                    <SelectItem key={attachment.id} value={attachment.id}>
+                      {attachment.fileName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="reminder-message">Mensagem</Label>
+              <Textarea
+                id="reminder-message"
+                rows={3}
+                maxLength={REMINDER_MESSAGE_MAX_LENGTH}
+                placeholder="Opcional — sem texto, envio descrição, valor e vencimento do lançamento."
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={notifyCreator} onCheckedChange={(checked) => setNotifyCreator(checked === true)} />
+              Me avisar quando enviar
+            </label>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="reminder-message">Mensagem</Label>
-            <Textarea
-              id="reminder-message"
-              rows={3}
-              maxLength={REMINDER_MESSAGE_MAX_LENGTH}
-              placeholder="Opcional — sem texto, envio descrição, valor e vencimento do lançamento."
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-            />
-          </div>
-
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={notifyCreator} onCheckedChange={(checked) => setNotifyCreator(checked === true)} />
-            Me avisar quando enviar
-          </label>
-        </div>
-
+        </DialogBody>
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
