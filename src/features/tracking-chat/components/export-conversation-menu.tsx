@@ -24,7 +24,7 @@ const FORMAT_OPTIONS: {
 ];
 
 /**
- * Submenu "Exportar conversa" do menu "..." do cabeçalho. Só apresentação —
+ * Submenu "Exportar" do menu "..." do cabeçalho. Só apresentação —
  * a mutation vive no Header (sempre montado); selecionar um item fecha o menu
  * e desmontaria este componente, e os callbacks do `mutate` não disparariam.
  */
@@ -33,7 +33,7 @@ export function ExportConversationMenu({ onExport, isPending }: Props) {
     <DropdownMenuSub>
       <DropdownMenuSubTrigger disabled={isPending}>
         <DownloadIcon className="size-4" />
-        Exportar conversa
+        Exportar
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent>
         {FORMAT_OPTIONS.map((option) => {
