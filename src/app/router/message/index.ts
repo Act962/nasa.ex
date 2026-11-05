@@ -15,6 +15,7 @@ import { editMessageHandler } from "./edit";
 import { markReadMessageHandler } from "./mark-read";
 import { forwardMessageHandler } from "./forward";
 import { getCustomerWindowState } from "./customer-window";
+import { exportConversation } from "./export";
 
 export const messageRouter = {
   list: listMessage,
@@ -34,4 +35,5 @@ export const messageRouter = {
   markRead: markReadMessageHandler,
   forward: forwardMessageHandler,
   customerWindow: getCustomerWindowState,
+  export: exportConversation,
 };
