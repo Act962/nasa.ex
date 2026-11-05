@@ -10,8 +10,7 @@ import { DownloadIcon, FileIcon, FileTextIcon } from "lucide-react";
 import type { ExportFormat } from "../lib/export-conversation";
 
 interface Props {
-  onExport: (format: ExportFormat) => void;
-  isPending: boolean;
+  onSelectFormat: (format: ExportFormat) => void;
 }
 
 const FORMAT_OPTIONS: {
@@ -24,14 +23,13 @@ const FORMAT_OPTIONS: {
 ];
 
 /**
- * Submenu "Exportar" do menu "..." do cabeçalho. Só apresentação —
- * a mutation vive no Header (sempre montado); selecionar um item fecha o menu
- * e desmontaria este componente, e os callbacks do `mutate` não disparariam.
+ * Submenu "Exportar" do menu "..." do cabeçalho. Escolher o formato abre o
+ * dialog de opções (ExportConversationDialog), montado no Header.
  */
-export function ExportConversationMenu({ onExport, isPending }: Props) {
+export function ExportConversationMenu({ onSelectFormat }: Props) {
   return (
     <DropdownMenuSub>
-      <DropdownMenuSubTrigger disabled={isPending}>
+      <DropdownMenuSubTrigger>
         <DownloadIcon className="size-4" />
         Exportar
       </DropdownMenuSubTrigger>
@@ -41,8 +39,7 @@ export function ExportConversationMenu({ onExport, isPending }: Props) {
           return (
             <DropdownMenuItem
               key={option.value}
-              onClick={() => onExport(option.value)}
-              disabled={isPending}
+              onClick={() => onSelectFormat(option.value)}
             >
               <Icon className="size-4" />
               {option.label}
