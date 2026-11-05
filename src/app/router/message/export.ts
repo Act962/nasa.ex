@@ -19,9 +19,16 @@ export const exportConversation = base
     tags: ["Messages"],
   })
   .input(
-    z.object({
-      conversationId: z.string(),
-    }),
+    z
+      .object({
+        conversationId: z.string(),
+        // Período opcional (ISO). Sem os dois, exporta a conversa inteira.
+        dateInit: z.string().datetime().optional(),
+        dateEnd: z.string().datetime().optional(),
+      })
+      .refine((value) => Boolean(value.dateInit) === Boolean(value.dateEnd), {
+        message: "Informe o início e o fim do período",
+      }),
   )
   .handler(async ({ input, context, errors }) => {
     const conversation = await prisma.conversation.findUnique({
@@ -38,22 +45,29 @@ export const exportConversation = base
     }
 
     // Escopo de organização: sem isso, qualquer usuário autenticado leria a
-    // conversa de outra empresa passando o id (ao contrário de `message/list`,
-    // que hoje não checa org — ver dívida reportada na sessão).
+    // conversa de outra empresa passando o id.
     if (conversation.tracking.organizationId !== context.org.id) {
       throw errors.FORBIDDEN({ message: "Sem permissão para esta conversa" });
     }
 
-    const total = await prisma.message.count({
-      where: { conversationId: conversation.id },
-    });
+    const period =
+      input.dateInit && input.dateEnd
+        ? { from: new Date(input.dateInit), to: new Date(input.dateEnd) }
+        : null;
+
+    const messageWhere = {
+      conversationId: conversation.id,
+      ...(period && { createdAt: { gte: period.from, lte: period.to } }),
+    };
+
+    const total = await prisma.message.count({ where: messageWhere });
 
     const truncated = total > MAX_EXPORT_MESSAGES;
 
     // Quando passa do teto, pega as mais recentes (desc + take) e reordena
     // asc em memória — o relevante de um histórico gigante é o final.
     const rows = await prisma.message.findMany({
-      where: { conversationId: conversation.id },
+      where: messageWhere,
       select: {
         body: true,
         fromMe: true,
@@ -77,6 +91,7 @@ export const exportConversation = base
       organizationName: context.org.name,
       total,
       truncated,
+      period,
       messages,
     };
   });

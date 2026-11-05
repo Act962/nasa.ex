@@ -41,12 +41,8 @@ import { StatusFlow } from "@/generated/prisma/enums";
 import { useMutationRodizio } from "../hooks/use-rodizio";
 import { SyncMessagesButton } from "./sync-messages-button";
 import { ExportConversationMenu } from "./export-conversation-menu";
-import { useExportConversation } from "../hooks/use-export-conversation";
-import {
-  downloadConversation,
-  type ConversationExport,
-  type ExportFormat,
-} from "../lib/export-conversation";
+import { ExportConversationDialog } from "./export-conversation-dialog";
+import type { ExportFormat } from "../lib/export-conversation";
 import { InChatStatusBadge } from "./in-chat-status-badge";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -257,41 +253,8 @@ export function Header({
     setArchived.mutate({ leadId, isArchived: true });
   };
 
-  // Exportar conversa (PDF/TXT). A mutation mora aqui, no Header (sempre
-  // montado): selecionar o item do submenu fecha o dropdown e desmontaria o
-  // ExportConversationMenu, e os callbacks do `mutate` não disparariam.
-  const exportConversation = useExportConversation();
-
-  const handleExportConversation = (format: ExportFormat) => {
-    const toastId = toast.loading("Preparando a conversa...");
-    exportConversation.mutate(
-      { conversationId },
-      {
-        onSuccess: (data) => {
-          if (data.total === 0) {
-            toast.error("Esta conversa não tem mensagens para exportar.", {
-              id: toastId,
-            });
-            return;
-          }
-          downloadConversation(data as ConversationExport, format);
-          if (data.truncated) {
-            toast.warning(
-              `Conversa longa: exportamos as ${data.messages.length} mensagens mais recentes.`,
-              { id: toastId },
-            );
-          } else {
-            toast.success("Conversa exportada.", { id: toastId });
-          }
-        },
-        onError: (error) => {
-          toast.error(error.message ?? "Falha ao exportar a conversa.", {
-            id: toastId,
-          });
-        },
-      },
-    );
-  };
+  // Formato escolhido no submenu "Exportar"; abre o dialog de opções.
+  const [exportFormat, setExportFormat] = useState<ExportFormat | null>(null);
 
   return (
     // Header com fundo opaco do tema (bg-background) — independente de
@@ -480,10 +443,7 @@ export function Header({
               <LandmarkIcon className="size-4" />
               Processos SEI
             </DropdownMenuItem>
-            <ExportConversationMenu
-              onExport={handleExportConversation}
-              isPending={exportConversation.isPending}
-            />
+            <ExportConversationMenu onSelectFormat={setExportFormat} />
             <DropdownMenuItem
               onClick={handleArchiveLead}
               disabled={setArchived.isPending}
@@ -545,6 +505,11 @@ export function Header({
           leadId={leadId}
           open={seiOpen}
           onOpenChange={setSeiOpen}
+        />
+        <ExportConversationDialog
+          conversationId={conversationId}
+          format={exportFormat}
+          onClose={() => setExportFormat(null)}
         />
         {!isInsideTrackingNav && isLeadDetailsCollapsed && <FullscreenControls />}
       </div>

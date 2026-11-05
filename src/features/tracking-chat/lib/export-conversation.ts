@@ -20,13 +20,42 @@ export interface ConversationExport {
   organizationName: string;
   total: number;
   truncated: boolean;
+  period: { from: Date | string; to: Date | string } | null;
   messages: ExportMessage[];
 }
 
 export type ExportFormat = "pdf" | "txt";
 
-function authorLabel(message: ExportMessage, leadName: string): string {
-  if (message.fromMe) return message.senderName?.trim() || "Atendente";
+/** "datetime": data e hora · "time": só a hora · "none": sem data nem hora. */
+export type ExportDateMode = "datetime" | "time" | "none";
+
+export interface ExportOptions {
+  dateMode: ExportDateMode;
+  /** Mantém os marcadores [Áudio], [Imagem]...; sem eles, mensagem só de mídia some. */
+  includeMedia: boolean;
+  /** Toda mensagem da empresa sai como "Atendente", sem o nome de quem enviou. */
+  hideTeamNames: boolean;
+  includeHeader: boolean;
+}
+
+export const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
+  dateMode: "datetime",
+  includeMedia: true,
+  hideTeamNames: false,
+  includeHeader: true,
+};
+
+const TEAM_LABEL = "Atendente";
+
+function authorLabel(
+  message: ExportMessage,
+  leadName: string,
+  options: ExportOptions,
+): string {
+  if (message.fromMe) {
+    if (options.hideTeamNames) return TEAM_LABEL;
+    return message.senderName?.trim() || TEAM_LABEL;
+  }
   return message.senderName?.trim() || leadName || "Cliente";
 }
 
@@ -54,11 +83,17 @@ function mediaPlaceholder(message: ExportMessage): string | null {
   return null;
 }
 
-/** Texto do corpo de uma mensagem (marcador de mídia + legenda + texto). */
-export function messageContent(message: ExportMessage): string {
+/**
+ * Texto do corpo de uma mensagem (marcador de mídia + legenda + texto).
+ * `null` quando não sobra nada para mostrar (ex.: só mídia, com anexos desligados).
+ */
+export function messageContent(
+  message: ExportMessage,
+  options: ExportOptions = DEFAULT_EXPORT_OPTIONS,
+): string | null {
   const parts: string[] = [];
   const media = mediaPlaceholder(message);
-  if (media) parts.push(media);
+  if (media && options.includeMedia) parts.push(media);
 
   const caption = message.mediaCaption?.trim();
   if (caption) parts.push(caption);
@@ -66,20 +101,53 @@ export function messageContent(message: ExportMessage): string {
   const text = message.body?.trim();
   if (text) parts.push(text);
 
-  return parts.length > 0 ? parts.join(" ") : "[mensagem vazia]";
+  if (parts.length > 0) return parts.join(" ");
+  return media ? null : "[mensagem vazia]";
 }
 
+interface PreparedMessage {
+  createdAt: dayjs.Dayjs;
+  fromMe: boolean;
+  author: string;
+  content: string;
+}
+
+function prepareMessages(
+  data: Pick<ConversationExport, "leadName" | "messages">,
+  options: ExportOptions,
+): PreparedMessage[] {
+  return data.messages.flatMap((message) => {
+    const content = messageContent(message, options);
+    if (content === null) return [];
+    return [
+      {
+        createdAt: dayjs(message.createdAt),
+        fromMe: message.fromMe,
+        author: authorLabel(message, data.leadName, options),
+        content,
+      },
+    ];
+  });
+}
+
+const TIME_FORMAT_BY_DATE_MODE: Record<ExportDateMode, string | null> = {
+  datetime: "DD/MM/YYYY HH:mm",
+  time: "HH:mm",
+  none: null,
+};
+
 /**
- * Linha por mensagem no formato do WhatsApp: `[dd/mm/aaaa hh:mm] Autor: conteúdo`.
- * Base compartilhada entre o TXT e o PDF.
+ * Linha por mensagem no formato do WhatsApp: `[dd/mm/aaaa hh:mm] Autor: conteúdo`
+ * (o prefixo de data segue `options.dateMode`).
  */
 export function transcriptLines(
   data: Pick<ConversationExport, "leadName" | "messages">,
+  options: ExportOptions = DEFAULT_EXPORT_OPTIONS,
 ): string[] {
-  return data.messages.map((message) => {
-    const time = dayjs(message.createdAt).format("DD/MM/YYYY HH:mm");
-    const author = authorLabel(message, data.leadName);
-    return `[${time}] ${author}: ${messageContent(message)}`;
+  const timeFormat = TIME_FORMAT_BY_DATE_MODE[options.dateMode];
+  return prepareMessages(data, options).map((message) => {
+    const prefix = timeFormat ? `[${message.createdAt.format(timeFormat)}] ` : "";
+    return `${prefix}${message.author}: ${message.content}`;
   });
 }
 
@@ -106,11 +174,15 @@ function triggerDownload(blob: Blob, fileName: string): void {
 }
 
 function buildHeader(data: ConversationExport): string[] {
-  const header = [
-    `Conversa com ${data.leadName}`,
-    data.organizationName,
+  const header = [`Conversa com ${data.leadName}`, data.organizationName];
+  if (data.period) {
+    const from = dayjs(data.period.from).format("DD/MM/YYYY");
+    const to = dayjs(data.period.to).format("DD/MM/YYYY");
+    header.push(from === to ? `Período: ${from}` : `Período: ${from} a ${to}`);
+  }
+  header.push(
     `Exportado em ${dayjs().format("DD/MM/YYYY HH:mm")} — ${data.total} mensagens`,
-  ];
+  );
   if (data.truncated) {
     header.push(
       `(Export limitado às ${data.messages.length} mensagens mais recentes)`,
@@ -119,13 +191,11 @@ function buildHeader(data: ConversationExport): string[] {
   return header;
 }
 
-function exportTxt(data: ConversationExport): void {
-  const content = [
-    ...buildHeader(data),
-    "",
-    ...transcriptLines(data),
-    "",
-  ].join("\n");
+function exportTxt(data: ConversationExport, options: ExportOptions): void {
+  const headerLines = options.includeHeader ? [...buildHeader(data), ""] : [];
+  const content = [...headerLines, ...transcriptLines(data, options), ""].join(
+    "\n",
+  );
   const blob = new Blob([content], { type: "text/plain;charset=utf-8;" });
   triggerDownload(blob, `${fileBaseName(data)}.txt`);
 }
@@ -169,8 +239,14 @@ const PDF_COLORS = {
 
 type PdfColor = (typeof PDF_COLORS)[keyof typeof PDF_COLORS];
 
-/** Monta o PDF da conversa: dia como separador, autor em destaque, hora à direita. */
-export function buildConversationPdf(data: ConversationExport): jsPDF {
+/**
+ * Monta o PDF da conversa: dia como separador, autor em destaque, hora à
+ * direita. Separador de dia e hora seguem `options.dateMode`.
+ */
+export function buildConversationPdf(
+  data: ConversationExport,
+  options: ExportOptions = DEFAULT_EXPORT_OPTIONS,
+): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const marginX = 48;
   const marginTop = 56;
@@ -178,8 +254,10 @@ export function buildConversationPdf(data: ConversationExport): jsPDF {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const contentWidth = pageWidth - marginX * 2;
+  const showDaySeparator = options.dateMode === "datetime";
+  const showTime = options.dateMode !== "none";
   const bodyIndent = 10;
-  const timeColumnWidth = 44;
+  const timeColumnWidth = showTime ? 44 : 0;
   const bodyWidth = contentWidth - bodyIndent - timeColumnWidth;
   const bodyLineHeight = 14;
   let cursorY = marginTop;
@@ -197,42 +275,42 @@ export function buildConversationPdf(data: ConversationExport): jsPDF {
   };
 
   const leadName = toPdfSafeText(data.leadName) || "Cliente";
-  const [, ...subtitles] = buildHeader(data);
 
-  setStyle(16, true, PDF_COLORS.text);
-  const titleLines = doc.splitTextToSize(
-    `Conversa com ${leadName}`,
-    contentWidth,
-  ) as string[];
-  for (const line of titleLines) {
-    doc.text(line, marginX, cursorY);
-    cursorY += 20;
+  if (options.includeHeader) {
+    const [, ...subtitles] = buildHeader(data);
+    setStyle(16, true, PDF_COLORS.text);
+    const titleLines = doc.splitTextToSize(
+      `Conversa com ${leadName}`,
+      contentWidth,
+    ) as string[];
+    for (const line of titleLines) {
+      doc.text(line, marginX, cursorY);
+      cursorY += 20;
+    }
+    setStyle(9, false, PDF_COLORS.muted);
+    for (const subtitle of subtitles) {
+      doc.text(toPdfSafeText(subtitle), marginX, cursorY);
+      cursorY += 13;
+    }
+    cursorY += 4;
+    const [ruleRed, ruleGreen, ruleBlue] = PDF_COLORS.rule;
+    doc.setDrawColor(ruleRed, ruleGreen, ruleBlue);
+    doc.line(marginX, cursorY, pageWidth - marginX, cursorY);
+    cursorY += 18;
   }
-  setStyle(9, false, PDF_COLORS.muted);
-  for (const subtitle of subtitles) {
-    doc.text(toPdfSafeText(subtitle), marginX, cursorY);
-    cursorY += 13;
-  }
-  cursorY += 4;
-  const [ruleRed, ruleGreen, ruleBlue] = PDF_COLORS.rule;
-  doc.setDrawColor(ruleRed, ruleGreen, ruleBlue);
-  doc.line(marginX, cursorY, pageWidth - marginX, cursorY);
-  cursorY += 18;
 
   let previousDay: string | null = null;
   let previousAuthor: string | null = null;
 
-  for (const message of data.messages) {
-    const createdAt = dayjs(message.createdAt);
-    const day = createdAt.format("DD/MM/YYYY");
-    const author = toPdfSafeText(authorLabel(message, leadName)) || "Cliente";
-    const rawContent = messageContent(message);
+  for (const message of prepareMessages(data, options)) {
+    const day = message.createdAt.format("DD/MM/YYYY");
+    const author = toPdfSafeText(message.author) || "Cliente";
     // Mensagem que era só emoji fica vazia depois da limpeza.
-    const content = toPdfSafeText(rawContent) || "[emoji]";
+    const content = toPdfSafeText(message.content) || "[emoji]";
 
     setStyle(10, false, PDF_COLORS.text);
     const bodyLines = doc.splitTextToSize(content, bodyWidth) as string[];
-    const isNewDay = day !== previousDay;
+    const isNewDay = showDaySeparator && day !== previousDay;
     const isNewAuthor = isNewDay || author !== previousAuthor;
 
     if (isNewDay) {
@@ -245,7 +323,7 @@ export function buildConversationPdf(data: ConversationExport): jsPDF {
 
     if (isNewAuthor) {
       ensureSpace(16 + bodyLineHeight);
-      if (!isNewDay) cursorY += 6;
+      if (!isNewDay && previousAuthor !== null) cursorY += 6;
       setStyle(
         9.5,
         true,
@@ -259,9 +337,9 @@ export function buildConversationPdf(data: ConversationExport): jsPDF {
       ensureSpace(bodyLineHeight);
       setStyle(10, false, PDF_COLORS.text);
       doc.text(line, marginX + bodyIndent, cursorY);
-      if (lineIndex === 0) {
+      if (lineIndex === 0 && showTime) {
         setStyle(8.5, false, PDF_COLORS.muted);
-        doc.text(createdAt.format("HH:mm"), pageWidth - marginX, cursorY, {
+        doc.text(message.createdAt.format("HH:mm"), pageWidth - marginX, cursorY, {
           align: "right",
         });
       }
@@ -288,15 +366,16 @@ export function buildConversationPdf(data: ConversationExport): jsPDF {
   return doc;
 }
 
-function exportPdf(data: ConversationExport): void {
-  buildConversationPdf(data).save(`${fileBaseName(data)}.pdf`);
+function exportPdf(data: ConversationExport, options: ExportOptions): void {
+  buildConversationPdf(data, options).save(`${fileBaseName(data)}.pdf`);
 }
 
-/** Dispara o download da conversa no formato escolhido. */
+/** Dispara o download da conversa no formato e com as opções escolhidas. */
 export function downloadConversation(
   data: ConversationExport,
   format: ExportFormat,
+  options: ExportOptions = DEFAULT_EXPORT_OPTIONS,
 ): void {
-  if (format === "txt") return exportTxt(data);
-  return exportPdf(data);
+  if (format === "txt") return exportTxt(data, options);
+  return exportPdf(data, options);
 }
