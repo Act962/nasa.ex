@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
@@ -6,6 +7,7 @@ import z from "zod";
 
 export const syncFromUazapi = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     path: "/message/sync-from-uazapi",
@@ -18,7 +20,12 @@ export const syncFromUazapi = base
   )
   .handler(async ({ input, context }) => {
     const convs = await prisma.conversation.findMany({
-      where: { id: { in: input.conversationIds } },
+      // Escopo de org no WHERE: ids de conversas de outra empresa são
+      // simplesmente ignorados, em vez de disparar o sync delas (IDOR).
+      where: {
+        id: { in: input.conversationIds },
+        tracking: { is: { organizationId: context.org.id } },
+      },
       select: {
         id: true,
         trackingId: true,

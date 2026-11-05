@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import z from "zod";
 import { editMessage } from "@/http/uazapi/edit-message";
@@ -12,6 +13,7 @@ import {
 
 export const editMessageHandler = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     path: "/message/edit",
@@ -53,6 +55,12 @@ export const editMessageHandler = base
         throw errors.BAD_REQUEST({
           message: "Mensagem sem trackingId — não é possível editar.",
         });
+      }
+
+      // Escopo de org: sem isso qualquer usuário autenticado editava uma
+      // mensagem de outra empresa (e usava as credenciais dela) passando o id.
+      if (messageBefore?.conversation?.tracking?.organizationId !== context.org.id) {
+        throw errors.FORBIDDEN({ message: "Sem permissão" });
       }
 
       // Resolve credenciais server-side — o client não trafega mais o token

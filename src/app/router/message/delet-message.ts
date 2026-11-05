@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import z from "zod";
 import { deleteMessage } from "@/http/uazapi/delete-message";
@@ -13,6 +14,7 @@ import {
 
 export const deleteMessageHandler = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     path: "/message/delete",
@@ -55,6 +57,12 @@ export const deleteMessageHandler = base
         throw errors.BAD_REQUEST({
           message: "Mensagem sem trackingId — não é possível apagar.",
         });
+      }
+
+      // Escopo de org: sem isso qualquer usuário autenticado apagava uma
+      // mensagem de outra empresa (e usava as credenciais dela) passando o id.
+      if (messageBefore?.conversation?.tracking?.organizationId !== context.org.id) {
+        throw errors.FORBIDDEN({ message: "Sem permissão" });
       }
 
       // Resolve credenciais server-side (source of truth é o banco) — o

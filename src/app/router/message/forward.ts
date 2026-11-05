@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import {
   dispatchForward,
@@ -56,6 +57,7 @@ function payloadKindToMediaType(
 
 export const forwardMessageHandler = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "POST",
     path: "/message/forward",
@@ -87,6 +89,13 @@ export const forwardMessageHandler = base
         });
 
         if (!conversation) {
+          throw new Error(`Conversation ${conversationId} not found`);
+        }
+
+        // Escopo de org por destino: sem isso o encaminhamento disparava
+        // mensagens (e cobrava ★) em conversas de outra empresa. A falha fica
+        // isolada neste item do lote, sem derrubar os destinos legítimos.
+        if (conversation.tracking.organizationId !== context.org.id) {
           throw new Error(`Conversation ${conversationId} not found`);
         }
 
