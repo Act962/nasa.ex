@@ -130,41 +130,166 @@ function exportTxt(data: ConversationExport): void {
   triggerDownload(blob, `${fileBaseName(data)}.txt`);
 }
 
-function exportPdf(data: ConversationExport): void {
+// Caracteres do Windows-1252 fora do Latin-1 que a Helvetica padrão desenha
+// (aspas curvas, travessões, reticências, marcador, euro...).
+const CP1252_EXTRA_CHARS = new Set(
+  "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ".split(""),
+);
+
+function isDrawableByStandardFont(char: string): boolean {
+  const codePoint = char.codePointAt(0) ?? 0;
+  if (codePoint === 0x0a) return true;
+  if (codePoint >= 0x20 && codePoint <= 0x7e) return true;
+  if (codePoint >= 0xa0 && codePoint <= 0xff) return true;
+  return CP1252_EXTRA_CHARS.has(char);
+}
+
+/**
+ * A fonte padrão do jsPDF só codifica Windows-1252. Um único caractere fora
+ * dela (emoji, por exemplo) faz o jsPDF gravar a linha inteira em 2 bytes:
+ * as letras saem espaçadas e o emoji vira lixo. Por isso o PDF recebe só o
+ * que a fonte desenha; acentos do português ficam, emojis saem.
+ */
+export function toPdfSafeText(text: string): string {
+  return Array.from(text.normalize("NFC"))
+    .filter(isDrawableByStandardFont)
+    .join("")
+    .replace(/[  ]{2,}/g, " ")
+    .replace(/ *\n */g, "\n")
+    .trim();
+}
+
+const PDF_COLORS = {
+  text: [33, 33, 33],
+  muted: [125, 125, 125],
+  rule: [220, 220, 220],
+  agent: [0, 105, 92],
+  customer: [37, 70, 160],
+} as const satisfies Record<string, readonly [number, number, number]>;
+
+type PdfColor = (typeof PDF_COLORS)[keyof typeof PDF_COLORS];
+
+/** Monta o PDF da conversa: dia como separador, autor em destaque, hora à direita. */
+export function buildConversationPdf(data: ConversationExport): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const marginX = 48;
   const marginTop = 56;
-  const marginBottom = 48;
+  const marginBottom = 56;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const contentWidth = pageWidth - marginX * 2;
-  const lineHeight = 15;
+  const bodyIndent = 10;
+  const timeColumnWidth = 44;
+  const bodyWidth = contentWidth - bodyIndent - timeColumnWidth;
+  const bodyLineHeight = 14;
   let cursorY = marginTop;
 
-  const addWrapped = (text: string, fontSize: number, bold: boolean) => {
+  const setStyle = (fontSize: number, bold: boolean, color: PdfColor) => {
     doc.setFont("helvetica", bold ? "bold" : "normal");
     doc.setFontSize(fontSize);
-    const wrapped = doc.splitTextToSize(text, contentWidth) as string[];
-    for (const line of wrapped) {
-      if (cursorY > pageHeight - marginBottom) {
-        doc.addPage();
-        cursorY = marginTop;
-      }
-      doc.text(line, marginX, cursorY);
-      cursorY += lineHeight;
-    }
+    doc.setTextColor(color[0], color[1], color[2]);
   };
 
-  const [title, ...subtitles] = buildHeader(data);
-  addWrapped(title, 14, true);
-  for (const subtitle of subtitles) addWrapped(subtitle, 9, false);
-  cursorY += lineHeight / 2;
+  const ensureSpace = (height: number) => {
+    if (cursorY + height <= pageHeight - marginBottom) return;
+    doc.addPage();
+    cursorY = marginTop;
+  };
 
-  for (const line of transcriptLines(data)) {
-    addWrapped(line, 10, false);
+  const leadName = toPdfSafeText(data.leadName) || "Cliente";
+  const [, ...subtitles] = buildHeader(data);
+
+  setStyle(16, true, PDF_COLORS.text);
+  const titleLines = doc.splitTextToSize(
+    `Conversa com ${leadName}`,
+    contentWidth,
+  ) as string[];
+  for (const line of titleLines) {
+    doc.text(line, marginX, cursorY);
+    cursorY += 20;
+  }
+  setStyle(9, false, PDF_COLORS.muted);
+  for (const subtitle of subtitles) {
+    doc.text(toPdfSafeText(subtitle), marginX, cursorY);
+    cursorY += 13;
+  }
+  cursorY += 4;
+  const [ruleRed, ruleGreen, ruleBlue] = PDF_COLORS.rule;
+  doc.setDrawColor(ruleRed, ruleGreen, ruleBlue);
+  doc.line(marginX, cursorY, pageWidth - marginX, cursorY);
+  cursorY += 18;
+
+  let previousDay: string | null = null;
+  let previousAuthor: string | null = null;
+
+  for (const message of data.messages) {
+    const createdAt = dayjs(message.createdAt);
+    const day = createdAt.format("DD/MM/YYYY");
+    const author = toPdfSafeText(authorLabel(message, leadName)) || "Cliente";
+    const rawContent = messageContent(message);
+    // Mensagem que era só emoji fica vazia depois da limpeza.
+    const content = toPdfSafeText(rawContent) || "[emoji]";
+
+    setStyle(10, false, PDF_COLORS.text);
+    const bodyLines = doc.splitTextToSize(content, bodyWidth) as string[];
+    const isNewDay = day !== previousDay;
+    const isNewAuthor = isNewDay || author !== previousAuthor;
+
+    if (isNewDay) {
+      ensureSpace(28 + 16 + bodyLineHeight);
+      if (previousDay !== null) cursorY += 6;
+      setStyle(8.5, true, PDF_COLORS.muted);
+      doc.text(day, pageWidth / 2, cursorY, { align: "center" });
+      cursorY += 20;
+    }
+
+    if (isNewAuthor) {
+      ensureSpace(16 + bodyLineHeight);
+      if (!isNewDay) cursorY += 6;
+      setStyle(
+        9.5,
+        true,
+        message.fromMe ? PDF_COLORS.agent : PDF_COLORS.customer,
+      );
+      doc.text(author, marginX, cursorY);
+      cursorY += 14;
+    }
+
+    bodyLines.forEach((line, lineIndex) => {
+      ensureSpace(bodyLineHeight);
+      setStyle(10, false, PDF_COLORS.text);
+      doc.text(line, marginX + bodyIndent, cursorY);
+      if (lineIndex === 0) {
+        setStyle(8.5, false, PDF_COLORS.muted);
+        doc.text(createdAt.format("HH:mm"), pageWidth - marginX, cursorY, {
+          align: "right",
+        });
+      }
+      cursorY += bodyLineHeight;
+    });
+    cursorY += 3;
+
+    previousDay = day;
+    previousAuthor = author;
   }
 
-  doc.save(`${fileBaseName(data)}.pdf`);
+  const pageCount = doc.getNumberOfPages();
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber++) {
+    doc.setPage(pageNumber);
+    setStyle(8, false, PDF_COLORS.muted);
+    doc.text(
+      `${leadName}  ·  Página ${pageNumber} de ${pageCount}`,
+      pageWidth / 2,
+      pageHeight - 28,
+      { align: "center" },
+    );
+  }
+
+  return doc;
+}
+
+function exportPdf(data: ConversationExport): void {
+  buildConversationPdf(data).save(`${fileBaseName(data)}.pdf`);
 }
 
 /** Dispara o download da conversa no formato escolhido. */
