@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { formatCents } from "../utils/campaign";
 import { useStarFriendsCampaignReceipts, type CampaignReceiptFilter } from "../hooks/use-star-friends-campaign";
 import { CampaignReceiptReview } from "./campaign-receipt-review";
+import { CampaignVoidReceiptButton } from "./campaign-void-receipt-button";
 
 const FILTERS: { value: CampaignReceiptFilter; label: string }[] = [
   { value: "ALL", label: "Todos" },
@@ -29,7 +30,9 @@ const STATUS_STYLES = {
   PENDING_REVIEW: "bg-warning/15 text-warning",
 } as const;
 
-export function CampaignReceipts({ campaignId, canReview, pendingReceipts }: { campaignId: string; canReview: boolean; pendingReceipts: number }) {
+type CampaignReceiptsProps = { campaignId: string; canReview: boolean; canVoid: boolean; pendingReceipts: number };
+
+export function CampaignReceipts({ campaignId, canReview, canVoid, pendingReceipts }: CampaignReceiptsProps) {
   // Com cupom esperando conferência, a lista já abre neles: é o que pede ação.
   const [filter, setFilter] = useState<CampaignReceiptFilter>(pendingReceipts > 0 ? "PENDING_REVIEW" : "ALL");
   const receiptsQuery = useStarFriendsCampaignReceipts(campaignId, filter);
@@ -56,7 +59,7 @@ export function CampaignReceipts({ campaignId, canReview, pendingReceipts }: { c
         <p className="rounded-[18px] border border-dashed border-line p-6 text-center text-sm text-muted-foreground">Nenhum cupom por aqui ainda.</p>
       )}
       <ul className="grid gap-3 md:grid-cols-2">
-        {receipts.map((receipt) => (
+        {receipts.map((receipt, receiptIndex) => (
           <li key={receipt.id} className="flex gap-3 rounded-[18px] border border-line bg-card p-3">
             {receipt.photoUrl && receipt.mimetype?.startsWith("image/") ? (
               <a href={receipt.photoUrl} target="_blank" rel="noreferrer" className="shrink-0">
@@ -103,6 +106,7 @@ export function CampaignReceipts({ campaignId, canReview, pendingReceipts }: { c
                   <AlertTriangle className="mt-0.5 size-3 shrink-0" /> {receipt.flagReasons.join(" · ")}
                 </span>
               )}
+              {receipt.status === "ACCEPTED" && canVoid && <CampaignVoidReceiptButton receipt={receipt} isFirstInList={receiptIndex === 0} />}
               {receipt.status === "PENDING_REVIEW" &&
                 (canReview ? (
                   <CampaignReceiptReview receipt={receipt} />

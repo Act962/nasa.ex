@@ -2,7 +2,7 @@ import { getStarFriendsOverview } from "./overview";
 import { installStarFriends } from "./install";
 import { upsertStarFriendsProgram, upsertStarFriendsTiers } from "./program";
 import { deleteStarFriendsReward, listStarFriendsRewards, upsertStarFriendsReward } from "./rewards";
-import { listStarFriendsMembers } from "./members";
+import { deleteStarFriendsMember, listStarFriendsMembers } from "./members";
 import { listStarFriendsHistory } from "./history";
 import {
   decideStarFriendsRedemption,
@@ -11,8 +11,14 @@ import {
 } from "./redemptions";
 import { adjustStarFriendsStars, getStarFriendsByLead } from "./by-lead";
 import {
-  drawStarFriendsCampaign,
+  addStarFriendsCampaignManualReceipt,
+  drawNextStarFriendsCampaignWinner,
+  listStarFriendsCampaignParticipants,
+  voidStarFriendsCampaignReceipt,
   exportStarFriendsCampaignNumbers,
+  getStarFriendsCampaignDrawPool,
+  revokeStarFriendsCampaignDraw,
+  setStarFriendsCampaignPrizeCount,
   getStarFriendsCampaign,
   listStarFriendsCampaignReceipts,
   reviewStarFriendsCampaignReceipt,
@@ -26,7 +32,7 @@ export const starFriendsRouter = {
   upsertProgram: upsertStarFriendsProgram,
   upsertTiers: upsertStarFriendsTiers,
   rewards: { list: listStarFriendsRewards, upsert: upsertStarFriendsReward, delete: deleteStarFriendsReward },
-  members: { list: listStarFriendsMembers },
+  members: { list: listStarFriendsMembers, delete: deleteStarFriendsMember },
   history: { list: listStarFriendsHistory },
   redemptions: {
     list: listStarFriendsRedemptions,
@@ -42,6 +48,12 @@ export const starFriendsRouter = {
     reviewReceipt: reviewStarFriendsCampaignReceipt,
     exportNumbers: exportStarFriendsCampaignNumbers,
     sweep: sweepStarFriendsCampaign,
-    draw: drawStarFriendsCampaign,
+    drawNext: drawNextStarFriendsCampaignWinner,
+    revokeDraw: revokeStarFriendsCampaignDraw,
+    setPrizeCount: setStarFriendsCampaignPrizeCount,
+    drawPool: getStarFriendsCampaignDrawPool,
+    participants: listStarFriendsCampaignParticipants,
+    addManualReceipt: addStarFriendsCampaignManualReceipt,
+    voidReceipt: voidStarFriendsCampaignReceipt,
   },
 };

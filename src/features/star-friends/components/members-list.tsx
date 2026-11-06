@@ -6,12 +6,25 @@ import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { TIER_LABELS, type LoyaltyTierId } from "../utils/tiers";
-import { ChevronRight, Search, Star } from "lucide-react";
+import { ChevronRight, Search, Star, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
-import { useStarFriendsMembers } from "../hooks/use-star-friends";
+import { useDeleteStarFriendsMember, useStarFriendsMembers } from "../hooks/use-star-friends";
 
 const EMPTY_MEMBERS_MESSAGE = "Nenhum participante ainda — eles entram na primeira compra paga.";
 
@@ -41,7 +54,53 @@ function toInitials(name: string): string {
   return initials.toUpperCase();
 }
 
-export function MembersList({ onOpenHistory }: { onOpenHistory: (memberId: string) => void }) {
+function DeleteMemberButton({ member, isFirstRow }: { member: { id: string; name: string; phone: string }; isFirstRow: boolean }) {
+  const deleteMember = useDeleteStarFriendsMember();
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-9 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          aria-label={`Excluir ${member.name}`}
+          disabled={deleteMember.isPending}
+          data-guide={isFirstRow ? GUIDE_ANCHORS.starFriendsMemberDelete.id : undefined}
+        >
+          {deleteMember.isPending ? <OrbitaSpinner className="size-4" /> : <Trash2 className="size-4" />}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir {member.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Some o saldo de stars, o extrato, os resgates, os cupons e os números da sorte de {member.phone}. Não dá para desfazer. Se a pessoa
+            voltar a falar no WhatsApp, começa do zero.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-white hover:bg-destructive/90"
+            onClick={() =>
+              deleteMember.mutate(
+                { memberId: member.id },
+                {
+                  onSuccess: () => toast.success(`${member.name} foi excluído(a)`),
+                  onError: (error) => toast.error(error.message),
+                },
+              )
+            }
+          >
+            Excluir participante
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+export function MembersList({ onOpenHistory, canDelete }: { onOpenHistory: (memberId: string) => void; canDelete: boolean }) {
   const [search, setSearch] = useState("");
   const members = useStarFriendsMembers(search);
   const rows = members.data?.pages.flatMap((page) => page.members) ?? [];
@@ -59,7 +118,7 @@ export function MembersList({ onOpenHistory }: { onOpenHistory: (memberId: strin
       </div>
 
       <div className="flex flex-col gap-2 md:hidden">
-        {rows.map((member) => (
+        {rows.map((member, rowIndex) => (
           <div key={member.id} className="flex items-center gap-3 rounded-[20px] border border-line bg-card p-3">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold">
               {toInitials(member.name)}
@@ -83,13 +142,12 @@ export function MembersList({ onOpenHistory }: { onOpenHistory: (memberId: strin
                 <Star className="size-4 fill-current" />
                 {member.balance}
               </span>
-              <Button
-                variant="ghost"
-                className="h-9 rounded-full px-3 text-xs"
-                onClick={() => onOpenHistory(member.id)}
-              >
-                Extrato <ChevronRight className="size-3.5" />
-              </Button>
+              <div className="flex items-center">
+                <Button variant="ghost" className="h-9 rounded-full px-3 text-xs" onClick={() => onOpenHistory(member.id)}>
+                  Extrato <ChevronRight className="size-3.5" />
+                </Button>
+                {canDelete && <DeleteMemberButton member={member} isFirstRow={rowIndex === 0} />}
+              </div>
             </div>
           </div>
         ))}
@@ -120,7 +178,7 @@ export function MembersList({ onOpenHistory }: { onOpenHistory: (memberId: strin
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((member) => (
+            {rows.map((member, rowIndex) => (
               <TableRow key={member.id}>
                 <TableCell className="font-medium">
                   {member.lastLeadId ? <Link href={`/contatos/${member.lastLeadId}?tab=products`}>{member.name}</Link> : member.name}
@@ -133,9 +191,12 @@ export function MembersList({ onOpenHistory }: { onOpenHistory: (memberId: strin
                 <TableCell className="text-muted-foreground">{formatLastActivity(member.lastActivityAt)}</TableCell>
                 <TableCell>{format(new Date(member.joinedAt), "dd/MM/yyyy")}</TableCell>
                 <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" onClick={() => onOpenHistory(member.id)}>
-                    Extrato
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button size="sm" variant="ghost" className="rounded-full" onClick={() => onOpenHistory(member.id)}>
+                      Extrato
+                    </Button>
+                    {canDelete && <DeleteMemberButton member={member} isFirstRow={rowIndex === 0} />}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
