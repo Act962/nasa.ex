@@ -49,6 +49,11 @@ export function useStarFriendsMembers(search: string) {
   );
 }
 
+export function useDeleteStarFriendsMember() {
+  const invalidate = useInvalidateStarFriends();
+  return useMutation(orpc.starFriends.members.delete.mutationOptions({ onSuccess: invalidate }));
+}
+
 export type StarFriendsHistoryFilters = {
   memberId?: string;
   actorUserId?: string;

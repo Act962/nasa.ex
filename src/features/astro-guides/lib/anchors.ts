@@ -831,6 +831,26 @@ export const GUIDE_ANCHORS = {
     id: "star-friends.campaign-review-approve",
     description: "Botão \"Aprovar\" do cupom em conferência",
   },
+  starFriendsLiveDraw: {
+    id: "star-friends.live-draw",
+    description: "Botão \"Abrir sorteio ao vivo\" da aba Campanha",
+  },
+  starFriendsDrawSimulator: {
+    id: "star-friends.draw-simulator",
+    description: "Botão \"Simular sorteio\" da aba Campanha",
+  },
+  starFriendsDrawNext: {
+    id: "star-friends.draw-next",
+    description: "Botão \"Sortear\" da tela do sorteio ao vivo",
+  },
+  starFriendsPrizeCount: {
+    id: "star-friends.prize-count",
+    description: "Campo \"Quantidade de ganhadores\" do sorteio",
+  },
+  starFriendsMemberDelete: {
+    id: "star-friends.member-delete",
+    description: "Botão de excluir participante (lixeira) na aba Participantes",
+  },
   starFriendsNewReward: {
     id: "star-friends.new-reward",
     description: "Botão \"Novo prêmio\"",

@@ -62,7 +62,7 @@ O app aparece na matriz como **🌟 STAR FRIENDS**. A regra vale no servidor (`r
 | Ver | Página, saldos, participantes, histórico e o card no lead |
 | Criar | Resgatar pelo consultor ou pelo chat e lançar stars |
 | Editar | Instalar, configurar regras e editar a lista de troca |
-| Excluir | Retirar stars e cancelar resgates aprovados (estorno) |
+| Excluir | Retirar stars, cancelar resgates aprovados (estorno) e excluir participantes |
 | Aprovar (ação especial) | Aprovar, recusar e marcar como entregues os resgates pendentes |
 
 O Master sempre tem tudo. Os padrões dos outros papéis estão em `DEFAULT_PERMISSIONS`, no arquivo `features/permissions/lib/app-permission-catalog.ts`.
@@ -82,11 +82,19 @@ Aba **Campanha** do app. O cliente manda a foto do cupom pelo WhatsApp e ganha n
 
 "Meus pontos" e "meus códigos" pedem o número cadastrado. Ele só é comparado com o número de quem escreve; diferente, a resposta é "Você não está acessando pelo dispositivo que se cadastrou na promoção." Nenhuma consulta usa o número digitado.
 
-**Cupom repetido**: recusado na hora por mesmo arquivo (`sha256`), mesma chave de acesso (44 dígitos) ou mesma impressão digital (CNPJ + número + dia + total), entre quaisquer clientes. Leitura incompleta é aceita com alerta. A **varredura** trata como a mesma compra o mesmo número de cupom, ou o mesmo CNPJ + dia + total (a hora só separa quando foi lida nos dois e difere em mais de 2 minutos), mantém o mais antigo e anula os números dos demais; depois confere se o cliente não ficou com mais números do que as compras válidas dão. O **sorteio** só roda com varredura feita depois do último cupom e grava a semente. A campanha tem uma quantidade de prêmios: sai um número para cada prêmio, no máximo um por cliente, com a ordem gravada em `LoyaltyLuckyNumber.drawPosition`.
+**Cupom repetido**: recusado na hora por mesmo arquivo (`sha256`), mesma chave de acesso (44 dígitos) ou mesma impressão digital (CNPJ + número + dia + total), entre quaisquer clientes. Leitura incompleta é aceita com alerta. A **varredura** trata como a mesma compra o mesmo número de cupom, ou o mesmo CNPJ + dia + total (a hora só separa quando foi lida nos dois e difere em mais de 2 minutos), mantém o mais antigo e anula os números dos demais; depois confere se o cliente não ficou com mais números do que as compras válidas dão. O **sorteio** só roda com varredura feita depois do último cupom e sem cupom em conferência. A campanha tem uma quantidade de ganhadores, e cada cliente ganha no máximo um prêmio.
 
 A varredura anula números, mas não estorna as stars já creditadas por eles.
 
 **Leitura do cupom**: `gpt-4o` na OpenAI (os modelos menores trocavam dígitos do CNPJ na mesma foto). CNPJ e chave de acesso só valem com o dígito verificador certo; senão contam como não lidos. Ano da compra lido errado é corrigido para o ano da campanha, com alerta, quando o dia e o mês caem no período.
+
+**Sorteio ao vivo** (spec 0134): tela `/star-friends/sorteio`, feita para o telão, com tela cheia (botão ou tecla F), nomes passando e confete. Sai **um número por vez** (Espaço ou Enter), na menor posição de prêmio livre; cada um grava semente, tamanho da lista e quem sorteou em `LoyaltyCampaignDraw`, e o ganhador atual fica em `LoyaltyLuckyNumber.drawPosition`. O primeiro sorteado fecha a campanha para cupons e congela a lista (sem varredura, sem editar regras; só a quantidade de ganhadores muda). A campanha fica concluída (`drawnAt`) quando saem todos os prêmios. Um sorteio pode ser **revogado em até 30 minutos**: o número volta a concorrer e o próximo sorteio repõe o prêmio. O telão mostra nome e sobrenome e telefone mascarado.
+
+**Simulador**: `/star-friends/sorteio?modo=simulacao`, a mesma tela com os nomes da campanha (ou fictícios), sorteio no navegador e nada gravado.
+
+**Quantidade de ganhadores**: no quadro "Sorteio" da aba Campanha e no cartão da aba Configurações (`starFriends.campaign.setPrizeCount`). Não fica abaixo de uma posição já sorteada.
+
+**Excluir participante**: lixeira na aba Participantes (permissão "Excluir", `starFriends.members.delete`). Apaga o participante com extrato, resgates, cupons e números. Ganhador com sorteio ativo não sai: revoga-se antes.
 
 **Conferência manual** (RF-15): o cupom que a leitura não resolveu (valor total não lido, ou IA indisponível) fica com status `PENDING_REVIEW` em vez de ser recusado, e o cliente é avisado de que foi recebido. Na aba Campanha, filtro **Em conferência**: quem tem a permissão de "Aprovar" informa o valor total (data e número opcionais) e aprova, ou recusa com motivo. A aprovação confere período e repetição, gera os números e zera a varredura (o sorteio passa a exigir outra). O sorteio não roda com cupom em conferência. O cliente é avisado do resultado na conversa só com a janela de 24 h aberta. Código em `lib/campaign/review-receipt.ts`; o cálculo de números e stars é compartilhado em `lib/campaign/grant-lucky-numbers.ts`.
 
@@ -99,16 +107,18 @@ O limite diário conta cupons aceitos e em conferência; recusados e repetidos n
 | `features/star-friends/utils/campaign.ts` | Regras puras: cálculo, impressão digital, varredura, comparação de telefone |
 | `features/star-friends/lib/campaign/extract-receipt.ts` | Leitura do cupom por IA (só transcreve) |
 | `features/star-friends/lib/campaign/register-receipt.ts` | Valida, barra repetido e grava cupom, números e stars |
-| `features/star-friends/lib/campaign/sweep-duplicates.ts`, `draw.ts` | Varredura e sorteio |
+| `features/star-friends/lib/campaign/sweep-duplicates.ts`, `draw.ts` | Varredura, sorteio um a um, revogação e quantidade de ganhadores |
+| `features/star-friends/components/campaign-live-draw.tsx` | Tela do sorteio ao vivo e simulador |
 | `features/tracking-chat-ai/lib/campaign-handler.ts` | Conversa da campanha |
 | `features/tracking-chat-ai/lib/store-info-handler.ts` | Ofertas, Instagram e endereço |
-| `app/router/star-friends/campaign.ts` | `starFriends.campaign.{get,upsert,receipts,exportNumbers,sweep,draw}` |
+| `app/router/star-friends/campaign.ts` | `starFriends.campaign.{get,upsert,receipts,reviewReceipt,exportNumbers,sweep,drawNext,revokeDraw,setPrizeCount,drawPool}` |
 | `features/pages/lib/templates/campanha-sorteio.ts` | Modelo de página do regulamento |
 
-Permissões: ver cupons e números = "Ver"; configurar = "Editar"; varredura e sorteio = "Aprovar". Conferência das regras: `pnpm tsx scripts/star-friends-campaign-check.ts`.
+Permissões: ver cupons e números = "Ver"; configurar = "Editar"; varredura, sorteio e revogação = "Aprovar"; quantidade de ganhadores = "Editar". Conferência das regras: `pnpm tsx scripts/star-friends-campaign-check.ts`; do sorteio ao vivo, no banco local: `pnpm tsx --conditions=react-server scripts/star-friends-live-draw-check.ts`.
 
 ## Changelog
 
+- **2026-11-06** — Sorteio ao vivo um a um com tela cheia e confete, simulador, revogação em 30 minutos, quantidade de ganhadores em Configurações e exclusão de participante (spec 0134).
 - **2026-10-13** — Campanha com vários prêmios, um por pessoa; corrigida a data de fim que andava um dia a cada salvamento.
 - **2026-10-13** — Campanha de sorteio por cupom pelo WhatsApp: cadastro com aceite, leitura do cupom, bloqueio de repetido, varredura e sorteio (spec 0102).
 - **2026-09-29** — Níveis Terra/Lua/Galaxy, nível mínimo por prêmio, aba Níveis e regras e área do cliente no portal (spec 0041).

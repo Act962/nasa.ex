@@ -15,15 +15,18 @@ import { useStarFriendsPermissions } from "../hooks/use-star-friends-permissions
 import { ProgramSettingsForm } from "./program-settings-form";
 import { RewardsManager } from "./rewards-manager";
 import { CampaignManager } from "./campaign-manager";
+import { CampaignPrizeCountCard } from "./campaign-prize-count";
 import { MembersList } from "./members-list";
 import { RedemptionsQueue } from "./redemptions-queue";
 import { HistoryAudit } from "./history-audit";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { AppReportButton } from "@/features/insights/components/app-report-button";
 
-export function StarFriendsPage() {
+const TAB_IDS = ["overview", "redemptions", "rewards", "campaign", "members", "history", "tiers", "settings"];
+
+export function StarFriendsPage({ initialTab }: { initialTab?: string }) {
   const overview = useStarFriendsOverview();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(initialTab && TAB_IDS.includes(initialTab) ? initialTab : "overview");
   const [historyFilters, setHistoryFilters] = useState<StarFriendsHistoryFilters>({});
   const permissions = useStarFriendsPermissions();
   const pendingRedemptionsCount = overview.data?.stats?.pendingRedemptions ?? 0;
@@ -146,6 +149,7 @@ export function StarFriendsPage() {
         </TabsContent>
         <TabsContent value="members" className="pt-4">
           <MembersList
+            canDelete={permissions.canDebitAndCancel}
             onOpenHistory={(memberId) => {
               setHistoryFilters({ memberId });
               setActiveTab("history");
@@ -155,7 +159,8 @@ export function StarFriendsPage() {
         <TabsContent value="history" className="pt-4">
           <HistoryAudit filters={historyFilters} onFiltersChange={setHistoryFilters} />
         </TabsContent>
-        <TabsContent value="settings" className="pt-4">
+        <TabsContent value="settings" className="flex flex-col gap-4 pt-4">
+          <CampaignPrizeCountCard />
           <ProgramSettingsForm program={program} />
         </TabsContent>
       </Tabs>
