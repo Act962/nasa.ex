@@ -3,10 +3,12 @@ import prisma from "@/lib/prisma";
 import { getPresignedReadUrl } from "@/lib/r2-url";
 import { userActor } from "@/features/star-friends/lib/actor";
 import { auditLoyaltyAction } from "@/features/star-friends/lib/audit";
-import { drawCampaignWinner } from "@/features/star-friends/lib/campaign/draw";
+import { drawNextWinner, getCampaignDrawPool, revokeCampaignDraw, setCampaignPrizeCount } from "@/features/star-friends/lib/campaign/draw";
 import { approveReceipt, rejectReceipt } from "@/features/star-friends/lib/campaign/review-receipt";
+import { registerManualReceipt, voidAcceptedReceipt } from "@/features/star-friends/lib/campaign/manual-receipt";
 import { sweepCampaignDuplicates } from "@/features/star-friends/lib/campaign/sweep-duplicates";
 import { onlyDigits, rulesVersionOf } from "@/features/star-friends/utils/campaign";
+import { firstAndLastName, maskPhone } from "@/features/star-friends/utils/live-draw";
 import { starFriendsWith } from "./_base";
 
 // Campanha de sorteio por cupom (spec 0102). Fotos de cupom e dados de participante só saem
@@ -25,7 +27,21 @@ const CAMPAIGN_ERRORS: Record<string, string> = {
   not_pending: "Este cupom já foi conferido.",
   out_of_period: "A data informada está fora do período da campanha.",
   duplicate: "Já existe um cupom com o mesmo número, data e valor nesta campanha.",
+  already_revoked: "Este sorteio já foi revogado.",
+  revoke_expired: "Passou o prazo de 30 minutos para revogar este sorteio.",
+  prize_below_winners: "Já há ganhadores em posições acima dessa quantidade. Revogue-os antes de diminuir.",
+  draw_in_progress: "O sorteio já começou: a campanha não pode mais ser alterada, só a quantidade de ganhadores.",
+  not_participant: "Esta pessoa não está cadastrada na campanha.",
+  not_accepted: "Só cupom aceito pode ser anulado.",
+  receipt_has_winner: "Um número deste cupom foi sorteado. Revogue o sorteio antes de anular.",
 };
+
+const PARTICIPANTS_PAGE_SIZE = 20;
+
+async function hasActiveDraws(campaignId: string): Promise<boolean> {
+  const activeDraw = await prisma.loyaltyCampaignDraw.findFirst({ where: { campaignId, revokedAt: null }, select: { id: true } });
+  return Boolean(activeDraw);
+}
 
 export const getStarFriendsCampaign = starFriendsWith("canView")
   .input(z.object({}))
@@ -39,9 +55,9 @@ export const getStarFriendsCampaign = starFriendsWith("canView")
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     });
-    if (!campaign) return { campaign: null, stats: null, winners: [], trackings };
+    if (!campaign) return { campaign: null, stats: null, winners: [], draws: [], trackings };
 
-    const [participants, receiptsByStatus, flaggedReceipts, validNumbers, voidedNumbers, receiptsAfterSweep, winners] = await Promise.all([
+    const [participants, receiptsByStatus, flaggedReceipts, validNumbers, voidedNumbers, receiptsAfterSweep, winners, draws] = await Promise.all([
       prisma.loyaltyCampaignEntry.count({ where: { campaignId: campaign.id } }),
       prisma.loyaltyReceipt.groupBy({ by: ["status"], where: { campaignId: campaign.id }, _count: { _all: true }, _sum: { totalCents: true } }),
       prisma.loyaltyReceipt.count({ where: { campaignId: campaign.id, status: "ACCEPTED", isFlagged: true } }),
@@ -54,6 +70,11 @@ export const getStarFriendsCampaign = starFriendsWith("canView")
         where: { campaignId: campaign.id, drawPosition: { not: null } },
         orderBy: { drawPosition: "asc" },
         select: { code: true, drawPosition: true, member: { select: { name: true, phone: true } } },
+      }),
+      prisma.loyaltyCampaignDraw.findMany({
+        where: { campaignId: campaign.id },
+        orderBy: { drawnAt: "asc" },
+        select: { id: true, position: true, code: true, memberName: true, memberPhone: true, actorName: true, drawnAt: true, revokedAt: true, revokedByName: true, revokeReason: true },
       }),
     ]);
     const countOf = (status: string) => receiptsByStatus.find((row) => row.status === status)?._count._all ?? 0;
@@ -74,6 +95,13 @@ export const getStarFriendsCampaign = starFriendsWith("canView")
         receiptsAfterSweep,
       },
       winners: winners.map((winner) => ({ position: winner.drawPosition ?? 0, code: winner.code, name: winner.member.name, phone: winner.member.phone })),
+      draws: draws.map(({ memberName, memberPhone, ...draw }) => ({
+        ...draw,
+        name: memberName,
+        phone: memberPhone,
+        displayName: firstAndLastName(memberName),
+        maskedPhone: maskPhone(memberPhone),
+      })),
     };
   });
 
@@ -103,6 +131,7 @@ export const upsertStarFriendsCampaign = starFriendsWith("canEdit")
       : null;
     if (input.id && !existing) throw errors.NOT_FOUND({ message: "Campanha não encontrada." });
     if (existing?.drawnAt) throw errors.BAD_REQUEST({ message: "Esta campanha já foi sorteada e não pode mais ser alterada." });
+    if (existing && (await hasActiveDraws(existing.id))) throw errors.BAD_REQUEST({ message: CAMPAIGN_ERRORS.draw_in_progress });
     if (input.trackingId) {
       const tracking = await prisma.tracking.findFirst({ where: { id: input.trackingId, organizationId }, select: { id: true } });
       if (!tracking) throw errors.BAD_REQUEST({ message: "Funil não encontrado nesta empresa." });
@@ -250,15 +279,100 @@ export const reviewStarFriendsCampaignReceipt = starFriendsWith("canApprove")
 export const sweepStarFriendsCampaign = starFriendsWith("canApprove")
   .input(z.object({ campaignId: z.string() }))
   .handler(async ({ input, context, errors }) => {
+    // Depois do primeiro sorteado a lista de números fica congelada: a varredura poderia anular um ganhador.
+    if (await hasActiveDraws(input.campaignId)) throw errors.BAD_REQUEST({ message: "O sorteio já começou: a varredura não roda mais." });
     const result = await sweepCampaignDuplicates({ organizationId: context.org.id, campaignId: input.campaignId, actor: userActor(context.user) });
     if (!result.ok) throw errors.BAD_REQUEST({ message: CAMPAIGN_ERRORS[result.reason] });
     return result;
   });
 
-export const drawStarFriendsCampaign = starFriendsWith("canApprove")
+export const drawNextStarFriendsCampaignWinner = starFriendsWith("canApprove")
   .input(z.object({ campaignId: z.string() }))
   .handler(async ({ input, context, errors }) => {
-    const result = await drawCampaignWinner({ organizationId: context.org.id, campaignId: input.campaignId, actor: userActor(context.user) });
+    const result = await drawNextWinner({ organizationId: context.org.id, campaignId: input.campaignId, actor: userActor(context.user) });
+    if (!result.ok) throw errors.BAD_REQUEST({ message: CAMPAIGN_ERRORS[result.reason] });
+    return result;
+  });
+
+export const revokeStarFriendsCampaignDraw = starFriendsWith("canApprove")
+  .input(z.object({ drawId: z.string(), reason: z.string().trim().max(200).nullable() }))
+  .handler(async ({ input, context, errors }) => {
+    const result = await revokeCampaignDraw({ organizationId: context.org.id, drawId: input.drawId, reason: input.reason, actor: userActor(context.user) });
+    if (!result.ok) throw errors.BAD_REQUEST({ message: CAMPAIGN_ERRORS[result.reason] });
+    return result;
+  });
+
+export const setStarFriendsCampaignPrizeCount = starFriendsWith("canEdit")
+  .input(z.object({ campaignId: z.string(), prizeCount: z.number().int().min(1).max(100) }))
+  .handler(async ({ input, context, errors }) => {
+    const result = await setCampaignPrizeCount({
+      organizationId: context.org.id,
+      campaignId: input.campaignId,
+      prizeCount: input.prizeCount,
+      actor: userActor(context.user),
+    });
+    if (!result.ok) throw errors.BAD_REQUEST({ message: CAMPAIGN_ERRORS[result.reason] });
+    return result;
+  });
+
+export const getStarFriendsCampaignDrawPool = starFriendsWith("canView")
+  .input(z.object({ campaignId: z.string() }))
+  .handler(async ({ input, context }) => getCampaignDrawPool({ organizationId: context.org.id, campaignId: input.campaignId }));
+
+export const listStarFriendsCampaignParticipants = starFriendsWith("canView")
+  .input(z.object({ campaignId: z.string(), search: z.string().trim().max(80).optional() }))
+  .handler(async ({ input, context }) => {
+    const search = input.search;
+    const digits = search?.replace(/\D/g, "");
+    const entries = await prisma.loyaltyCampaignEntry.findMany({
+      where: {
+        campaignId: input.campaignId,
+        campaign: { organizationId: context.org.id },
+        ...(search
+          ? { member: { OR: [{ name: { contains: search, mode: "insensitive" } }, ...(digits ? [{ phone: { contains: digits } }] : [])] } }
+          : {}),
+      },
+      orderBy: { updatedAt: "desc" },
+      take: PARTICIPANTS_PAGE_SIZE,
+      select: { memberId: true, carryOverCents: true, member: { select: { name: true, phone: true } } },
+    });
+    const numbersByMember = await prisma.loyaltyLuckyNumber.groupBy({
+      by: ["memberId"],
+      where: { campaignId: input.campaignId, status: "VALID", memberId: { in: entries.map((entry) => entry.memberId) } },
+      _count: { _all: true },
+    });
+    return {
+      participants: entries.map((entry) => ({
+        memberId: entry.memberId,
+        name: entry.member.name,
+        phone: entry.member.phone,
+        carryOverCents: entry.carryOverCents,
+        validNumbers: numbersByMember.find((row) => row.memberId === entry.memberId)?._count._all ?? 0,
+      })),
+    };
+  });
+
+export const addStarFriendsCampaignManualReceipt = starFriendsWith("canApprove")
+  .input(
+    z.object({
+      campaignId: z.string(),
+      memberId: z.string(),
+      totalCents: z.number().int().min(1).max(100_000_00),
+      issuedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+      receiptNumber: z.string().trim().max(20).nullable(),
+      reason: z.string().trim().min(3).max(200),
+    }),
+  )
+  .handler(async ({ input, context, errors }) => {
+    const result = await registerManualReceipt({ organizationId: context.org.id, ...input, actor: userActor(context.user) });
+    if (!result.ok) throw errors.BAD_REQUEST({ message: CAMPAIGN_ERRORS[result.reason] });
+    return result;
+  });
+
+export const voidStarFriendsCampaignReceipt = starFriendsWith("canApprove")
+  .input(z.object({ receiptId: z.string(), reason: z.string().trim().min(3).max(200) }))
+  .handler(async ({ input, context, errors }) => {
+    const result = await voidAcceptedReceipt({ organizationId: context.org.id, receiptId: input.receiptId, reason: input.reason, actor: userActor(context.user) });
     if (!result.ok) throw errors.BAD_REQUEST({ message: CAMPAIGN_ERRORS[result.reason] });
     return result;
   });

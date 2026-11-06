@@ -3814,6 +3814,7 @@ model LoyaltyCampaign {
   entries      LoyaltyCampaignEntry[]
   receipts     LoyaltyReceipt[]
   luckyNumbers LoyaltyLuckyNumber[]
+  draws        LoyaltyCampaignDraw[]
 
   @@index([organizationId, isActive])
   @@map("loyalty_campaigns")
@@ -3894,11 +3895,39 @@ model LoyaltyLuckyNumber {
   campaign LoyaltyCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   member   LoyaltyMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   receipt  LoyaltyReceipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  draws    LoyaltyCampaignDraw[]
 
   @@unique([campaignId, code])
   @@index([campaignId, status])
   @@index([memberId])
   @@map("loyalty_lucky_numbers")
+}
+
+// Cada número tirado no sorteio ao vivo (spec 0134), inclusive os revogados. Código, nome e
+// telefone ficam copiados: o registro continua legível mesmo se o participante for excluído.
+model LoyaltyCampaignDraw {
+  id            String    @id @default(cuid())
+  campaignId    String    @map("campaign_id")
+  luckyNumberId String?   @map("lucky_number_id")
+  memberId      String?   @map("member_id")
+  position      Int
+  code          String
+  memberName    String    @map("member_name")
+  memberPhone   String    @map("member_phone")
+  seed          String
+  poolSize      Int       @map("pool_size")
+  actorUserId   String?   @map("actor_user_id")
+  actorName     String    @map("actor_name")
+  drawnAt       DateTime  @default(now()) @map("drawn_at")
+  revokedAt     DateTime? @map("revoked_at")
+  revokedByName String?   @map("revoked_by_name")
+  revokeReason  String?   @map("revoke_reason")
+
+  campaign    LoyaltyCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  luckyNumber LoyaltyLuckyNumber? @relation(fields: [luckyNumberId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, drawnAt])
+  @@map("loyalty_campaign_draws")
 }
 
 // ─────────────────────────────────────────────

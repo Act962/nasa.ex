@@ -40,6 +40,9 @@ import {
 import { StatusFlow } from "@/generated/prisma/enums";
 import { useMutationRodizio } from "../hooks/use-rodizio";
 import { SyncMessagesButton } from "./sync-messages-button";
+import { ExportConversationMenu } from "./export-conversation-menu";
+import { ExportConversationDialog } from "./export-conversation-dialog";
+import type { ExportFormat } from "../lib/export-conversation";
 import { InChatStatusBadge } from "./in-chat-status-badge";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
@@ -250,6 +253,9 @@ export function Header({
     setArchived.mutate({ leadId, isArchived: true });
   };
 
+  // Formato escolhido no submenu "Exportar"; abre o dialog de opções.
+  const [exportFormat, setExportFormat] = useState<ExportFormat | null>(null);
+
   return (
     // Header com fundo opaco do tema (bg-background) — independente de
     // qualquer customização do chat por baixo, garante contraste correto
@@ -437,6 +443,7 @@ export function Header({
               <LandmarkIcon className="size-4" />
               Processos SEI
             </DropdownMenuItem>
+            <ExportConversationMenu onSelectFormat={setExportFormat} />
             <DropdownMenuItem
               onClick={handleArchiveLead}
               disabled={setArchived.isPending}
@@ -498,6 +505,11 @@ export function Header({
           leadId={leadId}
           open={seiOpen}
           onOpenChange={setSeiOpen}
+        />
+        <ExportConversationDialog
+          conversationId={conversationId}
+          format={exportFormat}
+          onClose={() => setExportFormat(null)}
         />
         {!isInsideTrackingNav && isLeadDetailsCollapsed && <FullscreenControls />}
       </div>

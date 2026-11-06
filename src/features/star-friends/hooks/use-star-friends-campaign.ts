@@ -44,7 +44,46 @@ export function useSweepStarFriendsCampaign() {
   return useMutation(orpc.starFriends.campaign.sweep.mutationOptions({ onSuccess: invalidate }));
 }
 
-export function useDrawStarFriendsCampaign() {
+export function useInvalidateStarFriendsCampaign() {
+  return useInvalidateStarFriends();
+}
+
+/** No telão a lista só recarrega depois da revelação (`invalidateOnSuccess: false`), senão o ganhador aparece antes da animação acabar. */
+export function useDrawNextStarFriendsWinner({ invalidateOnSuccess = true }: { invalidateOnSuccess?: boolean } = {}) {
   const invalidate = useInvalidateStarFriends();
-  return useMutation(orpc.starFriends.campaign.draw.mutationOptions({ onSuccess: invalidate }));
+  return useMutation(orpc.starFriends.campaign.drawNext.mutationOptions(invalidateOnSuccess ? { onSuccess: invalidate } : {}));
+}
+
+export function useRevokeStarFriendsDraw() {
+  const invalidate = useInvalidateStarFriends();
+  return useMutation(orpc.starFriends.campaign.revokeDraw.mutationOptions({ onSuccess: invalidate }));
+}
+
+export function useSetStarFriendsPrizeCount() {
+  const invalidate = useInvalidateStarFriends();
+  return useMutation(orpc.starFriends.campaign.setPrizeCount.mutationOptions({ onSuccess: invalidate }));
+}
+
+export function useStarFriendsCampaignParticipants(campaignId: string, search: string, enabled: boolean) {
+  return useQuery(orpc.starFriends.campaign.participants.queryOptions({ input: { campaignId, search: search || undefined }, enabled }));
+}
+
+export function useAddStarFriendsManualReceipt() {
+  const invalidate = useInvalidateStarFriends();
+  return useMutation(orpc.starFriends.campaign.addManualReceipt.mutationOptions({ onSuccess: invalidate }));
+}
+
+export function useVoidStarFriendsReceipt() {
+  const invalidate = useInvalidateStarFriends();
+  return useMutation(orpc.starFriends.campaign.voidReceipt.mutationOptions({ onSuccess: invalidate }));
+}
+
+export function useStarFriendsDrawPool(campaignId: string | undefined) {
+  return useQuery(
+    orpc.starFriends.campaign.drawPool.queryOptions({
+      input: { campaignId: campaignId ?? "" },
+      enabled: Boolean(campaignId),
+      staleTime: 60_000,
+    }),
+  );
 }
