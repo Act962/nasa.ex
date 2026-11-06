@@ -7,6 +7,7 @@
 import "dotenv/config";
 import prisma from "../src/lib/prisma";
 import { drawNextWinner, getCampaignDrawPool, revokeCampaignDraw, setCampaignPrizeCount } from "../src/features/star-friends/lib/campaign/draw";
+import { registerManualReceipt, voidAcceptedReceipt } from "../src/features/star-friends/lib/campaign/manual-receipt";
 import { isDrawRevocable, maskPhone, nextFreePosition, DRAW_REVOKE_WINDOW_MS } from "../src/features/star-friends/utils/live-draw";
 import type { LoyaltyActor } from "../src/features/star-friends/lib/actor";
 
@@ -134,11 +135,62 @@ async function checkDrawFlow(organizationId: string) {
   }
 }
 
+async function checkManualAdjustments(organizationId: string) {
+  const { campaignId, memberIds } = await createFixture(organizationId);
+  const [memberId] = memberIds;
+  try {
+    await prisma.loyaltyCampaignEntry.create({ data: { campaignId, memberId, registeredPhone: "x", acceptedRulesVersion: "test", totalSpentCents: 30_000 } });
+    const added = await registerManualReceipt({
+      organizationId, campaignId, memberId, totalCents: 25_000, issuedOn: null, receiptNumber: "123", reason: "teste", actor,
+    });
+    check("CA-7 cupom manual de R$ 250 rende 2 números e R$ 50 de sobra", added.ok && added.codes.length === 2 && added.carryOverCents === 5_000);
+    const campaignAfterAdd = await prisma.loyaltyCampaign.findUniqueOrThrow({ where: { id: campaignId } });
+    check("CA-7 cupom manual exige nova varredura", campaignAfterAdd.lastSweepAt === null);
+    const notParticipant = await registerManualReceipt({
+      organizationId, campaignId, memberId: memberIds[1], totalCents: 10_000, issuedOn: null, receiptNumber: null, reason: "teste", actor,
+    });
+    check("CA-7 só para quem está cadastrado na campanha", !notParticipant.ok && notParticipant.reason === "not_participant");
+
+    const manualReceipt = await prisma.loyaltyReceipt.findFirstOrThrow({ where: { campaignId, memberId, messageId: { startsWith: "manual:" } } });
+    await prisma.loyaltyLedgerEntry.create({
+      data: { organizationId, memberId, type: "EARN", stars: 2, source: "CAMPAIGN_RECEIPT", sourceId: manualReceipt.id, actorType: "SYSTEM", actorName: "teste" },
+    });
+    const voided = await voidAcceptedReceipt({ organizationId, receiptId: manualReceipt.id, reason: "nota não paga", actor });
+    const numbersAfterVoid = await prisma.loyaltyLuckyNumber.count({ where: { receiptId: manualReceipt.id, status: "VALID" } });
+    const reversal = await prisma.loyaltyLedgerEntry.findFirst({ where: { sourceId: manualReceipt.id, type: "REVERSAL" } });
+    check("CA-8 anular cupom tira os números dele do sorteio", voided.ok && numbersAfterVoid === 0);
+    check("CA-8 anular cupom estorna as stars", reversal?.stars === -2);
+    const entryAfterVoid = await prisma.loyaltyCampaignEntry.findUniqueOrThrow({ where: { campaignId_memberId: { campaignId, memberId } } });
+    const validAfterVoid = await prisma.loyaltyLuckyNumber.count({ where: { campaignId, memberId, status: "VALID" } });
+    check("CA-8 depois de anular, ninguém fica com mais números do que o valor dá", validAfterVoid <= Math.floor(entryAfterVoid.totalSpentCents / 10_000));
+    const voidedAgain = await voidAcceptedReceipt({ organizationId, receiptId: manualReceipt.id, reason: "de novo", actor });
+    check("CA-8 cupom já anulado não anula de novo", !voidedAgain.ok && voidedAgain.reason === "not_accepted");
+
+    await prisma.loyaltyCampaign.update({ where: { id: campaignId }, data: { lastSweepAt: new Date() } });
+    const first = await drawNextWinner({ organizationId, campaignId, actor });
+    check("sorteio roda depois da nova varredura", first.ok);
+    if (first.ok) {
+      const winningNumber = await prisma.loyaltyLuckyNumber.findFirstOrThrow({ where: { campaignId, code: first.draw.code } });
+      const voidWinner = await voidAcceptedReceipt({ organizationId, receiptId: winningNumber.receiptId, reason: "teste", actor });
+      check("CA-8 cupom com número sorteado não é anulado", !voidWinner.ok && voidWinner.reason === "receipt_has_winner");
+    }
+    const addDuringDraw = await registerManualReceipt({
+      organizationId, campaignId, memberId, totalCents: 10_000, issuedOn: null, receiptNumber: null, reason: "teste", actor,
+    });
+    check("CA-7 não lança cupom com o sorteio em andamento", !addDuringDraw.ok && addDuringDraw.reason === "draw_in_progress");
+  } finally {
+    await prisma.loyaltyLedgerEntry.deleteMany({ where: { memberId: { in: memberIds } } });
+    await prisma.loyaltyCampaign.delete({ where: { id: campaignId } });
+    await prisma.loyaltyMember.deleteMany({ where: { id: { in: memberIds } } });
+  }
+}
+
 async function main() {
   checkPureRules();
   const organization = await prisma.organization.findFirst({ select: { id: true } });
   if (!organization) throw new Error("Banco local sem organização");
   await checkDrawFlow(organization.id);
+  await checkManualAdjustments(organization.id);
   const leftovers = await prisma.loyaltyMember.count({ where: { phone: { startsWith: TEST_PHONE_PREFIX } } });
   check("nada do teste ficou no banco", leftovers === 0);
   console.log(failures === 0 ? "\nTudo certo." : `\n${failures} falha(s).`);

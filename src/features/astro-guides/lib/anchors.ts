@@ -847,6 +847,14 @@ export const GUIDE_ANCHORS = {
     id: "star-friends.prize-count",
     description: "Campo \"Quantidade de ganhadores\" do sorteio",
   },
+  starFriendsCampaignManualReceipt: {
+    id: "star-friends.campaign-manual-receipt",
+    description: "Botão \"Lançar cupom manual\" da aba Campanha",
+  },
+  starFriendsCampaignVoidReceipt: {
+    id: "star-friends.campaign-void-receipt",
+    description: "Botão \"Anular cupom\" de um cupom aceito na aba Campanha",
+  },
   starFriendsMemberDelete: {
     id: "star-friends.member-delete",
     description: "Botão de excluir participante (lixeira) na aba Participantes",

@@ -8,6 +8,7 @@ import { useExportStarFriendsCampaignNumbers, useStarFriendsCampaign } from "../
 import { CampaignDrawPanel } from "./campaign-draw-panel";
 import { CampaignForm } from "./campaign-form";
 import { CampaignReceipts } from "./campaign-receipts";
+import { CampaignManualReceiptDialog } from "./campaign-manual-receipt-dialog";
 
 function toCsvCell(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
@@ -84,7 +85,21 @@ export function CampaignManager({ canEdit, canApprove }: { canEdit: boolean; can
               hint={stats.pendingReceipts > 0 ? `${stats.flaggedReceipts} com alerta` : `${stats.duplicateReceipts} repetidos barrados`}
             />
           </div>
-          <CampaignReceipts key={campaign.id} campaignId={campaign.id} canReview={canApprove && !campaign.drawnAt && !hasDrawStarted} pendingReceipts={stats.pendingReceipts} />
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Cupons</h2>
+              {canApprove && !campaign.drawnAt && !hasDrawStarted && (
+                <CampaignManualReceiptDialog campaignId={campaign.id} amountPerNumberCents={campaign.amountPerNumberCents} />
+              )}
+            </div>
+            <CampaignReceipts
+              key={campaign.id}
+              campaignId={campaign.id}
+              canReview={canApprove && !campaign.drawnAt && !hasDrawStarted}
+              canVoid={canApprove}
+              pendingReceipts={stats.pendingReceipts}
+            />
+          </div>
         </>
       )}
       {canEdit && campaign && (campaign.drawnAt || hasDrawStarted) && (

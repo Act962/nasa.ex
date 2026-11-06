@@ -64,6 +64,20 @@ export function useSetStarFriendsPrizeCount() {
   return useMutation(orpc.starFriends.campaign.setPrizeCount.mutationOptions({ onSuccess: invalidate }));
 }
 
+export function useStarFriendsCampaignParticipants(campaignId: string, search: string, enabled: boolean) {
+  return useQuery(orpc.starFriends.campaign.participants.queryOptions({ input: { campaignId, search: search || undefined }, enabled }));
+}
+
+export function useAddStarFriendsManualReceipt() {
+  const invalidate = useInvalidateStarFriends();
+  return useMutation(orpc.starFriends.campaign.addManualReceipt.mutationOptions({ onSuccess: invalidate }));
+}
+
+export function useVoidStarFriendsReceipt() {
+  const invalidate = useInvalidateStarFriends();
+  return useMutation(orpc.starFriends.campaign.voidReceipt.mutationOptions({ onSuccess: invalidate }));
+}
+
 export function useStarFriendsDrawPool(campaignId: string | undefined) {
   return useQuery(
     orpc.starFriends.campaign.drawPool.queryOptions({

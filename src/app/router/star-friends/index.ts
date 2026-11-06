@@ -11,7 +11,10 @@ import {
 } from "./redemptions";
 import { adjustStarFriendsStars, getStarFriendsByLead } from "./by-lead";
 import {
+  addStarFriendsCampaignManualReceipt,
   drawNextStarFriendsCampaignWinner,
+  listStarFriendsCampaignParticipants,
+  voidStarFriendsCampaignReceipt,
   exportStarFriendsCampaignNumbers,
   getStarFriendsCampaignDrawPool,
   revokeStarFriendsCampaignDraw,
@@ -49,5 +52,8 @@ export const starFriendsRouter = {
     revokeDraw: revokeStarFriendsCampaignDraw,
     setPrizeCount: setStarFriendsCampaignPrizeCount,
     drawPool: getStarFriendsCampaignDrawPool,
+    participants: listStarFriendsCampaignParticipants,
+    addManualReceipt: addStarFriendsCampaignManualReceipt,
+    voidReceipt: voidStarFriendsCampaignReceipt,
   },
 };
