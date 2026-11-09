@@ -41,7 +41,8 @@ src/modules/social/
 ├─ ports/        channel-gateway · inbound-translator · repositories
 │                ai-reply-generator
 ├─ application/  handle-inbound-event · connect-channel · activate-automation
-├─ infra/        instagram/{graph-channel-gateway,webhook-translator}
+├─ infra/        instagram/{graph-channel-gateway,facebook-graph-channel-gateway,
+│                meta-login-channel-gateway,webhook-translator}
 │                prisma-{channel,automation,event}-repository
 │                credential-cipher · schemas · stars-ai-reply-generator
 └─ index.ts      composition root
@@ -227,6 +228,7 @@ cria lead, o outro responde. Sem dedupe entre sistemas nesta fase.
 
 | Data | Mudança |
 | --- | --- |
+| 2026-11-09 | **Passo a passo aceita token do Facebook** (`EAA...`): app criado na Meta com "API setup with Unified login" não mostra a chave do app do Instagram nem gera token `IGAA...`. Com token `EAA`, a conta usa `FacebookGraphInstagramChannelGateway` (graph.facebook.com, perfil por `/{ig-id}`), o publicador e as consultas do Chat vão para graph.facebook.com e a renovação `ig_refresh_token` é pulada. A chave secreta, nesse caso, é a de Configurações do app → Básico. Envio de DM e assinatura do webhook nesse modo ainda não conferidos em produção |
 | 2026-10-05 | **Conta conectada pelo formulário também alimenta o Chat** (spec 0062, changelog): o webhook por conexão passa a ponte `ingestInstagramEventToChat`; perfil e mídia consultados em `graph.instagram.com` quando a conta usa o token do app do Instagram. O ícone do Instagram na fileira de canais do Chat deixou de depender da marcação do catálogo guardada no navegador |
 | 2026-10-05 | **Contas ganham capacidades e validade do token** (spec 0071): `social_channels.can_publish`, `can_read_insights` e `credentials_expires_at`. Conferidas ao conectar, ao trocar a credencial, em "conferir de novo" (`socialAccounts.recheckCapabilities`) e na rotina diária `social-channels-daily-maintenance`, que também renova o token do app do Instagram a 10 dias de vencer. Credencial recusada vira `NEEDS_RECONNECT` com notificação para owners e admins. Guia de conexão pede também a permissão de insights |
 | 2026-10-05 | **`social_channels.brand_kit_id`** (spec 0070): qual Kit da Marca do Planner os posts da conta usam; nulo = kit padrão da empresa. O módulo `social` só transporta o campo (`ChannelSummary.brandKitId`); quem lê e grava é o Planner (`features/nasa-planner/server/brand-kit/brand-kits.ts`). O cartão da conta mostra o kit e leva à aba do Planner para trocar |
