@@ -20,6 +20,8 @@ export const updateLinnkerLink = base
       emoji: z.string().optional().nullable(),
       imageUrl: z.string().optional().nullable(),
       displayStyle: z.enum(["button", "banner"]).optional(),
+      showTitle: z.boolean().optional(),
+      hasShadow: z.boolean().optional(),
       color: z.string().optional().nullable(),
       position: z.number().optional(),
       isActive: z.boolean().optional(),

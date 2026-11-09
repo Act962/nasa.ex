@@ -18,6 +18,10 @@ export interface LinnkerLink {
   emoji?: string | null;
   imageUrl?: string | null;
   displayStyle: LinnkerDisplayStyle;
+  /** Card com imagem: título escrito sobre a imagem. Ausente = mostra. */
+  showTitle?: boolean;
+  /** Sombra do card ou do botão. Ausente = com sombra. */
+  hasShadow?: boolean;
   color?: string | null;
   position: number;
   isActive: boolean;

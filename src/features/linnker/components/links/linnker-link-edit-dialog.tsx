@@ -6,6 +6,7 @@ import { client } from "@/lib/orpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { LinnkerResourceSelector } from "../linnker-resource-selector";
@@ -35,6 +36,8 @@ export function LinnkerLinkEditDialog({
   const [url, setUrl] = useState(link.url);
   const [imageUrl, setImageUrl] = useState<string | null>(link.imageUrl ?? null);
   const [color, setColor] = useState<string | null>(link.color ?? null);
+  const [showTitle, setShowTitle] = useState(link.showTitle !== false);
+  const [hasShadow, setHasShadow] = useState(link.hasShadow !== false);
   const [selectedResourceId, setSelectedResourceId] = useState("");
 
   const isExternal = link.type === "EXTERNAL";
@@ -42,7 +45,7 @@ export function LinnkerLinkEditDialog({
 
   const { mutate: save, isPending } = useMutation({
     mutationFn: () =>
-      client.linnker.updateLink({ id: link.id, title, url, imageUrl, color }),
+      client.linnker.updateLink({ id: link.id, title, url, imageUrl, color, showTitle, hasShadow }),
     onSuccess: () => {
       toast.success("Salvo!");
       onOpenChange(false);
@@ -72,6 +75,21 @@ export function LinnkerLinkEditDialog({
         <div className="space-y-1.5">
           <Label className="text-xs">Título</Label>
           <Input value={title} className="h-11 sm:h-9" onChange={(event) => setTitle(event.target.value)} />
+        </div>
+
+        {isBanner && (
+          <div className="flex items-center justify-between gap-4 rounded-[14px] bg-muted px-3 py-2.5">
+            <div className="flex min-w-0 flex-col">
+              <Label htmlFor="linnker-show-title" className="text-xs">Mostrar título sobre a imagem</Label>
+              <span className="text-[11px] text-muted-foreground">Desligado: a imagem aparece inteira, sem texto e sem a faixa escura.</span>
+            </div>
+            <Switch id="linnker-show-title" checked={showTitle} onCheckedChange={setShowTitle} />
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-4 rounded-[14px] bg-muted px-3 py-2.5">
+          <Label htmlFor="linnker-has-shadow" className="text-xs">Sombra {isBanner ? "no card" : "no botão"}</Label>
+          <Switch id="linnker-has-shadow" checked={hasShadow} onCheckedChange={setHasShadow} />
         </div>
 
         <LinnkerLinkColorPicker value={color} onChange={setColor} pageCoverColor={pageCoverColor} />
