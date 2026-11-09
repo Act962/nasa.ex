@@ -1,5 +1,5 @@
-// Conferência das regras puras da campanha de sorteio do STAR FRIENDS contra os critérios de
-// aceite da spec 0102. Não há runner de testes no projeto (CLAUDE.md, regra 20).
+// Conferência das regras puras da campanha por cupom do STAR FRIENDS contra os critérios de
+// aceite das specs 0102 (sorteio) e 0135 (pontos). Não há runner de testes no projeto (CLAUDE.md, regra 20).
 //
 //   pnpm tsx scripts/star-friends-campaign-check.ts
 
@@ -19,6 +19,16 @@ import {
   toValidCnpj,
   type ReceiptReading,
 } from "../src/features/star-friends/utils/campaign";
+import {
+  acceptedReceiptMessage,
+  asksForProgramByName,
+  defaultRulesSummary,
+  pendingReviewMessage,
+  pointsSummaryMessage,
+  POINTS_MODE_FORBIDDEN,
+  reviewApprovedMessage,
+  rewardsMessage,
+} from "../src/features/star-friends/utils/campaign-messages";
 
 let failures = 0;
 function check(label: string, isOk: boolean) {
@@ -124,6 +134,48 @@ check("RF-9 cupom completo não recebe alerta", receiptFlagsOf(reading()).length
 check("RF-9 comprovante não fiscal com baixa confiança recebe dois alertas", receiptFlagsOf(reading({ isFiscal: false, confidence: 0.4 })).length === 2);
 
 check("aceite guarda a versão do texto: muda quando as regras mudam", rulesVersionOf("regras A", null) !== rulesVersionOf("regras B", null));
+
+// Spec 0135: campanha no modo pontos (sem sorteio).
+const pointsReply = acceptedReceiptMessage({ mode: "POINTS", totalCents: 7_500, codes: ["0001", "0002"], carryOverCents: 1_500, amountPerNumberCents: 3_000, starsBalance: 5 });
+check("0135 CA-1 cupom de R$ 75 com R$ 30 por ⭐ rende 2 ⭐", computeLuckyNumbers({ carryOverCents: 0, totalCents: 7_500, amountPerNumberCents: 3_000 }).numbers === 2);
+check("0135 CA-1 resposta fala em 2 ⭐ e no saldo", pointsReply.includes("Você ganhou 2 ⭐") && pointsReply.includes("Seu saldo: 5 ⭐"));
+check("0135 CA-1 resposta diz quanto falta para a próxima ⭐", /Faltam R\$\s15,00 para a próxima ⭐/.test(pointsReply));
+check("0135 CA-1 resposta não mostra código", !pointsReply.includes("0001"));
+const pointsSummary = pointsSummaryMessage({
+  mode: "POINTS",
+  campaignName: "Sempre +",
+  programName: "Sempre +",
+  totalSpentCents: 7_500,
+  acceptedReceipts: 1,
+  validNumbers: 2,
+  carryOverCents: 1_500,
+  amountPerNumberCents: 3_000,
+  starsBalance: 2,
+  tierLabel: "Terra",
+});
+check("0135 CA-2 Ver meus pontos sem números da sorte e com saldo e nível", !pointsSummary.includes("Números da sorte") && pointsSummary.includes("Saldo: 2 ⭐") && pointsSummary.includes("Nível: Terra"));
+check("0135 CA-4 sem prêmio cadastrado, avisa que estão sendo preparados", rewardsMessage([]).includes("sendo preparados"));
+check("0135 CA-4 lista os prêmios com o custo em ⭐", rewardsMessage([{ name: "Copo térmico", costStars: 10 }]).includes("Copo térmico — 10 ⭐"));
+const pointsTexts = [
+  pointsReply,
+  acceptedReceiptMessage({ mode: "POINTS", totalCents: 1_000, codes: [], carryOverCents: 1_000, amountPerNumberCents: 3_000, starsBalance: 0 }),
+  pendingReviewMessage("POINTS"),
+  reviewApprovedMessage({ mode: "POINTS", totalCents: 6_000, codes: ["0003", "0004"], carryOverCents: 0, amountPerNumberCents: 3_000 }),
+  reviewApprovedMessage({ mode: "POINTS", totalCents: 1_000, codes: [], carryOverCents: 1_000, amountPerNumberCents: 3_000 }),
+  pointsSummary,
+  rewardsMessage([]),
+  defaultRulesSummary("POINTS", 3_000),
+];
+check("0135 CA-9 nenhuma mensagem do modo pontos fala em sorte ou sorteio", pointsTexts.every((text) => !POINTS_MODE_FORBIDDEN.test(text)));
+check(
+  "0135 CA-8 sorteio continua com números da sorte e o texto de sempre",
+  acceptedReceiptMessage({ mode: "RAFFLE", totalCents: 25_000, codes: ["0001", "0002"], carryOverCents: 5_000, amountPerNumberCents: 10_000 }).includes("🎟️ 0001") &&
+    defaultRulesSummary("RAFFLE", 10_000) ===
+      "A cada R$ 100,00 em compras você ganha 1 número da sorte. Envie a foto do cupom por aqui. Cada cupom vale uma vez só e os cupons são conferidos antes do sorteio: cupom repetido ou irregular tem os números cancelados.",
+);
+check("0135 CB-6 \"Quero participar do Sempre +\" abre o programa", asksForProgramByName("Olá! Quero participar do Sempre +, o programa de fidelidade.", "Sempre +"));
+check("0135 CB-6 \"sempre mais\" também abre", asksForProgramByName("quero o sempre mais", "Sempre +"));
+check("0135 RF-11 um \"sempre\" solto na frase não abre", !asksForProgramByName("eu sempre compro aí", "Sempre +"));
 
 if (failures > 0) {
   console.error(`\n${failures} verificação(ões) falharam.`);

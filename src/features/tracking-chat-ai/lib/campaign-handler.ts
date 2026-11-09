@@ -13,34 +13,33 @@ import {
 } from "@/features/star-friends/lib/campaign/campaign";
 import { registerReceipt, type RegisterReceiptResult } from "@/features/star-friends/lib/campaign/register-receipt";
 import { findMemberForLead } from "@/features/star-friends/lib/members";
-import { formatCents, isSamePhone } from "@/features/star-friends/utils/campaign";
+import { isSamePhone } from "@/features/star-friends/utils/campaign";
+import { asksForProgramByName, campaignNoun, pointsSummaryMessage, rewardsMessage } from "@/features/star-friends/utils/campaign-messages";
 import { sendCodedReply, type CodedReplyOption } from "./coded-reply";
 import type { AgentContext } from "./context";
 import { CAMPAIGN_OPTION, CAMPAIGN_OPTION_PREFIX } from "./coded-menu-options";
 import { clientMenuId } from "./guided-menu/menu-ids";
+import { memberOptionsFor, receiptReplyOf, tierLabelOf, wrongDeviceMessage } from "./campaign-replies";
 
-// Campanha de sorteio do STAR FRIENDS pela conversa (spec 0102). Tudo aqui é regra fixa: nenhuma
+// Campanha por cupom do STAR FRIENDS pela conversa: sorteio (spec 0102) ou pontos (spec 0135). Tudo aqui é regra fixa: nenhuma
 // chamada de modelo decide o que responder. O cliente é sempre o do número que escreveu (D-2):
 // o telefone que ele digita só é comparado, nunca usado para buscar dados.
 
 const AWAITING_KEY = "campaignAwaiting";
 const AWAITING_TIMEOUT_MINUTES = 30;
 const ASKS_FOR_CAMPAIGN = /\b(promocao|promo|sorteio|numeros? da sorte|participar|15 anos|aniversario|cadastrar (meu |o )?cupom)\b/;
-const WRONG_DEVICE_MESSAGE = "Você não está acessando pelo dispositivo que se cadastrou na promoção.";
+// RF-11: só abre a campanha quando ela é de pontos (conferido depois de carregar a campanha).
+const ASKS_FOR_POINTS = /\b(pontos|fidelidade|estrelas)\b/;
 const SAYS_YES = /^(sim|aceito|aceitar|concordo|ok|pode|1)[\s!.]*$/;
 const SAYS_NO = /^(nao|nao aceito|recuso|2)[\s!.]*$/;
 const VALID_NAME = /^[\p{L}][\p{L}\s.'-]{1,59}$/u;
 const MAX_CODES_IN_MESSAGE = 60;
 const MAX_RECEIPTS_PER_REPLY = 10;
+const MAX_REWARDS_IN_MESSAGE = 20;
 
 type AwaitingStep = "name" | "consent" | "receipt" | "phone_points" | "phone_codes";
 type CampaignAwaiting = { step: AwaitingStep; campaignId: string; expiresAt: string; customerName?: string };
 
-const MEMBER_OPTIONS: CodedReplyOption[] = [
-  { id: CAMPAIGN_OPTION.newReceipt, title: "Cadastrar novo cupom" },
-  { id: CAMPAIGN_OPTION.points, title: "Ver meus pontos" },
-  { id: CAMPAIGN_OPTION.codes, title: "Ver meus códigos" },
-];
 const BACK_TO_MENU: CodedReplyOption = { id: clientMenuId({ step: "menu" }), title: "Voltar ao menu" };
 
 function readAwaiting(metadata: unknown, now: Date): CampaignAwaiting | null {
@@ -80,40 +79,6 @@ function needsNewPhoto(result: RegisterReceiptResult): boolean {
   return result.outcome === "file_missing" || isNotAReceipt(result) || (result.outcome === "rejected" && result.reason === "unreadable");
 }
 
-function receiptReplyOf(result: RegisterReceiptResult, campaign: ActiveCampaign): string {
-  const perNumber = formatCents(campaign.amountPerNumberCents);
-  switch (result.outcome) {
-    case "accepted": {
-      const carryLine = `Saldo acumulado para o próximo número: ${formatCents(result.carryOverCents)} de ${perNumber}.`;
-      if (result.codes.length === 0) {
-        return `Cupom de ${formatCents(result.totalCents)} cadastrado. ✅\n\nEle ainda não completou ${perNumber}, então o valor ficou guardado.\n${carryLine}`;
-      }
-      const codesLabel = result.codes.length === 1 ? "Seu número da sorte" : `Seus ${result.codes.length} números da sorte`;
-      // A Meta corta em 1024 caracteres a mensagem que leva botões.
-      const shownCodes = result.codes.slice(0, MAX_CODES_IN_MESSAGE);
-      const hiddenLine = result.codes.length > shownCodes.length ? `\n… e mais ${result.codes.length - shownCodes.length}, em "Ver meus códigos".` : "";
-      return `Cupom de ${formatCents(result.totalCents)} cadastrado. ✅\n\n${codesLabel}:\n${shownCodes.map((code) => `🎟️ ${code}`).join("\n")}${hiddenLine}\n\n${carryLine}\n\nOs cupons passam por uma conferência antes do sorteio. Boa sorte!`;
-    }
-    case "duplicate":
-      return "Este cupom já foi cadastrado na promoção. Cada cupom vale uma vez só.";
-    case "rejected":
-      if (result.reason === "wrong_issuer") return "Este cupom não é de uma compra feita na nossa loja, então não vale para a promoção.";
-      if (result.reason === "out_of_period") return "A data desta compra está fora do período da promoção.";
-      if (result.reason === "not_a_receipt") return "Essa imagem não parece ser um cupom de compra. Envie a foto do cupom inteiro, com o valor total e a data.";
-      return "Não consegui ler o valor do cupom nesta foto. Tire outra foto com o cupom inteiro, bem iluminado e sem dobras, e envie de novo.";
-    case "pending_review":
-      return "Recebemos o seu cupom. 📋\n\nNão deu para ler todos os dados pela foto, então ele vai passar por uma conferência da nossa equipe. Assim que for conferido, os números da sorte aparecem em \"Ver meus códigos\".";
-    case "daily_limit":
-      return "Você atingiu o limite de cupons de hoje. Amanhã você pode cadastrar mais.";
-    case "file_missing":
-      return "Não consegui abrir o arquivo. Envie a foto do cupom de novo, por favor.";
-    case "try_later":
-      return "Não consegui conferir o cupom agora. Tente de novo em alguns minutos.";
-    case "already_processed":
-      return receiptReplyOf(result.stored, campaign);
-  }
-}
-
 async function askForReceipt(ctx: AgentContext, campaign: ActiveCampaign, intro: string): Promise<void> {
   await sendCodedReply(ctx, {
     body: `${intro}Envie agora a *foto do cupom* da sua compra. Mostre o cupom inteiro, com o valor total e a data.`,
@@ -141,7 +106,10 @@ export async function handleCampaign(ctx: AgentContext, inboundMessageId: string
   const awaiting = isOtherClick ? null : readAwaiting(previousOutbound?.metadata, inbound.createdAt);
   // CB-19: o link da bio chega com "Quero participar da promoção" escrito. Sem isso a frase ia para a
   // assistente, que inventou um cadastro no teste real. Pedido escrito vale como o clique em "Promoção".
-  const asksForCampaignInText = !clickedId && !awaiting && ASKS_FOR_CAMPAIGN.test(normalizeAnswer(inbound.body ?? ""));
+  const normalizedBody = normalizeAnswer(inbound.body ?? "");
+  const asksForRaffleInText = ASKS_FOR_CAMPAIGN.test(normalizedBody);
+  const asksForPointsInText = ASKS_FOR_POINTS.test(normalizedBody) || asksForProgramByName(normalizedBody, ctx.starFriendsProgramName);
+  const asksForCampaignInText = !clickedId && !awaiting && (asksForRaffleInText || asksForPointsInText);
   const campaignClick = clickedCampaignOption ?? (asksForCampaignInText ? CAMPAIGN_OPTION.start : null);
   // Quem já está cadastrado manda a foto direto, sem passar pelo botão "Cadastrar novo cupom".
   const isUnpromptedPhoto = !campaignClick && !awaiting && !isOtherClick && isReceiptFile(inbound);
@@ -153,12 +121,16 @@ export async function handleCampaign(ctx: AgentContext, inboundMessageId: string
   if (!campaignClick && !hasMedia && interruptOf(text) !== null) return { handled: false };
 
   const campaign = await findActiveCampaign(ctx.organizationId, ctx.trackingId);
+  // "pontos"/"fidelidade" escrito só abre campanha de pontos; numa de sorteio, segue o atendimento de sempre.
+  if (asksForCampaignInText && !asksForRaffleInText && campaign?.mode !== "POINTS") return { handled: false };
   const availability = campaign ? campaignAvailabilityAt(campaign, new Date()) : "ended";
   if (!campaign || (awaiting && awaiting.campaignId !== campaign.id)) {
     if (!campaignClick) return { handled: false };
     await sendCodedReply(ctx, { body: "A promoção não está ativa no momento.", options: [BACK_TO_MENU] });
     return { handled: true };
   }
+  const noun = campaignNoun(campaign.mode);
+  const memberOptions = memberOptionsFor(campaign.mode);
 
   if (isUnpromptedPhoto) {
     const canReceiveReceipt = availability === "open" && (await isRegisteredInCampaign(ctx.organizationId, campaign.id, ctx.lead.id));
@@ -173,11 +145,11 @@ export async function handleCampaign(ctx: AgentContext, inboundMessageId: string
 
   if (campaignClick === CAMPAIGN_OPTION.start) {
     if (entry) {
-      await sendCodedReply(ctx, { body: `*${campaign.name}*\n\nOlá, ${member.name}! O que você quer fazer?`, options: MEMBER_OPTIONS });
+      await sendCodedReply(ctx, { body: `*${campaign.name}*\n\nOlá, ${member.name}! O que você quer fazer?`, options: memberOptions });
       return { handled: true };
     }
     if (availability !== "open") {
-      await sendCodedReply(ctx, { body: availability === "not_started" ? "A promoção ainda não começou." : "A promoção já foi encerrada.", options: [BACK_TO_MENU] });
+      await sendCodedReply(ctx, { body: availability === "not_started" ? `${noun.The} ainda não começou.` : `${noun.The} já foi encerrad${campaign.mode === "POINTS" ? "o" : "a"}.`, options: [BACK_TO_MENU] });
       return { handled: true };
     }
     await sendCodedReply(ctx, { body: `*${campaign.name}* 🎉\n\nPara participar, me diga o seu *nome completo*.`, metadata: awaitingMetadata("name", campaign) });
@@ -191,7 +163,7 @@ export async function handleCampaign(ctx: AgentContext, inboundMessageId: string
     }
     const rulesLink = campaign.rulesUrl ? `\n\nRegulamento completo: ${campaign.rulesUrl}` : "";
     await sendCodedReply(ctx, {
-      body: `Obrigado, ${text}!\n\n${campaign.rulesSummary.trim()}${rulesLink}\n\nVocê aceita as regras da promoção?`,
+      body: `Obrigado, ${text}!\n\n${campaign.rulesSummary.trim()}${rulesLink}\n\nVocê aceita as regras ${noun.of}?`,
       options: [
         { id: CAMPAIGN_OPTION.accept, title: "Aceito" },
         { id: CAMPAIGN_OPTION.refuse, title: "Não aceito" },
@@ -247,13 +219,13 @@ export async function handleCampaign(ctx: AgentContext, inboundMessageId: string
 
   // Daqui para baixo, só quem já se cadastrou.
   if (!entry) {
-    await sendCodedReply(ctx, { body: "Você ainda não está cadastrado na promoção.", options: [{ id: CAMPAIGN_OPTION.start, title: "Quero participar" }] });
+    await sendCodedReply(ctx, { body: `Você ainda não está cadastrado ${noun.in}.`, options: [{ id: CAMPAIGN_OPTION.start, title: "Quero participar" }] });
     return { handled: true };
   }
 
   if (campaignClick === CAMPAIGN_OPTION.newReceipt) {
     if (availability !== "open") {
-      await sendCodedReply(ctx, { body: "A promoção não está recebendo cupons no momento.", options: MEMBER_OPTIONS });
+      await sendCodedReply(ctx, { body: `${noun.The} não está recebendo cupons no momento.`, options: memberOptions });
       return { handled: true };
     }
     await askForReceipt(ctx, campaign, "");
@@ -307,42 +279,62 @@ export async function handleCampaign(ctx: AgentContext, inboundMessageId: string
     // Foto mandada sem ninguém ter pedido e que não é cupom: a conversa segue com o atendimento de sempre.
     if (isUnpromptedPhoto && results.every(isNotAReceipt)) return { handled: false };
     const shouldAskAgain = results.some(needsNewPhoto);
+    // RF-3: no modo pontos a resposta mostra o saldo de ⭐ depois do cupom.
+    const starsBalance = campaign.mode === "POINTS" ? (await getMemberCampaignSummary({ campaignId: campaign.id, memberId: member.id })).starsBalance : null;
     for (const [resultIndex, result] of results.entries()) {
       const isLastReply = resultIndex === results.length - 1;
       await sendCodedReply(ctx, {
-        body: receiptReplyOf(result, campaign),
-        options: isLastReply && !shouldAskAgain ? MEMBER_OPTIONS : undefined,
+        body: receiptReplyOf(result, campaign, starsBalance),
+        options: isLastReply && !shouldAskAgain ? memberOptions : undefined,
         metadata: isLastReply && shouldAskAgain ? awaitingMetadata("receipt", campaign) : undefined,
       });
     }
     return { handled: true };
   }
 
+  if (campaignClick === CAMPAIGN_OPTION.rewards) {
+    const rewards = await prisma.loyaltyReward.findMany({
+      where: { organizationId: ctx.organizationId, isActive: true },
+      orderBy: { costStars: "asc" },
+      take: MAX_REWARDS_IN_MESSAGE,
+      select: { name: true, costStars: true },
+    });
+    await sendCodedReply(ctx, { body: rewardsMessage(rewards), options: memberOptions });
+    return { handled: true };
+  }
+
   if (campaignClick === CAMPAIGN_OPTION.points || campaignClick === CAMPAIGN_OPTION.codes) {
+    // CB-7: clique antigo em "Ver meus códigos" numa campanha de pontos vale como "Ver meus pontos".
+    const wantsCodes = campaignClick === CAMPAIGN_OPTION.codes && campaign.mode !== "POINTS";
     await sendCodedReply(ctx, {
-      body: "Para sua segurança, digite o *número de celular* cadastrado na promoção, com DDD.",
-      metadata: awaitingMetadata(campaignClick === CAMPAIGN_OPTION.points ? "phone_points" : "phone_codes", campaign),
+      body: `Para sua segurança, digite o *número de celular* cadastrado ${noun.in}, com DDD.`,
+      metadata: awaitingMetadata(wantsCodes ? "phone_codes" : "phone_points", campaign),
     });
     return { handled: true };
   }
 
   if ((awaiting?.step === "phone_points" || awaiting?.step === "phone_codes") && !campaignClick) {
     if (hasMedia || !isSamePhone(text, ctx.lead.phone)) {
-      await sendCodedReply(ctx, { body: WRONG_DEVICE_MESSAGE, options: [BACK_TO_MENU] });
+      await sendCodedReply(ctx, { body: wrongDeviceMessage(campaign.mode), options: [BACK_TO_MENU] });
       return { handled: true };
     }
-    if (awaiting.step === "phone_points") {
+    if (awaiting.step === "phone_points" || campaign.mode === "POINTS") {
       const summary = await getMemberCampaignSummary({ campaignId: campaign.id, memberId: member.id });
+      const tierLabel = campaign.mode === "POINTS" ? await tierLabelOf(ctx.organizationId, member.id) : null;
       await sendCodedReply(ctx, {
-        body: [
-          `*Seus pontos — ${campaign.name}*`,
-          "",
-          `Compras cadastradas: ${formatCents(summary.totalSpentCents)} em ${summary.acceptedReceipts} cupom(ns)`,
-          `Números da sorte: ${summary.validNumbers}`,
-          `Saldo para o próximo número: ${formatCents(summary.carryOverCents)} de ${formatCents(campaign.amountPerNumberCents)}`,
-          ...(ctx.starFriendsProgramName ? [`Stars no ${ctx.starFriendsProgramName}: ${summary.starsBalance} ⭐`] : []),
-        ].join("\n"),
-        options: MEMBER_OPTIONS,
+        body: pointsSummaryMessage({
+          mode: campaign.mode,
+          campaignName: campaign.name,
+          programName: ctx.starFriendsProgramName,
+          totalSpentCents: summary.totalSpentCents,
+          acceptedReceipts: summary.acceptedReceipts,
+          validNumbers: summary.validNumbers,
+          carryOverCents: summary.carryOverCents,
+          amountPerNumberCents: campaign.amountPerNumberCents,
+          starsBalance: summary.starsBalance,
+          tierLabel,
+        }),
+        options: memberOptions,
       });
       return { handled: true };
     }
@@ -351,7 +343,7 @@ export async function handleCampaign(ctx: AgentContext, inboundMessageId: string
     const hiddenLine = codes.length > shownCodes.length ? `\n\n… e mais ${codes.length - shownCodes.length}. Peça a lista completa a um atendente.` : "";
     await sendCodedReply(ctx, {
       body: codes.length === 0 ? "Você ainda não tem números da sorte. Cadastre um cupom para ganhar." : `*Seus números da sorte (${codes.length})*\n\n${shownCodes.join(" · ")}${hiddenLine}`,
-      options: MEMBER_OPTIONS,
+      options: memberOptions,
     });
     return { handled: true };
   }

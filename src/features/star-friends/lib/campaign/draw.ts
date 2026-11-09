@@ -44,9 +44,11 @@ async function findDrawBlocker(campaign: { id: string; lastSweepAt: Date | null 
 export async function drawNextWinner(params: { organizationId: string; campaignId: string; actor: LoyaltyActor }) {
   const campaign = await prisma.loyaltyCampaign.findFirst({
     where: { id: params.campaignId, organizationId: params.organizationId },
-    select: { id: true, name: true, lastSweepAt: true, drawnAt: true },
+    select: { id: true, name: true, mode: true, lastSweepAt: true, drawnAt: true },
   });
   if (!campaign) return { ok: false as const, reason: "not_found" as const };
+  // Spec 0135, RF-9: campanha de pontos não tem sorteio.
+  if (campaign.mode === "POINTS") return { ok: false as const, reason: "points_mode" as const };
   if (campaign.drawnAt) return { ok: false as const, reason: "already_drawn" as const };
   const blocker = await findDrawBlocker(campaign);
   if (blocker) return { ok: false as const, reason: blocker };

@@ -118,8 +118,21 @@ O limite diário conta cupons aceitos e em conferência; recusados e repetidos n
 
 Permissões: ver cupons e números = "Ver"; configurar = "Editar"; varredura, sorteio e revogação = "Aprovar"; quantidade de ganhadores = "Editar". Conferência das regras: `pnpm tsx scripts/star-friends-campaign-check.ts`; do sorteio ao vivo, no banco local: `pnpm tsx --conditions=react-server scripts/star-friends-live-draw-check.ts`.
 
+## Campanha por cupom no modo pontos (spec 0135)
+
+Na aba **Campanha**, o campo **Tipo da campanha** escolhe entre **Sorteio** (padrão, tudo da 0102/0134) e **Pontos de fidelidade**. No modo pontos o cliente manda o cupom pelo WhatsApp e junta ⭐ para trocar pelos prêmios de "Cartões e prêmios"; nunca vê número da sorte nem sorteio. Feito para programas como o "Sempre +" da SEMPRE MIX, em loja física.
+
+- **Conta igual:** `⭐ = floor((sobra + total do cupom) / valor por ⭐)`. Os números continuam sendo gerados por dentro (são a unidade que a varredura anula), mas não aparecem para o cliente.
+- **Conversa:** resposta ao cupom com as ⭐ ganhas, o saldo e quanto falta para a próxima. Menu: "Cadastrar novo cupom", "Ver meus pontos" (saldo, nível e quanto falta) e "Ver prêmios". Clique antigo em "Ver meus códigos" cai em "Ver meus pontos". Textos em `utils/campaign-messages.ts`; o script de conferência barra "sorte", "sorteio" e "🎟️" nas mensagens do modo pontos.
+- **Pedido escrito:** além das palavras da 0102, "pontos", "fidelidade", "estrelas" e o nome do programa com o símbolo ("Sempre +", "sempre+", "sempre mais") abrem a campanha, só quando ela é de pontos.
+- **Varredura estorna:** no modo pontos, a varredura lança `REVERSAL` das ⭐ dos números que anula (por cupom anulado, ou por número quando só ele sai por excesso). O saldo pode ficar negativo, como no "Anular cupom". No sorteio a varredura continua sem estornar (0134, D-5).
+- **Travas:** o modo não muda depois do primeiro cupom; campanha de pontos só fica ativa com o programa ligado; `drawNext` e a tela de sorteio ao vivo recusam campanha de pontos.
+- **Painel:** no modo pontos, o quadro do sorteio dá lugar a um quadro com a varredura; "Quantidade de prêmios" some do formulário e o valor vira "Valor por ⭐".
+- **Schema:** `LoyaltyCampaign.mode` (`RAFFLE` | `POINTS`, padrão `RAFFLE`), migration `20261109120000_star_friends_campaign_points_mode`.
+
 ## Changelog
 
+- **2026-11-09** — Campanha por cupom no modo pontos, sem sorteio, com estorno das ⭐ na varredura (spec 0135).
 - **2026-11-06** — Lançar cupom manual e anular cupom com estorno das stars (spec 0134, RF-8 e RF-9).
 - **2026-11-06** — Sorteio ao vivo um a um com tela cheia e confete, simulador, revogação em 30 minutos, quantidade de ganhadores em Configurações e exclusão de participante (spec 0134).
 - **2026-10-13** — Campanha com vários prêmios, um por pessoa; corrigida a data de fim que andava um dia a cada salvamento.

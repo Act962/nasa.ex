@@ -270,7 +270,7 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isP
                   key={link.id}
                   type="button"
                   onClick={() => handleLinkClick(link)}
-                  className="w-full overflow-hidden shadow-md hover:opacity-95 hover:scale-[1.01] active:scale-[0.99] transition-all"
+                  className={`w-full overflow-hidden hover:opacity-95 hover:scale-[1.01] active:scale-[0.99] transition-all ${link.hasShadow === false ? "" : "shadow-md"}`}
                   style={{ borderRadius: radius }}
                 >
                   {link.imageUrl ? (
@@ -281,7 +281,7 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isP
                         className="w-full object-cover"
                         style={{ maxHeight: "160px" }}
                       />
-                      {link.title && (
+                      {link.title && link.showTitle !== false && (
                         <div
                           className="absolute bottom-0 left-0 right-0 px-4 py-2.5 text-white font-semibold text-sm"
                           style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)" }}
@@ -309,7 +309,7 @@ export function LinnkerPublicPage({ page, isDraft = false, inChatUrl = null, isP
                 key={link.id}
                 type="button"
                 onClick={() => handleLinkClick(link)}
-                className="w-full flex items-center gap-3 px-5 py-3.5 font-semibold text-white shadow-md hover:opacity-90 hover:scale-[1.01] active:scale-[0.99] transition-all text-sm"
+                className={`w-full flex items-center gap-3 px-5 py-3.5 font-semibold text-white hover:opacity-90 hover:scale-[1.01] active:scale-[0.99] transition-all text-sm ${link.hasShadow === false ? "" : "shadow-md"}`}
                 style={{ background: link.color ?? page.coverColor, borderRadius: radius }}
               >
                 {link.imageUrl ? (
