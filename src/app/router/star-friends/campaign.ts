@@ -11,7 +11,7 @@ import { onlyDigits, rulesVersionOf } from "@/features/star-friends/utils/campai
 import { firstAndLastName, maskPhone } from "@/features/star-friends/utils/live-draw";
 import { starFriendsWith } from "./_base";
 
-// Campanha de sorteio por cupom (spec 0102). Fotos de cupom e dados de participante só saem
+// Campanha por cupom: sorteio (spec 0102) ou pontos (spec 0135). Fotos de cupom e dados de participante só saem
 // daqui, com a permissão do app; nada disso existe em rota pública.
 
 const RECEIPTS_PAGE_SIZE = 30;
@@ -34,6 +34,7 @@ const CAMPAIGN_ERRORS: Record<string, string> = {
   not_participant: "Esta pessoa não está cadastrada na campanha.",
   not_accepted: "Só cupom aceito pode ser anulado.",
   receipt_has_winner: "Um número deste cupom foi sorteado. Revogue o sorteio antes de anular.",
+  points_mode: "Campanha de pontos não tem sorteio.",
 };
 
 const PARTICIPANTS_PAGE_SIZE = 20;
@@ -111,6 +112,7 @@ export const upsertStarFriendsCampaign = starFriendsWith("canEdit")
       .object({
         id: z.string().optional(),
         name: z.string().trim().min(3).max(80),
+        mode: z.enum(["RAFFLE", "POINTS"]).default("RAFFLE"),
         isActive: z.boolean(),
         startsAt: z.coerce.date(),
         endsAt: z.coerce.date(),
@@ -127,11 +129,21 @@ export const upsertStarFriendsCampaign = starFriendsWith("canEdit")
   .handler(async ({ input, context, errors }) => {
     const organizationId = context.org.id;
     const existing = input.id
-      ? await prisma.loyaltyCampaign.findFirst({ where: { id: input.id, organizationId }, select: { id: true, drawnAt: true } })
+      ? await prisma.loyaltyCampaign.findFirst({ where: { id: input.id, organizationId }, select: { id: true, drawnAt: true, mode: true } })
       : null;
     if (input.id && !existing) throw errors.NOT_FOUND({ message: "Campanha não encontrada." });
     if (existing?.drawnAt) throw errors.BAD_REQUEST({ message: "Esta campanha já foi sorteada e não pode mais ser alterada." });
     if (existing && (await hasActiveDraws(existing.id))) throw errors.BAD_REQUEST({ message: CAMPAIGN_ERRORS.draw_in_progress });
+    // Spec 0135, D-2 e CA-10: o modo fica fixo depois do primeiro cupom.
+    if (existing && existing.mode !== input.mode) {
+      const hasReceipt = await prisma.loyaltyReceipt.findFirst({ where: { campaignId: existing.id }, select: { id: true } });
+      if (hasReceipt) throw errors.BAD_REQUEST({ message: "A campanha já tem cupom: o modo (sorteio ou pontos) não pode mais mudar." });
+    }
+    // CB-1: sem o programa ligado não há ⭐, então campanha de pontos não pode ficar ativa.
+    if (input.mode === "POINTS" && input.isActive) {
+      const program = await prisma.loyaltyProgram.findUnique({ where: { organizationId }, select: { isActive: true } });
+      if (!program?.isActive) throw errors.BAD_REQUEST({ message: "Ligue o programa em Configurações antes de ativar uma campanha de pontos." });
+    }
     if (input.trackingId) {
       const tracking = await prisma.tracking.findFirst({ where: { id: input.trackingId, organizationId }, select: { id: true } });
       if (!tracking) throw errors.BAD_REQUEST({ message: "Funil não encontrado nesta empresa." });
@@ -139,6 +151,7 @@ export const upsertStarFriendsCampaign = starFriendsWith("canEdit")
     const issuerDocuments = [...new Set(input.issuerDocuments.map((document) => onlyDigits(document)).filter((document) => document.length === 14))];
     const data = {
       name: input.name,
+      mode: input.mode,
       isActive: input.isActive,
       startsAt: input.startsAt,
       endsAt: input.endsAt,

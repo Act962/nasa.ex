@@ -177,6 +177,7 @@ function LiveDrawStage({ isSimulation }: { isSimulation: boolean }) {
   const blockReason = (() => {
     if (isSimulation) return entries.length === 0 ? "Sem nomes para simular." : null;
     if (!campaign || !stats) return "Nenhuma campanha criada.";
+    if (campaign.mode === "POINTS") return "A campanha atual é de pontos de fidelidade: não tem sorteio.";
     if (!permissions.canApproveRedemptions) return "Seu papel não tem a permissão de Aprovar do STAR FRIENDS, que libera o sorteio.";
     if (nextPosition === null) return null;
     if (stats.pendingReceipts > 0) return `Há ${stats.pendingReceipts} cupom(ns) em conferência. Aprove ou recuse antes de sortear.`;

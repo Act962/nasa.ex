@@ -249,7 +249,7 @@ export async function registerReceipt(params: {
         organizationId: params.organizationId,
         actor: SYSTEM_ACTOR,
         action: "campaign.receipt_accepted",
-        actionLabel: `${campaign.name}: cupom de ${params.memberName} aceito, ${committed.codes.length} número(s) da sorte`,
+        actionLabel: `${campaign.name}: cupom de ${params.memberName} aceito, ${committed.codes.length} ${campaign.mode === "POINTS" ? "⭐" : "número(s) da sorte"}`,
         leadId: params.leadId,
         resourceId: committed.receiptId,
         metadata: { campaignId: campaign.id, totalCents, numbers: committed.codes.length, isFlagged: flagReasons.length > 0 },

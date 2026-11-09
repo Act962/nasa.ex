@@ -3782,11 +3782,18 @@ enum LoyaltyLuckyNumberStatus {
   VOIDED
 }
 
+/// Sorteio (padrão, specs 0102/0134) ou pontos (spec 0135): no modo pontos o cliente só vê ⭐ e prêmios.
+enum LoyaltyCampaignMode {
+  RAFFLE
+  POINTS
+}
+
 model LoyaltyCampaign {
   id                    String    @id @default(cuid())
   organizationId        String    @map("organization_id")
   trackingId            String?   @map("tracking_id")
   name                  String
+  mode                  LoyaltyCampaignMode @default(RAFFLE)
   isActive              Boolean   @default(false) @map("is_active")
   startsAt              DateTime  @map("starts_at")
   endsAt                DateTime  @map("ends_at")
