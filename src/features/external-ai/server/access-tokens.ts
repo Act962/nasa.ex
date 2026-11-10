@@ -11,7 +11,11 @@ const VISIBLE_PREFIX_LENGTH = TOKEN_PREFIX.length + 4;
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
+export const PLANNER_SCOPE = "planner";
 export const TRAFEGO_SCOPE = "trafego";
+
+/** Começo de toda chave do ÓRBITA; o que não começa assim é tratado como token OAuth (spec 0135, CB-11). */
+export const isAccessKeyToken = (token: string) => token.startsWith(TOKEN_PREFIX);
 
 /** Escopo do trafeGO é só da equipe: o dono da chave precisa ser admin do sistema (spec 0131, RF-1, RF-2). */
 export async function isSystemAdmin(userId: string): Promise<boolean> {
@@ -40,7 +44,7 @@ export async function createExternalAiToken(input: {
       tokenHash: hashToken(token),
       tokenPrefix: token.slice(0, VISIBLE_PREFIX_LENGTH),
       organizationIds: input.organizationIds,
-      scopes: input.includeTrafego ? ["planner", TRAFEGO_SCOPE] : ["planner"],
+      scopes: input.includeTrafego ? [PLANNER_SCOPE, TRAFEGO_SCOPE] : [PLANNER_SCOPE],
     },
     select: { id: true },
   });
@@ -64,17 +68,23 @@ export async function revokeExternalAiToken(userId: string, tokenId: string) {
 }
 
 export interface ExternalAiCaller {
+  /** Chave colada ou IA conectada por OAuth (spec 0135, D-5). */
+  credential: "key" | "oauth";
+  /** Id da chave ou `clientId` da IA. */
   tokenId: string;
+  /** Nome da chave ou nome que a IA registrou: vira o `sourceActorLabel` dos posts. */
   label: string;
   userId: string;
   organizationIds: string[];
+  /** Apps do MCP liberados (chaves de `MCP_APPS`). */
   scopes: string[];
 }
 
-/** Confere o Bearer. Devolve null quando a chave não existe ou foi revogada. */
-export async function authenticateExternalAiToken(authorizationHeader: string | null): Promise<ExternalAiCaller | null> {
-  const token = authorizationHeader?.match(/^Bearer\s+(\S+)$/i)?.[1];
-  if (!token?.startsWith(TOKEN_PREFIX)) return null;
+export const readBearerToken = (authorizationHeader: string | null) => authorizationHeader?.match(/^Bearer\s+(\S+)$/i)?.[1] ?? null;
+
+/** Confere a chave `orb_live_`. Devolve null quando a chave não existe ou foi revogada. */
+export async function authenticateExternalAiToken(token: string): Promise<ExternalAiCaller | null> {
+  if (!isAccessKeyToken(token)) return null;
   const accessToken = await prisma.externalAiAccessToken.findUnique({
     where: { tokenHash: hashToken(token) },
     select: { id: true, label: true, createdById: true, organizationIds: true, scopes: true, revokedAt: true },
@@ -82,6 +92,7 @@ export async function authenticateExternalAiToken(authorizationHeader: string | 
   if (!accessToken || accessToken.revokedAt) return null;
   await prisma.externalAiAccessToken.update({ where: { id: accessToken.id }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
   return {
+    credential: "key",
     tokenId: accessToken.id,
     label: accessToken.label,
     userId: accessToken.createdById,
@@ -93,11 +104,11 @@ export async function authenticateExternalAiToken(authorizationHeader: string | 
 /** Empresa liberada na chave + permissão atual do dono no Planner dela (RNF-2). */
 export async function assertCallerOrganization(caller: ExternalAiCaller, organizationId: string, action: PlannerAction) {
   if (!caller.organizationIds.includes(organizationId)) {
-    throw new Error("Empresa não liberada para esta chave. Use list_clients para ver as empresas permitidas.");
+    throw new Error("Empresa não liberada para esta conexão. Use list_clients para ver as empresas permitidas.");
   }
   try {
     await assertPlannerOrganizationAccess(caller.userId, organizationId, action);
   } catch {
-    throw new Error("O dono desta chave não tem mais permissão no Planner desta empresa.");
+    throw new Error("Esta conta não tem mais permissão no Planner desta empresa.");
   }
 }

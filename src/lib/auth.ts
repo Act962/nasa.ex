@@ -1,8 +1,19 @@
 import { betterAuth } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { seedNewOrganization } from "@/features/org-defaults/lib/seed-new-organization";
-import { organization } from "better-auth/plugins";
+import { jwt, organization } from "better-auth/plugins";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { stripe } from "@better-auth/stripe";
+import { mcp } from "@better-auth/mcp";
+import { cimd } from "@better-auth/cimd";
+import { fetchClientMetadataResource } from "@better-auth/cimd/node";
+import {
+  OAUTH_ACCESS_TOKEN_TTL_SECONDS,
+  OAUTH_REFRESH_TOKEN_TTL_SECONDS,
+  mcpResourceUrl,
+} from "@/features/external-ai/server/oauth-config";
+import { disconnectAllOAuthConnections } from "@/features/external-ai/server/oauth-connections";
+import { withOAuthNullableLists } from "@/features/external-ai/server/oauth-prisma-lists";
 import { resend } from "./email/resend";
 import { reactInvitationEmail } from "./email/invitation";
 import { reactResetPasswordEmail } from "./email/reset-password";
@@ -16,7 +27,7 @@ import {
 import { runMonthlyCycle } from "@/features/stars/lib/star-service";
 
 export const auth = betterAuth({
-  database: prismaAdapter(prisma, {
+  database: prismaAdapter(withOAuthNullableLists(prisma), {
     provider: "postgresql",
   }),
   // Força cookie-secure baseado SÓ em NODE_ENV. Sem isso, better-auth
@@ -73,6 +84,24 @@ export const auth = betterAuth({
           console.error("[auth] reset password email failed:", error);
         });
     },
+  },
+  // Qualquer um pode registrar uma IA (RFC 7591): poucos registros por IP (spec 0135, RNF-3).
+  rateLimit: {
+    customRules: {
+      "/oauth2/register": { window: 60, max: 10 },
+    },
+  },
+  hooks: {
+    after: createAuthMiddleware(async (ctx) => {
+      // Nova senha desconecta as IAs por OAuth (spec 0135, RF-13).
+      const userId = ctx.context.session?.user.id;
+      if (ctx.path !== "/change-password" || !userId || ctx.context.returned instanceof Error) return;
+      try {
+        await disconnectAllOAuthConnections(userId);
+      } catch (error) {
+        console.error("[auth] disconnect OAuth connections after password change failed:", error);
+      }
+    }),
   },
   socialProviders: {
     google: {
@@ -391,5 +420,22 @@ export const auth = betterAuth({
         },
       },
     }),
+    // ── OAuth das IAs externas no MCP (spec 0135, D-1) ──────────
+    // ChatGPT e claude.ai só conectam MCP remoto por OAuth. As páginas de login e de permitir passam
+    // pelas rotas /api/external-ai/oauth/*, que embrulham o pedido assinado num parâmetro só.
+    jwt(),
+    mcp({
+      loginPage: "/api/external-ai/oauth/login",
+      consentPage: "/api/external-ai/oauth/consent",
+      resource: mcpResourceUrl(),
+      accessTokenExpiresIn: OAUTH_ACCESS_TOKEN_TTL_SECONDS,
+      refreshTokenExpiresIn: OAUTH_REFRESH_TOKEN_TTL_SECONDS,
+      // CIMD primeiro; o registro dinâmico fica como alternativa (revisão 2026-07-28 do MCP).
+      allowDynamicClientRegistration: true,
+      allowUnauthenticatedClientRegistration: true,
+      // IAs no computador da pessoa voltam para loopback ou esquema próprio: clientes nativos.
+      clientRegistrationDefaultApplicationType: "infer",
+    }),
+    cimd({ fetchClientMetadataResource, metadataProfile: "mcp-2026-07-28" }),
   ],
 });
