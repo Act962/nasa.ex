@@ -55,7 +55,7 @@ export function ExternalAiSection() {
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-bold">IA externa (Claude Code, ChatGPT e outras)</h3>
           <p className="text-sm text-muted-foreground">
-            A IA lê o Kit da Marca, o calendário e os horários livres, e cria rascunhos que entram na Caixa de criações do Planner. Ela nunca aprova, programa nem publica.
+            A IA lê o Kit da Marca, o calendário e os horários livres, e cria rascunhos que entram na Caixa de criações do Planner. Ela também revisa, aprova, programa e publica, só com as suas permissões no Planner e pedindo sua confirmação antes.
           </p>
         </div>
       </div>

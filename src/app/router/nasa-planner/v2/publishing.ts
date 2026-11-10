@@ -6,28 +6,12 @@ import { requestImmediatePublish, schedulePlannerPost, unschedulePlannerPost } f
 import { MAX_GROUP_ACCOUNTS, MAX_STAGGER_MINUTES, publishGroupNow, schedulePublishGroup, unschedulePublishGroup } from "@/features/nasa-planner/server/publish-group";
 import { listPublishAccounts } from "@/features/nasa-planner/server/publishing/publish-accounts";
 import { getPlannerPostMetrics } from "@/features/nasa-planner/server/publishing/post-metrics";
-import { logActivity } from "@/features/admin/lib/activity-logger";
+import { logScheduleActivity } from "@/features/nasa-planner/server/planner-activity";
 
 /** Programar, reprogramar, desprogramar, publicar agora e tentar de novo (spec 0057). A permissão é checada na org do post. */
 
 /** `scope: "group"` age em todas as contas do grupo (spec 0074, RF-10); o padrão continua sendo só o post pedido. */
 const scopeInput = z.enum(["post", "group"]).default("post");
-
-async function logScheduleActivity(user: { id: string; name: string; email: string; image?: string | null }, post: { id: string; organizationId: string }, actionLabel: string) {
-  await logActivity({
-    organizationId: post.organizationId,
-    userId: user.id,
-    userName: user.name,
-    userEmail: user.email,
-    userImage: user.image ?? null,
-    appSlug: "nasa-planner",
-    subAppSlug: "planner-posts",
-    featureKey: "planner.post.scheduled",
-    action: "planner.post.scheduled",
-    actionLabel,
-    resourceId: post.id,
-  }).catch(() => undefined);
-}
 
 export const schedule = base
   .use(requiredAuthMiddleware)

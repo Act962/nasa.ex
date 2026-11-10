@@ -31,7 +31,7 @@ import { copyRemoteMediaToStorage, isOwnStorageUrl } from "../remote-media";
  */
 
 const FORMATS = ["STATIC", "CAROUSEL", "REEL", "STORY"] as const;
-const FORMAT_LABEL: Record<(typeof FORMATS)[number], string> = { STATIC: "Feed", CAROUSEL: "Carrossel", REEL: "Reel", STORY: "Story" };
+export const FORMAT_LABEL: Record<(typeof FORMATS)[number], string> = { STATIC: "Feed", CAROUSEL: "Carrossel", REEL: "Reel", STORY: "Story" };
 const EDITABLE_STATUSES: NasaPlannerPostStatus[] = [NasaPlannerPostStatus.IDEA, NasaPlannerPostStatus.DRAFT, NasaPlannerPostStatus.CHANGES_REQUESTED];
 const MAX_RANGE_DAYS = 31;
 const SAO_PAULO_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -63,7 +63,7 @@ type ToolResult = { content: Array<{ type: "text"; text: string }>; isError?: bo
 const asResult = (data: unknown): ToolResult => ({ content: [{ type: "text", text: JSON.stringify(data, null, 2) }] });
 const asError = (message: string): ToolResult => ({ content: [{ type: "text", text: message }], isError: true });
 
-async function runTool(work: () => Promise<unknown>): Promise<ToolResult> {
+export async function runTool(work: () => Promise<unknown>): Promise<ToolResult> {
   try {
     return asResult(await work());
   } catch (error) {
@@ -72,7 +72,7 @@ async function runTool(work: () => Promise<unknown>): Promise<ToolResult> {
 }
 
 /** Chave do R2, upload local ou URL → URL absoluta que a IA externa consegue abrir. */
-async function toAbsoluteMediaUrl(value: string | null | undefined): Promise<string | null> {
+export async function toAbsoluteMediaUrl(value: string | null | undefined): Promise<string | null> {
   if (!value) return null;
   if (value.startsWith("http")) return value;
   if (value.startsWith("/")) return `${APP_ORIGIN}${value}`;
