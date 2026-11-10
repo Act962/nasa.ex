@@ -28,8 +28,12 @@ export const AD_METRICS: MetricDefinition[] = [
   { key: "frequency", label: "Frequência", format: "decimal", term: "frequency" },
 ];
 
+const COST_RATIO_KEYS = new Set<keyof AdMetrics>(["costPerConversationCents", "cpcCents", "cpmCents"]);
+
 export function formatMetric(metrics: AdMetrics, definition: MetricDefinition, currency: string): string {
   const value = metrics[definition.key];
+  // Custo sem a base (nenhuma conversa, clique ou impressão) não é custo zero: não houve o que custar.
+  if (COST_RATIO_KEYS.has(definition.key) && value <= 0) return "—";
   if (definition.format === "money") return formatMoneyFromCents(value, currency);
   if (definition.format === "pct") return `${value.toFixed(2).replace(".", ",")}%`;
   if (definition.format === "decimal") return value.toFixed(2).replace(".", ",");

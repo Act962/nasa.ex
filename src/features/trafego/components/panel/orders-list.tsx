@@ -31,6 +31,7 @@ import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { BillingLockBanner } from "./billing-lock-banner";
 import { OrderCard } from "./order-card";
 import { PanelPageHeader } from "./panel-page-header";
+import { PanelViewTabs } from "./panel-view-tabs";
 import { PanelStatGrid, type PanelStat } from "./panel-stat-grid";
 import { buildOrderTitle } from "@/features/trafego/lib/order-display";
 
@@ -141,6 +142,8 @@ export function TrafegoOrdersList() {
           )
         }
       />
+
+      <PanelViewTabs active="orders" className="mt-4" />
 
       {billingLock?.isLocked && (
         <BillingLockBanner
