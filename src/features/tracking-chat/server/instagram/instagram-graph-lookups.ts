@@ -1,5 +1,6 @@
 import "server-only";
 import prisma from "@/lib/prisma";
+import { isFacebookGraphToken } from "@/modules/social/domain/access-token";
 import type { InstagramMediaCard } from "../../lib/instagram-message-metadata";
 
 /**
@@ -18,7 +19,9 @@ export type InstagramGraphAccess = { accessToken: string; authMode: keyof typeof
 async function getGraph<T>(path: string, { accessToken, authMode }: InstagramGraphAccess): Promise<T | null> {
   try {
     const separator = path.includes("?") ? "&" : "?";
-    const response = await fetch(`${GRAPH_URL_BY_AUTH_MODE[authMode]}${path}${separator}access_token=${encodeURIComponent(accessToken)}`, {
+    // App com login unificado gera token do Facebook mesmo na conexão pelo passo a passo.
+    const graphUrl = isFacebookGraphToken(accessToken) ? GRAPH_URL_BY_AUTH_MODE.META_LOGIN : GRAPH_URL_BY_AUTH_MODE[authMode];
+    const response = await fetch(`${graphUrl}${path}${separator}access_token=${encodeURIComponent(accessToken)}`, {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!response.ok) return null;

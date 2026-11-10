@@ -1,0 +1,74 @@
+import "server-only";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { listPlannerOrganizations } from "@/features/nasa-planner/server/cross-org";
+import { PLANNER_SCOPE, TRAFEGO_SCOPE, isSystemAdmin, type ExternalAiCaller } from "../access-tokens";
+import { registerPlannerMcpTools } from "./planner-mcp-tools";
+import { registerTrafegoMcpTools } from "./trafego-mcp-tools";
+import { registerTrafegoReviewMcpTools } from "./trafego-review-mcp-tools";
+
+/** Apps do ÓRBITA no MCP (spec 0135, D-7): app novo = arquivo de ferramentas + uma entrada em `MCP_APPS`. */
+
+/** O que as regras de acesso consultam, calculado uma vez por pedido e só se algum app pedir. */
+export interface McpAccessContext {
+  userId: string;
+  plannerOrganizationIds: () => Promise<string[]>;
+  isSystemAdmin: () => Promise<boolean>;
+}
+
+function memoize<Value>(load: () => Promise<Value>): () => Promise<Value> {
+  let pending: Promise<Value> | null = null;
+  return () => (pending ??= load());
+}
+
+export function createMcpAccessContext(userId: string): McpAccessContext {
+  return {
+    userId,
+    plannerOrganizationIds: memoize(async () => (await listPlannerOrganizations(userId, "view")).map((organization) => organization.id)),
+    isSystemAdmin: memoize(() => isSystemAdmin(userId)),
+  };
+}
+
+export interface McpApp {
+  key: string;
+  label: string;
+  instructions: string;
+  canAccess: (access: McpAccessContext) => Promise<boolean>;
+  register: (server: McpServer, caller: ExternalAiCaller) => void;
+}
+
+export const MCP_APPS: McpApp[] = [
+  {
+    key: PLANNER_SCOPE,
+    label: "Planner",
+    instructions:
+      "Planner: list_clients → get_brand_kit (siga a voz, as cores e as hashtags) → list_open_slots → create_draft → arte (get_video_templates: modelos Remotion com a marca, renderizados no seu computador) → request_upload_url → attach_media → submit_for_approval. Aprovar, programar e publicar é sempre de uma pessoa no ÓRBITA. Use get_review_feedback para ler pedidos de ajuste.",
+    canAccess: async (access) => (await access.plannerOrganizationIds()).length > 0,
+    register: registerPlannerMcpTools,
+  },
+  {
+    key: TRAFEGO_SCOPE,
+    label: "trafeGO",
+    // Spec 0131 (RF-6) e 0132: só a equipe.
+    instructions:
+      "trafeGO (equipe): trafego_list_orders → trafego_get_order → trafego_get_publish_brief → crie TUDO PAUSADO com o MCP da Meta → trafego_link_meta_campaign → trafego_send_recommendation → espere o cliente aprovar no painel → só então ative na Meta. Use trafego_get_ad_insights para ajustar campanhas no ar e trafego_add_team_note para registrar o que fez. O ÓRBITA não ativa nem mexe em verba. Rotina de avaliação (spec 0132): trafego_list_review_queue → para cada toReview, trafego_get_order_for_review (vem com o criativo) → trafego_review_order com o fingerprint; para cada toPublish, trafego_get_publish_brief → crie e ative pelo MCP da Meta → trafego_mark_published. Nunca publique pedido que o cliente não liberou.",
+    canAccess: (access) => access.isSystemAdmin(),
+    register: (server, caller) => {
+      registerTrafegoMcpTools(server, caller);
+      registerTrafegoReviewMcpTools(server, caller);
+    },
+  },
+];
+
+/** Apps que a pessoa pode usar agora. Na chave, limitados também aos escopos gravados nela. */
+export async function resolveAvailableApps(access: McpAccessContext, grantedScopes?: string[]): Promise<McpApp[]> {
+  const candidates = grantedScopes ? MCP_APPS.filter((app) => grantedScopes.includes(app.key)) : MCP_APPS;
+  const isAllowedByApp = await Promise.all(candidates.map((app) => app.canAccess(access)));
+  return candidates.filter((_, index) => isAllowedByApp[index]);
+}
+
+export function buildServerInstructions(apps: McpApp[]): string {
+  if (apps.length === 0) {
+    return "Você está conectado ao ÓRBITA, mas esta conta ainda não tem nenhum app liberado para IA (ex.: o Planner em alguma empresa).";
+  }
+  return `Você está conectado ao ÓRBITA. ${apps.map((app) => app.instructions).join(" ")}`;
+}

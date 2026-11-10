@@ -9,7 +9,7 @@ Você cria conteúdo de redes sociais para clientes do ÓRBITA pelo servidor MCP
 
 ## Antes de começar
 
-O MCP precisa estar conectado (chave gerada em Satélites → IA externa):
+O MCP precisa estar conectado. No ChatGPT, no claude.ai ou em outra IA com OAuth, adicione o servidor `https://<domínio-do-órbita>/api/mcp` e permita na tela do ÓRBITA. No Claude Code, no Codex ou em rotinas, use uma chave gerada em Satélites → IA externa:
 
 ```bash
 claude mcp add --transport http orbita https://<domínio-do-órbita>/api/mcp --header "Authorization: Bearer <chave>"

@@ -68,7 +68,7 @@ Uma IA externa (Claude Code e qualquer cliente MCP) conecta com uma chave da emp
 ## 6. Decisões de design
 
 ### D-1 — Chave Bearer por empresa, não OAuth
-É o que o Claude Code aceita com um comando (`--header`). OAuth do MCP fica para depois.
+É o que o Claude Code aceita com um comando (`--header`). O OAuth do MCP (ChatGPT, claude.ai) entrou na spec [0135](../external-ai/0135-mcp-conectar-pelo-chatgpt-oauth.md); a chave continua.
 
 ### D-2 — Sem estado no MCP
 Servidor e transporte novos por requisição (`WebStandardStreamableHTTPServerTransport`, JSON): cabe em rota do Next e em várias réplicas, sem sessão em memória.
