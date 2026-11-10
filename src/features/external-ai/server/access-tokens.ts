@@ -101,6 +101,8 @@ export async function authenticateExternalAiToken(token: string): Promise<Extern
   };
 }
 
+const PLANNER_ACTION_LABEL: Record<PlannerAction, string> = { view: "ver", create: "criar", approve: "aprovar", schedule: "programar e publicar" };
+
 /** Empresa liberada na chave + permissão atual do dono no Planner dela (RNF-2). */
 export async function assertCallerOrganization(caller: ExternalAiCaller, organizationId: string, action: PlannerAction) {
   if (!caller.organizationIds.includes(organizationId)) {
@@ -109,6 +111,6 @@ export async function assertCallerOrganization(caller: ExternalAiCaller, organiz
   try {
     await assertPlannerOrganizationAccess(caller.userId, organizationId, action);
   } catch {
-    throw new Error("Esta conta não tem mais permissão no Planner desta empresa.");
+    throw new Error(`Esta conta não tem permissão para ${PLANNER_ACTION_LABEL[action]} no Planner desta empresa. Peça a um Master para liberar em Permissões.`);
   }
 }
