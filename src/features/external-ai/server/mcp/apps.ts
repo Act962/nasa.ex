@@ -41,7 +41,7 @@ export const MCP_APPS: McpApp[] = [
     key: PLANNER_SCOPE,
     label: "Planner",
     instructions:
-      "Planner: list_clients → get_brand_kit (siga a voz, as cores e as hashtags) → list_open_slots → create_draft → arte (get_video_templates: modelos Remotion com a marca, renderizados no seu computador) → request_upload_url → attach_media → submit_for_approval. Aprovar, programar e publicar é sempre de uma pessoa no ÓRBITA. Use get_review_feedback para ler pedidos de ajuste.",
+      "Planner: list_clients → get_brand_kit (siga a voz, as cores e as hashtags) → list_open_slots → create_draft → arte (get_video_templates: modelos Remotion com a marca, renderizados no seu computador) → request_upload_url → attach_media → submit_for_approval. Se você roda na nuvem (ChatGPT, claude.ai) e não consegue enviar arquivo por PUT, pule o request_upload_url e passe a imagem direto no attach_media (mediaUrl com link https público, ou file com a imagem gerada na conversa). Aprovar, programar e publicar é sempre de uma pessoa no ÓRBITA. Use get_review_feedback para ler pedidos de ajuste.",
     canAccess: async (access) => (await access.plannerOrganizationIds()).length > 0,
     register: registerPlannerMcpTools,
   },
