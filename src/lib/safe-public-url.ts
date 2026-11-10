@@ -1,9 +1,8 @@
 import "server-only";
-import { BlockList, isIP } from "node:net";
+import { BlockList, isIP, type LookupFunction } from "node:net";
 import { lookup } from "node:dns/promises";
 
-// Leitura de endereço informado pelo usuário (spec 0088, S-5). Tudo que não for
-// um site público em https é recusado antes de qualquer conexão.
+// Endereço público informado por usuário ou IA (specs 0088 e 0136): tudo que não for site público em https é recusado antes de conectar.
 
 export class UnsafeSiteAddressError extends Error {}
 
@@ -95,4 +94,21 @@ export async function resolvePublicAddress(hostname: string): Promise<ResolvedAd
 /** "www.clinica.com.br" e "clinica.com.br" são o mesmo site. */
 export function siteKey(hostname: string): string {
   return hostname.toLowerCase().replace(/^www\./, "");
+}
+
+/**
+ * A conexão usa exatamente o IP já conferido. Sem isso, o nome poderia resolver
+ * para um endereço público na checagem e para um interno na hora de conectar.
+ */
+export function pinnedLookup(resolved: ResolvedAddress): LookupFunction {
+  return ((_hostname: string, options: unknown, callback: unknown) => {
+    const done = (typeof options === "function" ? options : callback) as (
+      error: Error | null,
+      address: string | { address: string; family: number }[],
+      family?: number,
+    ) => void;
+    const wantsAll = typeof options === "object" && options !== null && (options as { all?: boolean }).all === true;
+    if (wantsAll) done(null, [{ address: resolved.address, family: resolved.family }]);
+    else done(null, resolved.address, resolved.family);
+  }) as LookupFunction;
 }

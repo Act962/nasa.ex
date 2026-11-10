@@ -26,7 +26,7 @@ claude mcp add --transport http orbita https://<domínio-do-órbita>/api/mcp --h
    - Story → `StoryFrame` (MP4 9:16; texto na arte).
    - Carrossel → `CarouselSlide`, um PNG por card (`variant: cover` no 1º, `cta` no último).
    - Feed → `FeedPost` (PNG 4:5).
-   Confira o resultado (abra o PNG ou um frame do vídeo com `npx remotion still ... --frame=N`) antes de enviar. Suba cada arquivo com `request_upload_url` (faça o PUT com o `Content-Type` devolvido) e anexe com `attach_media` usando o `publicUrl`. Carrossel: um `attach_media` por card, na ordem (2 a 10). Vídeo: `kind: "video"`. Se a arte veio de outra fonte, anexe direto uma URL pública https.
+   Confira o resultado (abra o PNG ou um frame do vídeo com `npx remotion still ... --frame=N`) antes de enviar. Suba cada arquivo com `request_upload_url` (faça o PUT com o `Content-Type` devolvido) e anexe com `attach_media` usando o `publicUrl`. Carrossel: um `attach_media` por card, na ordem (2 a 10). Vídeo: `kind: "video"`. Se a arte veio de outra fonte, ou se você não consegue fazer o PUT (IA na nuvem), passe direto no `attach_media` um link https público ou o arquivo da conversa: o ÓRBITA baixa e guarda uma cópia (até 15 MB por imagem, 100 MB por vídeo).
 6. **Enviar** — `submit_for_approval`. Mostre ao usuário o link do post e o checklist da marca devolvido.
 7. **Ajustes** — mais tarde, `get_review_feedback` traz os pedidos de ajuste. Corrija criando a nova versão e envie de novo.
 
