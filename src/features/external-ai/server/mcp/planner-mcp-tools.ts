@@ -99,6 +99,7 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
     { description: "Empresas (clientes) liberadas nesta chave, com o status do Kit da Marca e as contas de Instagram conectadas." },
     () =>
       runTool(async () => {
+        // `caller.organizationIds` já vem filtrado pela permissão atual no Planner (authenticateMcpRequest).
         const organizations = await prisma.organization.findMany({ where: { id: { in: caller.organizationIds } }, select: { id: true, name: true } });
         return Promise.all(
           organizations.map(async (organization) => {

@@ -3,42 +3,22 @@
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Check, Clapperboard, Copy, Download, KeyRound, Plug } from "lucide-react";
+import { Clapperboard, Download, KeyRound, Plug } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { usePlannerClients } from "@/features/nasa-planner/hooks/use-planner-calendar";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { useCreateExternalAiToken, useExternalAiTokens, useRevokeExternalAiToken } from "../hooks/use-external-ai-tokens";
+import { MCP_PATH } from "../server/oauth-config";
+import { CopyBlock } from "./copy-block";
+import { OAuthConnectPanel } from "./oauth-connect-panel";
 
 /** Satélites → IA externa (spec 0065, RF-5): chave do MCP do ÓRBITA para Claude Code e outras IAs. */
-
-const MCP_PATH = "/api/mcp";
 
 function buildClaudeCommand(token: string) {
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   return `claude mcp add --transport http orbita ${origin}${MCP_PATH} --header "Authorization: Bearer ${token}"`;
-}
-
-function CopyBlock({ text }: { text: string }) {
-  const [isCopied, setIsCopied] = useState(false);
-  return (
-    <div className="relative mt-2 rounded-xl bg-foreground p-3 pr-10 font-mono text-xs break-all text-background">
-      {text}
-      <button
-        type="button"
-        aria-label="Copiar"
-        onClick={async () => {
-          await navigator.clipboard.writeText(text);
-          setIsCopied(true);
-          setTimeout(() => setIsCopied(false), 1500);
-        }}
-        className="absolute top-2 right-2 rounded-md p-1 text-background/70 hover:text-background"
-      >
-        {isCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
-      </button>
-    </div>
-  );
 }
 
 export function ExternalAiSection() {
@@ -80,8 +60,12 @@ export function ExternalAiSection() {
         </div>
       </div>
 
+      <OAuthConnectPanel />
+
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_340px]">
         <div className="rounded-2xl bg-panel p-4">
+          <p className="text-sm font-semibold">Chave de acesso (Claude Code, Codex e rotinas)</p>
+          <p className="mt-1 mb-3 text-xs text-muted-foreground">Para IA que roda no seu computador ou sem navegador. Você escolhe as empresas da chave.</p>
           <p className="mb-2 text-xs text-muted-foreground">Nome da chave</p>
           <Input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={80} className="h-9 rounded-full" />
           <p className="mt-3 mb-2 text-xs text-muted-foreground">Empresas que a IA pode acessar</p>

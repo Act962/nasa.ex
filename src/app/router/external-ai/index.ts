@@ -7,6 +7,7 @@ import {
   listExternalAiTokens,
   revokeExternalAiToken,
 } from "@/features/external-ai/server/access-tokens";
+import { disconnectOAuthConnection, listOAuthConnections } from "@/features/external-ai/server/oauth-connections";
 
 /** Chaves de acesso de IA externa ao MCP (spec 0065, RF-5). Cada usuário vê e revoga só as próprias. */
 
@@ -42,6 +43,17 @@ const revokeToken = base
     return { ok: true as const };
   });
 
+/** IAs conectadas por OAuth (spec 0135, RF-11, RF-12): cada pessoa vê e desconecta só as próprias. */
+const listConnections = base.use(requiredAuthMiddleware).handler(async ({ context }) => ({
+  connections: await listOAuthConnections(context.user.id),
+}));
+
+const disconnectConnection = base
+  .use(requiredAuthMiddleware)
+  .input(z.object({ connectionId: z.string() }))
+  .handler(async ({ input, context }) => ({ isDisconnected: await disconnectOAuthConnection(context.user.id, input.connectionId) }));
+
 export const externalAiRouter = {
   tokens: { list: listTokens, create: createToken, revoke: revokeToken },
+  connections: { list: listConnections, disconnect: disconnectConnection },
 };
