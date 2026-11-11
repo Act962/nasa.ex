@@ -4,12 +4,14 @@ import { computeLeadMetrics } from "@/features/leads/lib/metrics/compute-lead-me
 import { refreshLeadMetrics } from "@/features/leads/lib/metrics/save-lead-metrics";
 import { AUTO_METRICS_SINCE, LEAD_METRICS_RECOMPUTE_EVENT } from "@/features/leads/lib/metrics/constants";
 
-// Recalcula as métricas do lead depois de cada interação (spec 0035, D-4).
-// O debounce junta a rajada de mensagens num cálculo só.
+// Recalcula as métricas do lead (spec 0035, RF-4): nos eventos que mudam o lead de verdade
+// (proposta paga, atendimento finalizado, agenda, PIX) e, para as mensagens, no cron da madrugada.
+// Mensagem não dispara mais recálculo: era uma execução por rajada de conversa.
 
 const DAY_MS = 24 * 60 * 60_000;
 const ACTIVE_WINDOW_DAYS = 60;
-const NIGHTLY_BATCH_LIMIT = 2000;
+// Teto de segurança (tamanho da resposta da etapa), não de custo: cada lote de 250 é uma execução.
+const NIGHTLY_SAFETY_LIMIT = 50_000;
 const NIGHTLY_CHUNK_SIZE = 250;
 
 async function shouldTrackAutomatically(leadId: string): Promise<boolean> {
@@ -21,16 +23,6 @@ async function shouldTrackAutomatically(leadId: string): Promise<boolean> {
   return Boolean(lead && (lead.metrics || lead.createdAt >= AUTO_METRICS_SINCE));
 }
 
-async function hasInteractedSince(leadId: string, since: Date): Promise<boolean> {
-  const lead = await prisma.lead.findUnique({
-    where: { id: leadId },
-    select: { lastInboundAt: true, lastOutboundAt: true },
-  });
-  return Boolean(
-    lead && ((lead.lastInboundAt && lead.lastInboundAt >= since) || (lead.lastOutboundAt && lead.lastOutboundAt >= since)),
-  );
-}
-
 async function recomputeOneLead(leadId: string): Promise<{ skipped: boolean }> {
   if (!(await shouldTrackAutomatically(leadId))) return { skipped: true };
   const computed = await computeLeadMetrics(leadId);
@@ -38,14 +30,22 @@ async function recomputeOneLead(leadId: string): Promise<{ skipped: boolean }> {
   return { skipped: false };
 }
 
-// A madrugada não passa pela fila por lead da função acima. Se o lead conversou
-// durante o cálculo, o recálculo da mensagem é o mais novo: não sobrescrevemos.
+// A madrugada é o único recálculo depois de mensagem: se o lead conversou durante o
+// cálculo, calcula de novo na hora em vez de pular (pular deixava a métrica um dia atrasada).
 async function recomputeOneLeadNightly(leadId: string): Promise<{ skipped: boolean }> {
   if (!(await shouldTrackAutomatically(leadId))) return { skipped: true };
   const startedAt = new Date();
   const computed = await computeLeadMetrics(leadId);
-  if (!computed || (await hasInteractedSince(leadId, startedAt))) return { skipped: true };
-  await refreshLeadMetrics(leadId, computed);
+  if (!computed) return { skipped: true };
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { lastInboundAt: true, lastOutboundAt: true },
+  });
+  const hasInteractedDuringRun = Boolean(
+    lead && ((lead.lastInboundAt && lead.lastInboundAt >= startedAt) || (lead.lastOutboundAt && lead.lastOutboundAt >= startedAt)),
+  );
+  const freshest = hasInteractedDuringRun ? ((await computeLeadMetrics(leadId)) ?? computed) : computed;
+  await refreshLeadMetrics(leadId, freshest);
   return { skipped: false };
 }
 
@@ -64,19 +64,26 @@ export const recomputeLeadMetrics = inngest.createFunction(
   },
 );
 
-/** "Interações/mês" envelhece sem mensagem nova: o cron da madrugada atualiza. */
+/** Mensagens do dia e "Interações/mês", que envelhece sem mensagem nova: o cron da madrugada atualiza. */
 export const recomputeActiveLeadMetricsNightly = inngest.createFunction(
   { id: "lead-metrics-recompute-nightly", retries: 1 },
   { cron: "TZ=America/Sao_Paulo 0 4 * * *" },
   async ({ step }) => {
     const leadIds = await step.run("active-leads", async () => {
       const since = new Date(Date.now() - ACTIVE_WINDOW_DAYS * DAY_MS);
-      const rows = await prisma.leadMetrics.findMany({
-        where: { lead: { OR: [{ lastInboundAt: { gte: since } }, { lastOutboundAt: { gte: since } }] } },
-        select: { leadId: true },
-        take: NIGHTLY_BATCH_LIMIT,
+      // Inclui lead novo ainda sem métricas: a primeira linha nasce aqui, já que mensagem não recalcula mais.
+      const rows = await prisma.lead.findMany({
+        where: {
+          OR: [{ lastInboundAt: { gte: since } }, { lastOutboundAt: { gte: since } }],
+          AND: [{ OR: [{ metrics: { isNot: null } }, { createdAt: { gte: AUTO_METRICS_SINCE } }] }],
+        },
+        select: { id: true },
+        take: NIGHTLY_SAFETY_LIMIT,
       });
-      return rows.map((row) => row.leadId);
+      if (rows.length === NIGHTLY_SAFETY_LIMIT) {
+        console.warn("[lead-metrics-nightly] teto de segurança atingido; leads além dele não entram nesta noite (subir o teto ou paginar)");
+      }
+      return rows.map((row) => row.id);
     });
     // Lotes dentro desta função em vez de um evento por lead: o fan-out custava
     // 3 execuções por lead (até 6 mil por noite).

@@ -166,21 +166,9 @@ export function useVideoUpload() {
 
           useVideoUploadManager.getState().addPart(uploadId, partNumber, etag);
 
+          // O progresso da barra vem deste store (sem ida ao servidor por pedaço).
           const updated = useVideoUploadManager.getState().uploads.get(uploadId);
           if (updated) {
-            const completedCount = updated.completedParts.length;
-            const progressPct = Math.round((completedCount / totalParts) * 100);
-
-            // Fire & forget com catch explícito — evita unhandledRejection em race com abort
-            orpc.nasaRoute.creatorReportUploadPart.call({
-              uploadId,
-              partNumber,
-              etag,
-              progressPct,
-              completedParts: completedCount,
-              totalParts,
-            }).catch(() => {});
-
             const { file: _f, progressPct: _p, ...rest } = updated;
             void _f;
             void _p;

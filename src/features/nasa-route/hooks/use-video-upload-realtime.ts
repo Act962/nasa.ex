@@ -30,11 +30,6 @@ export function useVideoUploadRealtime(uploadId: string | null) {
     return { progressPct: 0, isCompleted: false, videoUrl: null, hasFailed: false };
   }
 
-  if (latest.topic === "progress") {
-    const d = latest.data as { progressPct: number; completedParts: number; totalParts: number };
-    return { progressPct: d.progressPct, isCompleted: false, videoUrl: null, hasFailed: false };
-  }
-
   if (latest.topic === "completed") {
     const d = latest.data as { videoUrl: string };
     return { progressPct: 100, isCompleted: true, videoUrl: d.videoUrl, hasFailed: false };

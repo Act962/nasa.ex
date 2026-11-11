@@ -38,7 +38,6 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { LeadSource } from "@/generated/prisma/enums";
 import type { WorkflowLeadMessage } from "@/features/tracking-executions/lib/lead-message";
-import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 import { findActiveCampaign } from "@/features/star-friends/lib/campaign/campaign";
 import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
@@ -333,9 +332,6 @@ export async function firePostInboundAutomations(
       console.error("[pipeline] inngest_send_failed", err);
     }
   }
-
-  // ── 4b. Métricas do lead (spec 0035) — entrada e saída ──────────────
-  await requestLeadMetricsRecompute(params.lead.id);
 
   // ── 5. Idle automation (só inbound) ──────────────────────────────────
   if (!params.fromMe) {
