@@ -24,13 +24,20 @@ export type WorkflowContext = {
   loopIndex?: number;
   /** Fluxo em execução: a mensagem enviada por um passo guarda de onde veio (spec 0113, RF-20). */
   workflowId?: string;
+  /** Fluxo de Atendimento do FlowAstro (spec 0139): menus sempre esperam o clique, sem depender de flag. */
+  flowKind?: "ATTENDANCE";
 };
+
+export function isAttendanceFlowContext(context: WorkflowContext): boolean {
+  return context.flowKind === "ATTENDANCE";
+}
 
 export function createInitialContext(input: {
   lead?: Record<string, unknown>;
   trigger?: Record<string, unknown>;
   initialVars?: Record<string, unknown>;
   workflowId?: string;
+  flowKind?: "ATTENDANCE";
 }): WorkflowContext {
   return {
     lead: input.lead,
@@ -38,6 +45,7 @@ export function createInitialContext(input: {
     vars: { ...(input.initialVars ?? {}) },
     nodeOutputs: {},
     ...(input.workflowId ? { workflowId: input.workflowId } : {}),
+    ...(input.flowKind ? { flowKind: input.flowKind } : {}),
   };
 }
 

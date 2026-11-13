@@ -205,3 +205,4 @@ Uma empresa com STAR FRIENDS cria uma campanha de sorteio, o cliente participa s
 | 2026-10-13 | João Gabriel | RF-15 e CA-11 a CA-14: conferência manual do cupom que a leitura não resolveu, com aviso ao cliente dentro da janela de 24 h. D-4 revista. CB-3 e CB-5 mudam (conferência em vez de recusa); CB-19 a CB-21 novos. |
 | 2026-10-14 | Weydson | RF-16: vários prêmios por campanha, um por pessoa (o Mercadinho sorteia 5 carrinhos). Frase livre sobre a promoção abre a campanha sem depender do menu (CB-19). |
 | 2026-11-06 | João Gabriel | RF-11 e RF-16: o sorteio passa a sair um prêmio por vez, com revogação em 30 minutos, na tela do sorteio ao vivo. Detalhes na spec 0134. |
+| 2026-11-12 | João Gabriel | A campanha também roda no FlowAstro por blocos (Inscrever, Registrar cupom, Consultar), que chamam as mesmas funções; `handleCampaign` não muda. Ver [spec 0140](../workflows/0140-blocos-promocao-star-friends.md). |

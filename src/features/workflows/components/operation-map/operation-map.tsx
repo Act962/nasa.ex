@@ -31,6 +31,7 @@ import { MapFlowEditor } from "./map-flow-editor";
 import { MapEdge } from "./map-edge";
 import { MapStepNode, type MapStepData } from "./map-step-node";
 import { StageFrameNode, type StageFrameData } from "./stage-frame-node";
+import { useFlowColorMode } from "@/hooks/use-flow-color-mode";
 
 // Mapa da operação (spec 0092): todos os fluxos do funil numa tela só. Os retângulos podem ser
 // arrastados enquanto a pessoa está na tela (ao voltar, o mapa abre organizado); os passos são somente leitura.
@@ -56,6 +57,7 @@ interface OperationMapProps {
 }
 
 export function OperationMap({ trackingId, workflows, folders }: OperationMapProps) {
+  const flowColorMode = useFlowColorMode();
   const router = useRouter();
   const isRichView = useAtomValue(editorViewModeAtom) === "rich";
   const { instance } = useQueryInstances(trackingId);
@@ -335,6 +337,7 @@ export function OperationMap({ trackingId, workflows, folders }: OperationMapPro
         }}
         deleteKeyCode={null}
         minZoom={0.08}
+        colorMode={flowColorMode}
         fitView
         fitViewOptions={{ padding: 0.12 }}
         proOptions={{ hideAttribution: false }}

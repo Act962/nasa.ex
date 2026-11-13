@@ -28,6 +28,8 @@ import { runScheduledWorkflows } from "@/features/workflows/lib/schedule/run-sch
 import { sendDueRecordNotices } from "@/features/form-records/server/record-notices";
 import { runAiTokenUsageDetection } from "@/features/alerts/lib/ai-token-alerts";
 import { runAiCreditBalanceCheck } from "@/features/ai-credits/lib/run-credit-balance-check";
+import { runPaymentInboxSyncDispatch } from "@/inngest/functions/payment/inbox-sync";
+import { remindStalledApprovals } from "@/features/nerp-catalog/lib/approvals/order-approvals";
 
 type PollingJob = (step: InlineStep) => Promise<unknown>;
 
@@ -60,6 +62,8 @@ const HOURLY_JOBS: Record<string, PollingJob> = {
   "trafego-pix-pending": runTrafegoPixPendingSweep,
   "ai-token-usage": () => runAiTokenUsageDetection(),
   "ai-credit-balance": () => runAiCreditBalanceCheck(),
+  "payment-inbox-sync": () => runPaymentInboxSyncDispatch(),
+  "nerp-sales-approvals": () => remindStalledApprovals(),
 };
 
 async function runPollingJobs(tickerId: string, jobs: Record<string, PollingJob>) {

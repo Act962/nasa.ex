@@ -1,8 +1,8 @@
 /**
  * Caixa de entrada Gmail do financeiro (spec 0018).
  *
- * O cron só distribui: um evento `payment/inbox.sync` por org com a caixa
- * ativa e integração Google conectada. A função por org serializa (limit 1) e
+ * O ticker horário só distribui: um evento `payment/inbox.sync` por org com a
+ * caixa ativa e integração Google conectada. A função por org serializa (limit 1) e
  * ingere cada anexo num `step.run` próprio, pra que uma falha não refaça — nem
  * recobre — os documentos que já passaram.
  */
@@ -20,37 +20,27 @@ import {
   type PaymentInboxSyncEventData,
 } from "@/features/payment/server/inbox/inbox-constants";
 
-export const paymentInboxSyncCron = inngest.createFunction(
-  { id: "payment-inbox-sync-cron", retries: 0 },
-  { cron: "*/30 * * * *" },
-  async ({ step, logger }) => {
-    const organizationIds = await step.run("list-enabled-orgs", async () => {
-      const configs = await prisma.paymentInboxConfig.findMany({
-        where: {
-          isEnabled: true,
-          organization: {
-            platformIntegrations: { some: { platform: "GMAIL", isActive: true } },
-          },
-        },
-        select: { organizationId: true },
-      });
-      return configs.map((config) => config.organizationId);
-    });
+// Distribuição horária: roda dentro do `polling-ticker-hourly` (sem cron próprio, sem steps).
+export async function runPaymentInboxSyncDispatch() {
+  const configs = await prisma.paymentInboxConfig.findMany({
+    where: {
+      isEnabled: true,
+      organization: {
+        platformIntegrations: { some: { platform: "GMAIL", isActive: true } },
+      },
+    },
+    select: { organizationId: true },
+  });
+  if (configs.length === 0) return { dispatched: 0 };
 
-    if (organizationIds.length === 0) return { dispatched: 0 };
-
-    await step.sendEvent(
-      "fan-out-org-sync",
-      organizationIds.map((organizationId) => ({
-        name: PAYMENT_INBOX_SYNC_EVENT,
-        data: { organizationId } satisfies PaymentInboxSyncEventData,
-      })),
-    );
-
-    logger.info("[payment-inbox-sync-cron] orgs disparadas", { count: organizationIds.length });
-    return { dispatched: organizationIds.length };
-  },
-);
+  await inngest.send(
+    configs.map((config) => ({
+      name: PAYMENT_INBOX_SYNC_EVENT,
+      data: { organizationId: config.organizationId } satisfies PaymentInboxSyncEventData,
+    })),
+  );
+  return { dispatched: configs.length };
+}
 
 export const paymentInboxSyncOrg = inngest.createFunction(
   {
@@ -62,15 +52,27 @@ export const paymentInboxSyncOrg = inngest.createFunction(
   async ({ event, step, logger }) => {
     const { organizationId, triggeredByUserId } = event.data as PaymentInboxSyncEventData;
 
-    const discovery = await step.run("discover", () => discoverOrgInboxItems({ organizationId }));
+    // Descobrir e resolver o autor numa etapa só; sem e-mail novo, fecha o sync ali mesmo (2 execuções).
+    const discovery = await step.run("discover", async () => {
+      const discovered = await discoverOrgInboxItems({ organizationId });
+      if (!discovered.ok) return { ...discovered, actorUserId: null, finished: null };
+      if (discovered.itemIds.length === 0) {
+        const finished = await finishOrgInboxSync({
+          organizationId,
+          processedItemIds: [],
+          accountEmail: discovered.accountEmail,
+        });
+        return { ...discovered, actorUserId: null, finished };
+      }
+      const actorUserId = await resolveInboxActorUserId({ organizationId, triggeredByUserId });
+      return { ...discovered, actorUserId, finished: null };
+    });
     if (!discovery.ok) {
       logger.warn("[payment-inbox-sync-org] sync pulado", { organizationId, reason: discovery.reason });
       return discovery;
     }
-
-    const actorUserId = await step.run("resolve-actor", () =>
-      resolveInboxActorUserId({ organizationId, triggeredByUserId }),
-    );
+    if (discovery.finished) return { discovered: discovery.discoveredCount, ...discovery.finished };
+    const actorUserId = discovery.actorUserId;
 
     const outcomes: Record<string, string> = {};
     for (const itemId of discovery.itemIds) {

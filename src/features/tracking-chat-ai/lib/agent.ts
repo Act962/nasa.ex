@@ -127,7 +127,7 @@ const ATTENDANCE_TONE =
   "Responda curto, simples e natural, chamando o cliente pelo primeiro nome. Nada de explicações longas nem frases de robô.";
 
 /** A janela de 24h já foi conferida no início de `runWhatsappAgent`. */
-async function sendAgentText(
+export async function sendAgentText(
   trackingId: string,
   leadPhone: string,
   text: string,
@@ -173,12 +173,27 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // Uma foto só do estado da IA no lead, de a mensagem ser clique em menu e de haver campanha ativa (spec
   // 0113, RF-3). Com a IA pausada só o clique e a campanha seguem, porque disparam fluxo; o resto para aqui,
   // antes de carregar contexto ou transcrever áudio.
+  // Cada etapa (`step.run`) conta uma execução no plano do Inngest: as checagens rápidas ficam agrupadas.
+  // Esta também fotografa o estado do lead e o uso da última hora e transcreve o áudio pendente: o Inngest
+  // roda a função de novo a cada etapa, e sem a foto, quando o próprio agente transferia para um atendente
+  // (lead inativo), a rodada seguinte parava e a mensagem de despedida nunca era enviada.
   const isInboundTrigger = (data.trigger ?? "inbound") === "inbound";
   const entryGate = await step.run("check-lead-ai", async () => {
+    // Lead dentro de um Fluxo de Atendimento: a IA só fala pelo bloco "Agente de IA" do fluxo (spec 0139, RF-18).
+    const attendanceLock = await prisma.workflowRun.findUnique({ where: { attendanceLeadId: data.leadId }, select: { id: true } });
+    if (attendanceLock) {
+      return { isActive: false, isMenuClick: false, hasActiveCampaign: false, statusFlow: null, repliesLastHour: 0, isInAttendanceFlow: true };
+    }
     const lead = await prisma.lead.findUnique({
       where: { id: data.leadId },
-      select: { isActive: true, lastHumanReplyAt: true, tracking: { select: { aiSettings: { select: { capabilities: true } } } } },
+      select: {
+        isActive: true,
+        statusFlow: true,
+        lastHumanReplyAt: true,
+        tracking: { select: { aiSettings: { select: { capabilities: true } } } },
+      },
     });
+    const statusFlow = (lead?.statusFlow ?? null) as string | null;
     // A IA se cala sozinha enquanto um atendente conversa, e o estado de atendimento pode segurá-la ("Equipe
     // primeiro", espera do consultor). A fala humana recente também barra as entradas agendadas do atendimento:
     // se o atendente respondeu depois da checagem que chamou a IA, ela não entra por cima dele. A regra da seção
@@ -189,58 +204,50 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
       ((isInboundTrigger || isAttendanceEntry) && isHumanReplyRecent(lead?.lastHumanReplyAt, new Date(), inServiceAiMinutes)) ||
       (isInboundTrigger && (await isAiHeldByAttendance(data.leadId)));
     const isActive = lead ? !isLeadAiPaused(lead) && !isHeldForHuman : false;
-    if (isActive || !data.messageId) return { isActive, isMenuClick: false, hasActiveCampaign: false };
+    if (isActive) {
+      // Áudio do cliente vira texto antes de montar o histórico (spec 0084, RF-1).
+      await transcribePendingLeadAudio({
+        trackingId: data.trackingId,
+        conversationId: data.conversationId,
+        organizationId: data.organizationId,
+      });
+      const repliesLastHour = await prisma.aiChatRun.count({
+        where: { leadId: data.leadId, trackingId: data.trackingId, createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
+      });
+      return { isActive, isMenuClick: false, hasActiveCampaign: false, statusFlow, repliesLastHour, isInAttendanceFlow: false };
+    }
+    if (!data.messageId) return { isActive, isMenuClick: false, hasActiveCampaign: false, statusFlow, repliesLastHour: 0, isInAttendanceFlow: false };
     const inbound = await prisma.message.findFirst({
       where: { id: data.messageId, conversationId: data.conversationId, fromMe: false },
       select: { metadata: true },
     });
     const replyId = (inbound?.metadata as { interactiveReplyId?: unknown } | null)?.interactiveReplyId;
     const activeCampaign = await findActiveCampaign(data.organizationId, data.trackingId);
-    return { isActive, isMenuClick: typeof replyId === "string", hasActiveCampaign: Boolean(activeCampaign) };
+    return {
+      isActive,
+      isMenuClick: typeof replyId === "string",
+      hasActiveCampaign: Boolean(activeCampaign),
+      statusFlow,
+      repliesLastHour: 0,
+      isInAttendanceFlow: false,
+    };
   });
+  if (entryGate.isInAttendanceFlow) return { skipped: true, reason: "in_attendance_flow" };
   const isPausedRuleTrigger = isInboundTrigger && (entryGate.isMenuClick || entryGate.hasActiveCampaign);
   if (!entryGate.isActive && !isPausedRuleTrigger) {
     return { skipped: true, reason: "lead_inactive" };
   }
-  const isLeadAiActive = entryGate.isActive;
   // Não envolvemos load-context em step.run: o serializador do Inngest
   // converte o retorno em JsonifyObject, o que quebra o tipo de ModelMessage[]
   // (e o AgentContext que é passado pras tools). Re-executar em retry é barato.
-  // Áudio do cliente vira texto antes de montar o histórico (spec 0084, RF-1).
-  if (isLeadAiActive) {
-    await step.run("transcribe-lead-audio", () =>
-      transcribePendingLeadAudio({
-        trackingId: data.trackingId,
-        conversationId: data.conversationId,
-        organizationId: data.organizationId,
-      }),
-    );
-  }
   const ctx = await loadAgentContext(data);
-  // Resposta pronta (menu, campanha, informações da loja) também é a empresa respondendo: a seção registra,
-  // para o cliente não seguir "Aguard. atendimento" enquanto o robô conversa (spec 0113, RF-9).
-  const markCodedReply = async () => {
-    if (!isAttendanceStateEnabled(ctx.organizationId)) return;
-    await step.run("mark-coded-reply", () => markAiReplied({ leadId: ctx.lead.id, at: new Date() }));
-  };
 
   // Pedido do catálogo NERP roda também só no portal (/pedido/<token>), sem
   // instância de WhatsApp no tracking.
   if (!ctx.instance && !ctx.catalogOrder)
     return { skipped: true, reason: "no_whatsapp_instance" };
   if (!ctx.settings) return { skipped: true, reason: "no_ai_settings" };
-  // O Inngest roda esta função de novo a cada etapa, e o contexto é recarregado toda vez.
-  // O estado do lead e o uso da última hora são fotografados uma vez só, numa etapa: sem isso,
-  // quando o próprio agente transferia para um atendente (lead inativo), a rodada seguinte
-  // parava aqui e a mensagem de despedida nunca era enviada.
-  const leadGate = await step.run("check-lead-gate", async () => ({
-    isActive: isLeadAiActive,
-    statusFlow: ctx.lead.statusFlow as string,
-    repliesLastHour: await prisma.aiChatRun.count({
-      where: { leadId: ctx.lead.id, trackingId: ctx.trackingId, createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
-    }),
-  }));
-  if (leadGate.statusFlow === "FINISHED")
+  if ((entryGate.statusFlow ?? ctx.lead.statusFlow) === "FINISHED")
     return { skipped: true, reason: "lead_finished" };
   if (!ctx.lead.phone) return { skipped: true, reason: "lead_no_phone" };
   // Conversa truly vazia (sem msgs, ou só mídias sem texto/caption). O SDK
@@ -259,67 +266,53 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     }
   }
 
-  // Passo de fluxo esperando a resposta do cliente (spec 0099): a mensagem é do fluxo, ninguém mais responde.
-  if ((leadGate.isActive || entryGate.isMenuClick) && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
-    const isForWaitingFlow = await step.run("flow-awaiting-reply", () => isReplyForWaitingFlow(ctx, data.messageId));
-    if (isForWaitingFlow) return { skipped: true, reason: "flow_awaiting_reply" };
+  // Respostas prontas, sem modelo, numa etapa só (uma execução em vez de seis). A ordem importa: a primeira
+  // que tratar a mensagem encerra. Resposta pronta também é a empresa respondendo: a seção registra, para o
+  // cliente não seguir "Aguard. atendimento" enquanto o robô conversa (spec 0113, RF-9).
+  const inboundMessageId = data.messageId;
+  if (inboundMessageId && (ctx.trigger ?? "inbound") === "inbound") {
+    const codedReply = await step.run("coded-reply", async (): Promise<{ reason: string | null }> => {
+      // Passo de fluxo esperando a resposta do cliente (spec 0099): a mensagem é do fluxo, ninguém mais responde.
+      if ((entryGate.isActive || entryGate.isMenuClick) && (await isReplyForWaitingFlow(ctx, inboundMessageId))) {
+        return { reason: "flow_awaiting_reply" };
+      }
+      // A resposta pronta já saiu: falha aqui não pode repetir a etapa e reenviá-la ao cliente.
+      const markCodedReply = async (reason: string) => {
+        try {
+          if (isAttendanceStateEnabled(ctx.organizationId)) await markAiReplied({ leadId: ctx.lead.id, at: new Date() });
+        } catch (error) {
+          console.error("[tracking-chat-ai] mark-coded-reply falhou", error);
+        }
+        return { reason };
+      };
+      // Campanha de sorteio (spec 0102): vem antes dos menus porque a foto do cupom e o número digitado
+      // são respostas a uma pergunta da campanha.
+      if ((await handleCampaign(ctx, inboundMessageId)).handled) return markCodedReply("star_friends_campaign");
+      // IA pausada e sem clique: só a campanha valia.
+      if (!entryGate.isActive && !entryGate.isMenuClick) return { reason: "lead_inactive" };
+      if (entryGate.isActive && (await handleStoreInfo(ctx, inboundMessageId)).handled) return markCodedReply("store_info");
+      // Menu de botões (spec 0089): saudação e cliques sem modelo, sem cobrar e sem contar no limite.
+      if (ctx.capabilities.guidedMenu && (await handleGuidedMenu(ctx, inboundMessageId)).handled) {
+        return markCodedReply("guided_menu");
+      }
+      // Pergunta do menu de um assunto (spec 0096).
+      if ((await handleTopicMenu(ctx, inboundMessageId)).handled) return markCodedReply("topic_menu");
+      // Menu inicial do roteiro (spec 0091).
+      if ((await handleScriptMenu(ctx, inboundMessageId)).handled) return markCodedReply("script_menu");
+      return { reason: null };
+    });
+    if (codedReply.reason) return { skipped: true, reason: codedReply.reason };
   }
-
-  // Campanha de sorteio e informações da loja (spec 0102): regras fixas, sem modelo. Vem antes dos
-  // menus porque a foto do cupom e o número digitado são respostas a uma pergunta da campanha.
-  if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
-    const campaign = await step.run("star-friends-campaign", () => handleCampaign(ctx, data.messageId));
-    if (campaign.handled) {
-      await markCodedReply();
-      return { skipped: true, reason: "star_friends_campaign" };
-    }
-  }
-  // IA pausada e sem clique: só a campanha valia. Menus e assistente ficam para quando a IA pode falar.
-  if (!leadGate.isActive && !entryGate.isMenuClick) return { skipped: true, reason: "lead_inactive" };
-
-  if (leadGate.isActive && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
-    const storeInfo = await step.run("store-info", () => handleStoreInfo(ctx, data.messageId));
-    if (storeInfo.handled) {
-      await markCodedReply();
-      return { skipped: true, reason: "store_info" };
-    }
-  }
-
-  // Menu de botões (spec 0089): saudação e cliques do menu são resolvidos em código, sem modelo,
-  // sem cobrar resposta de IA e sem contar no limite abaixo. O resto segue para a assistente.
-  if (ctx.capabilities.guidedMenu && data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
-    const guided = await step.run("guided-menu", () => handleGuidedMenu(ctx, data.messageId));
-    if (guided.handled) {
-      await markCodedReply();
-      return { skipped: true, reason: "guided_menu" };
-    }
-  }
-
-  // Pergunta do menu de um assunto (spec 0096): a resposta do roteiro sai pelo código, sem modelo.
-  if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
-    const topicMenu = await step.run("topic-menu", () => handleTopicMenu(ctx, data.messageId));
-    if (topicMenu.handled) {
-      await markCodedReply();
-      return { skipped: true, reason: "topic_menu" };
-    }
-  }
-
-  // Menu inicial do roteiro (spec 0091): no começo da conversa, saudação e menu saem pelo código.
-  if (data.messageId && (ctx.trigger ?? "inbound") === "inbound") {
-    const scriptMenu = await step.run("script-menu", () => handleScriptMenu(ctx, data.messageId));
-    if (scriptMenu.handled) {
-      await markCodedReply();
-      return { skipped: true, reason: "script_menu" };
-    }
-  }
+  // IA pausada e sem clique: menus e assistente ficam para quando a IA pode falar.
+  if (!entryGate.isActive && !entryGate.isMenuClick) return { skipped: true, reason: "lead_inactive" };
 
   // Daqui para baixo é a assistente respondendo: só com a IA ativa no lead. As regras acima são de
   // Gatilho e campanha e valem com a IA pausada (spec 0113, RF-3).
-  if (!leadGate.isActive) return { skipped: true, reason: "lead_inactive" };
+  if (!entryGate.isActive) return { skipped: true, reason: "lead_inactive" };
 
   // Limite por cliente (spec 0084, RS-9): protege o número e o saldo da empresa de uso abusivo.
   // No limite, avisa uma vez e passa para a equipe; acima dele, fica em silêncio.
-  const { repliesLastHour } = leadGate;
+  const { repliesLastHour } = entryGate;
   if (repliesLastHour >= MAX_AGENT_REPLIES_PER_HOUR) {
     if (repliesLastHour === MAX_AGENT_REPLIES_PER_HOUR && !ctx.catalogOrder) {
       await step.run("send-rate-limit-notice", async () => {
@@ -383,18 +376,31 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     return { skipped: true, reason: "stars_grace_no_balance" };
   }
 
-  // Cobrança 2★ por resposta gerada (registry: `chat_ai_message`).
-  // Se não tem saldo → não chama LLM (já validamos acima, mas double-check).
-  // Dentro de etapa: fora dela a cobrança era refeita a cada rodada da função (uma por etapa),
-  // e a mesma resposta era cobrada várias vezes.
-  const charge = await step.run("charge-reply", async () => {
+  // Uma etapa prepara a resposta: base de conhecimento, anotações da seção e a cobrança de 2★
+  // (registry `chat_ai_message`). A cobrança fica dentro de etapa (fora dela era refeita a cada rodada da
+  // função) e por último, para uma falha nas leituras não repetir a cobrança no retry.
+  const prepared = await step.run("prepare-reply", async () => {
+    const knowledgeBlock = await loadAttendanceKnowledgeBlock({
+      organizationId: ctx.organizationId,
+      knowledgeIds: ctx.capabilities.knowledgeIds,
+      // Só o assunto em pauta: o roteiro inteiro a cada resposta era o maior custo por mensagem.
+      focus: { tagNames: ctx.lead.leadTags.map((leadTag) => leadTag.tag.name), recentText: recentClientText(ctx.history) },
+    });
+    // Anotações da seção (spec 0113, RF-14/15): contexto curto do atendimento e, quando é hora, o pedido de
+    // resumo no fim da própria resposta, sem chamada extra.
+    const sectionNotesPlan = isAttendanceStateEnabled(ctx.organizationId)
+      ? await planSectionNotes({
+          leadId: ctx.lead.id,
+          isAttendanceTrigger: Boolean(ctx.trigger && ATTENDANCE_TRIGGER_INSTRUCTIONS[ctx.trigger]),
+        })
+      : null;
     const charged = await chargeStarsByAction(data.organizationId, "chat_ai_message", {
       description: "Resposta IA WhatsApp",
       appSlug: "chat_ai_message",
     });
-    return { success: charged.success };
+    return { isCharged: charged.success, knowledgeBlock, sectionNotesPlan };
   });
-  if (!charge.success) {
+  if (!prepared.isCharged) {
     await step.run("send-no-balance-fallback", async () => {
       const fallbackText = "Estamos com você! Em instantes um atendente humano retornará.";
       if (ctx.catalogOrder) {
@@ -433,14 +439,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // Apêndice ao system prompt quando o disparo veio da automação de ociosidade
   // com instrução de reabertura: não há nova msg do lead, o agente precisa
   // tomar iniciativa pra reengajar de forma natural.
-  const knowledgeBlock = await step.run("load-attendance-knowledge", () =>
-    loadAttendanceKnowledgeBlock({
-      organizationId: ctx.organizationId,
-      knowledgeIds: ctx.capabilities.knowledgeIds,
-      // Só o assunto em pauta: o roteiro inteiro a cada resposta era o maior custo por mensagem.
-      focus: { tagNames: ctx.lead.leadTags.map((leadTag) => leadTag.tag.name), recentText: recentClientText(ctx.history) },
-    }),
-  );
+  const { knowledgeBlock, sectionNotesPlan } = prepared;
   const baseWithKnowledge = knowledgeBlock ? `${baseSystem}\n\n${knowledgeBlock}` : baseSystem;
   const baseWithCatalog = ctx.catalogOrder
     ? `${baseWithKnowledge}\n\n${buildCatalogOrderPrompt(ctx.catalogOrder)}`
@@ -456,16 +455,6 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
         ? `${baseWithOrder}\n\n# Momento do atendimento\n\n${attendanceInstruction}\n\n${ATTENDANCE_TONE}`
         : baseWithOrder;
 
-  // Anotações da seção (spec 0113, RF-14/15): contexto curto do atendimento e, quando é hora, o pedido de
-  // resumo no fim da própria resposta, sem chamada extra.
-  const sectionNotesPlan = isAttendanceStateEnabled(ctx.organizationId)
-    ? await step.run("plan-section-notes", () =>
-        planSectionNotes({
-          leadId: ctx.lead.id,
-          isAttendanceTrigger: Boolean(ctx.trigger && ATTENDANCE_TRIGGER_INSTRUCTIONS[ctx.trigger]),
-        }),
-      )
-    : null;
   const resolved = resolveModel(ctx.modelConfig);
   console.log(
     `[tracking-chat-ai] tracking=${ctx.trackingId} provider=${resolved.provider} model=${resolved.modelId} custom=${resolved.usingCustom}`,
@@ -542,8 +531,13 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
     };
   });
 
-  // Telemetria: uma linha por execução. Não bloqueia o fluxo se falhar.
-  await step.run("persist-usage", async () => {
+  // Envio, telemetria e anotações numa etapa só. O envio vem primeiro e o resto é protegido: um erro
+  // depois de a mensagem sair não pode fazer o Inngest repetir a etapa e reenviar a resposta ao cliente.
+  const sectionId = sectionNotesPlan?.sectionId;
+  const sectionNotes = aiResult.sectionNotes;
+  await step.run("deliver-reply", async () => {
+    if (aiResult.text) await sendFinalText(ctx, aiResult.text);
+
     try {
       await prisma.aiChatRun.create({
         data: {
@@ -551,8 +545,7 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
           organizationId: ctx.organizationId,
           leadId: ctx.lead.id,
           conversationId: ctx.conversation.id,
-          provider:
-            resolved.provider === "NASA_DEFAULT" ? null : resolved.provider,
+          provider: resolved.provider === "NASA_DEFAULT" ? null : resolved.provider,
           modelId: resolved.modelId,
           usingCustom: resolved.usingCustom,
           inputTokens: aiResult.inputTokens,
@@ -561,102 +554,97 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
           toolCalls: aiResult.toolCalls,
         },
       });
-    } catch (err) {
-      console.error("[tracking-chat-ai] persist-usage falhou", err);
+    } catch (error) {
+      console.error("[tracking-chat-ai] persist-usage falhou", error);
     }
 
-    // Custo do evento, separado da telemetria por tracking acima: aquela
-    // alimenta uma tela, esta alimenta a apuração de margem.
-    await recordUsageEvent({
-      organizationId: ctx.organizationId,
-      kind: "LLM",
-      action: "chat_ai_message",
-      appSlug: "nasachat",
-      feature: "tracking-chat-ai.agent",
-      provider:
-        resolved.provider === "NASA_DEFAULT"
-          ? undefined
-          : resolved.provider.toLowerCase(),
-      modelId: resolved.modelId,
-      usingCustomKey: resolved.usingCustom,
-      tokens: {
-        inputTokens: aiResult.inputTokens,
-        outputTokens: aiResult.outputTokens,
-        totalTokens: aiResult.totalTokens,
-      },
-      trackingId: ctx.trackingId,
-      leadId: ctx.lead.id,
-    });
+    try {
+      // Custo do evento, separado da telemetria por tracking acima: aquela
+      // alimenta uma tela, esta alimenta a apuração de margem.
+      await recordUsageEvent({
+        organizationId: ctx.organizationId,
+        kind: "LLM",
+        action: "chat_ai_message",
+        appSlug: "nasachat",
+        feature: "tracking-chat-ai.agent",
+        provider: resolved.provider === "NASA_DEFAULT" ? undefined : resolved.provider.toLowerCase(),
+        modelId: resolved.modelId,
+        usingCustomKey: resolved.usingCustom,
+        tokens: {
+          inputTokens: aiResult.inputTokens,
+          outputTokens: aiResult.outputTokens,
+          totalTokens: aiResult.totalTokens,
+        },
+        trackingId: ctx.trackingId,
+        leadId: ctx.lead.id,
+      });
+    } catch (error) {
+      console.error("[tracking-chat-ai] usage-event falhou", error);
+    }
+
+    try {
+      if (sectionId && sectionNotes && sectionNotesPlan?.shouldWriteNotes) {
+        await saveSectionNotes({ sectionId, notes: sectionNotes, summaryCount: sectionNotesPlan?.summaryCount ?? 0 });
+      }
+      // A resposta da IA conta como fala da empresa na seção (troca de verdade, spec 0113 RF-9).
+      if (aiResult.text && sectionNotesPlan) await markAiReplied({ leadId: ctx.lead.id, at: new Date() });
+    } catch (error) {
+      console.error("[tracking-chat-ai] section-notes falhou", error);
+    }
   });
-
-  if (aiResult.text) {
-    await step.run("send-final-text", async () => {
-      // Cliente mandou áudio e a empresa ligou a voz: nota de voz antes do texto (spec 0084, RF-3).
-      // O texto segue sempre, para ficar registrado no atendimento.
-      if (ctx.capabilities.voiceReply && ctx.isLastInboundAudio && !ctx.catalogOrder) {
-        await sendLeadVoiceReply({
-          organizationId: ctx.organizationId,
-          trackingId: ctx.trackingId,
-          leadPhone: ctx.lead.phone!,
-          text: aiResult.text,
-          voiceName: ctx.capabilities.voiceName,
-        });
-      }
-      // Pedido do catálogo em andamento: uma mensagem só, sempre (picotada, a venda guiada vira rajada de
-      // mensagens), e sem o corte de 700 caracteres, para uma lista de itens não chegar pela metade.
-      const parts = ctx.catalogOrder
-        ? joinAsSingleMessage(aiResult.text, CATALOG_ORDER_MESSAGE_MAX_LEN)
-        : ctx.capabilities.singleMessageReply
-          ? joinAsSingleMessage(aiResult.text)
-          : splitForWhatsapp(aiResult.text);
-      for (let i = 0; i < parts.length; i++) {
-        const chunk = parts[i];
-        if (ctx.catalogOrder) {
-          await deliverTextToLead({
-            conversationId: ctx.conversation.id,
-            text: chunk,
-            senderName: ctx.settings?.assistantName ?? "IA",
-          });
-          continue;
-        }
-        const externalMessageId = await sendAgentText(
-          ctx.trackingId,
-          ctx.lead.phone!,
-          chunk,
-          INTER_MESSAGE_DELAY_MS,
-        );
-        await persistOutboundMessage({
-          isClientReply: true,
-          conversationId: ctx.conversation.id,
-          leadId: ctx.lead.id,
-          trackingId: ctx.trackingId,
-          body: chunk,
-          senderName: ctx.settings?.assistantName ?? "IA",
-          externalMessageId,
-        });
-        if (i < parts.length - 1) {
-          await new Promise((r) => setTimeout(r, INTER_MESSAGE_DELAY_MS));
-        }
-      }
-      return { sent: parts.length };
-    });
-  }
-
-  const sectionId = sectionNotesPlan?.sectionId;
-  const sectionNotes = aiResult.sectionNotes;
-  if (sectionId && sectionNotes && sectionNotesPlan?.shouldWriteNotes) {
-    await step.run("save-section-notes", () =>
-      saveSectionNotes({ sectionId, notes: sectionNotes, summaryCount: sectionNotesPlan?.summaryCount ?? 0 }),
-    );
-  }
-  // A resposta da IA conta como fala da empresa na seção (troca de verdade, spec 0113 RF-9).
-  if (aiResult.text && sectionNotesPlan) {
-    await step.run("mark-ai-replied", () => markAiReplied({ leadId: ctx.lead.id, at: new Date() }));
-  }
-
   return {
     ok: true,
     sentText: !!aiResult.text,
     toolCalls: aiResult.toolCalls,
   };
+}
+
+async function sendFinalText(ctx: Awaited<ReturnType<typeof loadAgentContext>>, text: string) {
+  // Cliente mandou áudio e a empresa ligou a voz: nota de voz antes do texto (spec 0084, RF-3).
+  // O texto segue sempre, para ficar registrado no atendimento.
+  if (ctx.capabilities.voiceReply && ctx.isLastInboundAudio && !ctx.catalogOrder) {
+    await sendLeadVoiceReply({
+      organizationId: ctx.organizationId,
+      trackingId: ctx.trackingId,
+      leadPhone: ctx.lead.phone!,
+      text,
+      voiceName: ctx.capabilities.voiceName,
+    });
+  }
+  // Pedido do catálogo em andamento: uma mensagem só, sempre (picotada, a venda guiada vira rajada de
+  // mensagens), e sem o corte de 700 caracteres, para uma lista de itens não chegar pela metade.
+  const parts = ctx.catalogOrder
+    ? joinAsSingleMessage(text, CATALOG_ORDER_MESSAGE_MAX_LEN)
+    : ctx.capabilities.singleMessageReply
+      ? joinAsSingleMessage(text)
+      : splitForWhatsapp(text);
+  for (let i = 0; i < parts.length; i++) {
+    const chunk = parts[i];
+    if (ctx.catalogOrder) {
+      await deliverTextToLead({
+        conversationId: ctx.conversation.id,
+        text: chunk,
+        senderName: ctx.settings?.assistantName ?? "IA",
+      });
+      continue;
+    }
+    const externalMessageId = await sendAgentText(
+      ctx.trackingId,
+      ctx.lead.phone!,
+      chunk,
+      INTER_MESSAGE_DELAY_MS,
+    );
+    await persistOutboundMessage({
+      isClientReply: true,
+      conversationId: ctx.conversation.id,
+      leadId: ctx.lead.id,
+      trackingId: ctx.trackingId,
+      body: chunk,
+      senderName: ctx.settings?.assistantName ?? "IA",
+      externalMessageId,
+    });
+    if (i < parts.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, INTER_MESSAGE_DELAY_MS));
+    }
+  }
 }

@@ -20,6 +20,7 @@ import {
   Sparkles,
   Store,
   TrendingUp,
+  Workflow,
   Zap,
 } from "lucide-react";
 import type { FC } from "react";
@@ -42,6 +43,7 @@ import {
   StarFriendsIcon,
   BoostIcon,
   GatilhosIcon,
+  FlowAstroIcon,
 } from "./app-icons";
 
 export type AppStatus = "installed" | "development" | "available";
@@ -238,6 +240,23 @@ export const APPS: AppDef[] = [
     href: "/gatilhos",
     activeUsers: null,
     theme: "purple",
+  },
+  {
+    id: "flowastro",
+    name: "FlowAstro",
+    byline: "by ÓRBITA®",
+    status: "installed",
+    icon: FlowAstroIcon,
+    lineIcon: Workflow,
+    shortDesc: "Monte o atendimento do WhatsApp do zero",
+    fullDesc:
+      "Desenhe o caminho do cliente desde a primeira mensagem: boas-vindas, menus de botões, perguntas, IA, distribuição para a equipe e colunas do funil. Um fluxo pode responder em vários números.",
+    category: "Automação",
+    integration: "WhatsApp",
+    action: "internal",
+    href: "/flowastro",
+    activeUsers: null,
+    theme: "blue",
   },
   {
     id: "linnker",

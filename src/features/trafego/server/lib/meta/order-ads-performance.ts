@@ -60,7 +60,16 @@ export interface OrderAdsPerformance {
   averages: AdMetrics | null;
   /** Campanhas do pedido na conta (com ou sem anúncio no ar). */
   campaignsCount: number;
-  adsets: { id: string; name: string; status: string | null; quality: QualityResult | null }[];
+  adsets: {
+    id: string;
+    name: string;
+    campaignId: string;
+    status: string | null;
+    effectiveStatus: string | null;
+    quality: QualityResult | null;
+    /** Soma dos anúncios do conjunto que vieram na leitura. */
+    metrics: AdMetrics;
+  }[];
   ads: OrderAdPerformance[];
   isTruncated: boolean;
   fetchedAt: string;
@@ -188,107 +197,142 @@ export async function getOrderAdsPerformance(
       since: period.since,
       until: period.until,
     }),
+    async () => buildAdsPerformance(access, await loadOrderCampaignTrees(access, order), period),
+  );
+}
+
+/**
+ * Uma campanha qualquer da conta, criada ou não pelo trafeGO (visão da conta inteira).
+ * A árvore só vale se for da conta da integração da org: o id vem do navegador.
+ */
+export async function getCampaignAdsPerformance(
+  access: AccountAccess,
+  campaignId: string,
+  period: { since: string; until: string },
+): Promise<OrderAdsPerformance | null> {
+  return readThroughMetaCache(
+    buildMetaReadCacheKey({
+      block: "campaign-ads-v1",
+      org: access.organizationId,
+      act: access.auth.adAccountId,
+      campaign: campaignId,
+      since: period.since,
+      until: period.until,
+    }),
     async () => {
-      const trees = await loadOrderCampaignTrees(access, order);
-      const campaignIds = trees.map((tree) => tree.id);
-      if (campaignIds.length === 0) {
-        return {
-          totals: sumAdMetrics([]),
-          averages: null,
-          campaignsCount: 0,
-          adsets: [],
-          ads: [],
-          isTruncated: false,
-          fetchedAt: new Date().toISOString(),
-        };
-      }
-
-      const filtering: MetaInsightsFilter[] = [
-        { field: "campaign.id", operator: "IN", value: campaignIds },
-        ALL_AD_STATUSES_FILTER,
-      ];
-      const [current, benchmarks] = await Promise.all([
-        fetchAdsInsightsDetailed(access.auth, {
-          level: "ad",
-          timeRange: period,
-          unifiedAttribution: true,
-          filtering,
-          extraFields: ["objective", "quality_ranking", "engagement_rate_ranking", "conversion_rate_ranking"],
-        }),
-        readAccountBenchmarks(access, period),
-      ]);
-      const metricsByAdId = toMetricsByAdId(current.rows);
-      const rowByAdId = new Map(current.rows.filter((row) => row.adId).map((row) => [row.adId as string, row]));
-      const leadOrigins = await loadAdLeadOrigins(
-        access.organizationId,
-        trees.flatMap((tree) => tree.ads.map((ad) => ad.id)),
-      ).catch(() => new Map<string, AdLeadOrigin>());
-
-      const ads = trees.flatMap((tree) =>
-        tree.ads.map((ad) => {
-          const adset = tree.adsets.find((item) => item.id === ad.adsetId);
-          const row = rowByAdId.get(ad.id);
-          const metrics = deriveAdMetrics(metricsByAdId.get(ad.id) ?? EMPTY_METRICS_INPUT);
-          const benchmark = pickBenchmark(benchmarks, row?.objective);
-          const rankings: AdRankings = {
-            quality: toRanking(row?.qualityRanking),
-            engagement: toRanking(row?.engagementRanking),
-            conversion: toRanking(row?.conversionRanking),
-          };
-          const quality = evaluateAdQuality({
-            metrics,
-            benchmark: benchmark.metrics,
-            rankings,
-            deliveryStatus: ad.effectiveStatus,
-            adCreatedAt: ad.createdAt,
-            adsetLearningStatus: adset?.learningStatus ?? null,
-            adsetChangedAt: adset?.changedAt ?? null,
-          });
-          return {
-          id: ad.id,
-          name: ad.name,
-          campaignId: tree.id,
-          campaignName: tree.name,
-          adsetId: ad.adsetId,
-          adsetName: adset?.name ?? null,
-          adsetStatus: adset?.status ?? null,
-          configuredStatus: ad.status,
-          status: ad.effectiveStatus ?? ad.status,
-          previewUrl: ad.previewUrl,
-          previewLink: ad.previewLink,
-          metrics,
-          benchmark: benchmark.metrics,
-          benchmarkScope: benchmark.scope,
-          quality,
-          rankings,
-          initialMessage: ad.creative?.initialMessage ?? null,
-          leadOrigin: leadOrigins.get(ad.id) ?? null,
-          evaluateFrom: quality.status === "learning" || quality.status === "insufficient" ? quality.evaluateFrom : null,
-          };
-        }),
-      );
-      ads.sort((first, second) => second.metrics.spendCents - first.metrics.spendCents);
-
-      return {
-        totals: sumAdMetrics(ads.map((ad) => ad.metrics)),
-        averages: benchmarks.overall,
-        campaignsCount: trees.length,
-        adsets: trees.flatMap((tree) =>
-          tree.adsets.map((adset) => ({
-            id: adset.id,
-            name: adset.name,
-            status: adset.status,
-            quality: computeAdsetQuality(
-              ads
-                .filter((ad) => ad.adsetId === adset.id)
-                .map((ad) => ({ result: ad.quality, spendCents: ad.metrics.spendCents })),
-            ),
-          })),
-        ),
-        ads,
-        isTruncated: current.truncated,
-        fetchedAt: new Date().toISOString(),
-      };
+      const tree = await getMetaCampaignTree(access.auth, campaignId);
+      const accountNumber = access.auth.adAccountId.replace(/^act_/, "");
+      if (tree.accountId?.replace(/^act_/, "") !== accountNumber) return null;
+      return buildAdsPerformance(access, [tree], period);
     },
   );
+}
+
+async function buildAdsPerformance(
+  access: AccountAccess,
+  trees: MetaCampaignTree[],
+  period: { since: string; until: string },
+): Promise<OrderAdsPerformance> {
+  const campaignIds = trees.map((tree) => tree.id);
+  if (campaignIds.length === 0) {
+    return {
+      totals: sumAdMetrics([]),
+      averages: null,
+      campaignsCount: 0,
+      adsets: [],
+      ads: [],
+      isTruncated: false,
+      fetchedAt: new Date().toISOString(),
+    };
+  }
+
+  const filtering: MetaInsightsFilter[] = [
+    { field: "campaign.id", operator: "IN", value: campaignIds },
+    ALL_AD_STATUSES_FILTER,
+  ];
+  const [current, benchmarks] = await Promise.all([
+    fetchAdsInsightsDetailed(access.auth, {
+      level: "ad",
+      timeRange: period,
+      unifiedAttribution: true,
+      filtering,
+      extraFields: ["objective", "quality_ranking", "engagement_rate_ranking", "conversion_rate_ranking"],
+    }),
+    readAccountBenchmarks(access, period),
+  ]);
+  const metricsByAdId = toMetricsByAdId(current.rows);
+  const rowByAdId = new Map(current.rows.filter((row) => row.adId).map((row) => [row.adId as string, row]));
+  const leadOrigins = await loadAdLeadOrigins(
+    access.organizationId,
+    trees.flatMap((tree) => tree.ads.map((ad) => ad.id)),
+  ).catch(() => new Map<string, AdLeadOrigin>());
+
+  const ads = trees.flatMap((tree) =>
+    tree.ads.map((ad) => {
+      const adset = tree.adsets.find((item) => item.id === ad.adsetId);
+      const row = rowByAdId.get(ad.id);
+      const metrics = deriveAdMetrics(metricsByAdId.get(ad.id) ?? EMPTY_METRICS_INPUT);
+      const benchmark = pickBenchmark(benchmarks, row?.objective);
+      const rankings: AdRankings = {
+        quality: toRanking(row?.qualityRanking),
+        engagement: toRanking(row?.engagementRanking),
+        conversion: toRanking(row?.conversionRanking),
+      };
+      const quality = evaluateAdQuality({
+        metrics,
+        benchmark: benchmark.metrics,
+        rankings,
+        deliveryStatus: ad.effectiveStatus,
+        adCreatedAt: ad.createdAt,
+        adsetLearningStatus: adset?.learningStatus ?? null,
+        adsetChangedAt: adset?.changedAt ?? null,
+      });
+      return {
+      id: ad.id,
+      name: ad.name,
+      campaignId: tree.id,
+      campaignName: tree.name,
+      adsetId: ad.adsetId,
+      adsetName: adset?.name ?? null,
+      adsetStatus: adset?.status ?? null,
+      configuredStatus: ad.status,
+      status: ad.effectiveStatus ?? ad.status,
+      previewUrl: ad.previewUrl,
+      previewLink: ad.previewLink,
+      metrics,
+      benchmark: benchmark.metrics,
+      benchmarkScope: benchmark.scope,
+      quality,
+      rankings,
+      initialMessage: ad.creative?.initialMessage ?? null,
+      leadOrigin: leadOrigins.get(ad.id) ?? null,
+      evaluateFrom: quality.status === "learning" || quality.status === "insufficient" ? quality.evaluateFrom : null,
+      };
+    }),
+  );
+  ads.sort((first, second) => second.metrics.spendCents - first.metrics.spendCents);
+
+  return {
+    totals: sumAdMetrics(ads.map((ad) => ad.metrics)),
+    averages: benchmarks.overall,
+    campaignsCount: trees.length,
+    adsets: trees.flatMap((tree) =>
+      tree.adsets.map((adset) => ({
+        id: adset.id,
+        name: adset.name,
+        campaignId: tree.id,
+        status: adset.status,
+        effectiveStatus: adset.effectiveStatus,
+        metrics: sumAdMetrics(ads.filter((ad) => ad.adsetId === adset.id).map((ad) => ad.metrics)),
+        quality: computeAdsetQuality(
+          ads
+            .filter((ad) => ad.adsetId === adset.id)
+            .map((ad) => ({ result: ad.quality, spendCents: ad.metrics.spendCents })),
+        ),
+      })),
+    ),
+    ads,
+    isTruncated: current.truncated,
+    fetchedAt: new Date().toISOString(),
+  };
 }

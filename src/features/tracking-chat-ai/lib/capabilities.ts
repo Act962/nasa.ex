@@ -107,3 +107,46 @@ export const MAX_LEAD_AUDIO_SECONDS = 180;
 
 /** Respostas do agente por cliente, por hora (RS-9). Acima disso, o atendimento passa para a equipe. */
 export const MAX_AGENT_REPLIES_PER_HOUR = 60;
+
+/**
+ * Capacidades que o bloco "Agente de IA" do FlowAstro configura sozinho (spec 0139, D-14). Áudio, chamada de voz, menu
+ * guiado e estado de atendimento valem para o número inteiro e continuam vindo do funil.
+ */
+export const BLOCK_CAPABILITY_KEYS = [
+  "agenda",
+  "reminder",
+  "forms",
+  "myRecordsLink",
+  "links",
+  "receiveDocuments",
+  "recordPix",
+  "teamRequest",
+  "singleMessageReply",
+  "knowledgeIds",
+  "configuredByUserId",
+] as const satisfies readonly (keyof AiCapabilities)[];
+
+export type BlockCapabilityKey = (typeof BLOCK_CAPABILITY_KEYS)[number];
+export type BlockAiCapabilities = Pick<AiCapabilities, BlockCapabilityKey>;
+
+export function pickBlockCapabilities(capabilities: AiCapabilities): BlockAiCapabilities {
+  return Object.fromEntries(BLOCK_CAPABILITY_KEYS.map((key) => [key, capabilities[key]])) as BlockAiCapabilities;
+}
+
+const companyLinkSchema = z.object({ label: z.string().trim().min(1).max(40), url: z.string().trim().url().max(300) });
+
+/**
+ * Valor salvo no bloco, completado com as capacidades desligadas: campo ausente nunca liga nada. O bloco salva sozinho
+ * enquanto a pessoa digita, então um link pela metade é descartado em vez de invalidar as outras opções.
+ */
+export function parseBlockCapabilities(raw: unknown): BlockAiCapabilities {
+  const fields = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const links = fields.links && typeof fields.links === "object" ? (fields.links as Record<string, unknown>) : null;
+  const linkItems = Array.isArray(links?.items) ? (links?.items as unknown[]).filter((item) => companyLinkSchema.safeParse(item).success) : [];
+  return pickBlockCapabilities(parseAiCapabilities(links ? { ...fields, links: { ...links, items: linkItems } } : fields));
+}
+
+/** O que vale numa etapa com configuração própria: o bloco decide o dele, o número decide o resto. */
+export function mergeBlockCapabilities(funnel: AiCapabilities, block: BlockAiCapabilities): AiCapabilities {
+  return { ...funnel, ...block };
+}

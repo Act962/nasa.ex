@@ -20,6 +20,7 @@ export {
   NBoxIcon,
   TrackingIcon,
   GatilhosIcon,
+  FlowAstroIcon,
   NasaPlannerIcon,
   NasaRouteIcon,
   SpaceStationIcon,

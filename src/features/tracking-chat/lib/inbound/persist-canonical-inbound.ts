@@ -304,12 +304,14 @@ export async function persistCanonicalInbound(
   // Eco do que a plataforma enviou não é fala de atendente (spec 0113). O provedor diz quando a mensagem saiu
   // por API; sem essa marca, vale a mensagem já gravada com o mesmo id externo. A marca não depende de a
   // plataforma ter gravado antes de o eco chegar, e vale para todas as empresas: a IA se cala com fala humana.
-  const isPlatformEcho =
-    canonical.sender.fromMe &&
-    (canonical.sender.isSentByApi === true ||
-      Boolean(
-        await prisma.message.findUnique({ where: { messageId: canonical.externalMessageId }, select: { id: true } }),
-      ));
+  // Mensagem já gravada também marca a reentrega do webhook (spec 0139: o Fluxo de Atendimento não começa de novo).
+  // Só consulta quando a resposta muda algo: eco sem a marca do provedor, ou mensagem do cliente no WhatsApp.
+  const needsStoredCheck =
+    (canonical.sender.fromMe && canonical.sender.isSentByApi !== true) || (channel === "WHATSAPP" && !canonical.sender.fromMe);
+  const isAlreadyStored =
+    needsStoredCheck &&
+    Boolean(await prisma.message.findUnique({ where: { messageId: canonical.externalMessageId }, select: { id: true } }));
+  const isPlatformEcho = canonical.sender.fromMe && (canonical.sender.isSentByApi === true || isAlreadyStored);
 
   // ── 5. Persistência por tipo ────────────────────────────────────────────
   const persistParams: PersistMessageParams = {
@@ -361,12 +363,28 @@ export async function persistCanonicalInbound(
     return { ok: true, skipped: `not_persisted:${canonical.type}` };
   }
 
+  // ── 5.5. Fluxo de Atendimento (spec 0139): decide antes de tudo quem responde ─
+  // Antes do evento da mensagem: com a trava já criada, os gatilhos de mensagem sabem que o lead está no fluxo.
+  // Edição e reentrega não são mensagem nova: não abrem fluxo nem respondem pergunta.
+  const isHandledByAttendanceFlow = await resolveAttendanceFlowRouting({
+    channel,
+    isNewMessage: !isAlreadyStored && !editedExternalMessageId,
+    isFromMe: canonical.sender.fromMe,
+    isPlatformEcho,
+    trackingId: ctx.trackingId,
+    leadId: lead.id,
+    conversationId: lead.conversation.id,
+    messageText: messageData.body ?? "",
+    messageInternalId: messageData.id,
+  });
+
   // ── 6. Agent IA dispatch (texto OU mídia) ───────────────────────────────
   await dispatchAgentMessageIncoming({
     canonical,
     ctx,
     lead: { id: lead.id, organizationId: tracking.organizationId },
     messageData,
+    isHandledByAttendanceFlow,
   });
 
   // ── 6.5. Venda guiada: cliente enviou o pedido do catálogo (spec 0104, RF-0) ─
@@ -401,6 +419,7 @@ export async function persistCanonicalInbound(
     channel,
     isButtonClick: Boolean(interactiveReplyIdOf(canonical)),
     isPlatformEcho,
+    isHandledByAttendanceFlow,
     messageAt: canonical.sentAt,
     // Só inbound: `leadMessage` é, por contrato, texto escrito pelo lead.
     ...(canonical.sender.fromMe
@@ -829,6 +848,8 @@ interface DispatchArgs {
   readonly ctx: PersistCanonicalInboundContext;
   readonly lead: { readonly id: string; readonly organizationId: string };
   readonly messageData: { readonly body: string | null; readonly mediaUrl: string | null; readonly mimetype: string | null; readonly fileName: string | null };
+  /** A mensagem foi para um Fluxo de Atendimento (spec 0139). */
+  readonly isHandledByAttendanceFlow: boolean;
 }
 
 async function dispatchAgentMessageIncoming(args: DispatchArgs): Promise<void> {
@@ -839,7 +860,10 @@ async function dispatchAgentMessageIncoming(args: DispatchArgs): Promise<void> {
   const fileName = args.messageData.fileName;
   const messageBody = args.messageData.body ?? "";
 
-  if (!messageBody && !mediaUrlKey) return;
+  // Mídia que não baixou ainda acorda o Fluxo de Atendimento: sem o aviso, o cliente ficaria preso esperando. As
+  // automações antigas não recebem nada novo, porque ignoram quem está no fluxo (spec 0140, D-6).
+  const isUndownloadedMediaInFlow = args.isHandledByAttendanceFlow && Boolean(mimetype);
+  if (!messageBody && !mediaUrlKey && !isUndownloadedMediaInFlow) return;
 
   let presignedUrl: string | undefined;
   if (mediaUrlKey) {
@@ -881,5 +905,44 @@ async function dispatchAgentMessageIncoming(args: DispatchArgs): Promise<void> {
     });
   } catch (err) {
     console.error("[persist-canonical-inbound] agent_dispatch_failed", err);
+  }
+}
+
+/**
+ * Mensagem do cliente: o Fluxo de Atendimento pega se puder (spec 0139, RF-6). Fala da equipe pelo celular encerra o
+ * fluxo do lead (RF-11). Falha aqui nunca derruba o webhook: a mensagem segue o caminho de antes.
+ */
+async function resolveAttendanceFlowRouting(params: {
+  channel: string;
+  isNewMessage: boolean;
+  isFromMe: boolean;
+  isPlatformEcho: boolean;
+  trackingId: string;
+  leadId: string;
+  conversationId: string;
+  messageText: string;
+  messageInternalId: string;
+}): Promise<boolean> {
+  if (params.channel !== "WHATSAPP" || !params.isNewMessage) return false;
+  try {
+    if (params.isFromMe) {
+      if (!params.isPlatformEcho) {
+        const { endAttendanceFlowForLead } = await import("@/features/attendance-flows/server/lock");
+        await endAttendanceFlowForLead(params.leadId, "team_took_over");
+      }
+      return false;
+    }
+    const { routeInboundToAttendanceFlow } = await import("@/features/attendance-flows/server/route-inbound");
+    const route = await routeInboundToAttendanceFlow({
+      trackingId: params.trackingId,
+      leadId: params.leadId,
+      conversationId: params.conversationId,
+      messageText: params.messageText,
+      messageInternalId: params.messageInternalId,
+    });
+    return route.handled;
+  } catch (error) {
+    console.error("[persist-canonical-inbound] fluxo de atendimento falhou", error);
+    return false;
   }
 }

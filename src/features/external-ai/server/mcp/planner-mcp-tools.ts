@@ -23,6 +23,7 @@ import { findDefaultInstagramAccountId, listInstagramHandles } from "@/features/
 import { DEFAULT_SLOT_RULES, expandSlotRules } from "@/features/nasa-planner/lib/publish-slots";
 import { assertCallerOrganization, type ExternalAiCaller } from "../access-tokens";
 import { LOCAL_UPLOAD_PREFIX, createLocalUploadUrl, isLocalUploadEnabled } from "../local-upload";
+import { copyRemoteMediaToStorage, isOwnStorageUrl } from "../remote-media";
 
 /**
  * Tools do MCP do ÓRBITA para IAs externas (spec 0065, RF-3). Leem o Planner e deixam rascunhos;
@@ -30,7 +31,7 @@ import { LOCAL_UPLOAD_PREFIX, createLocalUploadUrl, isLocalUploadEnabled } from 
  */
 
 const FORMATS = ["STATIC", "CAROUSEL", "REEL", "STORY"] as const;
-const FORMAT_LABEL: Record<(typeof FORMATS)[number], string> = { STATIC: "Feed", CAROUSEL: "Carrossel", REEL: "Reel", STORY: "Story" };
+export const FORMAT_LABEL: Record<(typeof FORMATS)[number], string> = { STATIC: "Feed", CAROUSEL: "Carrossel", REEL: "Reel", STORY: "Story" };
 const EDITABLE_STATUSES: NasaPlannerPostStatus[] = [NasaPlannerPostStatus.IDEA, NasaPlannerPostStatus.DRAFT, NasaPlannerPostStatus.CHANGES_REQUESTED];
 const MAX_RANGE_DAYS = 31;
 const SAO_PAULO_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -62,7 +63,7 @@ type ToolResult = { content: Array<{ type: "text"; text: string }>; isError?: bo
 const asResult = (data: unknown): ToolResult => ({ content: [{ type: "text", text: JSON.stringify(data, null, 2) }] });
 const asError = (message: string): ToolResult => ({ content: [{ type: "text", text: message }], isError: true });
 
-async function runTool(work: () => Promise<unknown>): Promise<ToolResult> {
+export async function runTool(work: () => Promise<unknown>): Promise<ToolResult> {
   try {
     return asResult(await work());
   } catch (error) {
@@ -71,7 +72,7 @@ async function runTool(work: () => Promise<unknown>): Promise<ToolResult> {
 }
 
 /** Chave do R2, upload local ou URL → URL absoluta que a IA externa consegue abrir. */
-async function toAbsoluteMediaUrl(value: string | null | undefined): Promise<string | null> {
+export async function toAbsoluteMediaUrl(value: string | null | undefined): Promise<string | null> {
   if (!value) return null;
   if (value.startsWith("http")) return value;
   if (value.startsWith("/")) return `${APP_ORIGIN}${value}`;
@@ -299,13 +300,33 @@ export function registerPlannerMcpTools(server: McpServer, caller: ExternalAiCal
   server.registerTool(
     "attach_media",
     {
-      description: "Anexa imagem ou vídeo (URL pública https) a um rascunho. Carrossel: cada chamada adiciona um card na ordem. Reel e vídeo de Story: kind=video.",
-      inputSchema: { postId: z.string(), mediaUrl: z.string().url(), kind: z.enum(["image", "video"]), headline: z.string().max(200).optional() },
+      description:
+        "Anexa imagem ou vídeo a um rascunho. Passe `mediaUrl` (link https público: de um site, de um banco de imagens ou o publicUrl do request_upload_url) ou `file` (a imagem gerada nesta conversa, no ChatGPT). Link de fora é baixado e guardado pelo ÓRBITA: até 15 MB por imagem (JPG, PNG, WebP) e 100 MB por vídeo (MP4, MOV). Se você não consegue enviar arquivo por PUT, use este caminho em vez do request_upload_url. Carrossel: cada chamada adiciona um card na ordem. Reel e vídeo de Story: kind=video. Chame uma vez por mídia.",
+      inputSchema: {
+        postId: z.string(),
+        kind: z.enum(["image", "video"]),
+        mediaUrl: z.string().url().optional(),
+        file: z
+          .object({ download_url: z.string().url(), file_id: z.string().optional(), mime_type: z.string().optional(), file_name: z.string().optional() })
+          .optional()
+          .describe("Arquivo da conversa (ChatGPT). O ÓRBITA baixa pelo download_url."),
+        headline: z.string().max(200).optional(),
+      },
+      // Spec 0136, RF-4: o ChatGPT entrega a imagem gerada na conversa neste parâmetro.
+      _meta: { "openai/fileParams": ["file"] },
     },
-    ({ postId, mediaUrl, kind, headline }) =>
+    ({ postId, mediaUrl: requestedMediaUrl, file, kind, headline }) =>
       runTool(async () => {
+        const sourceUrl = requestedMediaUrl ?? file?.download_url;
+        if (!sourceUrl) throw new Error("Passe mediaUrl (link https) ou file (arquivo da conversa).");
+        const editablePost = await loadEditablePost(caller, postId);
+        if (!EDITABLE_STATUSES.includes(editablePost.status)) throw new Error("Só dá para anexar mídia em rascunho ou em ajuste.");
+        // Link de fora vira cópia no R2 da empresa: o post não depende de site de terceiros nem de link temporário (spec 0136, D-2).
+        const mediaUrl = isOwnStorageUrl(sourceUrl, APP_ORIGIN)
+          ? sourceUrl
+          : await copyRemoteMediaToStorage({ rawUrl: sourceUrl, organizationId: editablePost.organizationId, userId: caller.userId, kind, appOrigin: APP_ORIGIN });
         const post = await loadEditablePost(caller, postId);
-        if (!EDITABLE_STATUSES.includes(post.status)) throw new Error("Só dá para anexar mídia em rascunho ou em ajuste.");
+        if (!EDITABLE_STATUSES.includes(post.status)) throw new Error("O post saiu de rascunho enquanto a mídia era baixada. Nada foi anexado.");
         if (post.type === "CAROUSEL") {
           const lastSlide = await prisma.nasaPlannerPostSlide.findFirst({ where: { postId }, orderBy: { order: "desc" }, select: { order: true } });
           const order = (lastSlide?.order ?? 0) + 1;
