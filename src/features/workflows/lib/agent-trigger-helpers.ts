@@ -83,6 +83,8 @@ export async function dispatchMessageIncoming(args: DispatchMessageIncomingArgs)
   try {
     await inngest.send({
       name: "agent-workflow/message-incoming",
+      // Id da mensagem como id do evento: webhook repetido não acorda o fluxo duas vezes (spec 0139, D-13).
+      ...(args.messageId ? { id: `message-incoming:${args.messageId}` } : {}),
       data: {
         leadId: args.leadId,
         organizationId: args.organizationId,
@@ -102,6 +104,9 @@ export async function dispatchMessageIncoming(args: DispatchMessageIncomingArgs)
   }
 
   try {
+    // Lead dentro de um Fluxo de Atendimento: a mensagem é do fluxo, nenhum outro gatilho responde (spec 0139, RF-6).
+    const attendanceLock = await prisma.workflowRun.findUnique({ where: { attendanceLeadId: args.leadId }, select: { id: true } });
+    if (attendanceLock) return;
     await dispatchToMatchingWorkflows({
       triggerType: "MESSAGE_INCOMING",
       triggerPayload: { messageText: args.messageText, messageId: args.messageId },

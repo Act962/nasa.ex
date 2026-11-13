@@ -539,6 +539,7 @@ model Organization {
   // ── Automações de redes sociais (app COMMENTS — spec 0024) ──
   socialChannels SocialChannel[]
 
+  attendanceFlows Workflow[] @relation("OrganizationAttendanceFlows")
   @@unique([slug])
   @@map("organization")
 }
@@ -686,6 +687,7 @@ model Tracking {
   // Tracking cujo número envia a régua e os lembretes do financeiro (spec 0115).
   paymentMessagingFor PaymentGovernanceConfig[]
 
+  attendanceFlowLinks WorkflowTrackingLink[] @relation("TrackingAttendanceFlowLinks")
   @@map("tracking")
 }
 
@@ -1936,6 +1938,10 @@ model Workflow {
   /// Quando setado, o Agent delega execução pra este workflow em vez da
   /// spec linear em Agent.spec.goals[].
   agentId        String?  @map("agent_id")
+  /// Fluxo de Atendimento (spec 0139) ou automação de funil. Muda a tela e quem responde a mensagem do cliente.
+  kind           WorkflowKind @default(AUTOMATION)
+  /// Dona do fluxo quando ele é da empresa e não de um funil (FlowAstro, spec 0139 D-11). Só fluxos de atendimento.
+  organizationId String?      @map("organization_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -1945,8 +1951,10 @@ model Workflow {
   workspace  Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folder     WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   agent      Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
+  organization Organization? @relation("OrganizationAttendanceFlows", fields: [organizationId], references: [id], onDelete: Cascade)
 
   nodes              Node[]
+  trackingLinks      WorkflowTrackingLink[]
   connections        Connection[]
   runs               WorkflowRun[]
   dailyTriggerClaims LeadDailyTriggerClaim[]
@@ -1958,7 +1966,34 @@ model Workflow {
   @@index([folderId])
   @@index([agentId])
   @@index([agentMode, isActive])
+  @@index([trackingId, kind, isActive])
+  @@index([organizationId, kind])
   @@map("workflows")
+}
+
+/// Números (funis) em que um fluxo do FlowAstro responde (spec 0139, D-11). Um fluxo, vários números.
+model WorkflowTrackingLink {
+  id         String   @id @default(cuid())
+  workflowId String   @map("workflow_id")
+  trackingId String   @map("tracking_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  tracking Tracking @relation("TrackingAttendanceFlowLinks", fields: [trackingId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, trackingId])
+  @@index([trackingId])
+  @@map("workflow_tracking_links")
+}
+
+enum WorkflowKind {
+  AUTOMATION
+  ATTENDANCE
+}
+
+enum WorkflowRunWaitKind {
+  INPUT
+  TIME
 }
 
 /// Auditoria de cada execução de Workflow no Modo Agente IA. Persiste timeline
@@ -1984,10 +2019,19 @@ model WorkflowRun {
   errorMessage   String?   @map("error_message")
   startedAt      DateTime  @default(now()) @map("started_at")
   finishedAt     DateTime? @map("finished_at")
+  /// Fluxo de Atendimento (spec 0139, D-3): preenchido enquanto o lead está dentro do fluxo. Único = um fluxo por lead.
+  attendanceLeadId String?   @unique @map("attendance_lead_id")
+  /// Bloco em que o lead está parado esperando resposta (contador por bloco).
+  currentNodeId    String?   @map("current_node_id")
+  /// Validade da trava: vencida, a trava é tratada como solta (CB-4).
+  waitingUntil     DateTime? @map("waiting_until")
+  /// O que a execução parada espera: resposta do cliente (evento) ou tempo (agendamento). Nunca os dois (spec 0139, D-13).
+  waitingFor       WorkflowRunWaitKind? @map("waiting_for")
 
   workflow Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   nodeRuns WorkflowNodeRun[]
 
+  @@index([workflowId, currentNodeId])
   @@index([workflowId, startedAt(sort: Desc)])
   @@index([leadId])
   @@index([status])
@@ -2159,6 +2203,17 @@ enum NodeType {
   CATALOG_ORDER_ACTION
   // Aba Contábil (spec 0051): obrigação, documento, guia ou nota do mês vencendo.
   COMPLIANCE_ITEM_DUE
+  // Fluxo de Atendimento (spec 0139)
+  ATTENDANCE_START
+  ASK_QUESTION
+  RANDOMIZER
+  DISTRIBUTE
+  AI_AGENT
+  FINISH_ATTENDANCE
+  // Promoção do STAR FRIENDS no FlowAstro (spec 0140)
+  PROMO_ENROLL
+  PROMO_RECEIPT
+  PROMO_LOOKUP
 }
 
 model Node {

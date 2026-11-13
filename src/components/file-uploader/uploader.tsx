@@ -23,15 +23,26 @@ interface UploaderState {
   isDeleting: boolean;
   error: boolean;
   objectUrl?: string;
-  fileType: "image" | "video" | "outros";
+  fileType: "image" | "video" | "outros" | "audio";
 }
 
 const MAX_SIZE = 1024 * 1024 * 5;
 
+/** Formatos de áudio que a API oficial do WhatsApp aceita (spec 0141, RF-1). */
+const AUDIO_ACCEPT = {
+  "audio/aac": [".aac"],
+  "audio/amr": [".amr"],
+  "audio/mpeg": [".mp3"],
+  "audio/mp4": [".m4a"],
+  "audio/x-m4a": [".m4a"],
+  "audio/ogg": [".ogg", ".opus"],
+  "audio/opus": [".opus"],
+};
+
 interface UploaderProps {
   value?: string;
   onConfirm?: (value: string, name?: string) => void;
-  fileTypeAccepted?: "image" | "video" | "outros";
+  fileTypeAccepted?: "image" | "video" | "outros" | "audio";
   onUpload?: (value: string, name?: string) => void;
   onUploadStart?: () => void;
 }
@@ -240,7 +251,9 @@ export function Uploader({
         ? { "image/*": [] }
         : fileTypeAccepted === "outros"
           ? { "*/*": [] }
-          : { "video/*": [] },
+          : fileTypeAccepted === "audio"
+            ? AUDIO_ACCEPT
+            : { "video/*": [] },
     maxFiles: 1,
     multiple: false,
     maxSize: MAX_SIZE,

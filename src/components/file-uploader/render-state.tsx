@@ -59,7 +59,7 @@ export function RenderUploadedState({
   previewUrl: string;
   isDeleting: boolean;
   handleDelete: () => void;
-  fileType: "image" | "video" | "outros";
+  fileType: "image" | "video" | "outros" | "audio";
 }) {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -83,6 +83,13 @@ export function RenderUploadedState({
           fill
           className="object-contain p-2"
         />
+      )}
+
+      {fileType === "audio" && (
+        <div className="flex w-full flex-col items-center justify-center gap-2 px-10">
+          <audio src={previewUrl} controls className="w-full max-w-64" />
+          <p className="text-xs text-muted-foreground">Áudio enviado</p>
+        </div>
       )}
 
       {fileType === "outros" && (

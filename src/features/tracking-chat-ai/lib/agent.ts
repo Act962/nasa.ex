@@ -127,7 +127,7 @@ const ATTENDANCE_TONE =
   "Responda curto, simples e natural, chamando o cliente pelo primeiro nome. Nada de explicações longas nem frases de robô.";
 
 /** A janela de 24h já foi conferida no início de `runWhatsappAgent`. */
-async function sendAgentText(
+export async function sendAgentText(
   trackingId: string,
   leadPhone: string,
   text: string,
@@ -179,6 +179,11 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // (lead inativo), a rodada seguinte parava e a mensagem de despedida nunca era enviada.
   const isInboundTrigger = (data.trigger ?? "inbound") === "inbound";
   const entryGate = await step.run("check-lead-ai", async () => {
+    // Lead dentro de um Fluxo de Atendimento: a IA só fala pelo bloco "Agente de IA" do fluxo (spec 0139, RF-18).
+    const attendanceLock = await prisma.workflowRun.findUnique({ where: { attendanceLeadId: data.leadId }, select: { id: true } });
+    if (attendanceLock) {
+      return { isActive: false, isMenuClick: false, hasActiveCampaign: false, statusFlow: null, repliesLastHour: 0, isInAttendanceFlow: true };
+    }
     const lead = await prisma.lead.findUnique({
       where: { id: data.leadId },
       select: {
@@ -209,9 +214,9 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
       const repliesLastHour = await prisma.aiChatRun.count({
         where: { leadId: data.leadId, trackingId: data.trackingId, createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
       });
-      return { isActive, isMenuClick: false, hasActiveCampaign: false, statusFlow, repliesLastHour };
+      return { isActive, isMenuClick: false, hasActiveCampaign: false, statusFlow, repliesLastHour, isInAttendanceFlow: false };
     }
-    if (!data.messageId) return { isActive, isMenuClick: false, hasActiveCampaign: false, statusFlow, repliesLastHour: 0 };
+    if (!data.messageId) return { isActive, isMenuClick: false, hasActiveCampaign: false, statusFlow, repliesLastHour: 0, isInAttendanceFlow: false };
     const inbound = await prisma.message.findFirst({
       where: { id: data.messageId, conversationId: data.conversationId, fromMe: false },
       select: { metadata: true },
@@ -224,8 +229,10 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
       hasActiveCampaign: Boolean(activeCampaign),
       statusFlow,
       repliesLastHour: 0,
+      isInAttendanceFlow: false,
     };
   });
+  if (entryGate.isInAttendanceFlow) return { skipped: true, reason: "in_attendance_flow" };
   const isPausedRuleTrigger = isInboundTrigger && (entryGate.isMenuClick || entryGate.hasActiveCampaign);
   if (!entryGate.isActive && !isPausedRuleTrigger) {
     return { skipped: true, reason: "lead_inactive" };

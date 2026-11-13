@@ -1,3 +1,4 @@
+import { endAllRunsOfFlow } from "@/features/attendance-flows/server/lock";
 import { AUTOMATION_DENIAL, checkWorkflowAccess } from "@/features/workflows/server/workflow-access";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
@@ -29,6 +30,9 @@ export const deleteWorkflow = base
         message: "Workflow não encontrado",
       });
     }
+
+    // Leads dentro do fluxo de atendimento saem antes: a espera no Inngest é cancelada (spec 0139, CB-6).
+    if (workflow.kind === "ATTENDANCE") await endAllRunsOfFlow(workflow.id);
 
     await prisma.workflow.delete({
       where: { id: input.id },

@@ -27,9 +27,9 @@ const AWAITING_KEY = "campaignAwaiting";
 const AWAITING_TIMEOUT_MINUTES = 30;
 const ASKS_FOR_CAMPAIGN = /\b(promocao|promo|sorteio|numeros? da sorte|participar|15 anos|aniversario|cadastrar (meu |o )?cupom)\b/;
 const WRONG_DEVICE_MESSAGE = "Você não está acessando pelo dispositivo que se cadastrou na promoção.";
-const SAYS_YES = /^(sim|aceito|aceitar|concordo|ok|pode|1)[\s!.]*$/;
-const SAYS_NO = /^(nao|nao aceito|recuso|2)[\s!.]*$/;
-const VALID_NAME = /^[\p{L}][\p{L}\s.'-]{1,59}$/u;
+export const SAYS_YES = /^(sim|aceito|aceitar|concordo|ok|pode|1)[\s!.]*$/;
+export const SAYS_NO = /^(nao|nao aceito|recuso|2)[\s!.]*$/;
+export const VALID_NAME = /^[\p{L}][\p{L}\s.'-]{1,59}$/u;
 const MAX_CODES_IN_MESSAGE = 60;
 const MAX_RECEIPTS_PER_REPLY = 10;
 
@@ -80,7 +80,7 @@ function needsNewPhoto(result: RegisterReceiptResult): boolean {
   return result.outcome === "file_missing" || isNotAReceipt(result) || (result.outcome === "rejected" && result.reason === "unreadable");
 }
 
-function receiptReplyOf(result: RegisterReceiptResult, campaign: ActiveCampaign): string {
+export function receiptReplyOf(result: RegisterReceiptResult, campaign: ActiveCampaign): string {
   const perNumber = formatCents(campaign.amountPerNumberCents);
   switch (result.outcome) {
     case "accepted": {

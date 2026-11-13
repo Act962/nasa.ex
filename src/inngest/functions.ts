@@ -16,8 +16,25 @@ import { temperatureChannel } from "./channels/temperature";
 import { winLossChannel } from "./channels/win-loss";
 import { filterLeadChannel } from "./channels/filter-lead";
 
+/** Primeira espera curta do Fluxo de Atendimento: o que chegou no instante antes dela é visto na conferência seguinte. */
+const ATTENDANCE_FIRST_WAIT_MINUTES = 1;
+
 export const executeWorkflow = inngest.createFunction(
-  { id: "execute-workflow", retries: 0 },
+  {
+    id: "execute-workflow",
+    retries: 0,
+    // Equipe assumiu ou tirou o lead do Fluxo de Atendimento: a espera para sem acordar (spec 0139, RF-11).
+    cancelOn: [{ event: "workflow/attendance.cancel", match: "data.attendanceRunId" }],
+    // Execução do Fluxo de Atendimento que quebrou não pode deixar o lead preso: as mensagens dele ficariam sem resposta.
+    onFailure: async ({ event, error }) => {
+      const attendanceRunId = (event.data?.event?.data as { attendanceRunId?: string } | undefined)?.attendanceRunId;
+      if (!attendanceRunId) return;
+      const { endAttendanceRun } = await import("@/features/attendance-flows/server/lock");
+      const { flowLog } = await import("@/features/attendance-flows/lib/flow-log");
+      flowLog("run.failed", { run: attendanceRunId, error: error instanceof Error ? error.message.slice(0, 200) : String(error) });
+      await endAttendanceRun(attendanceRunId, "run_failed");
+    },
+  },
   {
     event: "workflow/execute.workflow",
     channels: [
@@ -45,12 +62,17 @@ export const executeWorkflow = inngest.createFunction(
     // Workflows com `agentMode=true` rodam no DAG executor novo
     // (run-workflow.ts) com branches, loops e nós de IA. Workflows
     // antigos (agentMode=false) continuam no topo-sort linear daqui.
+    const attendanceRunId = (event.data as { attendanceRunId?: string }).attendanceRunId;
     const meta = await step.run("load-workflow-meta", async () => {
       const wf = await prisma.workflow.findUniqueOrThrow({
         where: { id: workflowId },
-        select: { id: true, agentMode: true, isActive: true, leadId: true },
+        select: { id: true, agentMode: true, isActive: true, leadId: true, kind: true },
       });
       if (!wf.isActive) {
+        if (attendanceRunId) {
+          const { endAttendanceRun } = await import("@/features/attendance-flows/server/lock");
+          await endAttendanceRun(attendanceRunId, "flow_removed");
+        }
         throw new NonRetriableError("Workflow is inactive");
       }
       return wf;
@@ -62,7 +84,7 @@ export const executeWorkflow = inngest.createFunction(
       return { skipped: "lead_scope" };
     }
 
-    if (meta.agentMode) {
+    if (meta.agentMode || meta.kind === "ATTENDANCE") {
       // Delega pro engine novo. Quando o engine encontra WAIT_FOR_EVENT,
       // ele retorna `status: "SUSPENDED"` + estado serializável; usamos
       // step.waitForEvent + step.sleep aqui pra dormir e re-invocar.
@@ -88,8 +110,9 @@ export const executeWorkflow = inngest.createFunction(
 
       // Loop de suspend/resume — cap de 20 ciclos por workflow.
       // (cada ciclo = passou por 1 WAIT_FOR_EVENT)
+      // Fluxo de atendimento conversa: cada pergunta ou resposta da IA é um ciclo (spec 0139, D-10).
       let cycles = 0;
-      const MAX_RESUME_CYCLES = 20;
+      const MAX_RESUME_CYCLES = meta.kind === "ATTENDANCE" ? 200 : 20;
       let nextRunArgs: Record<string, unknown> | null = {
         workflowId,
         triggerType,
@@ -99,6 +122,7 @@ export const executeWorkflow = inngest.createFunction(
             .initialData ?? {},
         // Toque numa opção de menu salvo (spec 0098): começa pela saída daquela opção.
         ...((event.data as { startFrom?: unknown }).startFrom ? { startFrom: (event.data as { startFrom?: unknown }).startFrom } : {}),
+        ...(attendanceRunId ? { attendanceRunId } : {}),
       };
       let lastResult: unknown = null;
 
@@ -126,6 +150,7 @@ export const executeWorkflow = inngest.createFunction(
             contextSnapshot: Record<string, unknown>;
             executions: number;
             starsSpent: number;
+            waitKind?: "INPUT" | "TIME";
           };
         };
         lastResult = result;
@@ -153,32 +178,74 @@ export const executeWorkflow = inngest.createFunction(
           ? { match: "data.leadId" as const }
           : ({} as Record<string, never>);
 
-        // Race entre N waitForEvent. Cada um tem step id único pra Inngest
-        // tratar como steps separados. Promise.race devolve o primeiro que
-        // resolver (evento OU null por timeout). Quando o primeiro retorna
-        // evento real, os outros viram garbage no Inngest (sem efeito).
         type Resolved = {
           data?: Record<string, unknown>;
           name?: string;
         } | null;
-        const waitPromises = fullEventNames.map((eventName, idx) =>
-          (
-            step.waitForEvent(`wait-event-${cycles}-${idx}`, {
-              event: eventName,
-              timeout: `${sus.timeoutMinutes}m`,
+        let resumeEvent: Resolved = null;
+        let winningEventName = "";
+
+        if (sus.waitKind === "TIME") {
+          // Fluxo de Atendimento, bloco Atraso: espera por tempo é agendamento, não espera de evento (spec 0139, D-13).
+          await step.sleep(`delay-${cycles}`, `${sus.timeoutMinutes}m`);
+        } else if (sus.waitKind === "INPUT") {
+          // Fluxo de Atendimento esperando o cliente. A espera do Inngest só vê mensagens que chegam depois que ela
+          // começa: antes, a caixa de entrada pega a resposta que chegou enquanto o fluxo ainda enviava (D-13).
+          // Um aviso que chega no instante entre conferir a caixa e começar a espera passaria despercebido: a primeira
+          // espera é curta e, ao vencer, a caixa é conferida de novo antes da espera longa. A resposta usada é sempre a
+          // mais antiga da caixa; o aviso só acorda (spec 0139, D-13).
+          const takeReply = (stepId: string, logEvent: string) =>
+            step.run(stepId, async () => {
+              const { takePendingReply } = await import("@/features/attendance-flows/server/inbox");
+              const { flowLog } = await import("@/features/attendance-flows/lib/flow-log");
+              const reply = await takePendingReply(sus.runId);
+              flowLog(reply ? logEvent : "wait.listening", { run: sus.runId, lead: leadId, timeoutMin: sus.timeoutMinutes });
+              return reply ? ({ ...reply } as Record<string, unknown>) : null;
+            });
+          const waitForReply = async (stepId: string, minutes: number) => {
+            const doorbell = (await step.waitForEvent(stepId, {
+              event: "agent-workflow/message-incoming",
+              timeout: `${minutes}m`,
               ...matchOpt,
-            }) as Promise<Resolved>
-          ).then((ev) => ({ ev, eventName })),
-        );
-        // Promise.race retorna o primeiro a resolver — pode ser null (timeout)
-        // ou um evento. Se for null, igual ao Promise.all teria retornado
-        // todos null (mesmo timeout pros N), então não perdemos nada.
-        const winner = await Promise.race(waitPromises);
-        const resumeEvent = winner.ev;
-        const winningEventName = winner.eventName.replace(
-          /^agent-workflow\//,
-          "",
-        );
+            })) as Resolved;
+            if (!doorbell?.data) return null;
+            const reply = await takeReply(`${stepId}-take`, "wait.reply_received");
+            return reply ?? doorbell.data;
+          };
+          const firstWaitMinutes = Math.min(ATTENDANCE_FIRST_WAIT_MINUTES, sus.timeoutMinutes);
+          let reply: Record<string, unknown> | null = await takeReply(`check-inbox-${cycles}`, "wait.inbox_hit");
+          if (!reply) reply = await waitForReply(`wait-input-${cycles}`, firstWaitMinutes);
+          if (!reply && sus.timeoutMinutes > firstWaitMinutes) {
+            reply = await takeReply(`recheck-inbox-${cycles}`, "wait.inbox_hit");
+            if (!reply) reply = await waitForReply(`wait-input-rest-${cycles}`, sus.timeoutMinutes - firstWaitMinutes);
+          }
+          resumeEvent = reply ? { data: { ...reply }, name: "agent-workflow/message-incoming" } : null;
+          winningEventName = "message-incoming";
+        } else {
+          // Race entre N waitForEvent. Cada um tem step id único pra Inngest
+          // tratar como steps separados. Promise.race devolve o primeiro que
+          // resolver (evento OU null por timeout). Quando o primeiro retorna
+          // evento real, os outros viram garbage no Inngest (sem efeito).
+          const waitPromises = fullEventNames.map((eventName, idx) =>
+            (
+              step.waitForEvent(`wait-event-${cycles}-${idx}`, {
+                event: eventName,
+                timeout: `${sus.timeoutMinutes}m`,
+                ...matchOpt,
+              }) as Promise<Resolved>
+            ).then((ev) => ({ ev, eventName })),
+          );
+          // Promise.race retorna o primeiro a resolver — pode ser null (timeout)
+          // ou um evento. Se for null, igual ao Promise.all teria retornado
+          // todos null (mesmo timeout pros N), então não perdemos nada.
+          const winner = await Promise.race(waitPromises);
+          resumeEvent = winner.ev;
+          winningEventName = winner.eventName.replace(
+            /^agent-workflow\//,
+            "",
+          );
+
+        }
 
         // Quando evento acorda o engine, injeta os campos relevantes no
         // contexto (vars.lastIncomingMessage, vars.lastEvent, vars.lastEventName)
@@ -218,6 +285,14 @@ export const executeWorkflow = inngest.createFunction(
           resumeExecutions: sus.executions,
           resumeStars: sus.starsSpent,
         };
+      }
+
+      // Bateu o teto de ciclos ainda esperando: solta a trava para o lead não ficar preso (CB-4).
+      if (attendanceRunId && (lastResult as { status?: string } | null)?.status === "SUSPENDED") {
+        await step.run("release-attendance-lock", async () => {
+          const { endAttendanceRun } = await import("@/features/attendance-flows/server/lock");
+          await endAttendanceRun(attendanceRunId, "expired");
+        });
       }
 
       return { workflowId, mode: "agent", cycles, result: lastResult };

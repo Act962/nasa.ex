@@ -30,7 +30,7 @@ async function loadLinkableFlows(fromWorkflowId: string, toWorkflowId: string, u
   if (!source?.trackingId || !source.tracking) return null;
   if (!(await hasAppPermission(source.tracking.organizationId, userId, "tracking-automacoes", "canEdit"))) return null;
   const flows = await prisma.workflow.findMany({
-    where: { trackingId: source.trackingId },
+    where: { trackingId: source.trackingId, kind: "AUTOMATION" },
     select: {
       id: true,
       agentMode: true,
