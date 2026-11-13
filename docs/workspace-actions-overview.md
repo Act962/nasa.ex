@@ -131,6 +131,7 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 | S5 | `actions/` — 21 procedures | ~~auth+org apenas, **zero checagem de recurso**~~ — **corrigida na Fase 5** via [`server/lib/action-access.ts`](../src/features/actions/server/lib/action-access.ts) |
 | S6 | `workspace/` — 26 rotas | ~~Mesma classe de buraco: `add-member` permitia auto-inserção como OWNER em workspace alheio, `get-members`/`get-columns` liam qualquer workspace~~ — **corrigida na Fase 5.1** via [`server/lib/workspace-access.ts`](../src/features/workspace/server/lib/workspace-access.ts) |
 | S7 | [`actions/get.ts`](../src/features/actions/server/routes/get.ts) | Quando `hasAccess === false`, devolve o registro **inteiro** da action — só remove `favorites`. Depois da Fase 5 o vazamento é intra-org (o escopo de tenant já barra o resto), e a UI só usa a flag pra renderizar "Acesso Restrito", sem ler o conteúdo. Encolher o payload é seguro, mas muda o contrato tipado do procedure |
+| S8 | [`workspace-workflow/`](../src/app/router/workspace-workflow/) — `getOne`, `update.updateName`, `update.updateNodes`, `update.updateIsActive`, `delete`, `execute` | ~~Só login: buscavam o workflow só pelo id, então quem tivesse o id lia, editava, ligava, apagava ou executava a automação do workspace de outra empresa~~ — **corrigida em 2026-11-13** (`feature/workspace-fix-escopo-automacoes-20261113`): `requireOrgMiddleware` + busca escopada por `workspace.organizationId` via `findWorkspaceWorkflowInOrg` em [`workspace-access.ts`](../src/features/workspace/server/lib/workspace-access.ts) → `NOT_FOUND` para outra empresa. `list` e `create` já conferiam |
 
 ### 6.2 Consistência
 
@@ -167,6 +168,10 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 ---
 
 ## 7. Changelog
+
+### 2026-11-13 — S8: escopo de org nas automações do workspace ✅
+
+As 6 procedures por id de `workspaceWorkflow` (`getOne`, `updateName`, `updateNodes`, `updateIsActive`, `delete`, `execute`) passaram a exigir empresa ativa e a buscar o workflow pelo `workspace.organizationId`. Workflow de outra empresa (ou de tracking, sem workspace) devolve `NOT_FOUND`. Sem mudança para quem é da empresa. Ver §6.1, S8.
 
 ### 2026-07-27 — Fase 6.1: selo do lead no card do board de actions ✅
 

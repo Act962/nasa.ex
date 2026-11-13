@@ -1,5 +1,6 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { Workflow } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { Edge, Node } from "@xyflow/react";
@@ -7,6 +8,7 @@ import { z } from "zod";
 
 export const getWorkspaceWorkflow = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .input(z.object({ workflowId: z.string() }))
   .output(
     z.object({
@@ -15,9 +17,12 @@ export const getWorkspaceWorkflow = base
       edges: z.array(z.custom<Edge>()),
     }),
   )
-  .handler(async ({ input, errors }) => {
-    const workflow = await prisma.workflow.findUnique({
-      where: { id: input.workflowId },
+  .handler(async ({ input, context, errors }) => {
+    const workflow = await prisma.workflow.findFirst({
+      where: {
+        id: input.workflowId,
+        workspace: { organizationId: context.org.id },
+      },
       include: { nodes: true, connections: true },
     });
 

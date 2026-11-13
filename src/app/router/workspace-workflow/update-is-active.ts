@@ -1,10 +1,13 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { findWorkspaceWorkflowInOrg } from "@/features/workspace/server/lib/workspace-access";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
 export const updateWorkspaceWorkflowIsActive = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .input(
     z.object({
       workflowId: z.string(),
@@ -17,10 +20,11 @@ export const updateWorkspaceWorkflowIsActive = base
       isActive: z.boolean(),
     }),
   )
-  .handler(async ({ input, errors }) => {
-    const wf = await prisma.workflow.findUnique({
-      where: { id: input.workflowId },
-    });
+  .handler(async ({ input, context, errors }) => {
+    const wf = await findWorkspaceWorkflowInOrg(
+      input.workflowId,
+      context.org.id,
+    );
     if (!wf) throw errors.NOT_FOUND({ message: "Workflow not found" });
     if (!wf.workspaceId) {
       throw errors.BAD_REQUEST({
