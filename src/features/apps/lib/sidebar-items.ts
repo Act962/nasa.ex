@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Send,
   Satellite,
+  Orbit,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type React from "react";
@@ -171,6 +172,14 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
     defaultVisible: false,
   },
   {
+    key: "orbita-station",
+    title: "Órbita Station",
+    url: "/orbita-station",
+    icon: Orbit,
+    alwaysVisible: false,
+    defaultVisible: false,
+  },
+  {
     key: "space-station",
     title: "Space Station",
     url: "/space-station",
@@ -230,6 +239,7 @@ export const APP_TO_SIDEBAR_KEY: Record<string, string> = {
   linnker: "linnker",
   "nasa-route": "nasa-route",
   "nasa-pages": "nasa-pages",
+  "orbita-station": "orbita-station",
   "space-station": "space-station",
   campanhas: "campanhas",
   insights: "insights",
