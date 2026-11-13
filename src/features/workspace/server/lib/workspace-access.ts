@@ -63,3 +63,15 @@ export function findFolderInOrg(
     select: { id: true },
   });
 }
+
+// Workflow de workspace (editor de automações do workspace). Workflow de
+// tracking não tem `workspaceId` e por isso nunca casa aqui.
+export function findWorkspaceWorkflowInOrg(
+  workflowId: string,
+  organizationId: string,
+  prisma: PrismaLike = prismaDefault,
+) {
+  return prisma.workflow.findFirst({
+    where: { id: workflowId, workspace: { organizationId } },
+  });
+}
