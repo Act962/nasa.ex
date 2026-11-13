@@ -17,6 +17,8 @@ export const TRAFEGO_SCOPE = "trafego";
 export const FLOWASTRO_SCOPE = "flowastro";
 /** Cards do Workspace (spec 0143). Mesma regra: só chave criada depois dele. */
 export const WORKSPACE_SCOPE = "workspace";
+/** Financeiro (spec 0144). Mesma regra: só chave criada depois dele. */
+export const FINANCE_SCOPE = "financeiro";
 
 /** Começo de toda chave do ÓRBITA; o que não começa assim é tratado como token OAuth (spec 0135, CB-11). */
 export const isAccessKeyToken = (token: string) => token.startsWith(TOKEN_PREFIX);
@@ -49,8 +51,8 @@ export async function createExternalAiToken(input: {
       tokenPrefix: token.slice(0, VISIBLE_PREFIX_LENGTH),
       organizationIds: input.organizationIds,
       scopes: input.includeTrafego
-        ? [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE, TRAFEGO_SCOPE]
-        : [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE],
+        ? [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE, FINANCE_SCOPE, TRAFEGO_SCOPE]
+        : [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE, FINANCE_SCOPE],
     },
     select: { id: true },
   });

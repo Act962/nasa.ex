@@ -55,7 +55,7 @@ export function ExternalAiSection() {
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-bold">IA externa (Claude Code, ChatGPT e outras)</h3>
           <p className="text-sm text-muted-foreground">
-            A IA lê o Kit da Marca, o calendário e os horários livres, e cria rascunhos que entram na Caixa de criações do Planner. Ela também revisa, aprova, programa e publica, monta os fluxos de atendimento do FlowAstro e cria e organiza os cards do Workspace, sempre com as suas permissões e pedindo sua confirmação antes de publicar ou ligar.
+            A IA lê o Kit da Marca, o calendário e os horários livres, e cria rascunhos que entram na Caixa de criações do Planner. Ela também revisa, aprova, programa e publica, monta os fluxos de atendimento do FlowAstro, cria e organiza os cards do Workspace e lê e lança contas no Financeiro, sempre com as suas permissões e pedindo sua confirmação antes de publicar ou ligar.
           </p>
         </div>
       </div>
@@ -143,6 +143,11 @@ export function ExternalAiSection() {
                     {token.scopes.includes("flowastro") && !token.scopes.includes("workspace") && (
                       <span title="Chave criada antes do Workspace no MCP: crie uma nova para mexer nos cards" className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                         sem Workspace
+                      </span>
+                    )}
+                    {token.scopes.includes("flowastro") && !token.scopes.includes("financeiro") && (
+                      <span title="Chave criada antes do Financeiro no MCP: crie uma nova para ler e lançar contas" className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        sem Financeiro
                       </span>
                     )}
                     {token.scopes.includes("trafego") && (
