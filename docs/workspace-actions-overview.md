@@ -169,6 +169,12 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 
 ## 7. Changelog
 
+### 2026-11-13 — Escritas de card viram comandos do domínio; Workspace no MCP ✅
+
+- **Novo** [`actions/server/lib/action-commands.ts`](../src/features/actions/server/lib/action-commands.ts): criar, editar, mover, concluir, etiquetar, pôr responsável e participante e adicionar item no checklist. As rotas `action.create/update/toggleDone/addResponsible/removeResponsible/addParticipant/createSubAction` e `workspace.moveAction/addTagToAction/removeTagFromAction` passaram a só chamar esses comandos, sem mudar comportamento. Quem grava card fora da tela usa o comando, para disparar automação, aviso, histórico e Stars iguais.
+- O MCP do ÓRBITA usa os comandos nas ferramentas `workspace_*` ([spec 0143](../specs/external-ai/0143-workspace-pelo-mcp.md)).
+- Pendente: o Astro (`features/astro/actions/workspace/create-action.ts`) ainda cria card direto pelo Prisma, sem automação nem Stars.
+
 ### 2026-11-13 — S8: escopo de org nas automações do workspace ✅
 
 As 6 procedures por id de `workspaceWorkflow` (`getOne`, `updateName`, `updateNodes`, `updateIsActive`, `delete`, `execute`) passaram a exigir empresa ativa e a buscar o workflow pelo `workspace.organizationId`. Workflow de outra empresa (ou de tracking, sem workspace) devolve `NOT_FOUND`. Sem mudança para quem é da empresa. Ver §6.1, S8.

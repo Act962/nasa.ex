@@ -15,6 +15,8 @@ export const PLANNER_SCOPE = "planner";
 export const TRAFEGO_SCOPE = "trafego";
 /** Fluxos do FlowAstro (spec 0142). Só chave criada depois dele: chave antiga não ganha poder sem ser recriada. */
 export const FLOWASTRO_SCOPE = "flowastro";
+/** Cards do Workspace (spec 0143). Mesma regra: só chave criada depois dele. */
+export const WORKSPACE_SCOPE = "workspace";
 /** Financeiro (spec 0144). Mesma regra: só chave criada depois dele. */
 export const FINANCE_SCOPE = "financeiro";
 
@@ -49,8 +51,8 @@ export async function createExternalAiToken(input: {
       tokenPrefix: token.slice(0, VISIBLE_PREFIX_LENGTH),
       organizationIds: input.organizationIds,
       scopes: input.includeTrafego
-        ? [PLANNER_SCOPE, FLOWASTRO_SCOPE, FINANCE_SCOPE, TRAFEGO_SCOPE]
-        : [PLANNER_SCOPE, FLOWASTRO_SCOPE, FINANCE_SCOPE],
+        ? [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE, FINANCE_SCOPE, TRAFEGO_SCOPE]
+        : [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE, FINANCE_SCOPE],
     },
     select: { id: true },
   });

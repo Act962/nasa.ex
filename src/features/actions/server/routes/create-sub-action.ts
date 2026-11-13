@@ -1,13 +1,8 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import prisma from "@/lib/prisma";
-import { logOrgActivity } from "@/features/admin/lib/org-activity-log";
 import { z } from "zod";
-import {
-  findActionInOrg,
-  findSubActionGroupInOrg,
-} from "../lib/action-access";
+import { addActionChecklistItem } from "../lib/action-commands";
 
 export const createSubAction = base
   .use(requiredAuthMiddleware)
@@ -20,67 +15,19 @@ export const createSubAction = base
       groupId: z.string().nullable().optional(),
     }),
   )
-  .handler(async ({ input, context, errors }) => {
-    const action = await findActionInOrg(input.actionId, context.org.id);
-    if (!action) throw errors.NOT_FOUND({ message: "Ação não encontrada" });
-
-    if (input.groupId) {
-      const group = await findSubActionGroupInOrg(
-        input.groupId,
-        context.org.id,
-      );
-      if (!group || group.actionId !== input.actionId) {
-        throw errors.NOT_FOUND({ message: "Grupo não encontrado" });
-      }
-    }
-
-    const last = await prisma.subActions.findFirst({
-      where: {
-        actionId: input.actionId,
-        groupId: input.groupId ?? null,
-      },
-      orderBy: { order: "desc" },
-      select: { order: true },
-    });
-
-    const subAction = await prisma.subActions.create({
-      data: {
-        title: input.title,
-        actionId: input.actionId,
-        finishDate: input.finishDate,
-        groupId: input.groupId ?? null,
-        order: (last?.order ?? -1) + 1,
-      },
-      include: {
-        responsibles: {
-          select: {
-            user: {
-              select: { id: true, name: true, image: true },
-            },
-          },
-        },
-        action: {
-          select: {
-            id: true,
-            workspaceId: true,
-          },
-        },
-      },
-    });
-
-    await logOrgActivity({
+  .handler(async ({ input, context }) => {
+    const subAction = await addActionChecklistItem({
       organizationId: context.org.id,
-      userId: context.user.id,
-      userName: context.user.name ?? "Usuário",
-      userEmail: context.user.email ?? "",
-      action: "action.checklist_added",
-      resource: "action",
-      resourceId: input.actionId,
-      metadata: {
-        subActionId: subAction.id,
-        title: subAction.title,
+      actor: {
+        id: context.user.id,
+        name: context.user.name,
+        email: context.user.email,
+        image: (context.user as { image?: string | null }).image,
       },
+      actionId: input.actionId,
+      title: input.title,
+      finishDate: input.finishDate,
+      groupId: input.groupId,
     });
-
     return { subAction };
   });
