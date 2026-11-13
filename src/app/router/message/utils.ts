@@ -1,4 +1,5 @@
 import { IS_LEAD_AI_PAUSE_ENABLED } from "@/features/tracking-chat-ai/lib/lead-ai-pause";
+import { endAttendanceFlowForLead } from "@/features/attendance-flows/server/lock";
 import prisma from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher";
 import { logActivity } from "@/features/admin/lib/activity-logger";
@@ -86,6 +87,11 @@ export async function claimLeadForAttendant(leadId: string, userId: string) {
 
   if (!lead) return;
 
+  // Atendente respondeu: o Fluxo de Atendimento do lead termina (spec 0139, RF-11).
+  await endAttendanceFlowForLead(lead.id, "team_took_over").catch((error: unknown) =>
+    console.warn("[claimLeadForAttendant] end attendance flow failed", error),
+  );
+
   const isAlreadyClaimed = lead.responsibleId === userId && (!IS_LEAD_AI_PAUSE_ENABLED || !lead.isActive);
   await prisma.lead.update({
     where: { id: lead.id },
@@ -132,6 +138,11 @@ export async function recordHumanReply(leadId: string, options: { userId: string
     select: { id: true, tracking: { select: { organizationId: true } }, conversation: { select: { channel: true } } },
   });
   const { organizationId } = lead.tracking;
+  if (options.isConversationReply) {
+    await endAttendanceFlowForLead(lead.id, "team_took_over").catch((error: unknown) =>
+      console.warn("[recordHumanReply] end attendance flow failed", error),
+    );
+  }
   if (isAttendanceManagedChannel(organizationId, lead.conversation?.channel)) {
     // Encaminhar não é conversa: com o estado de atendimento, só a resposta na conversa mexe no estado.
     if (options.isConversationReply) {

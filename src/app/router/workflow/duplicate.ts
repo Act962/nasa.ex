@@ -90,6 +90,7 @@ export const duplicateWorkflow = base
           userId: context.user.id,
           isActive: false,
           agentMode: source.agentMode,
+          kind: source.kind,
           maxRunsPerHour: source.maxRunsPerHour,
         },
       });

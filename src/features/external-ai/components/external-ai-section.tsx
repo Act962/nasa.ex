@@ -55,7 +55,7 @@ export function ExternalAiSection() {
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-bold">IA externa (Claude Code, ChatGPT e outras)</h3>
           <p className="text-sm text-muted-foreground">
-            A IA lê o Kit da Marca, o calendário e os horários livres, e cria rascunhos que entram na Caixa de criações do Planner. Ela também revisa, aprova, programa e publica, só com as suas permissões no Planner e pedindo sua confirmação antes.
+            A IA lê o Kit da Marca, o calendário e os horários livres, e cria rascunhos que entram na Caixa de criações do Planner. Ela também revisa, aprova, programa e publica, e monta os fluxos de atendimento do FlowAstro, sempre com as suas permissões e pedindo sua confirmação antes de publicar ou ligar.
           </p>
         </div>
       </div>
@@ -135,6 +135,11 @@ export function ExternalAiSection() {
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1.5 truncate text-sm font-medium">
                     {token.label}
+                    {!token.scopes.includes("flowastro") && (
+                      <span title="Chave criada antes do FlowAstro no MCP: crie uma nova para montar fluxos" className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        sem FlowAstro
+                      </span>
+                    )}
                     {token.scopes.includes("trafego") && (
                       <span className="rounded-full bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold text-info">trafeGO</span>
                     )}

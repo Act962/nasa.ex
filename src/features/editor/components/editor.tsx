@@ -28,6 +28,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 
 import "@xyflow/react/dist/style.css";
 import { Spinner } from "@/components/ui/spinner";
+import { useFlowColorMode } from "@/hooks/use-flow-color-mode";
 import { nodeComponents } from "@/config/node-components";
 import { OptimizeLayoutButton } from "./optimize-layout-button";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -81,6 +82,7 @@ const edgeTypes = {
 };
 
 export function Editor({ workflowId }: { workflowId: string }) {
+  const flowColorMode = useFlowColorMode();
   const [openSelector, setOpenSelector] = useState(false);
   const { canEdit, isLoading: isPermissionLoading } = useAutomationPermissions();
   const isReadOnly = !canEdit;
@@ -575,6 +577,7 @@ export function Editor({ workflowId }: { workflowId: string }) {
             nodeTypes={nodeComponents}
             edgeTypes={edgeTypes}
             onInit={setEditor}
+            colorMode={flowColorMode}
             fitView
             snapGrid={[10, 10]}
             snapToGrid
@@ -587,7 +590,7 @@ export function Editor({ workflowId }: { workflowId: string }) {
             <MiniMap position="bottom-right" className="bg-background!" />
             <Controls
               position="bottom-left"
-              className="bg-background! text-black!"
+              className="bg-background! text-foreground!"
             />
             <Panel position="top-right" className="flex items-center gap-2">
               {agentMode && (

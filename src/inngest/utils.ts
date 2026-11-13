@@ -75,7 +75,8 @@ export type WorkflowTriggerType =
   | "MESSAGE_INCOMING"
   | "WEBHOOK_EXTERNAL"
   | "SCHEDULE_TRIGGER"
-  | "COMPLIANCE_ITEM_DUE";
+  | "COMPLIANCE_ITEM_DUE"
+  | "ATTENDANCE_START";
 
 /**
  * Shape mínimo do lead que a engine precisa pra popular `context.lead` e

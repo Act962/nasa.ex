@@ -152,8 +152,11 @@ export const agentTriggerMessageIncomingFn = inngest.createFunction(
       messageId?: string;
     };
 
-    return await step.run("dispatch-workflows", async () =>
-      dispatchToMatchingWorkflows({
+    return await step.run("dispatch-workflows", async () => {
+      // Lead dentro de um Fluxo de Atendimento: a mensagem é do fluxo, nenhum outro gatilho responde (spec 0139, RF-6).
+      const attendanceLock = await prisma.workflowRun.findUnique({ where: { attendanceLeadId: data.leadId }, select: { id: true } });
+      if (attendanceLock) return { matched: 0, dispatched: 0, skipped: "in_attendance_flow" };
+      return dispatchToMatchingWorkflows({
         triggerType: "MESSAGE_INCOMING",
         triggerPayload: {
           messageText: data.messageText,
@@ -162,8 +165,8 @@ export const agentTriggerMessageIncomingFn = inngest.createFunction(
         organizationId: data.organizationId,
         trackingId: data.trackingId,
         leadId: data.leadId,
-      }),
-    );
+      });
+    });
   },
 );
 

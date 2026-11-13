@@ -38,7 +38,8 @@ import {
 } from "@/features/tracking-executions/lib/send-template-to-lead";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { AGENT_STARS_ACTIONS } from "../agent-stars-actions";
-import { getByPath, interpolate } from "../workflow-context";
+import { getByPath, interpolate, isAttendanceFlowContext } from "../workflow-context";
+import { resolveReplyDeadline } from "@/features/attendance-flows/lib/nodes";
 import { sendLinkToLead } from "@/features/tracking-executions/lib/send-link-to-lead";
 import { sendMessageExecutor as classicSendMessageExecutor } from "@/features/tracking-executions/components/send-message/executor";
 import { sendProposalExecutor as classicSendProposalExecutor } from "@/features/tracking-executions/components/send-proposal/executor";
@@ -484,7 +485,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
 
   // Imagem, documento e envio para outro número (spec 0112): o mesmo envio do modo normal.
   const target = action.target as { sendMode?: unknown } | undefined;
-  if (payloadType === "IMAGE" || payloadType === "DOCUMENT" || target?.sendMode === "CUSTOM") {
+  if (payloadType === "IMAGE" || payloadType === "DOCUMENT" || payloadType === "AUDIO" || target?.sendMode === "CUSTOM") {
     if (dryRun) return { output: { dryRun: true, type: payloadType } };
     return runClassicNodeInAgentMode(classicSendMessageExecutor as ClassicNodeExecutor)({
       nodeId,
@@ -623,10 +624,13 @@ export const sendMessageExecutor: NodeExecutor = async ({
         listButton,
         chargeStars: true,
         origin,
+        forceOfficialInteractive: isAttendanceFlowContext(context),
       });
       // Espera o clique e segue um caminho por resposta (spec 0090, seção F). Só com o interruptor
-      // ligado e marcado no quadro; sem isso o menu segue pela saída única de sempre.
-      if (isMetaInteractiveOn() && payload.waitForReply === true && payload.mode !== "preset") {
+      // ligado e marcado no quadro; sem isso o menu segue pela saída única de sempre. No FlowAstro vale
+      // sempre: é o coração do fluxo de atendimento (spec 0139).
+      const canWaitForClick = isMetaInteractiveOn() || isAttendanceFlowContext(context);
+      if (canWaitForClick && payload.waitForReply === true && payload.mode !== "preset") {
         const replyTimeoutMinutes = Number(payload.replyTimeoutMinutes);
         return {
           status: "WAITING",
@@ -635,8 +639,12 @@ export const sendMessageExecutor: NodeExecutor = async ({
             type: "BUTTONS",
             messageId: result.messageId,
             eventNames: ["message-incoming"],
-            timeoutMinutes:
-              Number.isFinite(replyTimeoutMinutes) && replyTimeoutMinutes > 0 ? replyTimeoutMinutes : DEFAULT_REPLY_TIMEOUT_MINUTES,
+            // FlowAstro: sem prazo por padrão, espera até a resposta (spec 0139, D-13).
+            timeoutMinutes: isAttendanceFlowContext(context)
+              ? resolveReplyDeadline(payload.replyTimeoutMinutes).timeoutMinutes
+              : Number.isFinite(replyTimeoutMinutes) && replyTimeoutMinutes > 0
+                ? replyTimeoutMinutes
+                : DEFAULT_REPLY_TIMEOUT_MINUTES,
             resumeOutputFrom: RESUME_BY_BUTTON_REPLY,
             buttonIds: buttons.map((button) => button.id),
           },

@@ -44,6 +44,8 @@ export async function dispatchMessageIncoming(args: DispatchMessageIncomingArgs)
   try {
     await inngest.send({
       name: "agent-workflow/message-incoming",
+      // Id da mensagem como id do evento: webhook repetido não acorda o fluxo duas vezes (spec 0139, D-13).
+      ...(args.messageId ? { id: `message-incoming:${args.messageId}` } : {}),
       data: {
         leadId: args.leadId,
         organizationId: args.organizationId,

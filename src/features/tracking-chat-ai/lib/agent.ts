@@ -127,7 +127,7 @@ const ATTENDANCE_TONE =
   "Responda curto, simples e natural, chamando o cliente pelo primeiro nome. Nada de explicações longas nem frases de robô.";
 
 /** A janela de 24h já foi conferida no início de `runWhatsappAgent`. */
-async function sendAgentText(
+export async function sendAgentText(
   trackingId: string,
   leadPhone: string,
   text: string,
@@ -175,6 +175,9 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
   // antes de carregar contexto ou transcrever áudio.
   const isInboundTrigger = (data.trigger ?? "inbound") === "inbound";
   const entryGate = await step.run("check-lead-ai", async () => {
+    // Lead dentro de um Fluxo de Atendimento: a IA só fala pelo bloco "Agente de IA" do fluxo (spec 0139, RF-18).
+    const attendanceLock = await prisma.workflowRun.findUnique({ where: { attendanceLeadId: data.leadId }, select: { id: true } });
+    if (attendanceLock) return { isActive: false, isMenuClick: false, hasActiveCampaign: false, isInAttendanceFlow: true };
     const lead = await prisma.lead.findUnique({
       where: { id: data.leadId },
       select: { isActive: true, lastHumanReplyAt: true, tracking: { select: { aiSettings: { select: { capabilities: true } } } } },
@@ -189,15 +192,16 @@ export async function runWhatsappAgent({ step, data }: RunArgs) {
       ((isInboundTrigger || isAttendanceEntry) && isHumanReplyRecent(lead?.lastHumanReplyAt, new Date(), inServiceAiMinutes)) ||
       (isInboundTrigger && (await isAiHeldByAttendance(data.leadId)));
     const isActive = lead ? !isLeadAiPaused(lead) && !isHeldForHuman : false;
-    if (isActive || !data.messageId) return { isActive, isMenuClick: false, hasActiveCampaign: false };
+    if (isActive || !data.messageId) return { isActive, isMenuClick: false, hasActiveCampaign: false, isInAttendanceFlow: false };
     const inbound = await prisma.message.findFirst({
       where: { id: data.messageId, conversationId: data.conversationId, fromMe: false },
       select: { metadata: true },
     });
     const replyId = (inbound?.metadata as { interactiveReplyId?: unknown } | null)?.interactiveReplyId;
     const activeCampaign = await findActiveCampaign(data.organizationId, data.trackingId);
-    return { isActive, isMenuClick: typeof replyId === "string", hasActiveCampaign: Boolean(activeCampaign) };
+    return { isActive, isMenuClick: typeof replyId === "string", hasActiveCampaign: Boolean(activeCampaign), isInAttendanceFlow: false };
   });
+  if (entryGate.isInAttendanceFlow) return { skipped: true, reason: "in_attendance_flow" };
   const isPausedRuleTrigger = isInboundTrigger && (entryGate.isMenuClick || entryGate.hasActiveCampaign);
   if (!entryGate.isActive && !isPausedRuleTrigger) {
     return { skipped: true, reason: "lead_inactive" };
