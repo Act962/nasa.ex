@@ -108,6 +108,12 @@ export const sendWorkflowExecution = async (data: {
   });
 };
 
+/** Vários disparos numa chamada só ao Inngest (ex.: todos os fluxos de um gatilho). */
+export const sendWorkflowExecutions = async (items: Parameters<typeof sendWorkflowExecution>[0][]) => {
+  if (items.length === 0) return;
+  await inngest.send(items.map((data) => ({ name: "workflow/execute.workflow", data })));
+};
+
 /**
  * Mensagem do lead que acompanha o gatilho. Opcional em todos os dispatches:
  * há gatilhos que nascem sem mensagem (lead de formulário, In-Chat identify) e

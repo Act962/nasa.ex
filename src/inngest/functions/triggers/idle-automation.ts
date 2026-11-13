@@ -1,7 +1,6 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
-import { NonRetriableError } from "inngest";
 import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers";
 import {
   isFreeFormWindowOpen,
@@ -18,15 +17,13 @@ import type { Prisma } from "@/generated/prisma/client";
  * workflow trigger `LAST_INBOUND_TIMEOUT` (ambos removidos).
  *
  * Padrão event-driven:
- *  1. Gatilho: `idle/lead-activity` — emitido pelo webhook (chat inbound) e
- *     pelos pontos de criação de lead (Astro + booking-agent), via
- *     `dispatchIdleActivityIfActive`, que só dispara se houver config ativa
- *     pro tracking. Resultado: 0 invocações em vão.
- *  2. Pra cada cenário ativo, agenda sub-evento com fireAt = now + minutes.
- *  3. Função de check faz step.sleepUntil, refetcha, re-valida (firstResponseAt
+ *  1. `dispatchIdleActivityIfActive` (webhook do chat, Astro, booking-agent)
+ *     confere config e lead e envia direto o evento de checagem do cenário,
+ *     com `id` que deduplica as mensagens da mesma espera.
+ *  2. Função de check faz step.sleepUntil, refetcha, re-valida (firstResponseAt
  *     null / lastOutboundAt antigo), e executa ações: ligar IA, mensagem,
  *     notificar responsável.
- *  4. cancelOn `idle/automation-disabled` mata runs em sleep imediatamente
+ *  3. cancelOn `idle/automation-disabled` mata runs em sleep imediatamente
  *     quando o usuário desliga o toggle.
  */
 
@@ -39,113 +36,6 @@ interface CheckEventData {
   originalLastOutboundAt: string | null;
   fireAt: string;
 }
-
-// ─────────────────────────────────────────────────────────────────────────
-// A) Scheduler — escuta os dois eventos de entrada e dispara checks
-// ─────────────────────────────────────────────────────────────────────────
-
-export const scheduleIdleChecks = inngest.createFunction(
-  { id: "schedule-idle-checks", retries: 1 },
-  // Listener exclusivo do evento dedicado. Os producers (webhook, astro,
-  // booking-agent) só emitem esse evento quando há config ativa pro tracking
-  // — então essa função NUNCA roda em vão. Step economizado no Free tier.
-  { event: "idle/lead-activity" },
-  async ({ event, step }) => {
-    const data = event.data as {
-      leadId?: string;
-      trackingId?: string;
-      organizationId?: string;
-    };
-    if (!data.leadId) throw new NonRetriableError("leadId required");
-
-    // Sem step.run: Inngest serializa o retorno em JSON, perdendo o tipo
-    // Date (vira string). Re-executar em retry é barato (reads idempotentes).
-    const lead = await prisma.lead.findUnique({
-      where: { id: data.leadId! },
-      select: {
-        id: true,
-        trackingId: true,
-        firstResponseAt: true,
-        lastInboundAt: true,
-        lastOutboundAt: true,
-        isActive: true,
-        statusFlow: true,
-        tracking: { select: { organizationId: true } },
-        conversation: { select: { id: true } },
-      },
-    });
-    if (!lead) return { scheduled: 0, reason: "lead-deleted" };
-
-    const config = await prisma.trackingIdleAutomation.findUnique({
-      where: { trackingId: lead.trackingId },
-    });
-    const ctx = { lead, config };
-
-    if (!ctx.config) return { scheduled: 0, reason: "no-config" };
-    // Não bailamos em isActive=false: o toggle "Ligar IA" existe pra reativar
-    // leads pausados (transfer_to_human / atendente assumiu). Bloquear aqui
-    // contradiria o propósito da feature.
-    if (ctx.lead.statusFlow === "FINISHED")
-      return { scheduled: 0, reason: "lead-finished" };
-    if (isAttendanceStateEnabled(ctx.lead.tracking.organizationId))
-      return { scheduled: 0, reason: "attendance-state" };
-
-    const toSend: { name: string; data: CheckEventData }[] = [];
-    const now = Date.now();
-
-    // Cenário 1: sem 1ª resposta
-    if (
-      ctx.config.noFirstRespActive &&
-      ctx.lead.firstResponseAt === null
-    ) {
-      const fireAt = new Date(
-        now + ctx.config.noFirstRespMinutes * 60_000,
-      ).toISOString();
-      toSend.push({
-        name: "idle/check-no-first-response",
-        data: {
-          leadId: ctx.lead.id,
-          trackingId: ctx.lead.trackingId,
-          organizationId: ctx.lead.tracking.organizationId,
-          conversationId: ctx.lead.conversation?.id ?? null,
-          originalLastInboundAt:
-            ctx.lead.lastInboundAt?.toISOString() ?? null,
-          originalLastOutboundAt: null,
-          fireAt,
-        },
-      });
-    }
-
-    // Cenário 2: em conversa, sem nova outbound do atendente
-    if (
-      ctx.config.inConvActive &&
-      ctx.lead.firstResponseAt !== null
-    ) {
-      const fireAt = new Date(
-        now + ctx.config.inConvMinutes * 60_000,
-      ).toISOString();
-      toSend.push({
-        name: "idle/check-in-conv-idle",
-        data: {
-          leadId: ctx.lead.id,
-          trackingId: ctx.lead.trackingId,
-          organizationId: ctx.lead.tracking.organizationId,
-          conversationId: ctx.lead.conversation?.id ?? null,
-          originalLastInboundAt:
-            ctx.lead.lastInboundAt?.toISOString() ?? null,
-          originalLastOutboundAt:
-            ctx.lead.lastOutboundAt?.toISOString() ?? null,
-          fireAt,
-        },
-      });
-    }
-
-    if (toSend.length === 0) return { scheduled: 0 };
-
-    await step.sendEvent("fan-out-idle-checks", toSend);
-    return { scheduled: toSend.length };
-  },
-);
 
 // ─────────────────────────────────────────────────────────────────────────
 // B) Check sem 1ª resposta

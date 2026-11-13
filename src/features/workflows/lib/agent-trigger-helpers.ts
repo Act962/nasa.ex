@@ -8,14 +8,53 @@
  *   - `dispatchPaymentReceived`  ← webhook Stripe + Asaas após confirmação.
  *   - `broadcastComplianceItemDue` ← cron `detect-compliance-due` (aba Contábil).
  *
- * Resultado: publica evento Inngest correspondente. As funções
- * `agent-workflow-triggers.ts` consomem e disparam `runWorkflow` em todos
- * os workflows ATIVOS da org com `agentMode=true` que têm o trigger node.
+ * Mensagem recebida e pagamento: a busca dos fluxos com o gatilho roda aqui,
+ * direto, e só vira execução no Inngest quando existe fluxo (antes era uma
+ * função a cada mensagem que quase sempre achava zero). O evento continua
+ * sendo publicado porque acorda os fluxos parados em WAIT_FOR_EVENT, e evento
+ * sem função não conta execução.
  *
  * Best-effort: erros são logados mas NUNCA quebram o caller — o webhook
  * principal não pode falhar por causa do agente.
  */
 import { inngest } from "@/inngest/client";
+import prisma from "@/lib/prisma";
+
+type AgentTriggerType = "PAYMENT_RECEIVED" | "MESSAGE_INCOMING";
+
+async function dispatchToMatchingWorkflows(params: {
+  triggerType: AgentTriggerType;
+  triggerPayload: Record<string, unknown>;
+  organizationId: string;
+  trackingId?: string | null;
+  leadId?: string | null;
+}) {
+  const { triggerType, triggerPayload, organizationId, trackingId, leadId } = params;
+
+  const workflows = await prisma.workflow.findMany({
+    where: {
+      agentMode: true,
+      isActive: true,
+      tracking: { organizationId },
+      ...(trackingId ? { OR: [{ trackingId }, { trackingId: null }] } : {}),
+      nodes: { some: { type: triggerType } },
+    },
+    select: { id: true },
+  });
+  if (workflows.length === 0) return;
+
+  // Via evento `workflow/execute.workflow` (e não `runWorkflow` direto) para o
+  // fluxo rodar dentro de `executeWorkflow`, que sabe suspender e retomar WAITs.
+  const { sendWorkflowExecutions } = await import("@/inngest/utils");
+  await sendWorkflowExecutions(
+    workflows.map((workflow) => ({
+      workflowId: workflow.id,
+      triggerType,
+      leadId: leadId ?? null,
+      initialData: { ...triggerPayload, organizationId, trackingId },
+    })),
+  );
+}
 
 interface DispatchMessageIncomingArgs {
   leadId: string;
@@ -63,6 +102,21 @@ export async function dispatchMessageIncoming(args: DispatchMessageIncomingArgs)
     // Não derruba o webhook — agente é best-effort.
     console.error("[agent-trigger:message-incoming] dispatch failed", err);
   }
+
+  try {
+    // Lead dentro de um Fluxo de Atendimento: a mensagem é do fluxo, nenhum outro gatilho responde (spec 0139, RF-6).
+    const attendanceLock = await prisma.workflowRun.findUnique({ where: { attendanceLeadId: args.leadId }, select: { id: true } });
+    if (attendanceLock) return;
+    await dispatchToMatchingWorkflows({
+      triggerType: "MESSAGE_INCOMING",
+      triggerPayload: { messageText: args.messageText, messageId: args.messageId },
+      organizationId: args.organizationId,
+      trackingId: args.trackingId,
+      leadId: args.leadId,
+    });
+  } catch (error) {
+    console.error("[agent-trigger:message-incoming] workflow lookup failed", error);
+  }
 }
 
 interface DispatchPaymentReceivedArgs {
@@ -99,6 +153,18 @@ export async function dispatchPaymentReceived(args: DispatchPaymentReceivedArgs)
     });
   } catch (err) {
     console.error("[agent-trigger:payment-received] dispatch failed", err);
+  }
+
+  try {
+    await dispatchToMatchingWorkflows({
+      triggerType: "PAYMENT_RECEIVED",
+      triggerPayload: { provider: args.provider, externalId: args.externalId, amount: args.amount, ...(args.extra ?? {}) },
+      organizationId: args.organizationId,
+      trackingId: args.trackingId ?? null,
+      leadId: args.leadId ?? null,
+    });
+  } catch (error) {
+    console.error("[agent-trigger:payment-received] workflow lookup failed", error);
   }
 }
 
