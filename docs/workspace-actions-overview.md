@@ -168,6 +168,12 @@ Levantadas na análise de 2026-07-22. **Não corrigidas** salvo indicação em c
 
 ## 7. Changelog
 
+### 2026-11-13 — Escritas de card viram comandos do domínio; Workspace no MCP ✅
+
+- **Novo** [`actions/server/lib/action-commands.ts`](../src/features/actions/server/lib/action-commands.ts): criar, editar, mover, concluir, etiquetar, pôr responsável e participante e adicionar item no checklist. As rotas `action.create/update/toggleDone/addResponsible/removeResponsible/addParticipant/createSubAction` e `workspace.moveAction/addTagToAction/removeTagFromAction` passaram a só chamar esses comandos, sem mudar comportamento. Quem grava card fora da tela usa o comando, para disparar automação, aviso, histórico e Stars iguais.
+- O MCP do ÓRBITA usa os comandos nas ferramentas `workspace_*` ([spec 0143](../specs/external-ai/0143-workspace-pelo-mcp.md)).
+- Pendente: o Astro (`features/astro/actions/workspace/create-action.ts`) ainda cria card direto pelo Prisma, sem automação nem Stars.
+
 ### 2026-07-27 — Fase 6.1: selo do lead no card do board de actions ✅
 
 Direção inversa da Fase 6: o card do Kanban de actions passa a sinalizar visualmente o lead vinculado. Detalhe em [`lead-actions-overview.md`](lead-actions-overview.md) §5.
