@@ -1,7 +1,7 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import prisma from "@/lib/prisma";
+import { createWorkspaceColumnRecord } from "../lib/workspace-commands";
 import { z } from "zod";
 import { findWorkspaceInOrg } from "../lib/workspace-access";
 
@@ -21,21 +21,7 @@ export const createColumn = base
       throw errors.NOT_FOUND({ message: "Workspace não encontrado" });
     }
 
-    const lastCol = await prisma.workspaceColumn.findFirst({
-      where: { workspaceId: input.workspaceId },
-      orderBy: { order: "desc" },
-    });
-
-    const newOrder = lastCol ? Number(lastCol.order) + 1 : 0;
-
-    const column = await prisma.workspaceColumn.create({
-      data: {
-        workspaceId: input.workspaceId,
-        name: input.name,
-        color: input.color,
-        order: newOrder,
-      },
-    });
+    const column = await createWorkspaceColumnRecord({ workspaceId: input.workspaceId, name: input.name, color: input.color });
 
     return { column };
   });

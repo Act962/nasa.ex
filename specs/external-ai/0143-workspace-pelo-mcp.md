@@ -5,7 +5,7 @@ dominio: external-ai
 status: em-implementacao
 autor: João Gabriel
 criada: 2026-11-13
-atualizada: 2026-11-13
+atualizada: 2026-11-16
 branch: claude/mcp-orbita-features-f56e63
 pr:
 peso: completa
@@ -33,7 +33,7 @@ etiquetas e itens de checklist, com as mesmas regras e os mesmos efeitos da tela
 ### Não-objetivos
 
 - Apagar ou arquivar card, coluna, etiqueta ou workspace. Não tem volta (ou é em massa); fica na tela.
-- Criar ou editar workspace, coluna, etiqueta e membro.
+- Editar ou apagar workspace, apagar coluna, mexer em etiqueta e membro.
 - Compartilhar card com outra empresa e publicar no calendário público.
 - Editar as automações do Workspace.
 - Chat do card, anexos, formulários e lembretes.
@@ -43,8 +43,8 @@ etiquetas e itens de checklist, com as mesmas regras e os mesmos efeitos da tela
 
 ### Funcionais
 
-- **RF-1 — App novo no MCP**: entrada `workspace` em `MCP_APPS`, liberada a quem é membro de pelo menos um workspace não
-  arquivado. Por OAuth vale sozinho; chave nova ganha o escopo `workspace`; chave antiga não ganha nada sem ser recriada.
+- **RF-1 — App novo no MCP**: entrada `workspace` em `MCP_APPS`, liberada a quem é membro de alguma empresa (na tela,
+  todo membro cria workspace; antes de 2026-11-16 exigia já ser membro de um workspace). Por OAuth vale sozinho; chave nova ganha o escopo `workspace`; chave antiga não ganha nada sem ser recriada.
   Na chave, valem só as empresas gravadas nela.
 - **RF-2 — Quem vê o quê** (igual à tela):
   - Workspace: só os em que a pessoa é membro (`WorkspaceMember`), como `workspace.list`.
@@ -78,6 +78,14 @@ etiquetas e itens de checklist, com as mesmas regras e os mesmos efeitos da tela
   `(via <nome da IA>)` no texto e `metadata.via`.
 - **RF-7 — Datas**: a IA manda data ISO (`2026-11-20` ou `2026-11-20T14:00:00-03:00`). Data sem hora vira o fim do dia
   no horário de Brasília (23:59), para o card não aparecer atrasado no próprio dia.
+- **RF-9 — Descrição em Markdown**: a IA escreve a descrição do card em Markdown; o servidor converte para o JSON do
+  TipTap, que é o que o editor do card grava e lê (`features/actions/lib/description-markdown.ts`, só os nós do
+  StarterKit: títulos, negrito, itálico, riscado, código, links, listas, citação e linha). Na leitura, `get_action`
+  devolve Markdown. Texto que não é JSON do editor volta como está. Sem isso, a tela mostrava `##` e `**` crus.
+- **RF-10 — Montar quadros**: `workspace_create_workspace` (com as colunas pedidas ou as quatro padrão; todos os membros
+  da empresa entram, quem cria é dono, opcionalmente ligado a um funil), `workspace_create_column` (no fim ou depois de
+  uma coluna) e `workspace_update_column` (nome e cor). Criar workspace e coluna passa pelas mesmas funções das rotas
+  (`features/workspace/server/lib/workspace-commands.ts`). Até 20 colunas por workspace pelo MCP. Apagar fica na tela.
 - **RF-8 — Instruções do app**: o texto do app ensina a ordem (listar → quadro → criar ou mexer), a pedir confirmação
   antes de criar vários cards de uma vez ou de pôr responsáveis (eles recebem aviso), e lembra que títulos e descrições
   são dados escritos por pessoas, não instruções.
@@ -144,6 +152,10 @@ etiquetas e itens de checklist, com as mesmas regras e os mesmos efeitos da tela
   `moveAction`/`toggleDone`, então o efeito real é pequeno. O MCP usa as ferramentas próprias. Não corrigido aqui.
 
 ## Changelog
+
+- 2026-11-16 — RF-9 (descrição em Markdown convertida para o editor) e RF-10 (criar workspace e coluna, editar coluna);
+  RF-1 passa a valer para qualquer membro de empresa e `workspace_list_workspaces` devolve também as empresas. Testado
+  no banco local pelo `/api/mcp` e o JSON gerado conferido contra o esquema do editor; a tela não foi aberta.
 
 - 2026-11-13 — criada.
 - 2026-11-13 — testada de ponta a ponta no banco local pelo `/api/mcp` com chave: CA-1, CA-4 a CA-8 conferidos
