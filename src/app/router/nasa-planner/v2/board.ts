@@ -45,45 +45,76 @@ const boardPostSelect = {
   _count: { select: { reviews: true } },
 } as const;
 
+const boardFiltersSchema = z.object({
+  organizationIds: z.array(z.string()).max(50).optional(),
+  types: z.array(z.enum(NasaPlannerPostType)).optional(),
+  origin: z.enum(["all", "ai", "human"]).default("all"),
+});
+
+type BoardColumnKey = (typeof BOARD_COLUMNS)[number]["key"];
+const BOARD_COLUMN_KEYS = BOARD_COLUMNS.map((column) => column.key) as [BoardColumnKey, ...BoardColumnKey[]];
+
+async function buildBaseWhere(userId: string, filters: z.infer<typeof boardFiltersSchema>): Promise<Prisma.NasaPlannerPostWhereInput> {
+  const organizationIds = await resolvePlannerOrganizationIds(userId, filters.organizationIds);
+  return {
+    organizationId: { in: organizationIds },
+    ...(filters.types?.length && { type: { in: filters.types } }),
+    ...(filters.origin === "ai" && aiOriginWhere),
+    ...(filters.origin === "human" && humanOriginWhere),
+  };
+}
+
+/** `id` desempata a ordem: sem ele o cursor pularia ou repetiria posts com a mesma data. */
+function buildColumnQuery(columnKey: BoardColumnKey, baseWhere: Prisma.NasaPlannerPostWhereInput) {
+  const column = BOARD_COLUMNS.find((boardColumn) => boardColumn.key === columnKey)!;
+  const publishedSince = new Date(Date.now() - PUBLISHED_WINDOW_DAYS * DAY_MS);
+  const where: Prisma.NasaPlannerPostWhereInput = {
+    ...baseWhere,
+    status: { in: [...column.statuses] },
+    ...(columnKey === "published" && { publishedAt: { gte: publishedSince } }),
+  };
+  const orderBy: Prisma.NasaPlannerPostOrderByWithRelationInput[] =
+    columnKey === "scheduled" ? [{ scheduledAt: "asc" }, { id: "asc" }] : columnKey === "published" ? [{ publishedAt: "desc" }, { id: "desc" }] : [{ updatedAt: "desc" }, { id: "desc" }];
+  return { where, orderBy };
+}
+
+async function findColumnPage(columnKey: BoardColumnKey, baseWhere: Prisma.NasaPlannerPostWhereInput, cursor?: string) {
+  const { where, orderBy } = buildColumnQuery(columnKey, baseWhere);
+  const posts = await prisma.nasaPlannerPost.findMany({
+    where,
+    select: boardPostSelect,
+    orderBy,
+    take: COLUMN_PAGE_SIZE + 1,
+    ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+  });
+  const hasMore = posts.length > COLUMN_PAGE_SIZE;
+  const pagePosts = hasMore ? posts.slice(0, COLUMN_PAGE_SIZE) : posts;
+  return { posts: pagePosts, nextCursor: hasMore ? pagePosts[pagePosts.length - 1].id : null };
+}
+
 export const listBoardPosts = base
   .use(requiredAuthMiddleware)
   .route({ method: "GET", path: "/nasa-planner/board", summary: "Posts do Planner em colunas por status (Kanban)" })
-  .input(
-    z.object({
-      organizationIds: z.array(z.string()).max(50).optional(),
-      types: z.array(z.enum(NasaPlannerPostType)).optional(),
-      origin: z.enum(["all", "ai", "human"]).default("all"),
-    }),
-  )
+  .input(boardFiltersSchema)
   .handler(async ({ input, context }) => {
-    const organizationIds = await resolvePlannerOrganizationIds(context.user.id, input.organizationIds);
-    const baseWhere: Prisma.NasaPlannerPostWhereInput = {
-      organizationId: { in: organizationIds },
-      ...(input.types?.length && { type: { in: input.types } }),
-      ...(input.origin === "ai" && aiOriginWhere),
-      ...(input.origin === "human" && humanOriginWhere),
-    };
-    const publishedSince = new Date(Date.now() - PUBLISHED_WINDOW_DAYS * DAY_MS);
+    const baseWhere = await buildBaseWhere(context.user.id, input);
     const columns = await Promise.all(
       BOARD_COLUMNS.map(async (column) => {
-        const where: Prisma.NasaPlannerPostWhereInput = {
-          ...baseWhere,
-          status: { in: [...column.statuses] },
-          ...(column.key === "published" && { publishedAt: { gte: publishedSince } }),
-        };
-        const [posts, total] = await Promise.all([
-          prisma.nasaPlannerPost.findMany({
-            where,
-            select: boardPostSelect,
-            orderBy: column.key === "scheduled" ? { scheduledAt: "asc" } : column.key === "published" ? { publishedAt: "desc" } : { updatedAt: "desc" },
-            take: COLUMN_PAGE_SIZE,
-          }),
-          prisma.nasaPlannerPost.count({ where }),
-        ]);
-        return { key: column.key, total, posts };
+        const [page, total] = await Promise.all([findColumnPage(column.key, baseWhere), prisma.nasaPlannerPost.count({ where: buildColumnQuery(column.key, baseWhere).where })]);
+        return { key: column.key, total, ...page };
       }),
     );
     return { columns };
+  });
+
+/** Próximas páginas de uma coluna do Kanban, ao rolar até o fim dela. */
+export const listBoardColumnPage = base
+  .use(requiredAuthMiddleware)
+  .route({ method: "GET", path: "/nasa-planner/board/column", summary: "Mais posts de uma coluna do Kanban do Planner" })
+  .input(boardFiltersSchema.extend({ columnKey: z.enum(BOARD_COLUMN_KEYS), cursor: z.string().min(1) }))
+  .handler(async ({ input, context }) => {
+    const baseWhere = await buildBaseWhere(context.user.id, input);
+    return findColumnPage(input.columnKey, baseWhere, input.cursor);
   });
 
 export const getPlannerDashboard = base
