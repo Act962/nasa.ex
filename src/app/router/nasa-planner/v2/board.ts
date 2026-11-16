@@ -92,6 +92,19 @@ async function findColumnPage(columnKey: BoardColumnKey, baseWhere: Prisma.NasaP
   return { posts: pagePosts, nextCursor: hasMore ? pagePosts[pagePosts.length - 1].id : null };
 }
 
+/**
+ * Conta cartões, não posts: o Kanban junta num cartão só os posts do mesmo grupo de publicação ("2 contas"),
+ * então contar posts mostrava 42 numa coluna com 21 cartões.
+ */
+async function countColumnCards(columnKey: BoardColumnKey, baseWhere: Prisma.NasaPlannerPostWhereInput) {
+  const { where } = buildColumnQuery(columnKey, baseWhere);
+  const [ungroupedCount, groupCards] = await Promise.all([
+    prisma.nasaPlannerPost.count({ where: { ...where, publishGroupId: null } }),
+    prisma.nasaPlannerPost.groupBy({ by: ["publishGroupId", "status"], where: { ...where, publishGroupId: { not: null } } }),
+  ]);
+  return ungroupedCount + groupCards.length;
+}
+
 export const listBoardPosts = base
   .use(requiredAuthMiddleware)
   .route({ method: "GET", path: "/nasa-planner/board", summary: "Posts do Planner em colunas por status (Kanban)" })
@@ -100,7 +113,7 @@ export const listBoardPosts = base
     const baseWhere = await buildBaseWhere(context.user.id, input);
     const columns = await Promise.all(
       BOARD_COLUMNS.map(async (column) => {
-        const [page, total] = await Promise.all([findColumnPage(column.key, baseWhere), prisma.nasaPlannerPost.count({ where: buildColumnQuery(column.key, baseWhere).where })]);
+        const [page, total] = await Promise.all([findColumnPage(column.key, baseWhere), countColumnCards(column.key, baseWhere)]);
         return { key: column.key, total, ...page };
       }),
     );
