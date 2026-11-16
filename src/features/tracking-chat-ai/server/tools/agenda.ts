@@ -5,7 +5,8 @@ import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
-import { listAgendaFreeSlots } from "@/features/public-booking-chat/lib/booking-agent";
+import { listAgendaFreeSlots } from "@/features/agenda/server/agenda-slots";
+import { insertAgendaAppointment } from "@/features/agenda/server/appointment-commands";
 import { buildAppointmentPublicUrl } from "@/features/astro/actions/agenda/schedule-steps";
 import {
   cancelGoogleEventForAppointment,
@@ -192,23 +193,19 @@ export function makeLeadAgendaTools(scope: LeadAgendaScope): ToolSet {
         if (!(await isOfferedSlot({ agendaId: agenda.id, slotDuration: agenda.slotDuration }, date, time))) {
           return OUTSIDE_AVAILABILITY_REPLY;
         }
-        if (await hasConflict(agenda.id, startsAt.toDate(), endsAt.toDate())) {
-          return { error: "Esse horário acabou de ser ocupado. Consulte os horários de novo." };
-        }
-        const appointment = await prisma.appointment.create({
-          data: {
-            agendaId: agenda.id,
-            leadId: scope.leadId,
-            trackingId: agenda.trackingId,
-            startsAt: startsAt.toDate(),
-            endsAt: endsAt.toDate(),
-            title: `Agendamento: ${scope.leadName ?? "Cliente"}`,
-            notes: notes ?? null,
-            // O cliente confirmou agenda, data e horário na conversa antes desta chamada (spec 0100, RF-12).
-            status: "CONFIRMED",
-          },
-          select: { id: true, startsAt: true, agenda: { select: { name: true } } },
+        const inserted = await insertAgendaAppointment({
+          agendaId: agenda.id,
+          leadId: scope.leadId,
+          trackingId: agenda.trackingId,
+          startsAt: startsAt.toDate(),
+          endsAt: endsAt.toDate(),
+          title: `Agendamento: ${scope.leadName ?? "Cliente"}`,
+          notes: notes ?? null,
+          // O cliente confirmou agenda, data e horário na conversa antes desta chamada (spec 0100, RF-12).
+          status: "CONFIRMED",
         });
+        if (!inserted.ok) return { error: "Esse horário acabou de ser ocupado. Consulte os horários de novo." };
+        const { appointment } = inserted;
         await inngest
           .send({ name: "appointment/booking.notification", data: { appointmentId: appointment.id, type: "created" } })
           .catch((error: unknown) => console.warn("[tracking-chat-ai/agenda] aviso de agendamento falhou", error));

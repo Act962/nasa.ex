@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
-import { takeRateLimit } from "@/lib/rate-limit";
 import { normalizeWhatsappPhoneBr } from "@/utils/format-phone";
 import { moveLeadToStage } from "@/features/leads/lib/move-lead";
 import {
@@ -15,11 +14,10 @@ import {
   type LeadActor,
 } from "@/features/leads/server/lead-commands";
 import { TRACKING_SCOPE, type ExternalAiCaller } from "../access-tokens";
-import { asResult, type ToolResult } from "./trafego-mcp-tools";
+import { createScopedToolRunner } from "./tool-runner";
 
 // Tracking pelo MCP (spec 0145): a IA da pessoa lê e mexe nos leads dos funis em que ela participa, com os efeitos da tela.
 
-const RATE_LIMIT = { max: 300, windowMs: 60 * 60 * 1000 };
 const LEADS_LIMIT = 100;
 const HISTORY_LIMIT = 30;
 const TAGS_PER_CALL = 20;
@@ -29,7 +27,6 @@ const NOT_FOUND_TRACKING = "Funil não encontrado, ou você não participa dele.
 
 const TEMPERATURES = ["COLD", "WARM", "HOT", "VERY_HOT"] as const;
 
-const asError = (message: string): ToolResult => ({ content: [{ type: "text", text: message }], isError: true });
 
 /** O app aparece para quem participa de algum funil não arquivado. */
 export async function hasAnyTrackingParticipation(userId: string): Promise<boolean> {
@@ -93,18 +90,7 @@ function toPhone(value: string): string {
 const toDay = (date: Date | null | undefined) => (date ? date.toISOString() : null);
 const userSummary = { select: { id: true, name: true } } as const;
 
-async function runTrackingTool(caller: ExternalAiCaller, work: () => Promise<unknown>): Promise<ToolResult> {
-  try {
-    if (!caller.scopes.includes(TRACKING_SCOPE)) {
-      return asError("Esta chave não tem acesso ao Tracking. Gere uma chave nova em Satélites › IA externa ou conecte pelo OAuth.");
-    }
-    const limit = takeRateLimit("mcp-tracking", `${caller.userId}:${caller.tokenId}`, RATE_LIMIT);
-    if (!limit.allowed) return asError(`Muitas chamadas seguidas. Tente de novo em ${Math.ceil(limit.retryAfterSeconds / 60)} min.`);
-    return asResult(await work());
-  } catch (error) {
-    return asError(error instanceof Error ? error.message : "Erro inesperado.");
-  }
-}
+const runTrackingTool = createScopedToolRunner({ scope: TRACKING_SCOPE, appName: "ao Tracking", rateLimitKey: "mcp-tracking" });
 
 export function registerTrackingMcpTools(server: McpServer, caller: ExternalAiCaller) {
   server.registerTool(
