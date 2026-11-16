@@ -12,6 +12,10 @@ import {
 } from "@/features/leads/lib/history";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { eventBus } from "@/features/alerts/lib/event-bus";
+import {
+  isStatusInTracking,
+  isTrackingParticipant,
+} from "@/features/leads/lib/tracking-participant-guard";
 
 export const updateNewOrder = base
   .use(requiredAuthMiddleware)
@@ -30,6 +34,20 @@ export const updateNewOrder = base
   )
   .handler(async ({ input, errors, context }) => {
     const { leadId, targetStatusId, beforeId, afterId, trackingId } = input;
+
+    // O `trackingId` do input escolhe os workflows disparados: precisa ser o funil do lead.
+    const leadScope = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { trackingId: true },
+    });
+    if (
+      !leadScope ||
+      leadScope.trackingId !== trackingId ||
+      !(await isTrackingParticipant(trackingId, context.user.id)) ||
+      !(await isStatusInTracking(targetStatusId, trackingId))
+    ) {
+      throw errors.NOT_FOUND;
+    }
 
     const pendingLeadEvents: RecordLeadEventInput[] = [];
 
@@ -56,14 +74,14 @@ export const updateNewOrder = base
 
       const [before, after] = await Promise.all([
         beforeId
-          ? tx.lead.findUnique({
-              where: { id: beforeId },
+          ? tx.lead.findFirst({
+              where: { id: beforeId, trackingId },
               select: { order: true },
             })
           : null,
         afterId
-          ? tx.lead.findUnique({
-              where: { id: afterId },
+          ? tx.lead.findFirst({
+              where: { id: afterId, trackingId },
               select: { order: true },
             })
           : null,

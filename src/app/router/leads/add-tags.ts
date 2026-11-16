@@ -14,6 +14,10 @@ import { eventBus } from "@/features/alerts/lib/event-bus";
 import { findLeadTaggedMatchingWorkflows } from "@/features/triggers/components/lead-tagged/find-matching-workflows";
 import { publishLeadChanged } from "@/features/leads/realtime/publish";
 import { getLastLeadMessage } from "@/features/tracking-executions/lib/lead-message";
+import {
+  areTagsInOrganization,
+  isTrackingParticipant,
+} from "@/features/leads/lib/tracking-participant-guard";
 
 export const addTagsToLead = base
   .use(requiredAuthMiddleware)
@@ -32,9 +36,20 @@ export const addTagsToLead = base
     const lead = await prisma.lead.findUnique({
       where: { id: input.leadId },
     });
+    const leadTracking = lead
+      ? await prisma.tracking.findUnique({
+          where: { id: lead.trackingId },
+          select: { organizationId: true },
+        })
+      : null;
 
-    if (!lead) {
-      throw errors.UNAUTHORIZED;
+    if (
+      !lead ||
+      !leadTracking ||
+      !(await isTrackingParticipant(lead.trackingId, context.user.id)) ||
+      !(await areTagsInOrganization(input.tagIds, leadTracking.organizationId))
+    ) {
+      throw errors.NOT_FOUND;
     }
 
     // Busca info das tags ANTES da operação pra capturar `name`/`color` no

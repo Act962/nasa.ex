@@ -15,6 +15,13 @@ import {
 } from "@/features/leads/lib/history";
 import { computeSlaDeadline } from "@/features/leads/lib/sla";
 import { eventBus } from "@/features/alerts/lib/event-bus";
+import { ORPCError } from "@orpc/server";
+import {
+  areTagsInOrganization,
+  isStatusInTracking,
+  isTrackingInOrganization,
+  isTrackingParticipant,
+} from "@/features/leads/lib/tracking-participant-guard";
 
 const LEAD_ADDRESS_FIELDS = [
   "addressZipCode",
@@ -116,6 +123,18 @@ export const updateLead = base
       });
 
       if (!leadExists) {
+        throw errors.NOT_FOUND;
+      }
+
+      const leadOrganizationId = leadExists.tracking.organizationId;
+      const destinationTrackingId = input.trackingId ?? leadExists.trackingId;
+      const isAccessAllowed =
+        (await isTrackingParticipant(leadExists.trackingId, context.user.id)) &&
+        (destinationTrackingId === leadExists.trackingId ||
+          (await isTrackingInOrganization(destinationTrackingId, leadOrganizationId))) &&
+        (!input.statusId || (await isStatusInTracking(input.statusId, destinationTrackingId))) &&
+        (!input.tagIds || (await areTagsInOrganization(input.tagIds, leadOrganizationId)));
+      if (!isAccessAllowed) {
         throw errors.NOT_FOUND;
       }
 
@@ -454,6 +473,8 @@ export const updateLead = base
 
       return result;
     } catch (err) {
+      // Sem isso o NOT_FOUND acima casaria o regex de "not found" e viraria BAD_REQUEST.
+      if (err instanceof ORPCError) throw err;
       // Loga COM contexto pra investigação posterior. O erro genérico
       // "INTERNAL_SERVER_ERROR" no client escondia a causa real (foreign
       // key, coluna inexistente em drift de DB, status pertencente a
