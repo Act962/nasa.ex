@@ -1,7 +1,15 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
 import { z } from "zod";
+import { ORPCError } from "@orpc/server";
+import prisma from "@/lib/prisma";
 import { LEAD_ADDRESS_FIELDS, updateLeadRecord } from "@/features/leads/server/lead-commands";
+import {
+  areTagsInOrganization,
+  isStatusInTracking,
+  isTrackingInOrganization,
+  isTrackingParticipant,
+} from "@/features/leads/lib/tracking-participant-guard";
 
 type LeadAddressField = (typeof LEAD_ADDRESS_FIELDS)[number];
 
@@ -65,6 +73,21 @@ export const updateLead = base
       ),
   )
   .handler(async ({ input, errors, context }) => {
+    const leadScope = await prisma.lead.findUnique({
+      where: { id: input.id },
+      select: { trackingId: true, tracking: { select: { organizationId: true } } },
+    });
+    if (!leadScope) throw errors.NOT_FOUND;
+    const leadOrganizationId = leadScope.tracking.organizationId;
+    const destinationTrackingId = input.trackingId ?? leadScope.trackingId;
+    const isAccessAllowed =
+      (await isTrackingParticipant(leadScope.trackingId, context.user.id)) &&
+      (destinationTrackingId === leadScope.trackingId ||
+        (await isTrackingInOrganization(destinationTrackingId, leadOrganizationId))) &&
+      (!input.statusId || (await isStatusInTracking(input.statusId, destinationTrackingId))) &&
+      (!input.tagIds || (await areTagsInOrganization(input.tagIds, leadOrganizationId)));
+    if (!isAccessAllowed) throw errors.NOT_FOUND;
+
     try {
       const { isConversation: _isConversation, ...leadInput } = input;
       const result = await updateLeadRecord({ actor: {
@@ -75,6 +98,8 @@ export const updateLead = base
       }, input: leadInput });
       return result;
     } catch (err) {
+      // Sem isso o NOT_FOUND do comando casaria o regex de "not found" e viraria BAD_REQUEST.
+      if (err instanceof ORPCError) throw err;
       // Loga COM contexto pra investigação posterior. O erro genérico
       // "INTERNAL_SERVER_ERROR" no client escondia a causa real (foreign
       // key, coluna inexistente em drift de DB, status pertencente a

@@ -27,9 +27,11 @@ export const addParticipant = base
     })
   )
   .handler(async ({ context, errors, input }) => {
-    const tracking = await prisma.tracking.findUnique({
+    // Sem o filtro de empresa, qualquer um se adicionava ao funil de outra org e passava nas checagens de participante.
+    const tracking = await prisma.tracking.findFirst({
       where: {
         id: input.trackingId,
+        organizationId: context.org.id,
       },
     });
 
