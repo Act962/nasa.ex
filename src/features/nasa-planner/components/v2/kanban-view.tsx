@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import type { NasaPlannerPostType } from "@/generated/prisma/enums";
-import { usePlannerBoard, type PlannerOriginFilter } from "../../hooks/use-planner-board";
+import { usePlannerBoard, usePlannerBoardColumnMore, type PlannerBoardFilters, type PlannerOriginFilter } from "../../hooks/use-planner-board";
 import { collapsePublishGroups, toGroupScope, type GroupCardFields } from "../../lib/publish-group-collapse";
 import { useSubmitPlannerPostForApproval } from "../../hooks/use-planner-approval";
 import { useSchedulePlannerPostV2 } from "../../hooks/use-planner-publishing";
@@ -36,6 +36,7 @@ const COLUMN_META: Record<ColumnKey, { label: string; hint: string; dotClassName
 };
 const DROP_RULES: Partial<Record<ColumnKey, ColumnKey[]>> = { approval: ["draft", "changes"], scheduled: ["approved"] };
 const DRAG_ACTIVATION_DISTANCE_PX = 6;
+const LOAD_MORE_MARGIN_PX = 200;
 
 function KanbanCard({ post, columnKey, client, clientIndex, showClient, onOpen, onRetry }: { post: BoardPost; columnKey: ColumnKey; client?: PlannerClient; clientIndex: number; showClient: boolean; onOpen: (postId: string) => void; onRetry: (postId: string) => void }) {
   const isDraggable = Object.values(DROP_RULES).some((sources) => sources?.includes(columnKey));
@@ -93,12 +94,38 @@ function KanbanCard({ post, columnKey, client, clientIndex, showClient, onOpen, 
   );
 }
 
-function KanbanColumn({ column, children, guideAnchor, isFocused }: { column: BoardColumn; children: React.ReactNode; guideAnchor?: string; isFocused: boolean }) {
+function KanbanColumn({ column, filters, renderCard, guideAnchor, isFocused }: { column: BoardColumn; filters: PlannerBoardFilters; renderCard: (post: BoardPost) => React.ReactNode; guideAnchor?: string; isFocused: boolean }) {
   const acceptsFrom = DROP_RULES[column.key];
   const { setNodeRef, isOver, active } = useDroppable({ id: `column:${column.key}`, data: { columnKey: column.key }, disabled: !acceptsFrom });
   const draggingFrom = (active?.data.current as { columnKey?: ColumnKey } | undefined)?.columnKey;
   const isValidTarget = Boolean(draggingFrom && acceptsFrom?.includes(draggingFrom));
   const meta = COLUMN_META[column.key];
+  const { morePosts, canLoadMore, isLoadingMore, loadMore } = usePlannerBoardColumnMore({ filters, columnKey: column.key, firstCursor: column.nextCursor });
+  const cards = useMemo(() => {
+    const firstPageIds = new Set(column.posts.map((post) => post.id));
+    return collapsePublishGroups([...column.posts, ...morePosts.filter((post) => !firstPageIds.has(post.id))]);
+  }, [column.posts, morePosts]);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef(loadMore);
+  useEffect(() => {
+    loadMoreRef.current = loadMore;
+  });
+
+  // Recria o observador a cada página: se a página nova não encher a coluna, o fim segue à vista e busca de novo.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!canLoadMore || isLoadingMore || !sentinel) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) loadMoreRef.current();
+      },
+      { root: scrollAreaRef.current, rootMargin: `0px 0px ${LOAD_MORE_MARGIN_PX}px 0px` },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [canLoadMore, isLoadingMore, morePosts.length]);
+
   return (
     <div
       ref={setNodeRef}
@@ -111,10 +138,14 @@ function KanbanColumn({ column, children, guideAnchor, isFocused }: { column: Bo
         <span className="text-xs font-semibold">{meta.label}</span>
         <span className="ml-auto text-xs text-muted-foreground tabular-nums">{column.total}</span>
       </div>
-      <div className="flex max-h-[calc(100dvh-17rem)] flex-col gap-1.5 overflow-y-auto md:max-h-[calc(100dvh-15rem)]">
-        {children}
+      <div ref={scrollAreaRef} className="flex max-h-[calc(100dvh-17rem)] flex-col gap-1.5 overflow-y-auto md:max-h-[calc(100dvh-15rem)]">
+        {cards.map(renderCard)}
         {column.total === 0 && <p className="px-1 py-4 text-center text-[11px] text-muted-foreground">{meta.hint}</p>}
-        {column.total > column.posts.length && <p className="px-1 py-1 text-center text-[11px] text-muted-foreground">+{column.total - column.posts.length} mais antigos</p>}
+        {canLoadMore && (
+          <div ref={sentinelRef} className="grid min-h-8 place-items-center py-2">
+            {isLoadingMore && <OrbitaSpinner className="size-4" />}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -137,7 +168,8 @@ export function KanbanView({
   onOpenPost: (postId: string) => void;
   onRetryPost: (postId: string) => void;
 }) {
-  const { columns, isLoading } = usePlannerBoard({ organizationIds, types, origin });
+  const filters = useMemo<PlannerBoardFilters>(() => ({ organizationIds, types, origin }), [organizationIds, types, origin]);
+  const { columns, isLoading } = usePlannerBoard(filters);
   const submitForApproval = useSubmitPlannerPostForApproval();
   const schedulePost = useSchedulePlannerPostV2();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: DRAG_ACTIVATION_DISTANCE_PX } }));
@@ -188,13 +220,13 @@ export function KanbanView({
             key={column.key}
             column={column}
             isFocused={focusColumn === column.key}
+            filters={filters}
             guideAnchor={column.key === "draft" ? GUIDE_ANCHORS.plannerDraftsTab.id : column.key === "approval" ? GUIDE_ANCHORS.plannerApprovalTab.id : undefined}
-          >
-            {collapsePublishGroups(column.posts).map((post) => {
+            renderCard={(post) => {
               const clientIndex = clients.findIndex((client) => client.id === post.organizationId);
               return <KanbanCard key={post.id} post={post} columnKey={column.key} client={clients[clientIndex]} clientIndex={Math.max(clientIndex, 0)} showClient={showClient} onOpen={onOpenPost} onRetry={onRetryPost} />;
-            })}
-          </KanbanColumn>
+            }}
+          />
         ))}
       </div>
     </DndContext>
