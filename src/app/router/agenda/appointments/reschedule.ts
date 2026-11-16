@@ -1,16 +1,8 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import prisma from "@/lib/prisma";
-import { logActivity } from "@/features/admin/lib/activity-logger";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
-import { z } from "zod";
-import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
+import z from "zod";
+import { rescheduleAgendaAppointment } from "@/features/agenda/server/appointment-commands";
 
 export const rescheduleAppointment = base
   .use(requiredAuthMiddleware)
@@ -27,65 +19,18 @@ export const rescheduleAppointment = base
       endsAt: z.string().min(1),   // ISO string
     }),
   )
-  .handler(async ({ input, context, errors }) => {
-    // Verifica que o appointment pertence à organização
-    const appointment = await prisma.appointment.findFirst({
-      where: {
-        id: input.appointmentId,
-        agenda: { organizationId: context.org.id },
-        status: { notIn: ["CANCELLED"] },
-      },
-      select: { id: true, agendaId: true, endsAt: true, startsAt: true },
-    });
-
-    if (!appointment) {
-      throw errors.NOT_FOUND({ message: "Agendamento não encontrado" });
-    }
-
-    const newStart = new Date(input.startsAt);
-    const newEnd   = new Date(input.endsAt);
-
-    // Verifica conflito no novo horário (ignora o próprio)
-    const conflict = await prisma.appointment.findFirst({
-      where: {
-        id: { not: input.appointmentId },
-        agendaId: appointment.agendaId,
-        status: { notIn: ["CANCELLED"] },
-        startsAt: { lt: newEnd },
-        endsAt:   { gt: newStart },
-      },
-    });
-
-    if (conflict) {
-      throw errors.BAD_REQUEST({ message: "Já existe um agendamento neste horário." });
-    }
-
-    const updated = await prisma.appointment.update({
-      where: { id: input.appointmentId },
-      data: { startsAt: newStart, endsAt: newEnd },
-    });
-
-    const fmt = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-
-    await logActivity({
+  .handler(async ({ input, context }) => {
+    const appointment = await rescheduleAgendaAppointment({
       organizationId: context.org.id,
-      userId: context.user.id,
-      userName: context.user.name,
-      userEmail: context.user.email,
-      userImage: (context.user as any).image,
-      appSlug: "spacetime",
-      action: "appointment.rescheduled",
-      actionLabel: `Reagendou agendamento para ${fmt(newStart)}`,
-      resourceId: input.appointmentId,
-      metadata: { oldStart: appointment.startsAt, newStart, newEnd },
-    });
-
-    await recordAppointmentChange({
+      actor: {
+        id: context.user.id,
+        name: context.user.name,
+        email: context.user.email,
+        image: (context.user as { image?: string | null }).image,
+      },
       appointmentId: input.appointmentId,
-      change: "rescheduled",
-      actorId: context.user.id,
-      previousStartsAt: appointment.startsAt,
-    }).catch((error: unknown) => console.warn("[agenda.reschedule] atendimento do agendamento falhou", error));
-
-    return { appointment: updated };
+      startsAt: new Date(input.startsAt),
+      endsAt: new Date(input.endsAt),
+    });
+    return { appointment };
   });

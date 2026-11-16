@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { insertAgendaAppointment } from "@/features/agenda/server/appointment-commands";
 import prisma from "@/lib/prisma";
 import { inngest } from "@/inngest/client";
 import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
@@ -415,18 +416,26 @@ export const createAppointmentAction: AstroAction<typeof inputSchema> = {
       };
     }
 
-    const appointment = await prisma.appointment.create({
-      data: {
-        title,
-        startsAt,
-        endsAt,
-        meetingType,
-        agendaId: agenda.id,
-        leadId: leadId ?? null,
-        userId: ctx.userId,
-      },
-      select: { id: true },
+    const inserted = await insertAgendaAppointment({
+      title,
+      startsAt,
+      endsAt,
+      meetingType,
+      agendaId: agenda.id,
+      leadId: leadId ?? null,
+      userId: ctx.userId,
+      status: "PENDING",
     });
+    if (!inserted.ok) {
+      return {
+        status: "needs_input",
+        title: "Horário ocupado",
+        description: "Alguém acabou de marcar neste horário. Me diga outro horário.",
+        missingFields: [{ key: "answeredWhen", label: "outro horário" }],
+        appName: "Agendas",
+      };
+    }
+    const { appointment } = inserted;
     await recordAppointmentChange({ appointmentId: appointment.id, change: "scheduled", actorId: ctx.userId }).catch((error: unknown) => console.warn("[astro.appointment.create] atendimento do agendamento falhou", error));
 
     if (noticePhone && noticeTracking) {

@@ -7,6 +7,7 @@ import z from "zod";
 import { trackLeadEvent } from "@/lib/lead-journey/track";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
+import { findOrCreateAgendaLead, insertAgendaAppointment } from "@/features/agenda/server/appointment-commands";
 import {
   trackingParamsSchema,
   trackingToLeadData,
@@ -91,58 +92,17 @@ export const createAppointment = base
       });
     }
 
-    // Buscar ou criar lead
-    let lead = await prisma.lead.findFirst({
-      where: {
-        phone: input.phone,
-        trackingId: agenda.trackingId,
-      },
+    const t = input.tracking;
+    const { lead, isNewLead } = await findOrCreateAgendaLead(agenda, {
+      name: input.name,
+      phone: input.phone,
+      email: input.email,
+      leadData: trackingToLeadData(t),
     });
 
-    if (!lead) {
-      let statusId = agenda.statusId;
-      if (!statusId) {
-        const firstStatus = await prisma.status.findFirst({
-          where: { trackingId: agenda.trackingId },
-          orderBy: { order: "asc" },
-        });
-
-        if (!firstStatus) {
-          throw errors.BAD_REQUEST({
-            message: "A trilha da agenda não possui status configurados.",
-          });
-        }
-
-        statusId = firstStatus.id;
-      }
-
-      const t = input.tracking;
-      lead = await prisma.lead.create({
-        data: {
-          name: input.name,
-          phone: input.phone,
-          email: input.email || null,
-          trackingId: agenda.trackingId,
-          statusId,
-          source: "AGENDA",
-          ...trackingToLeadData(t),
-        },
-      });
+    if (isNewLead) {
       // Origem real do lead (spec 0114): a agenda pública.
       await recordLeadOriginFromLead(lead.id, { origin: "AGENDA", sourceName: agenda.name, sourceId: agenda.id });
-
-      // Só ADICIONA tags da agenda ao lead novo. Nunca remove tags
-      // existentes (leads pré-existentes nem entram aqui).
-      if (agenda.tags.length > 0) {
-        await prisma.leadTag.createMany({
-          data: agenda.tags.map((tag) => ({
-            leadId: lead!.id,
-            tagId: tag.id,
-          })),
-          skipDuplicates: true,
-        });
-      }
-
       if (shouldLogUtmLanding(t)) {
         await trackLeadEvent({
           leadId: lead.id,
@@ -160,18 +120,20 @@ export const createAppointment = base
       }
     }
 
-    const appointment = await prisma.appointment.create({
-      data: {
-        agendaId: agenda.id,
-        leadId: lead.id,
-        startsAt: startsAt.toDate(),
-        endsAt: endsAt.toDate(),
-        title: `Agendamento: ${input.name}`,
-        notes: input.notes,
-        status: "PENDING",
-        trackingId: agenda.trackingId,
-      },
+    const inserted = await insertAgendaAppointment({
+      agendaId: agenda.id,
+      leadId: lead.id,
+      startsAt: startsAt.toDate(),
+      endsAt: endsAt.toDate(),
+      title: `Agendamento: ${input.name}`,
+      notes: input.notes,
+      status: "PENDING",
+      trackingId: agenda.trackingId,
     });
+    if (!inserted.ok) {
+      throw errors.BAD_REQUEST({ message: "Este horário já está preenchido." });
+    }
+    const { appointment } = inserted;
 
     await trackLeadEvent({
       leadId: lead.id,

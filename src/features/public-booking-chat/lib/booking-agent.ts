@@ -7,6 +7,8 @@ import isBetween from "dayjs/plugin/isBetween";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
+import { listAgendaFreeSlots } from "@/features/agenda/server/agenda-slots";
+import { findOrCreateAgendaLead, insertAgendaAppointment } from "@/features/agenda/server/appointment-commands";
 
 dayjs.extend(isBetween);
 dayjs.extend(utc);
@@ -165,111 +167,6 @@ export function makeGetAvailableSlotsTool(orgSlug: string, agendaSlug: string) {
 }
 
 /**
- * Horários livres de uma agenda numa data. Devolve só início e fim de cada
- * horário livre: quem ocupa os demais nunca sai daqui. Usada pelo chat público
- * e pelo Chatbot IA do WhatsApp (spec 0084).
- */
-export async function listAgendaFreeSlots(
-  agenda: { agendaId: string; slotDuration: number },
-  date: string,
-) {
-  // Verificar se a data está bloqueada
-  const dateOverride = await prisma.agendaDateOverride.findUnique({
-    where: { agendaId_date: { agendaId: agenda.agendaId, date } },
-  });
-  if (dateOverride?.isBlocked) {
-    return { date, slots: [], message: "Esta data está indisponível. Por favor, escolha outra data." };
-  }
-
-  const requestedDate = dayjs(date, "YYYY-MM-DD");
-
-  if (!requestedDate.isValid()) {
-    return { error: "Data inválida." };
-  }
-
-  if (requestedDate.isBefore(dayjs(), "day")) {
-    return { error: "Não é possível consultar datas passadas.", slots: [] };
-  }
-
-  const daysMap: Record<string, string> = {
-    "0": "SUNDAY",
-    "1": "MONDAY",
-    "2": "TUESDAY",
-    "3": "WEDNESDAY",
-    "4": "THURSDAY",
-    "5": "FRIDAY",
-    "6": "SATURDAY",
-  };
-  const dayName = daysMap[requestedDate.day().toString()];
-
-  const timeSlotRanges = await prisma.availabilityTimeSlot.findMany({
-    where: {
-      availability: {
-        agendaId: agenda.agendaId,
-        dayOfWeek: dayName as any,
-        isActive: true,
-      },
-    },
-    orderBy: { order: "asc" },
-  });
-
-  if (timeSlotRanges.length === 0) {
-    return { date, slots: [], message: "Sem disponibilidade neste dia." };
-  }
-
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      agendaId: agenda.agendaId,
-      startsAt: {
-        gte: requestedDate.startOf("day").toDate(),
-        lte: requestedDate.endOf("day").toDate(),
-      },
-      status: { not: "CANCELLED" },
-    },
-  });
-
-  const generatedSlots: { startTime: string; endTime: string }[] = [];
-  const now = dayjs();
-  const isToday = requestedDate.isSame(now, "day");
-
-  for (const range of timeSlotRanges) {
-    let current = dayjs(`${requestedDate.format("YYYY-MM-DD")}T${range.startTime}`);
-    const end = dayjs(`${requestedDate.format("YYYY-MM-DD")}T${range.endTime}`);
-
-    while (current.isBefore(end) || current.isSame(end)) {
-      const slotStart = current;
-      const slotEnd = current.add(agenda.slotDuration, "minute");
-
-      if (isToday && slotStart.isBefore(now)) {
-        current = slotEnd;
-        continue;
-      }
-
-      const isOccupied = appointments.some((app) => {
-        const appStart = dayjs(app.startsAt);
-        const appEnd = dayjs(app.endsAt);
-        return slotStart.isBefore(appEnd) && slotEnd.isAfter(appStart);
-      });
-
-      if (!isOccupied) {
-        generatedSlots.push({
-          startTime: slotStart.format("HH:mm"),
-          endTime: slotEnd.format("HH:mm"),
-        });
-      }
-
-      current = slotEnd;
-    }
-  }
-
-  return {
-    date,
-    slots: generatedSlots,
-    totalAvailable: generatedSlots.length,
-  };
-}
-
-/**
  * Cria um agendamento para o cliente e dispara a notificação WhatsApp.
  * Retorna o ID do agendamento para o cliente usar em cancelamentos futuros.
  */
@@ -308,6 +205,8 @@ export function makeBookAppointmentTool(orgSlug: string, agendaSlug: string) {
           slotDuration: true,
           trackingId: true,
           organizationId: true,
+          statusId: true,
+          tags: { select: { id: true } },
         },
       });
 
@@ -331,52 +230,26 @@ export function makeBookAppointmentTool(orgSlug: string, agendaSlug: string) {
         return { error: "Este horário já está ocupado. Por favor, escolha outro." };
       }
 
-      let lead = await prisma.lead.findFirst({
-        where: { phone, trackingId: agenda.trackingId },
-      });
-
-      if (!lead) {
-        const firstStatus = await prisma.status.findFirst({
-          where: { trackingId: agenda.trackingId },
-          orderBy: { order: "asc" },
-        });
-
-        if (!firstStatus) {
-          return { error: "A agenda não possui status configurados." };
-        }
-
-        lead = await prisma.lead.create({
-          data: {
-            name,
-            phone,
-            email: email || null,
-            trackingId: agenda.trackingId,
-            statusId: firstStatus.id,
-            source: "AGENDA",
-          },
-        });
-        const { dispatchIdleActivityIfActive } = await import(
-          "@/features/tracking-settings/lib/idle-automation-gate"
-        );
-        await dispatchIdleActivityIfActive({
-          leadId: lead.id,
-          trackingId: agenda.trackingId,
-          organizationId: agenda.organizationId,
-        });
+      const { lead, isNewLead } = await findOrCreateAgendaLead(agenda, { name, phone, email });
+      if (isNewLead) {
+        const { dispatchIdleActivityIfActive } = await import("@/features/tracking-settings/lib/idle-automation-gate");
+        await dispatchIdleActivityIfActive({ leadId: lead.id, trackingId: agenda.trackingId, organizationId: agenda.organizationId });
       }
 
-      const appointment = await prisma.appointment.create({
-        data: {
-          agendaId: agenda.id,
-          leadId: lead.id,
-          startsAt: startsAt.toDate(),
-          endsAt: endsAt.toDate(),
-          title: `Agendamento: ${name}`,
-          notes: notes ?? null,
-          status: "PENDING",
-          trackingId: agenda.trackingId,
-        },
+      const inserted = await insertAgendaAppointment({
+        agendaId: agenda.id,
+        leadId: lead.id,
+        startsAt: startsAt.toDate(),
+        endsAt: endsAt.toDate(),
+        title: `Agendamento: ${name}`,
+        notes: notes ?? null,
+        status: "PENDING",
+        trackingId: agenda.trackingId,
       });
+      if (!inserted.ok) {
+        return { error: "Este horário já está ocupado. Por favor, escolha outro." };
+      }
+      const { appointment } = inserted;
 
       // Notificação WhatsApp assíncrona — não bloqueia a resposta
       await inngest.send({
