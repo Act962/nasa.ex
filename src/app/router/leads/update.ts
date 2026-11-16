@@ -1,21 +1,9 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "../../middlewares/auth";
-import prisma from "@/lib/prisma";
-import { logActivity } from "@/features/admin/lib/activity-logger";
 import { z } from "zod";
-import { LeadAction } from "@/generated/prisma/enums";
-import { recordLeadHistory } from "./utils/history";
-import { dispatchMoveLeadStatus, broadcastAgentWorkflowEvent } from "@/inngest/utils";
-import { trackLeadEvent } from "@/lib/lead-journey/track";
-import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
-import {
-  recordLeadEvent,
-  notifyInternalLeadChannel,
-  type RecordLeadEventInput,
-} from "@/features/leads/lib/history";
-import { computeSlaDeadline } from "@/features/leads/lib/sla";
-import { eventBus } from "@/features/alerts/lib/event-bus";
 import { ORPCError } from "@orpc/server";
+import prisma from "@/lib/prisma";
+import { LEAD_ADDRESS_FIELDS, updateLeadRecord } from "@/features/leads/server/lead-commands";
 import {
   areTagsInOrganization,
   isStatusInTracking,
@@ -23,31 +11,11 @@ import {
   isTrackingParticipant,
 } from "@/features/leads/lib/tracking-participant-guard";
 
-const LEAD_ADDRESS_FIELDS = [
-  "addressZipCode",
-  "addressStreet",
-  "addressNumber",
-  "addressComplement",
-  "addressNeighborhood",
-  "addressCity",
-  "addressState",
-  "addressCountry",
-] as const;
-
 type LeadAddressField = (typeof LEAD_ADDRESS_FIELDS)[number];
 
 const LEAD_ADDRESS_INPUT = Object.fromEntries(
   LEAD_ADDRESS_FIELDS.map((field) => [field, z.string().max(200).nullable().optional()]),
 ) as Record<LeadAddressField, z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-
-/** Só os campos de endereço que vieram; vazio vira null (limpa). */
-function toAddressPatch(input: Partial<Record<LeadAddressField, string | null>>) {
-  const patch: Partial<Record<LeadAddressField, string | null>> = {};
-  for (const field of LEAD_ADDRESS_FIELDS) {
-    if (input[field] !== undefined) patch[field] = input[field]?.trim() || null;
-  }
-  return patch;
-}
 
 // 🟦 UPDATE
 export const updateLead = base
@@ -105,375 +73,32 @@ export const updateLead = base
       ),
   )
   .handler(async ({ input, errors, context }) => {
+    const leadScope = await prisma.lead.findUnique({
+      where: { id: input.id },
+      select: { trackingId: true, tracking: { select: { organizationId: true } } },
+    });
+    if (!leadScope) throw errors.NOT_FOUND;
+    const leadOrganizationId = leadScope.tracking.organizationId;
+    const destinationTrackingId = input.trackingId ?? leadScope.trackingId;
+    const isAccessAllowed =
+      (await isTrackingParticipant(leadScope.trackingId, context.user.id)) &&
+      (destinationTrackingId === leadScope.trackingId ||
+        (await isTrackingInOrganization(destinationTrackingId, leadOrganizationId))) &&
+      (!input.statusId || (await isStatusInTracking(input.statusId, destinationTrackingId))) &&
+      (!input.tagIds || (await areTagsInOrganization(input.tagIds, leadOrganizationId)));
+    if (!isAccessAllowed) throw errors.NOT_FOUND;
+
     try {
-      const leadExists = await prisma.lead.findUnique({
-        where: { id: input.id },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          statusId: true,
-          trackingId: true,
-          responsibleId: true,
-          isActive: true,
-          leadTags: { select: { tagId: true } },
-          tracking: { select: { organizationId: true } },
-        },
-      });
-
-      if (!leadExists) {
-        throw errors.NOT_FOUND;
-      }
-
-      const leadOrganizationId = leadExists.tracking.organizationId;
-      const destinationTrackingId = input.trackingId ?? leadExists.trackingId;
-      const isAccessAllowed =
-        (await isTrackingParticipant(leadExists.trackingId, context.user.id)) &&
-        (destinationTrackingId === leadExists.trackingId ||
-          (await isTrackingInOrganization(destinationTrackingId, leadOrganizationId))) &&
-        (!input.statusId || (await isStatusInTracking(input.statusId, destinationTrackingId))) &&
-        (!input.tagIds || (await areTagsInOrganization(input.tagIds, leadOrganizationId)));
-      if (!isAccessAllowed) {
-        throw errors.NOT_FOUND;
-      }
-
-      const isStatusChange =
-        !!input.statusId && input.statusId !== leadExists.statusId;
-      const isResponsibleChange =
-        !!input.responsibleId && input.responsibleId !== leadExists.responsibleId;
-      const now = new Date();
-
-      const pendingLeadEvents: RecordLeadEventInput[] = [];
-
-      const result = await prisma.$transaction(async (tx) => {
-        // Recompute SLA deadline when status changes
-        let slaPatch: { statusEnteredAt?: Date | null; slaDeadline?: Date | null } = {};
-        if (input.statusId && input.statusId !== leadExists.statusId) {
-          const newStatus = await tx.status.findUnique({
-            where: { id: input.statusId },
-            // slaHours só existe no client após `prisma generate` rodar
-            select: { id: true, slaHours: true } as unknown as { id: true; slaHours: true },
-          });
-          const enteredAt = new Date();
-          slaPatch = {
-            statusEnteredAt: enteredAt,
-            slaDeadline: computeSlaDeadline(
-              newStatus as unknown as { slaHours?: number | null } | null,
-              enteredAt,
-            ),
-          };
-        }
-
-        const lead = await tx.lead.update({
-          where: { id: input.id },
-          data: {
-            name: input.name,
-            // nickname: usa `undefined` (sem alteração) só quando o input
-            // não veio. Quando veio string vazia ou null, normaliza pra
-            // null pra permitir "limpar" o apelido.
-            ...(input.nickname !== undefined
-              ? { nickname: input.nickname?.trim() || null }
-              : {}),
-            ...toAddressPatch(input),
-            phone: input.phone,
-            email: input.email,
-            description: input.description,
-            statusId: input.statusId,
-            trackingId: input.trackingId,
-            orgProjectId: input.orgProjectId,
-            responsibleId: input.responsibleId,
-            isActive: input.active,
-            amount: input.amount,
-            ...(input.temperature ? { temperature: input.temperature } : {}),
-            ...(isStatusChange ? { lastStatusChangeAt: now } : {}),
-            ...(isResponsibleChange ? { assignedAt: now } : {}),
-            // Com o estado de atendimento ligado o `statusFlow` é automático (spec 0113): o navegador não
-            // sobrescreve (ex.: reabrir como ACTIVE depois que o servidor já reabriu como WAITING).
-            ...(input.statusFlow && !isAttendanceStateEnabled(leadExists.tracking.organizationId)
-              ? { statusFlow: input.statusFlow as any }
-              : {}),
-            ...(slaPatch as any),
-            leadTags: input.tagIds
-              ? {
-                  deleteMany: {},
-                  create: input.tagIds.map((tagId) => ({
-                    tagId,
-                  })),
-                }
-              : undefined,
-          },
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            email: true,
-            description: true,
-            statusId: true,
-            trackingId: true,
-            createdAt: true,
-            updatedAt: true,
-            isActive: true,
-            responsibleId: true,
-          },
-        });
-
-        await recordLeadHistory({
-          leadId: lead.id,
-          userId: context.user.id,
-          action: LeadAction.ACTIVE,
-          notes: "Lead atualizado",
-          tx,
-        });
-
-        // Eventos granulares pra Jornada — coletados aqui e disparados
-        // DEPOIS do commit. recordLeadEvent chama Pusher; rodar dentro da
-        // tx segura o commit aguardando HTTP externo → timeout.
-        if (input.statusId && input.statusId !== leadExists.statusId) {
-          pendingLeadEvents.push({
-            leadId: lead.id,
-            eventType: "STATUS_CHANGE",
-            userId: context.user.id,
-            previousStatusId: leadExists.statusId,
-            newStatusId: input.statusId,
-          });
-        }
-        if (input.trackingId && input.trackingId !== leadExists.trackingId) {
-          pendingLeadEvents.push({
-            leadId: lead.id,
-            eventType: "TRACKING_CHANGE",
-            userId: context.user.id,
-            previousTrackingId: leadExists.trackingId,
-            newTrackingId: input.trackingId,
-          });
-        }
-        if (
-          input.responsibleId !== undefined &&
-          input.responsibleId !== leadExists.responsibleId
-        ) {
-          pendingLeadEvents.push({
-            leadId: lead.id,
-            eventType: "RESPONSIBLE_CHANGE",
-            userId: context.user.id,
-            previousResponsibleId: leadExists.responsibleId,
-            newResponsibleId: input.responsibleId ?? null,
-          });
-        }
-
-        // Workflows: ACUMULA disparos de tag + status. Antes, o branch de
-        // `statusId` sobrescrevia o array de tagIds — se o user mudasse
-        // tag E status no mesmo update, só os workflows de status rodavam.
-        // Cada lookup é try/catch porque `data.path` em JSON pode falhar em
-        // versões antigas do Prisma; falha aqui NÃO deve quebrar o update
-        // do lead.
-        const workflows: { id: string }[] = [];
-        if (input.tagIds && input.tagIds.length > 0) {
-          try {
-            const tagWorkflows = await tx.workflow.findMany({
-              where: {
-                trackingId: lead.trackingId,
-                isActive: true,
-                nodes: {
-                  some: {
-                    type: "LEAD_TAGGED",
-                    data: {
-                      path: ["action", "tagIds"],
-                      array_contains: input.tagIds,
-                    },
-                  },
-                },
-              },
-              select: { id: true },
-            });
-            workflows.push(...tagWorkflows);
-          } catch (wfErr) {
-            console.warn("[leads/update] tag workflows lookup failed", wfErr);
-          }
-        }
-
-        if (input.statusId) {
-          try {
-            const statusWorkflows = await tx.workflow.findMany({
-              where: {
-                trackingId: lead.trackingId,
-                isActive: true,
-                nodes: {
-                  some: {
-                    type: "MOVE_LEAD_STATUS",
-                    data: {
-                      path: ["action", "statusId"],
-                      equals: input.statusId,
-                    },
-                  },
-                },
-              },
-              select: { id: true },
-            });
-            workflows.push(...statusWorkflows);
-          } catch (wfErr) {
-            console.warn("[leads/update] status workflows lookup failed", wfErr);
-          }
-        }
-
-        return { lead, workflows };
-      });
-
-      // Dispara Pusher/journey FORA da transaction. Falha aqui não derruba
-      // o update do lead já commitado.
-      if (pendingLeadEvents.length > 0) {
-        await Promise.all(pendingLeadEvents.map((e) => recordLeadEvent(e)));
-      }
-
-      // Alert engine + trafeGO (kanban → pedido). O drag do board e a seleção
-      // em massa já publicam; o select de status do detalhe do lead não publicava.
-      if (isStatusChange) {
-        const trackingOfLead = await prisma.tracking.findUnique({
-          where: { id: result.lead.trackingId },
-          select: { organizationId: true },
-        });
-        await eventBus.publish("lead.status_changed", {
-          leadId: result.lead.id,
-          fromStatusId: leadExists.statusId,
-          toStatusId: result.lead.statusId,
-          orgId: trackingOfLead?.organizationId ?? null,
-          responsibleId: result.lead.responsibleId,
-          actorUserId: context.user.id,
-        });
-      }
-
-      if (result.workflows && result.workflows.length > 0) {
-        await Promise.all(
-          result.workflows.map((workflow) =>
-            dispatchMoveLeadStatus({
-              workflowId: workflow.id,
-              lead: result.lead,
-              previousLead: leadExists,
-            }),
-          ),
-        );
-      }
-
-      // Broadcast pra WAIT_FOR_EVENT preset "lead-status-changed". Só
-      // emite se o status realmente mudou — checado pelo `isStatusChange`
-      // logo abaixo (mantemos a guarda igual à do trackLeadEvent).
-      if (isStatusChange) {
-        await broadcastAgentWorkflowEvent({
-          event: "lead-status-changed",
-          leadId: result.lead.id,
-          trackingId: result.lead.trackingId,
-          extra: {
-            fromStatusId: leadExists.statusId,
-            toStatusId: result.lead.statusId,
-          },
-        });
-      }
-
-      if (isStatusChange) {
-        await trackLeadEvent({
-          leadId: result.lead.id,
-          kind: "status_changed",
-          actorId: context.user.id,
-          metadata: {
-            from: leadExists.statusId,
-            to: input.statusId,
-          },
-        });
-      }
-      if (isResponsibleChange) {
-        await trackLeadEvent({
-          leadId: result.lead.id,
-          kind: "lead_assigned",
-          actorId: context.user.id,
-          metadata: {
-            from: leadExists.responsibleId,
-            to: input.responsibleId,
-          },
-        });
-      }
-      // Um evento por etiqueta que de fato entrou ou saiu, com `tagId` no singular: é o formato que o
-      // histórico de etiquetas do Insights lê (`tag-snapshot.ts`).
-      if (input.tagIds) {
-        const previousTagIds = new Set(leadExists.leadTags.map((leadTag) => leadTag.tagId));
-        const nextTagIds = new Set(input.tagIds);
-        const addedTagIds = input.tagIds.filter((tagId) => !previousTagIds.has(tagId));
-        const removedTagIds = [...previousTagIds].filter((tagId) => !nextTagIds.has(tagId));
-        for (const tagId of addedTagIds) {
-          await trackLeadEvent({ leadId: result.lead.id, kind: "tag_added", actorId: context.user.id, metadata: { tagId } });
-        }
-        for (const tagId of removedTagIds) {
-          await trackLeadEvent({ leadId: result.lead.id, kind: "tag_removed", actorId: context.user.id, metadata: { tagId } });
-        }
-      }
-
-      // Canal interno sempre — `recordLeadEvent` cobre status/tracking/
-      // responsible. Aqui garantimos que tag_added e qualquer outro update
-      // (name, phone, email, amount, etc) também propaguem em tempo real
-      // pra "Detalhes do lead" do consultor.
-      await notifyInternalLeadChannel(result.lead.id, "lead_updated");
-
-      // Log activity for meaningful changes only
-      const tracking = await prisma.tracking.findUnique({
-        where: { id: result.lead.trackingId },
-        select: { organizationId: true, name: true },
-      });
-      if (tracking) {
-        let actionLabel = "";
-        let featureKey = "lead.updated";
-        const changedFields: string[] = [];
-        if (input.statusId && input.statusId !== leadExists.statusId) {
-          const newStatus = await prisma.status.findUnique({ where: { id: input.statusId }, select: { name: true } });
-          actionLabel = `Moveu o lead "${result.lead.name}" para a coluna "${newStatus?.name ?? input.statusId}"`;
-          featureKey = "lead.moved";
-        } else if (input.name && input.name !== leadExists.name) {
-          actionLabel = `Renomeou o lead de "${leadExists.name}" para "${input.name}"`;
-          featureKey = "lead.field.updated";
-          changedFields.push("name");
-        } else if (input.phone && input.phone !== leadExists.phone) {
-          actionLabel = `Atualizou o telefone de "${result.lead.name}"`;
-          featureKey = "lead.field.updated";
-          changedFields.push("phone");
-        } else if (input.email && input.email !== leadExists.email) {
-          actionLabel = `Atualizou o e-mail de "${result.lead.name}"`;
-          featureKey = "lead.field.updated";
-          changedFields.push("email");
-        } else if (input.active !== undefined && input.active !== leadExists.isActive) {
-          // `active` é a IA do lead, não arquivamento: "lead.archived" é do arquivar de verdade.
-          actionLabel = input.active ? `Ligou a IA do lead "${result.lead.name}"` : `Desligou a IA do lead "${result.lead.name}"`;
-          featureKey = "lead.field.updated";
-          changedFields.push("isActive");
-        } else if (input.amount !== undefined) {
-          actionLabel = `Atualizou o valor do lead "${result.lead.name}"`;
-          featureKey = "lead.field.updated";
-          changedFields.push("amount");
-        } else if (input.tagIds) {
-          actionLabel = `Atualizou tags do lead "${result.lead.name}"`;
-          featureKey = "lead.tag.updated";
-        } else if (input.responsibleId && input.responsibleId !== leadExists.responsibleId) {
-          actionLabel = `Trocou o responsável do lead "${result.lead.name}"`;
-          featureKey = "lead.responsible.changed";
-        } else {
-          actionLabel = `Atualizou o lead "${result.lead.name}"`;
-        }
-        await logActivity({
-          organizationId: tracking.organizationId,
-          userId: context.user.id,
-          userName: context.user.name,
-          userEmail: context.user.email,
-          userImage: (context.user as any).image,
-          appSlug: "tracking",
-          subAppSlug: "tracking-pipeline",
-          featureKey,
-          action: featureKey === "lead.moved" ? "lead.moved" : "lead.updated",
-          actionLabel,
-          resource: result.lead.name,
-          resourceId: result.lead.id,
-          metadata: { trackingName: tracking.name, changedFields, fromStatusId: leadExists.statusId, toStatusId: input.statusId },
-        });
-      }
-
+      const { isConversation: _isConversation, ...leadInput } = input;
+      const result = await updateLeadRecord({ actor: {
+        id: context.user.id,
+        name: context.user.name,
+        email: context.user.email,
+        image: (context.user as { image?: string | null }).image,
+      }, input: leadInput });
       return result;
     } catch (err) {
-      // Sem isso o NOT_FOUND acima casaria o regex de "not found" e viraria BAD_REQUEST.
+      // Sem isso o NOT_FOUND do comando casaria o regex de "not found" e viraria BAD_REQUEST.
       if (err instanceof ORPCError) throw err;
       // Loga COM contexto pra investigação posterior. O erro genérico
       // "INTERNAL_SERVER_ERROR" no client escondia a causa real (foreign
