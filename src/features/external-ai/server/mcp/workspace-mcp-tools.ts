@@ -18,6 +18,10 @@ import {
   type ActionActor,
 } from "@/features/actions/server/lib/action-commands";
 import { resolveActionAccess } from "@/features/actions/server/lib/can-edit-action";
+import { descriptionToMarkdown, markdownToDescription } from "@/features/actions/lib/description-markdown";
+import { logActivity } from "@/features/admin/lib/activity-logger";
+import { isTrackingAccessibleByUser } from "@/features/workspace/lib/tracking-link";
+import { createWorkspaceColumnRecord, createWorkspaceRecord } from "@/features/workspace/server/lib/workspace-commands";
 import { WORKSPACE_SCOPE, type ExternalAiCaller } from "../access-tokens";
 import { asResult, type ToolResult } from "./trafego-mcp-tools";
 
@@ -49,9 +53,9 @@ async function listCallerOrganizationIds(caller: ExternalAiCaller): Promise<stri
     .filter((organizationId) => caller.credential !== "key" || caller.organizationIds.includes(organizationId));
 }
 
-/** O app aparece no MCP para quem é membro de algum workspace não arquivado. */
+/** O app aparece para quem é membro de alguma empresa: na tela, todo membro cria workspace (spec 0143, RF-1). */
 export async function hasAnyWorkspaceMembership(userId: string): Promise<boolean> {
-  const membership = await prisma.workspaceMember.findFirst({ where: { userId, workspace: { isArchived: false } }, select: { id: true } });
+  const membership = await prisma.member.findFirst({ where: { userId }, select: { id: true } });
   return membership !== null;
 }
 
@@ -144,13 +148,37 @@ async function runWorkspaceTool(caller: ExternalAiCaller, work: () => Promise<un
   }
 }
 
+const DESCRIPTION_HINT = "Em Markdown: ## título, **negrito**, *itálico*, listas com - ou 1., > citação, [texto](link). Vira a formatação do editor do card.";
+
 const dateField = (description: string) => z.string().describe(`${description}. ISO: 2026-11-20 (fim do dia em Brasília) ou 2026-11-20T14:00:00-03:00`);
+
+const COLUMNS_PER_WORKSPACE = 20;
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/).describe("Cor em hex, ex.: #1447e6");
+const columnInput = z.object({ name: z.string().trim().min(1).max(60), color: hexColor.optional() });
+
+async function logWorkspaceActivity(caller: ExternalAiCaller, organizationId: string, params: { action: string; label: string; resource: string; resourceId: string }) {
+  const actor = await loadActor(caller);
+  await logActivity({
+    organizationId,
+    userId: actor.id,
+    userName: actor.name,
+    userEmail: actor.email,
+    userImage: actor.image,
+    appSlug: "workspace",
+    action: params.action,
+    actionLabel: `${params.label} (via ${caller.label})`,
+    resource: params.resource,
+    resourceId: params.resourceId,
+    metadata: { via: caller.label },
+  });
+}
 
 export function registerWorkspaceMcpTools(server: McpServer, caller: ExternalAiCaller) {
   server.registerTool(
     "workspace_list_workspaces",
     {
-      description: "Empresas e workspaces (quadros de tarefas) de que você é membro, com as colunas, as etiquetas e as pessoas de cada um. Comece por aqui.",
+      description:
+        "Suas empresas e os workspaces (quadros de tarefas) de que você é membro, com as colunas, as etiquetas e as pessoas de cada um. Comece por aqui. O organizationId das empresas serve para workspace_create_workspace.",
       inputSchema: {},
     },
     () =>
@@ -169,11 +197,16 @@ export function registerWorkspaceMcpTools(server: McpServer, caller: ExternalAiC
           },
           orderBy: { name: "asc" },
         });
-        const organizationMembers = await prisma.member.findMany({
-          where: { organizationId: { in: [...new Set(workspaces.map((workspace) => workspace.organization.id))] } },
-          select: { organizationId: true, user: userSummary },
-        });
-        return workspaces.map((workspace) => ({
+        const [organizationMembers, organizations] = await Promise.all([
+          prisma.member.findMany({
+            where: { organizationId: { in: [...new Set(workspaces.map((workspace) => workspace.organization.id))] } },
+            select: { organizationId: true, user: userSummary },
+          }),
+          prisma.organization.findMany({ where: { id: { in: organizationIds } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+        ]);
+        return {
+          organizations: organizations.map((organization) => ({ organizationId: organization.id, name: organization.name })),
+          workspaces: workspaces.map((workspace) => ({
           workspaceId: workspace.id,
           name: workspace.name,
           description: workspace.description,
@@ -182,7 +215,8 @@ export function registerWorkspaceMcpTools(server: McpServer, caller: ExternalAiC
           columns: workspace.columns,
           tags: workspace.tags,
           people: organizationMembers.filter((member) => member.organizationId === workspace.organization.id).map((member) => member.user),
-        }));
+          })),
+        };
       }),
   );
 
@@ -340,7 +374,7 @@ export function registerWorkspaceMcpTools(server: McpServer, caller: ExternalAiC
         return {
           actionId: action.id,
           title: action.title,
-          description: action.description,
+          description: descriptionToMarkdown(action.description),
           priority: action.priority,
           isDone: action.isDone,
           closedAt: action.closedAt,
@@ -370,7 +404,7 @@ export function registerWorkspaceMcpTools(server: McpServer, caller: ExternalAiC
         workspaceId: z.string(),
         title: z.string().trim().min(1).max(200),
         columnId: z.string().optional(),
-        description: z.string().max(10_000).optional(),
+        description: z.string().max(10_000).optional().describe(DESCRIPTION_HINT),
         priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional().describe("Padrão: MEDIUM"),
         dueDate: dateField("Prazo").optional(),
         startDate: dateField("Início").optional(),
@@ -392,7 +426,7 @@ export function registerWorkspaceMcpTools(server: McpServer, caller: ExternalAiC
           via: caller.label,
           input: {
             title: input.title,
-            description: input.description,
+            description: input.description ? markdownToDescription(input.description) : undefined,
             priority: input.priority ?? "MEDIUM",
             dueDate: input.dueDate ? parseDate(input.dueDate, "dueDate") : undefined,
             startDate: input.startDate ? parseDate(input.startDate, "startDate") : undefined,
@@ -413,7 +447,7 @@ export function registerWorkspaceMcpTools(server: McpServer, caller: ExternalAiC
       inputSchema: {
         actionId: z.string(),
         title: z.string().trim().min(1).max(200).optional(),
-        description: z.string().max(10_000).nullable().optional(),
+        description: z.string().max(10_000).nullable().optional().describe(DESCRIPTION_HINT),
         priority: z.enum(PRIORITIES).optional(),
         dueDate: dateField("Prazo").nullable().optional(),
         startDate: dateField("Início").nullable().optional(),
@@ -430,7 +464,7 @@ export function registerWorkspaceMcpTools(server: McpServer, caller: ExternalAiC
           input: {
             actionId: input.actionId,
             title: input.title,
-            description: input.description,
+            description: input.description ? markdownToDescription(input.description) : input.description,
             priority: input.priority,
             dueDate: parseOptionalDate(input.dueDate, "dueDate"),
             startDate: parseOptionalDate(input.startDate, "startDate"),
@@ -568,4 +602,87 @@ export function registerWorkspaceMcpTools(server: McpServer, caller: ExternalAiC
         return { actionId, itemId: item.id, title: item.title, finishDate: item.finishDate };
       }),
   );
+
+  server.registerTool(
+    "workspace_create_workspace",
+    {
+      description:
+        "Cria um workspace (quadro de tarefas) na empresa. Todos os membros da empresa entram nele e você vira o dono. Sem colunas, nasce com Para fazer, Em progresso, Em revisão e Concluído. Mostre o nome e as colunas ao usuário e espere a confirmação antes.",
+      inputSchema: {
+        organizationId: z.string().describe("De workspace_list_workspaces"),
+        name: z.string().trim().min(1).max(100),
+        description: z.string().max(1000).optional(),
+        columns: z.array(columnInput).min(1).max(COLUMNS_PER_WORKSPACE).optional().describe("Colunas na ordem do quadro"),
+        trackingId: z.string().optional().describe("Funil do Tracking para ligar ao workspace"),
+      },
+    },
+    (input) =>
+      runWorkspaceTool(caller, async () => {
+        const organization = await loadOrganizationContext(caller, input.organizationId);
+        if (!organization) throw new Error("Empresa não encontrada, ou você não é membro dela.");
+        if (input.trackingId && !(await isTrackingAccessibleByUser({ trackingId: input.trackingId, organizationId: organization.id, userId: caller.userId }))) {
+          throw new Error("Funil não encontrado nesta empresa, ou você não tem acesso a ele.");
+        }
+        const workspace = await createWorkspaceRecord({
+          organizationId: organization.id,
+          userId: caller.userId,
+          name: input.name,
+          description: input.description,
+          trackingId: input.trackingId,
+          columns: input.columns,
+        });
+        await logWorkspaceActivity(caller, organization.id, { action: "workspace.created", label: `Criou o workspace "${workspace.name}"`, resource: workspace.name, resourceId: workspace.id });
+        const columns = await prisma.workspaceColumn.findMany({ where: { workspaceId: workspace.id }, orderBy: { order: "asc" }, select: { id: true, name: true } });
+        return { workspaceId: workspace.id, name: workspace.name, columns, openPath: `/workspaces/${workspace.id}` };
+      }),
+  );
+
+  server.registerTool(
+    "workspace_create_column",
+    {
+      description: "Cria uma coluna no workspace: no fim do quadro, ou logo depois de afterColumnId.",
+      inputSchema: {
+        workspaceId: z.string(),
+        ...columnInput.shape,
+        afterColumnId: z.string().optional(),
+      },
+    },
+    (input) =>
+      runWorkspaceTool(caller, async () => {
+        const { workspace, organization } = await loadWritableWorkspace(caller, input.workspaceId);
+        const total = await prisma.workspaceColumn.count({ where: { workspaceId: workspace.id } });
+        if (total >= COLUMNS_PER_WORKSPACE) throw new Error(`O workspace já tem ${total} colunas: o limite pelo MCP é ${COLUMNS_PER_WORKSPACE}.`);
+        const column = await createWorkspaceColumnRecord({ workspaceId: workspace.id, name: input.name, color: input.color, afterColumnId: input.afterColumnId });
+        await logWorkspaceActivity(caller, organization.id, {
+          action: "workspace.column.created",
+          label: `Criou a coluna "${column.name}" no workspace "${workspace.name}"`,
+          resource: workspace.name,
+          resourceId: workspace.id,
+        });
+        const columns = await prisma.workspaceColumn.findMany({ where: { workspaceId: workspace.id }, orderBy: { order: "asc" }, select: { id: true, name: true } });
+        return { columnId: column.id, name: column.name, columns };
+      }),
+  );
+
+  server.registerTool(
+    "workspace_update_column",
+    {
+      description: "Renomeia ou muda a cor de uma coluna. Apagar coluna fica na tela.",
+      inputSchema: {
+        columnId: z.string(),
+        name: z.string().trim().min(1).max(60).optional(),
+        color: hexColor.optional(),
+      },
+    },
+    ({ columnId, name, color }) =>
+      runWorkspaceTool(caller, async () => {
+        if (name === undefined && color === undefined) throw new Error("Nada para mudar: mande name ou color.");
+        const column = await prisma.workspaceColumn.findUnique({ where: { id: columnId }, select: { workspaceId: true } });
+        if (!column) throw new Error("Coluna não encontrada.");
+        await loadWritableWorkspace(caller, column.workspaceId);
+        const updated = await prisma.workspaceColumn.update({ where: { id: columnId }, data: { name, color }, select: { id: true, name: true, color: true } });
+        return { columnId: updated.id, name: updated.name, color: updated.color };
+      }),
+  );
+
 }
