@@ -28,7 +28,7 @@ import {
   repositoriesFor,
   requireOrgAdmin,
   requireOrgMember,
-  webhookUrlFor,
+  sharedWebhookUrlFor,
   withDomainErrors,
 } from "../comments/_shared";
 
@@ -268,11 +268,7 @@ const getWebhookSetup = socialAccountsProcedure
     }
 
     return {
-      webhookUrl: webhookUrlFor(
-        channel.provider,
-        channel.webhookPathToken,
-        context.headers,
-      ),
+      webhookUrl: sharedWebhookUrlFor(channel.provider, context.headers),
       verifyToken: channel.credentials.verifyToken,
     };
   });

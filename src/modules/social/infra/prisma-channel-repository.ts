@@ -1,4 +1,5 @@
 import "server-only";
+import { timingSafeEqual } from "node:crypto";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { last4 } from "@/lib/crypto";
@@ -116,6 +117,44 @@ export class PrismaChannelLookupRepository implements ChannelLookupRepository {
       channel: toChannel(row as unknown as ChannelRow),
       tenant: tenantScope(row.organizationId),
     };
+  }
+
+  async findManyByExternalAccountIds(
+    provider: SocialProviderValue,
+    externalAccountIds: string[],
+  ): Promise<Array<{ channel: Channel; tenant: TenantScope }>> {
+    if (externalAccountIds.length === 0) return [];
+    const rows = await prisma.socialChannel.findMany({
+      where: { provider, externalAccountId: { in: externalAccountIds } },
+      take: externalAccountIds.length,
+    });
+    return rows.flatMap((row) => {
+      try {
+        return [{ channel: toChannel(row as unknown as ChannelRow), tenant: tenantScope(row.organizationId) }];
+      } catch {
+        // Credencial ilegível (chave trocada) não pode derrubar as outras contas do lote.
+        return [];
+      }
+    });
+  }
+
+  /** As credenciais são um blob cifrado (D-8): só dá para comparar decifrando. Roda só quando alguém clica "Verificar e salvar" na Meta. */
+  async hasManualVerifyToken(provider: SocialProviderValue, verifyToken: string): Promise<boolean> {
+    const rows = await prisma.socialChannel.findMany({
+      where: { provider, status: { not: "DISABLED" } },
+      select: { credentials: true },
+    });
+    const receivedBuffer = Buffer.from(verifyToken);
+    return rows.some((row) => {
+      try {
+        const credentials = decryptCredentials(row.credentials);
+        if (credentials.authMode === "META_LOGIN" || !credentials.verifyToken) return false;
+        const expectedBuffer = Buffer.from(credentials.verifyToken);
+        return expectedBuffer.length === receivedBuffer.length && timingSafeEqual(expectedBuffer, receivedBuffer);
+      } catch {
+        return false;
+      }
+    });
   }
 }
 

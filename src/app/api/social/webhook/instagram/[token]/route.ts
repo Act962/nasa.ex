@@ -1,16 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { channelLookup, getInboundTranslator, socialLogger } from "@/modules/social";
-import { processChannelEvents } from "@/modules/social/process-channel-events";
-import { ingestInstagramEventToChat } from "@/features/tracking-chat/server/instagram/ingest-instagram-event";
+import { dispatchInstagramEventsByAccount } from "@/features/comments/server/instagram-event-dispatch";
+import { acceptsChannelSignedWithOwnSecret } from "@/features/comments/server/instagram-app-webhook";
 
 export const runtime = "nodejs";
 
 /**
- * Webhook do Instagram, um endpoint por conexão (spec 0024 D-11).
+ * Webhook do Instagram, um endpoint por conexão (spec 0024 D-11). Mantido para quem já o
+ * configurou; contas novas usam a URL única `/api/social/webhook/instagram`.
  *
- * A URL carrega o `webhookPathToken`, então o canal — e com ele o tenant — é
- * conhecido antes de qualquer consulta. É a única porta anônima do módulo, e
- * por isso todo o resto aqui é fail-closed.
+ * O token da URL diz qual chave confere a assinatura; os eventos vão para a conta do `entry.id`.
  *
  * Separado de propósito de `/api/integrations/instagram/webhook` (D-7). Depois da
  * automação do Comments, o comentário ou a DM vira conversa no Chat (spec 0062).
@@ -75,17 +74,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const events = translator.parse(payload).filter(
-    // O id da conta no payload é conferência, não busca: se não é desta
-    // conexão, não é para ser processado aqui.
-    (event) => event.externalAccountId === channel.externalAccountId,
+  // A Meta manda todas as contas do app para a URL salva nele: as outras contas do mesmo app
+  // também são atendidas aqui, cada uma conferida com a própria chave (spec 0024, D-11 revista).
+  await dispatchInstagramEventsByAccount(
+    translator.parse(payload),
+    acceptsChannelSignedWithOwnSecret({ rawBody, signatureHeader: request.headers.get("x-hub-signature-256") }),
   );
-
-  if (events.length === 0) {
-    return NextResponse.json({ ok: true }, { status: 200 });
-  }
-
-  await processChannelEvents(found, events, ingestInstagramEventToChat);
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }
