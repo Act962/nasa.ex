@@ -620,8 +620,9 @@ export function Footer({
                 </div>
               )}
 
-              {shortcuts.isOpen ? (
+              {shortcuts.isOpen || shortcuts.isLoading ? (
                 <ShortcutMenu
+                  isLoading={shortcuts.isLoading}
                   items={shortcuts.items}
                   activeIndex={shortcuts.activeIndex}
                   onHover={shortcuts.setActiveIndex}

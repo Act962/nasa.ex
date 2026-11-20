@@ -48,7 +48,7 @@ export function useComposerShortcuts({ message, setMessage, textareaRef, trackin
 
   const wantsForms = token?.kind === "app-item" && token.app === "formulario";
   const wantsProposals = token?.kind === "app-item" && token.app === "proposta";
-  const { forms } = useQueryListForms({ enabled: wantsForms });
+  const { forms, isLoading: isLoadingForms } = useQueryListForms({ enabled: wantsForms });
   const proposalsQuery = useForgeProposals({}, { enabled: wantsProposals });
   const { data: scripts = [] } = useScripts(trackingId);
 
@@ -98,6 +98,8 @@ export function useComposerShortcuts({ message, setMessage, textareaRef, trackin
   }, [token, scripts, forms, proposalsQuery.data, lead, responsibleName, onOpenReceipt]).slice(0, MAX_ITEMS);
 
   const isOpen = Boolean(token) && !isDismissed && items.length > 0;
+  // Formulários e propostas só são buscados quando o atalho é digitado: avisa enquanto chegam.
+  const isLoading = Boolean(token) && !isDismissed && items.length === 0 && ((wantsForms && isLoadingForms) || (wantsProposals && proposalsQuery.isLoading));
   const safeActiveIndex = Math.min(activeIndex, Math.max(items.length - 1, 0));
 
   const placeCaret = (position: number) => {
@@ -152,6 +154,7 @@ export function useComposerShortcuts({ message, setMessage, textareaRef, trackin
 
   return {
     isOpen,
+    isLoading,
     items: isOpen ? items : [],
     activeIndex: safeActiveIndex,
     setActiveIndex,

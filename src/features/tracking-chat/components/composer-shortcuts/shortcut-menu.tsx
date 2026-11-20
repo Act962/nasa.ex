@@ -9,10 +9,11 @@ interface ShortcutMenuProps {
   activeIndex: number;
   onHover: (index: number) => void;
   onPick: (item: ShortcutItem) => void;
+  isLoading?: boolean;
 }
 
 /** Lista dos atalhos "@" e "/" logo acima do campo de mensagem. */
-export function ShortcutMenu({ items, activeIndex, onHover, onPick }: ShortcutMenuProps) {
+export function ShortcutMenu({ items, activeIndex, onHover, onPick, isLoading = false }: ShortcutMenuProps) {
   const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export function ShortcutMenu({ items, activeIndex, onHover, onPick }: ShortcutMe
       role="listbox"
       className="absolute inset-x-2 bottom-full z-30 mb-2 max-h-[min(19rem,45vh)] overflow-y-auto rounded-2xl border bg-popover p-1 shadow-xl"
     >
+      {isLoading ? <li className="px-3 py-2 text-sm text-muted-foreground">Carregando…</li> : null}
       {items.map((item, index) => (
         <li key={item.id} role="option" aria-selected={index === activeIndex} data-index={index}>
           <button
