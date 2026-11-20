@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CheckCircle2, MessageCircle, Plus, Receipt, Trash2, UserCheck, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -74,7 +74,11 @@ export function RegisterSaleDialog({ open, onClose }: { open: boolean; onClose: 
     items.every((item) => item.productId && item.quantity > 0) &&
     total > 0;
 
+  // Dois toques seguidos chegam antes de o botão desabilitar: o ref segura o segundo (spec 0148, CA-8).
+  const isSubmittingRef = useRef(false);
   const submit = () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     registerSale.mutate(
       {
         phone,
@@ -98,6 +102,9 @@ export function RegisterSaleDialog({ open, onClose }: { open: boolean; onClose: 
           if (sale.isDuplicate) toast.info("Essa venda já tinha sido registrada agora há pouco.");
         },
         onError: (error) => toast.error(error.message || "Não foi possível registrar a venda."),
+        onSettled: () => {
+          isSubmittingRef.current = false;
+        },
       },
     );
   };

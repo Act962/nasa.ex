@@ -117,3 +117,4 @@ Não há runner de teste no projeto (regra 20 do CLAUDE.md). Validação manual:
 
 - 2026-11-18: criada.
 - 2026-11-20: o código entrou na branch e na PR do STAR FRIENDS modo pontos (Act962/nasa.ex#502), a pedido do Weydson (uma PR só). CPF passa a ser mascarado no servidor, não no navegador. O recibo mostra a descrição do produto em uma linha, abaixo do nome.
+- 2026-11-20: teste em dev achou dois defeitos no clique duplo (CA-8). Dois toques simultâneos passavam pela trava de duplicidade e o segundo batia no número repetido; e a venda gravada voltava erro quando a cobrança de Stars demorava. Correção: o botão segura o segundo toque, o número repetido refaz a conta (ou devolve a venda que acabou de entrar) e os efeitos depois da venda não derrubam mais a resposta.

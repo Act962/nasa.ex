@@ -11,6 +11,7 @@ import { runProposalPaidEffects } from "@/features/forge/server/proposal-paid-ef
 
 const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
 const MAX_INSTALLMENTS = 24;
+const MAX_NUMBER_ATTEMPTS = 3;
 
 const saleClientShape = z.object({
   id: z.string(),
@@ -134,32 +135,43 @@ export const registerSale = base
     const total = input.items.reduce((sum, item) => sum + item.quantity * (item.unitValue - item.discountPerUnit), 0);
     const installments = input.paymentMethod === "CREDITO" ? (input.installments ?? 1) : null;
 
-    const recentSales = await prisma.forgeProposal.findMany({
-      where: {
-        organizationId,
-        clientId: leadId,
-        responsibleId: context.user.id,
-        status: "PAGA",
-        paidAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) },
-      },
-      select: { id: true, number: true, publicToken: true, products: { select: { quantity: true, unitValue: true, discount: true } } },
+    const findRecentDuplicate = async () => {
+      const recentSales = await prisma.forgeProposal.findMany({
+        where: {
+          organizationId,
+          clientId: leadId,
+          responsibleId: context.user.id,
+          status: "PAGA",
+          paidAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) },
+        },
+        select: { id: true, number: true, publicToken: true, products: { select: { quantity: true, unitValue: true, discount: true } } },
+      });
+      return recentSales.find((sale) => {
+        const saleTotal = sale.products.reduce(
+          (sum, line) => sum + Number(line.quantity) * Number(line.unitValue) - Number(line.discount ?? 0),
+          0,
+        );
+        return Math.abs(saleTotal - total) < 0.01;
+      });
+    };
+    const duplicateResult = (duplicate: { id: string; number: number; publicToken: string }) => ({
+      proposalId: duplicate.id,
+      number: duplicate.number,
+      publicToken: duplicate.publicToken,
+      leadId,
+      isDuplicate: true,
     });
-    const duplicate = recentSales.find((sale) => {
-      const saleTotal = sale.products.reduce(
-        (sum, line) => sum + Number(line.quantity) * Number(line.unitValue) - Number(line.discount ?? 0),
-        0,
-      );
-      return Math.abs(saleTotal - total) < 0.01;
-    });
-    if (duplicate) {
-      return { proposalId: duplicate.id, number: duplicate.number, publicToken: duplicate.publicToken, leadId, isDuplicate: true };
-    }
+
+    const duplicate = await findRecentDuplicate();
+    if (duplicate) return duplicateResult(duplicate);
 
     const productNameById = new Map(products.map((product) => [product.id, product.name]));
     const firstProductName = productNameById.get(input.items[0].productId) ?? "Venda";
     const paidAt = new Date();
 
-    const proposal = await prisma.$transaction(async (tx) => {
+    // Duas vendas ao mesmo tempo podem pegar o mesmo número: a segunda refaz a conta (ou, se for o
+    // mesmo clique repetido, devolve a venda que acabou de entrar).
+    const createSale = () => prisma.$transaction(async (tx) => {
       const last = await tx.forgeProposal.findFirst({
         where: { organizationId },
         orderBy: { number: "desc" },
@@ -191,25 +203,44 @@ export const registerSale = base
         select: { id: true, number: true, publicToken: true, orgProjectId: true },
       });
     });
+    const isNumberTaken = (error: unknown) => (error as { code?: string } | null)?.code === "P2002";
 
-    await chargeStarsByAction(organizationId, "forge_proposal_create", {
-      userId: context.user.id,
-      description: `Registrou venda para "${leadName}"`,
-      appSlug: "forge",
-    });
-    await eventBus.publish("forge.proposal_status_changed", {
-      proposalId: proposal.id,
-      fromStatus: "RASCUNHO",
-      toStatus: "PAGA",
-      orgId: organizationId,
-      leadId,
-      responsibleId: context.user.id,
-      amount: total,
-    });
-    await runProposalPaidEffects(
-      { id: proposal.id, organizationId, clientId: leadId, responsibleId: context.user.id, orgProjectId: proposal.orgProjectId },
-      { withOnboarding: false },
-    );
+    let proposal: Awaited<ReturnType<typeof createSale>> | null = null;
+    for (let attempt = 1; !proposal; attempt++) {
+      try {
+        proposal = await createSale();
+      } catch (error) {
+        if (!isNumberTaken(error) || attempt >= MAX_NUMBER_ATTEMPTS) throw error;
+        const concurrent = await findRecentDuplicate();
+        if (concurrent) return duplicateResult(concurrent);
+      }
+    }
+    if (!proposal) throw new Error("Venda não registrada.");
+
+    // A venda já está gravada: falha daqui em diante não pode virar erro na tela, senão o vendedor
+    // tenta de novo e registra outra venda (Regra 18: efeitos depois do commit, best-effort).
+    try {
+      await chargeStarsByAction(organizationId, "forge_proposal_create", {
+        userId: context.user.id,
+        description: `Registrou venda para "${leadName}"`,
+        appSlug: "forge",
+      });
+      await eventBus.publish("forge.proposal_status_changed", {
+        proposalId: proposal.id,
+        fromStatus: "RASCUNHO",
+        toStatus: "PAGA",
+        orgId: organizationId,
+        leadId,
+        responsibleId: context.user.id,
+        amount: total,
+      });
+      await runProposalPaidEffects(
+        { id: proposal.id, organizationId, clientId: leadId, responsibleId: context.user.id, orgProjectId: proposal.orgProjectId },
+        { withOnboarding: false },
+      );
+    } catch (error) {
+      console.error("[forge/sales] efeitos depois da venda falharam", { proposalId: proposal.id, error });
+    }
 
     return { proposalId: proposal.id, number: proposal.number, publicToken: proposal.publicToken, leadId, isDuplicate: false };
   });
