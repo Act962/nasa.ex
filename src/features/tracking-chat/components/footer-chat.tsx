@@ -444,7 +444,7 @@ export function Footer({
     { key: "budget", label: "Propostas", icon: <FileSignatureIcon />, iconClassName: "text-success", onSelect: () => showOnlyPanel("budget") },
     {
       key: "receipt",
-      label: "Recibo",
+      label: "Recibos",
       icon: <ReceiptIcon />,
       iconClassName: "text-success",
       guideAnchor: GUIDE_ANCHORS.chatReceiptMenuItem.id,

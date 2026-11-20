@@ -27,6 +27,7 @@ import {
 } from "./templates";
 import { getForgeSettings, updateForgeProposalLook, updateForgeSettings } from "./settings";
 import { lookupSaleClient, registerSale } from "./sales";
+import { listSaleReceipts } from "./sale-receipts";
 import { getForgeDashboard } from "./dashboard";
 import { acceptProposalAsContract } from "./accept-proposal";
 import {
@@ -66,6 +67,7 @@ export const forgeRouter = {
   sales: {
     lookupClient: lookupSaleClient,
     register: registerSale,
+    listReceipts: listSaleReceipts,
   },
   contracts: {
     list: listForgeContracts,

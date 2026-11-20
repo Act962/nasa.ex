@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Receipt, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -279,10 +280,15 @@ export function ReceiptPanel({ open, onOpenChange, mode }: { open: boolean; onOp
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-screen max-w-none flex-col gap-3 rounded-none p-4 sm:h-[92dvh] sm:w-[96vw] sm:max-w-[1300px] sm:rounded-2xl">
-        <DialogHeader>
+        <DialogHeader className="flex-row items-center justify-between gap-2 pr-10">
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="size-4" /> {mode.kind === "standalone" ? "Recibo avulso" : "Recibo"}
           </DialogTitle>
+          <Button asChild variant="outline" size="sm" className="shrink-0" data-guide={GUIDE_ANCHORS.chatMyReceiptsButton.id}>
+            <Link href="/forge/recibos" onClick={close}>
+              Meus recibos
+            </Link>
+          </Button>
         </DialogHeader>
         {open && mode.kind === "conversation" ? <ConversationReceiptBody key={mode.leadId} mode={mode} onClose={close} /> : null}
         {open && mode.kind === "standalone" ? <StandaloneReceiptBody mode={mode} onClose={close} /> : null}

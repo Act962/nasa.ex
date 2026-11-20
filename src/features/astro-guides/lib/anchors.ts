@@ -311,6 +311,14 @@ export const GUIDE_ANCHORS = {
     id: "chat.receipt-menu-item",
     description: "Item \"Recibo\" no menu de anexos (+) do chat",
   },
+  forgeReceiptsCard: {
+    id: "forge.receipts-card",
+    description: "Cartão \"Recibos\" no Painel do Forge (abre Meus recibos)",
+  },
+  chatMyReceiptsButton: {
+    id: "chat.my-receipts",
+    description: "Botão \"Meus recibos\" no topo da tela Recibos do chat",
+  },
   chatReceiptSubmit: {
     id: "chat.receipt-submit",
     description: "Botão \"Gerar e enviar\" na tela Recibo do chat",

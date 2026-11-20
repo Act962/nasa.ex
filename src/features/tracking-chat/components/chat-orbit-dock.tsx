@@ -50,7 +50,7 @@ export function ChatOrbitDock({
     rightItems: [
       { label: "Campanhas", href: "/campanhas", icon: <MegaphoneIcon /> },
       {
-        label: "Recibo",
+        label: "Recibos",
         icon: <ReceiptIcon />,
         // Recibo avulso: o cliente novo entra no tracking aberto no chat.
         onSelect: () => (trackingId ? setIsReceiptOpen(true) : toast.info("Selecione um tracking primeiro")),

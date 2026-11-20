@@ -19,7 +19,15 @@ export function useRegisterSale() {
     ...orpc.forge.sales.register.mutationOptions(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orpc.forge.proposals.list.key() });
+      qc.invalidateQueries({ queryKey: orpc.forge.sales.listReceipts.key() });
       qc.invalidateQueries({ queryKey: orpc.forge.dashboard.get.key() });
     },
+  });
+}
+
+export function useSaleReceipts({ search, page }: { search: string; page: number }) {
+  return useQuery({
+    ...orpc.forge.sales.listReceipts.queryOptions({ input: { search: search.trim() || undefined, page } }),
+    placeholderData: (previous) => previous,
   });
 }
