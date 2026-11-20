@@ -8,7 +8,7 @@ import type { SaleReceiptData } from "@/features/forge/components/public/sale-re
 // PDF do recibo para os comprovantes do Financeiro (spec 0151, RF-11). Mesmo conteúdo da página pública,
 // em layout simples: sem logo, para não depender de baixar imagem no servidor.
 
-// Sem isso o react-pdf hifeniza palavras em português e quebra "(duzentos" em "(-" + "duzentos".
+// Sem isso o react-pdf hifeniza palavras em português no meio da linha.
 Font.registerHyphenationCallback((word) => [word]);
 
 const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -70,7 +70,8 @@ function ReceiptPdfDocument({ receipt }: { receipt: SaleReceiptData & { number: 
           Recebemos de <Text style={styles.bold}>{receipt.client?.name ?? "________________"}</Text>, CPF/CNPJ{" "}
           <Text style={styles.bold}>{receipt.client?.document ?? "________________"}</Text>
           {receipt.client?.address ? `, endereço ${receipt.client.address}` : ""}, a importância de{" "}
-          <Text style={styles.bold}>{formatDecimalToMoney(total)}</Text> (<Text style={styles.bold}>{reaisPorExtenso(total)}</Text>), referente à
+          <Text style={styles.bold}>{formatDecimalToMoney(total)}</Text>{" "}
+          <Text style={styles.bold}>{`(${reaisPorExtenso(total)})`}</Text>, referente à
           compra de {purchased}, conforme abaixo.
         </Text>
 
