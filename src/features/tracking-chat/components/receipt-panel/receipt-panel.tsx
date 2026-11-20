@@ -64,7 +64,16 @@ function ClientFields({ client, phone, onChange }: { client: ReceiptClientDraft;
       <div className="grid gap-2 sm:grid-cols-2">
         <div>
           <Label className="text-xs text-muted-foreground">WhatsApp</Label>
-          <Input value={phone ? phoneMaskFull(phone) : "Sem telefone"} disabled />
+          {phone ? (
+            <Input value={phoneMaskFull(phone)} disabled />
+          ) : (
+            <Input
+              inputMode="tel"
+              placeholder="(86) 99999-9999"
+              value={phoneMaskFull(client.phone)}
+              onChange={(event) => onChange({ ...client, phone: event.target.value.replace(/\D/g, "") })}
+            />
+          )}
         </div>
         <div>
           <Label className="text-xs text-muted-foreground">CPF ou CNPJ</Label>
@@ -320,6 +329,7 @@ function ReceiptPanelBody({ leadId, onClose, ...rest }: ReceiptPanelProps & { on
   const initialDraft: ReceiptDraft = {
     client: {
       name: lead.name ?? "",
+      phone: "",
       document: lead.document ?? "",
       street: lead.addressStreet ?? "",
       number: lead.addressNumber ?? "",
@@ -332,5 +342,5 @@ function ReceiptPanelBody({ leadId, onClose, ...rest }: ReceiptPanelProps & { on
     installments: 1,
   };
 
-  return <ReceiptForm {...rest} leadId={leadId} initialDraft={initialDraft} organization={organization} onClose={onClose} />;
+  return <ReceiptForm {...rest} leadId={leadId} leadPhone={lead.phone ?? rest.leadPhone} initialDraft={initialDraft} organization={organization} onClose={onClose} />;
 }

@@ -13,6 +13,8 @@ export interface ReceiptItemDraft {
 
 export interface ReceiptClientDraft {
   name: string;
+  /** Só usado quando o lead não tem telefone: digitado pelo atendente (spec 0151, RF-3). */
+  phone: string;
   document: string;
   street: string;
   number: string;
@@ -30,6 +32,8 @@ export interface ReceiptDraft {
 
 export type ReceiptOrganization = SaleReceiptData["organization"];
 
+const MIN_PHONE_DIGITS = 10;
+
 export const EMPTY_RECEIPT_ITEM: ReceiptItemDraft = { productId: "", name: "", quantity: 1, unitValue: "R$ 0,00", discountPerUnit: "R$ 0,00" };
 
 export const maskedToReais = (masked: string) => unmaskMoney(masked) / 100;
@@ -41,6 +45,8 @@ export function receiptTotal(items: ReceiptItemDraft[]): number {
 /** O que impede emitir, em palavras do atendente; `null` quando está tudo certo (spec 0151, casos de borda). */
 export function receiptBlocker(draft: ReceiptDraft): string | null {
   if (!draft.client.name.trim()) return "Informe o nome do cliente.";
+  const phoneDigits = draft.client.phone.replace(/\D/g, "");
+  if (phoneDigits && phoneDigits.length < MIN_PHONE_DIGITS) return "WhatsApp incompleto: confira o DDD e o número.";
   if (draft.items.some((item) => !item.name.trim())) return "Dê um nome a cada item.";
   if (draft.items.some((item) => maskedToReais(item.unitValue) <= 0)) return "Cada item precisa de um preço.";
   if (draft.items.some((item) => maskedToReais(item.discountPerUnit) > maskedToReais(item.unitValue))) {
@@ -84,6 +90,7 @@ export function toRegisterSaleInput(draft: ReceiptDraft, leadId: string) {
   return {
     leadId,
     name: client.name.trim(),
+    phone: client.phone.replace(/\D/g, "") || undefined,
     document: client.document.trim() || undefined,
     address: { street: client.street, number: client.number, neighborhood: client.neighborhood, city: client.city, state: client.state },
     items: draft.items.map((item) => ({

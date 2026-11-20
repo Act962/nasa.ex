@@ -750,13 +750,7 @@ export function Footer({
         onOpenChange={setIsReceiptOpen}
         leadId={lead.id}
         leadPhone={lead.phone ?? null}
-        sendBlockedReason={
-          !lead.phone
-            ? "Cliente sem WhatsApp: use \"Só gerar\" e copie o link."
-            : isTextDisabled
-              ? "Nenhum número conectado: use \"Só gerar\" e copie o link."
-              : null
-        }
+        sendBlockedReason={isTextDisabled ? "Nenhum número conectado: use \"Só gerar\" e copie o link." : null}
         onSendText={(body) => mutation.mutateAsync({ body, leadPhone: lead.phone, conversationId })}
       />
       <StarFriendsRedeemDialog

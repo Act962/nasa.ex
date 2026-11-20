@@ -38,7 +38,7 @@ No chat de um lead, o atendente toca em "Recibo", confere ou ajusta os dados, to
 | --- | --- |
 | RF-1 | Item "Recibo" no menu de anexos do chat, para qualquer conversa com lead. |
 | RF-2 | Tela cheia (folha que cobre a tela no celular e janela grande no computador) com um X para fechar sem salvar. |
-| RF-3 | Pré-preenchido com o lead da conversa: nome, WhatsApp, CPF/CNPJ e endereço. Tudo editável, menos o WhatsApp (é o número da própria conversa, para onde o recibo vai); o que for alterado grava no lead ao emitir, sem apagar o que vier vazio (mesma regra da 0148, RF-4). |
+| RF-3 | Pré-preenchido com o lead da conversa: nome, WhatsApp, CPF/CNPJ e endereço. Tudo editável. O WhatsApp vem do cadastro do lead; se o lead não tem, o atendente digita: número que já é de outro lead leva a venda para esse lead, número novo é gravado no próprio lead (sem criar lead duplicado); o que for alterado grava no lead ao emitir, sem apagar o que vier vazio (mesma regra da 0148, RF-4). |
 | RF-4 | Itens: buscar no catálogo do Forge **ou** digitar nome e preço na hora. Quantidade, preço e desconto por unidade editáveis em qualquer item. |
 | RF-5 | Item digitado que não existe no catálogo vira produto do Forge da empresa ao emitir (nome, preço, unidade "un", SKU gerado). Se já existe um produto com o mesmo nome (sem diferença de maiúsculas e acentos), usa esse em vez de criar outro. |
 | RF-6 | Forma de pagamento e parcelas (só crédito), como na 0148. |
@@ -59,7 +59,7 @@ No chat de um lead, o atendente toca em "Recibo", confere ou ajusta os dados, to
 
 ## 5. Casos de borda
 
-- Lead sem telefone (visitante do ASTRO CHAT): "Recibo" aparece, mas "Gerar e enviar" fica desligado; só "Só gerar".
+- Lead sem telefone (visitante do ASTRO CHAT): o atendente pode digitar o número; "Gerar e enviar" manda o link na própria conversa do chat. Só fica desligado sem número conectado.
 - Item digitado sem nome ou com preço zero: não deixa emitir.
 - Nome digitado com espaços sobrando: são removidos antes de comparar e de gravar.
 - SKU gerado colidindo com um existente (raro): gera outro e tenta de novo.
@@ -86,3 +86,4 @@ No chat de um lead, o atendente toca em "Recibo", confere ou ajusta os dados, to
 
 - 2026-11-20: criada a partir da decisão do Weydson no chat (ícone no menu de anexos, tela cheia pré-preenchida e editável, item digitado vira produto do catálogo).
 - 2026-11-20: implementada. WhatsApp fica só para leitura na tela (é o número da conversa; trocar mudaria para quem o recibo vai). Item digitado mostra sugestões do catálogo enquanto escreve; escolher uma liga o item ao produto existente.
+- 2026-11-20: ajuste do Weydson após teste. Telefone vem do cadastro do lead e, se vazio, pode ser digitado (decisão: gravar no próprio lead em vez de criar outro). Campo de item vira busca no catálogo, com aviso quando o nome não existe e vai ser criado.

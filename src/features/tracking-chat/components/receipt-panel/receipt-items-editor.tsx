@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PackageCheck, Plus, Trash2 } from "lucide-react";
+import { PackageCheck, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { useForgeProducts } from "@/features/forge/hooks/use-forge";
 import { normalizeProductName } from "@/features/forge/utils/normalize-product-name";
 import { EMPTY_RECEIPT_ITEM, type ReceiptItemDraft } from "./receipt-draft";
 
-const MAX_SUGGESTIONS = 5;
+const MAX_SUGGESTIONS = 8;
 
 interface CatalogProduct {
   id: string;
@@ -32,12 +32,14 @@ function ItemNameField({
   const suggestions = query
     ? catalog.filter((product) => normalizeProductName(product.name).includes(query)).slice(0, MAX_SUGGESTIONS)
     : catalog.slice(0, MAX_SUGGESTIONS);
-  const shouldShowSuggestions = isFocused && !item.productId && suggestions.length > 0;
+  const shouldShowSuggestions = isFocused && !item.productId && (suggestions.length > 0 || Boolean(query));
 
   return (
     <div className="relative min-w-0 flex-1">
+      <Search className="pointer-events-none absolute left-3 top-[1.15rem] size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
-        placeholder="Produto ou serviço"
+        className="pl-9"
+        placeholder="Buscar produto ou digitar um novo"
         value={item.name}
         maxLength={120}
         onFocus={() => setIsFocused(true)}
@@ -53,7 +55,7 @@ function ItemNameField({
         <p className="mt-1 text-[11px] text-muted-foreground">Item novo: entra no catálogo do Forge ao emitir.</p>
       ) : null}
       {shouldShowSuggestions ? (
-        <ul className="absolute inset-x-0 top-10 z-20 overflow-hidden rounded-lg border bg-popover shadow-lg">
+        <ul className="absolute inset-x-0 top-11 z-20 max-h-60 overflow-y-auto overflow-hidden rounded-lg border bg-popover shadow-lg">
           {suggestions.map((product) => (
             <li key={product.id}>
               <button
@@ -70,6 +72,9 @@ function ItemNameField({
               </button>
             </li>
           ))}
+          {suggestions.length === 0 ? (
+            <li className="px-3 py-2 text-xs text-muted-foreground">Nenhum produto com esse nome. Ele será criado ao emitir.</li>
+          ) : null}
         </ul>
       ) : null}
     </div>

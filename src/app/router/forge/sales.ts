@@ -114,11 +114,28 @@ export const registerSale = base
       // Lead vindo do chat: só vale se for da organização da sessão (spec 0151, CA-8).
       const conversationLead = await prisma.lead.findFirst({
         where: { id: input.leadId, tracking: { organizationId } },
-        select: { id: true, name: true },
+        select: { id: true, name: true, phone: true },
       });
       if (!conversationLead) throw errors.NOT_FOUND({ message: "Cliente não encontrado." });
       leadId = conversationLead.id;
       leadName = filledOrUndefined(input.name) ?? conversationLead.name;
+      // Lead sem telefone (visitante do ASTRO CHAT) com número digitado: se o número já é de outro lead, a venda vai
+      // para ele; senão o número é gravado no próprio lead, sem duplicar a pessoa (decisão do Weydson, 20/11).
+      if (!conversationLead.phone && filledOrUndefined(input.phone)) {
+        const found = await findSaleClientByPhone(organizationId, input.phone!);
+        if (!found.normalizedPhone) throw errors.BAD_REQUEST({ message: "Número de telefone inválido." });
+        if (found.lead) {
+          leadId = found.lead.id;
+          leadName = filledOrUndefined(input.name) ?? found.lead.name;
+        } else {
+          try {
+            await prisma.lead.update({ where: { id: conversationLead.id }, data: { phone: found.normalizedPhone } });
+          } catch (error) {
+            if ((error as { code?: string } | null)?.code !== "P2002") throw error;
+            throw errors.BAD_REQUEST({ message: "Esse número já é de outro cliente neste funil." });
+          }
+        }
+      }
     } else {
       const found = await findSaleClientByPhone(organizationId, input.phone!);
       normalizedPhone = found.normalizedPhone;
@@ -156,7 +173,7 @@ export const registerSale = base
     const products = [...catalogProducts, ...typedProducts.values()];
 
     const leadUpdate = {
-      name: input.leadId ? filledOrUndefined(input.name) : undefined,
+      name: input.leadId && leadId === input.leadId ? filledOrUndefined(input.name) : undefined,
       document: filledOrUndefined(input.document),
       addressStreet: filledOrUndefined(input.address?.street),
       addressNumber: filledOrUndefined(input.address?.number),
