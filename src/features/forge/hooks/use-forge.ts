@@ -200,6 +200,15 @@ export function useUpdateForgeSettings() {
   });
 }
 
+export function useUpdateForgeProposalLook() {
+  const qc = useQueryClient();
+  return useMutation({
+    ...orpc.forge.settings.updateProposalLook.mutationOptions(),
+    onSuccess: () =>
+      qc.invalidateQueries(orpc.forge.settings.get.queryOptions({ input: {} })),
+  });
+}
+
 // ─── Dashboard ──────────────────────────────────────────────────────────────
 
 export function useForgeDashboard() {

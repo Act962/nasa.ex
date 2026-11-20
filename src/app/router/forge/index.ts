@@ -25,7 +25,7 @@ import {
   updateForgeTemplate,
   deleteForgeTemplate,
 } from "./templates";
-import { getForgeSettings, updateForgeSettings } from "./settings";
+import { getForgeSettings, updateForgeProposalLook, updateForgeSettings } from "./settings";
 import { lookupSaleClient, registerSale } from "./sales";
 import { getForgeDashboard } from "./dashboard";
 import { acceptProposalAsContract } from "./accept-proposal";
@@ -82,6 +82,7 @@ export const forgeRouter = {
   settings: {
     get: getForgeSettings,
     update: updateForgeSettings,
+    updateProposalLook: updateForgeProposalLook,
   },
   dashboard: {
     get: getForgeDashboard,

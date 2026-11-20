@@ -4336,6 +4336,15 @@ model ForgeSettings {
   proposalBgColor       String             @default("#ffffff") @map("proposal_bg_color")
   proposalBgImage       String?            @map("proposal_bg_image")
   typographyColor       String             @default("#111111") @map("typography_color")
+  /// Visual da proposta pública (spec 0150): modelo pronto, cores da marca, ordem das seções.
+  proposalTemplate      String             @default("modern") @map("proposal_template")
+  brandColor            String?            @map("brand_color")
+  accentColor           String?            @map("accent_color")
+  /// Lista ordenada [{ id, enabled }] das seções da proposta. Configuração livre da empresa, nunca filtrada.
+  proposalSections      Json?              @map("proposal_sections")
+  /// Formas de pagamento aceitas [{ method, installments?, note? }], só para exibir na proposta.
+  paymentMethods        Json?              @map("payment_methods")
+  commercialTerms       String?            @map("commercial_terms")
   securityLevel         ForgeSecurityLevel @default(PUBLICO) @map("security_level")
   reminderDaysBefore    Int                @default(3) @map("reminder_days_before")
   paymentGatewayConfigs Json               @default("{}") @map("payment_gateway_configs")

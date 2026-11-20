@@ -307,6 +307,18 @@ export const GUIDE_ANCHORS = {
     id: "forge.register-sale-submit",
     description: "Botão \"Gerar recibo\" na janela Registrar venda",
   },
+  forgeSettingsButton: {
+    id: "forge.settings-button",
+    description: "Botão de configurações (engrenagem) do Forge",
+  },
+  forgeProposalLookOpen: {
+    id: "forge.proposal-look-open",
+    description: "Botão \"Personalizar visual\" nas configurações do Forge",
+  },
+  forgeProposalLookSave: {
+    id: "forge.proposal-look-save",
+    description: "Botão \"Salvar visual\" na janela Visual da proposta",
+  },
   forgeProposalTitle: {
     id: "forge.proposal.title",
     description: "Campo de título no formulário de proposta",
