@@ -16,6 +16,7 @@ import {
   StickerIcon,
   UserPlusIcon,
   SparklesIcon,
+  ReceiptIcon,
 } from "lucide-react";
 import { EmojiStickerPicker } from "./emoji-sticker-picker";
 import { ComposerActionButton } from "./composer-action-button";
@@ -73,6 +74,7 @@ import { FileBadgeIcon } from "lucide-react";
 import { StarFriendsRedeemDialog } from "@/features/star-friends/components/star-friends-redeem-dialog";
 import { useStarFriendsPermissions } from "@/features/star-friends/hooks/use-star-friends-permissions";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { ReceiptPanel } from "./receipt-panel/receipt-panel";
 import { emitTourResult } from "@/features/tour/store";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
@@ -141,6 +143,7 @@ export function Footer({
   const [isLeadTriggersOpen, setIsLeadTriggersOpen] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showStarFriends, setShowStarFriends] = useState(false);
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const starFriendsPermissions = useStarFriendsPermissions();
   const [showBudget, setShowBudget] = useState(false);
   // Dados de pré-preenchimento do BudgetPanel quando vem de um upload
@@ -439,6 +442,14 @@ export function Footer({
     { key: "agenda", label: "Agenda", icon: <CalendarIcon />, iconClassName: "text-destructive", onSelect: () => showOnlyPanel("agenda") },
     { key: "scripts", label: "Scripts", icon: <ScrollTextIcon />, iconClassName: "text-warning", onSelect: () => showOnlyPanel("scripts") },
     { key: "budget", label: "Propostas", icon: <FileSignatureIcon />, iconClassName: "text-success", onSelect: () => showOnlyPanel("budget") },
+    {
+      key: "receipt",
+      label: "Recibo",
+      icon: <ReceiptIcon />,
+      iconClassName: "text-success",
+      guideAnchor: GUIDE_ANCHORS.chatReceiptMenuItem.id,
+      onSelect: () => setIsReceiptOpen(true),
+    },
     { key: "nbox", label: "N-Box", icon: <ArchiveIcon />, iconClassName: "text-temp-hot", onSelect: () => showOnlyPanel("nbox") },
     { key: "lead-triggers", label: "Gatilhos do lead", icon: <BellIcon />, iconClassName: "text-warning", onSelect: () => setIsLeadTriggersOpen(true) },
     ...(starFriendsPermissions.canRedeemAndCredit
@@ -733,6 +744,20 @@ export function Footer({
         trackingId={trackingId}
         leadId={lead.id}
         leadName={lead.name}
+      />
+      <ReceiptPanel
+        open={isReceiptOpen}
+        onOpenChange={setIsReceiptOpen}
+        leadId={lead.id}
+        leadPhone={lead.phone ?? null}
+        sendBlockedReason={
+          !lead.phone
+            ? "Cliente sem WhatsApp: use \"Só gerar\" e copie o link."
+            : isTextDisabled
+              ? "Nenhum número conectado: use \"Só gerar\" e copie o link."
+              : null
+        }
+        onSendText={(body) => mutation.mutateAsync({ body, leadPhone: lead.phone, conversationId })}
       />
       <StarFriendsRedeemDialog
         leadId={lead.id}

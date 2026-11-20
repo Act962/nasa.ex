@@ -8,6 +8,8 @@ import { eventBus } from "@/features/alerts/lib/event-bus";
 import { createLeadRecord } from "@/features/leads/server/lead-commands";
 import { findSaleClientByPhone } from "@/features/forge/server/sale/find-sale-client";
 import { runProposalPaidEffects } from "@/features/forge/server/proposal-paid-effects";
+import { resolveTypedProducts } from "@/features/forge/server/sale/resolve-sale-products";
+import { normalizeProductName } from "@/features/forge/utils/normalize-product-name";
 
 const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
 const MAX_INSTALLMENTS = 24;
@@ -61,7 +63,9 @@ export const registerSale = base
   .route({ method: "POST", summary: "Register a paid sale and issue its receipt", tags: ["Forge"] })
   .input(
     z.object({
-      phone: z.string().min(8),
+      phone: z.string().min(8).optional(),
+      /** Lead da conversa do chat (spec 0151): liga direto, sem procurar pelo telefone. */
+      leadId: z.string().optional(),
       name: z.string().optional(),
       trackingId: z.string().optional(),
       document: z.string().optional(),
@@ -69,7 +73,9 @@ export const registerSale = base
       items: z
         .array(
           z.object({
-            productId: z.string(),
+            /** Produto do catálogo; ou `productName` para item digitado na hora (spec 0151). */
+            productId: z.string().optional(),
+            productName: z.string().trim().min(1).max(120).optional(),
             quantity: z.number().int().min(1),
             unitValue: z.number().min(0),
             discountPerUnit: z.number().min(0).default(0),
@@ -87,19 +93,39 @@ export const registerSale = base
       throw errors.BAD_REQUEST({ message: "O desconto não pode ser maior que o preço." });
     }
 
-    const products = await prisma.forgeProduct.findMany({
-      where: { id: { in: input.items.map((item) => item.productId) }, organizationId },
+    if (input.items.some((item) => !item.productId && !item.productName)) {
+      throw errors.BAD_REQUEST({ message: "Escolha um produto ou digite o nome do item." });
+    }
+    if (!input.leadId && !input.phone) throw errors.BAD_REQUEST({ message: "Informe o WhatsApp do cliente." });
+
+    const catalogIds = [...new Set(input.items.flatMap((item) => (item.productId ? [item.productId] : [])))];
+    const catalogProducts = await prisma.forgeProduct.findMany({
+      where: { id: { in: catalogIds }, organizationId },
       select: { id: true, name: true },
     });
-    if (products.length !== new Set(input.items.map((item) => item.productId)).size) {
+    if (catalogProducts.length !== catalogIds.length) {
       throw errors.BAD_REQUEST({ message: "Produto não encontrado." });
     }
 
-    const { normalizedPhone, lead: existingLead } = await findSaleClientByPhone(organizationId, input.phone);
-    if (!normalizedPhone) throw errors.BAD_REQUEST({ message: "Número de telefone inválido." });
-
-    let leadId = existingLead?.id;
-    let leadName = existingLead?.name;
+    let leadId: string | undefined;
+    let leadName: string | undefined;
+    let normalizedPhone: string | null = null;
+    if (input.leadId) {
+      // Lead vindo do chat: só vale se for da organização da sessão (spec 0151, CA-8).
+      const conversationLead = await prisma.lead.findFirst({
+        where: { id: input.leadId, tracking: { organizationId } },
+        select: { id: true, name: true },
+      });
+      if (!conversationLead) throw errors.NOT_FOUND({ message: "Cliente não encontrado." });
+      leadId = conversationLead.id;
+      leadName = filledOrUndefined(input.name) ?? conversationLead.name;
+    } else {
+      const found = await findSaleClientByPhone(organizationId, input.phone!);
+      normalizedPhone = found.normalizedPhone;
+      if (!normalizedPhone) throw errors.BAD_REQUEST({ message: "Número de telefone inválido." });
+      leadId = found.lead?.id;
+      leadName = found.lead?.name;
+    }
     if (!leadId) {
       const name = filledOrUndefined(input.name);
       if (!name || !input.trackingId) throw errors.BAD_REQUEST({ message: "Cliente novo: informe o nome e o funil." });
@@ -112,13 +138,25 @@ export const registerSale = base
       const { lead } = await createLeadRecord({
         actor: { id: context.user.id, name: context.user.name, email: context.user.email, image: (context.user as { image?: string | null }).image ?? null },
         via: "Registrar venda",
-        input: { name, phone: normalizedPhone, statusId: firstStatus.id, trackingId: input.trackingId },
+        input: { name, phone: normalizedPhone!, statusId: firstStatus.id, trackingId: input.trackingId },
       });
       leadId = lead.id;
       leadName = lead.name;
     }
 
+    const typedProducts = await resolveTypedProducts(
+      organizationId,
+      context.user.id,
+      input.items.flatMap((item) => (!item.productId && item.productName ? [{ name: item.productName, unitValue: item.unitValue }] : [])),
+    );
+    const saleItems = input.items.map((item) => ({
+      ...item,
+      productId: item.productId ?? typedProducts.get(normalizeProductName(item.productName!))!.id,
+    }));
+    const products = [...catalogProducts, ...typedProducts.values()];
+
     const leadUpdate = {
+      name: input.leadId ? filledOrUndefined(input.name) : undefined,
       document: filledOrUndefined(input.document),
       addressStreet: filledOrUndefined(input.address?.street),
       addressNumber: filledOrUndefined(input.address?.number),
@@ -166,7 +204,7 @@ export const registerSale = base
     if (duplicate) return duplicateResult(duplicate);
 
     const productNameById = new Map(products.map((product) => [product.id, product.name]));
-    const firstProductName = productNameById.get(input.items[0].productId) ?? "Venda";
+    const firstProductName = productNameById.get(saleItems[0].productId) ?? "Venda";
     const paidAt = new Date();
 
     // Duas vendas ao mesmo tempo podem pegar o mesmo número: a segunda refaz a conta (ou, se for o
@@ -191,7 +229,7 @@ export const registerSale = base
           participants: [],
           createdById: context.user.id,
           products: {
-            create: input.items.map((item, index) => ({
+            create: saleItems.map((item, index) => ({
               productId: item.productId,
               quantity: item.quantity,
               unitValue: item.unitValue,

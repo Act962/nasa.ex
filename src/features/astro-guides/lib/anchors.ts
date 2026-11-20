@@ -307,6 +307,14 @@ export const GUIDE_ANCHORS = {
     id: "forge.register-sale-submit",
     description: "Botão \"Gerar recibo\" na janela Registrar venda",
   },
+  chatReceiptMenuItem: {
+    id: "chat.receipt-menu-item",
+    description: "Item \"Recibo\" no menu de anexos (+) do chat",
+  },
+  chatReceiptSubmit: {
+    id: "chat.receipt-submit",
+    description: "Botão \"Gerar e enviar\" na tela Recibo do chat",
+  },
   forgeSettingsButton: {
     id: "forge.settings-button",
     description: "Botão de configurações (engrenagem) do Forge",
