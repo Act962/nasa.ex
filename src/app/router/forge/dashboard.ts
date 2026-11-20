@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ForgeProposalStatus, ForgeContractStatus } from "@/generated/prisma/enums";
+import { SALE_RECEIPT_WHERE } from "./sale-receipts";
 
 function calcProposalTotal(
   products: { quantity: string | { toString(): string }; unitValue: string | { toString(): string }; discount: string | { toString(): string } | null }[],
@@ -36,6 +37,7 @@ export const getForgeDashboard = base
       totalProposalValue: z.string(),
       proposalsPaid: z.number(),
       proposalsExpired: z.number(),
+      receiptsCount: z.number(),
       commissionsGenerated: z.string(),
       recentProposals: z.array(z.any()),
     }),
@@ -44,7 +46,7 @@ export const getForgeDashboard = base
     try {
       const orgId = context.org.id;
 
-      const [proposalsSent, activeContracts, proposalsPaid, proposalsExpired, recentProposals, settings] =
+      const [proposalsSent, activeContracts, proposalsPaid, proposalsExpired, recentProposals, settings, receiptsCount] =
         await Promise.all([
           // Propostas enviadas = qualquer status diferente de rascunho
           prisma.forgeProposal.count({
@@ -79,6 +81,7 @@ export const getForgeDashboard = base
             take: 10,
           }),
           prisma.forgeSettings.findUnique({ where: { organizationId: orgId } }),
+          prisma.forgeProposal.count({ where: { organizationId: orgId, ...SALE_RECEIPT_WHERE } }),
         ]);
 
       // Valor total de propostas não-rascunho
@@ -107,6 +110,7 @@ export const getForgeDashboard = base
         totalProposalValue: totalProposalValue.toFixed(2),
         proposalsPaid,
         proposalsExpired,
+        receiptsCount,
         commissionsGenerated: commissionsGenerated.toFixed(2),
         recentProposals: recentProposals.map((p) => ({
           ...p,

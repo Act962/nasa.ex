@@ -9,6 +9,7 @@ import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { APPS } from "@/features/apps/components/apps-data";
 import { SIDEBAR_NAV_ITEMS } from "@/features/apps/lib/sidebar-items";
+import { useCheckPermission } from "@/hooks/use-check-permission";
 import { useSidebarPrefs, isItemVisible } from "@/hooks/use-sidebar-prefs";
 import { ICON_MODE_BUTTON, ICON_MODE_LABEL } from "./icon-mode";
 
@@ -32,7 +33,9 @@ export function AppsLauncher() {
   // App que já está na faixa ao lado não se repete aqui: o painel existe para
   // alcançar o que NÃO está no menu. Some do painel quando entra no menu, e
   // volta quando sai — a lista se ajusta sozinha.
+  const { isSidebarItemHidden } = useCheckPermission();
   const apps = LAUNCHABLE_APPS.filter((app) => {
+    if (app.sidebarKey && isSidebarItemHidden(app.sidebarKey)) return false;
     const navItem = app.sidebarKey
       ? SIDEBAR_NAV_ITEMS.find((item) => item.key === app.sidebarKey)
       : undefined;

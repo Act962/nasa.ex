@@ -38,6 +38,7 @@ import {
   validateScriptVideo,
   type UploadedScriptVideo,
 } from "../hooks/use-script-video-upload";
+import { resolveScriptVariables } from "../utils/resolve-script-variables";
 
 function formatFileSize(bytes: number): string {
   if (!bytes) return "";
@@ -115,16 +116,10 @@ export function ScriptsPanel({
     }
   }, [open, scripts, selectedId]);
 
-  const resolveVariables = useMemo(() => {
-    return (content: string) => {
-      const today = new Date().toLocaleDateString("pt-BR");
-      return content
-        .replace(/\{\{nome_cliente\}\}/g, leadName ?? "{{nome_cliente}}")
-        .replace(/\{\{telefone\}\}/g, leadPhone ?? "{{telefone}}")
-        .replace(/\{\{data_hoje\}\}/g, today)
-        .replace(/\{\{responsavel\}\}/g, responsibleName ?? "{{responsavel}}");
-    };
-  }, [leadName, leadPhone, responsibleName]);
+  const resolveVariables = useMemo(
+    () => (content: string) => resolveScriptVariables(content, { leadName, leadPhone, responsibleName }),
+    [leadName, leadPhone, responsibleName],
+  );
 
   const selectedScript = scripts.find((s) => s.id === selectedId) ?? null;
 

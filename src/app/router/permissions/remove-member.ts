@@ -43,6 +43,8 @@ export const removeMember = base
     }
 
     await prisma.member.delete({ where: { id: input.memberId } });
+    // Exceções de permissão da pessoa nesta empresa saem junto (spec 0152, RF-7).
+    await prisma.memberAppPermission.deleteMany({ where: { organizationId: orgId, userId: target.userId } });
 
     await prisma.orgActivityLog.create({
       data: {

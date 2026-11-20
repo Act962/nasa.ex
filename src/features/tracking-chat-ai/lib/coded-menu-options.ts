@@ -9,6 +9,7 @@ export const CAMPAIGN_OPTION = {
   newReceipt: "camp:new",
   points: "camp:points",
   codes: "camp:codes",
+  rewards: "camp:rewards",
 } as const;
 
 export const STORE_INFO_PREFIX = "info:";
@@ -16,7 +17,7 @@ export const STORE_INFO_OPTION = { offers: "info:ofertas", instagram: "info:inst
 
 /** O que o dono do menu pode escolher para uma opção fazer ao ser clicada. */
 export const CODED_MENU_ACTIONS: { id: string; label: string }[] = [
-  { id: CAMPAIGN_OPTION.start, label: "Abrir a campanha de sorteio" },
+  { id: CAMPAIGN_OPTION.start, label: "Abrir a campanha (sorteio ou pontos)" },
   { id: STORE_INFO_OPTION.offers, label: "Enviar ofertas (stories)" },
   { id: STORE_INFO_OPTION.instagram, label: "Enviar o Instagram" },
   { id: STORE_INFO_OPTION.address, label: "Enviar o endereço" },
