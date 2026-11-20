@@ -55,7 +55,7 @@ Uma IA externa (Claude Code e qualquer cliente MCP) conecta com uma chave da emp
 - [x] **CA-2** — `tools/list` no `/api/mcp` com a chave devolve as 9 tools; sem chave/chave revogada → 401.
 - [x] **CA-3** — `create_draft` + `attach_media` criam rascunho com origem "Claude Code" que aparece na aba Criações.
 - [x] **CA-4** — Upload na Caixa com origem "ChatGPT" cria rascunho marcado.
-- [x] **CA-5** — Nenhuma tool aprova, programa ou publica.
+- [x] ~~**CA-5** — Nenhuma tool aprova, programa ou publica.~~ Substituído pela spec [0137](../external-ai/0137-mcp-revisar-aprovar-e-publicar.md) (2026-11-10): a IA pode o que a pessoa pode no Planner, com confirmação.
 
 ## 5. Casos de borda
 
@@ -68,7 +68,7 @@ Uma IA externa (Claude Code e qualquer cliente MCP) conecta com uma chave da emp
 ## 6. Decisões de design
 
 ### D-1 — Chave Bearer por empresa, não OAuth
-É o que o Claude Code aceita com um comando (`--header`). OAuth do MCP fica para depois.
+É o que o Claude Code aceita com um comando (`--header`). O OAuth do MCP (ChatGPT, claude.ai) entrou na spec [0135](../external-ai/0135-mcp-conectar-pelo-chatgpt-oauth.md); a chave continua.
 
 ### D-2 — Sem estado no MCP
 Servidor e transporte novos por requisição (`WebStandardStreamableHTTPServerTransport`, JSON): cabe em rota do Next e em várias réplicas, sem sessão em memória.

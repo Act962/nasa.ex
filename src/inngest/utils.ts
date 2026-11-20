@@ -75,7 +75,8 @@ export type WorkflowTriggerType =
   | "MESSAGE_INCOMING"
   | "WEBHOOK_EXTERNAL"
   | "SCHEDULE_TRIGGER"
-  | "COMPLIANCE_ITEM_DUE";
+  | "COMPLIANCE_ITEM_DUE"
+  | "ATTENDANCE_START";
 
 /**
  * Shape mínimo do lead que a engine precisa pra popular `context.lead` e
@@ -105,6 +106,12 @@ export const sendWorkflowExecution = async (data: {
     name: "workflow/execute.workflow",
     data,
   });
+};
+
+/** Vários disparos numa chamada só ao Inngest (ex.: todos os fluxos de um gatilho). */
+export const sendWorkflowExecutions = async (items: Parameters<typeof sendWorkflowExecution>[0][]) => {
+  if (items.length === 0) return;
+  await inngest.send(items.map((data) => ({ name: "workflow/execute.workflow", data })));
 };
 
 /**

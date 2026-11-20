@@ -10,7 +10,7 @@ export const listWorkflowsTool = (trackingId: string) =>
     execute: async () => {
       try {
         const workflows = await prisma.workflow.findMany({
-          where: { trackingId },
+          where: { trackingId, kind: "AUTOMATION" },
           orderBy: { createdAt: "desc" },
           select: {
             id: true,

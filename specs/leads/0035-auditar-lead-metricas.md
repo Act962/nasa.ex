@@ -36,7 +36,7 @@ Nove métricas por lead, salvas numa tabela própria, visíveis na lateral do ch
 | RF-1 | Tabela 1:1 `lead_metrics` com: potencial de compra (0–100), interesse (LOW/MEDIUM/HIGH), compras, interações/mês, tempo médio de atendimento (s), perda de interação (%), tempo médio de resposta (s), qualidade (%), resolução (%), origem (COMPUTED/AI), confiança (0–100), justificativa da IA e datas. |
 | RF-2 | Cálculo em código sobre os últimos 90 dias, com as definições da seção 6 (D-2). |
 | RF-3 | "Auditar Lead" calcula e grava. Com confiança < 40 e ao menos 5 mensagens, a IA (modelo FAST, `generateObject`) estima potencial e interesse lendo as últimas 30 mensagens, cobrando a ação `lead_audit_ai` (2★). Sem saldo ou com falha da IA, fica o resultado do código e um aviso. |
-| RF-4 | Lead criado a partir de 26/09/2026 ou já auditado é recalculado sozinho (Inngest `lead/metrics.recompute`, debounce de 2 min por lead) após mensagem de entrada ou saída, proposta paga e atendimento finalizado. Cron diário às 04:00 recalcula os com atividade nos últimos 60 dias. |
+| RF-4 | Lead criado a partir de 26/09/2026 ou já auditado é recalculado sozinho (Inngest `lead/metrics.recompute`, debounce de 2 min por lead) após proposta paga, atendimento finalizado, agendamento, PIX e tags aplicadas pela IA. Mensagens de entrada e saída entram no cron diário às 04:00, que recalcula os leads com atividade nos últimos 60 dias (inclusive os novos ainda sem métricas). |
 | RF-5 | Recálculo automático não apaga a estimativa da IA enquanto a confiança do código seguir baixa. |
 | RF-6 | Lateral do chat: anel de potencial no avatar, chips compactos (6 de comportamento em cima, 3 de atendimento embaixo) abaixo do nome e dos ícones, e o botão "Auditar Lead" que só abre/fecha os cartões detalhados, posicionados acima dos atalhos. Lead sem métricas mostra só o botão. |
 | RF-7 | `/contatos/[leadId]`: o mesmo bloco (chips, botão e detalhes) no painel do lead. |
@@ -56,7 +56,7 @@ Nove métricas por lead, salvas numa tabela própria, visíveis na lateral do ch
 - [x] **CA-1** (RF-3, RF-6) — Clicar em "Auditar Lead" num lead com conversa preenche as métricas, e a lateral passa a mostrar anel, chips e cartões. Verificado no chat com o lead Manoel.
 - [ ] **CA-2** (RF-2) — Os valores batem com consultas diretas: mensagens de 30 dias, rajadas sem resposta em 24 h, propostas PAGA.
 - [ ] **CA-3** (RF-3) — Lead sem sinais e com conversa usa a IA e mostra "estimados pelo ASTRO"; sem saldo, mostra o aviso e o resultado do código.
-- [ ] **CA-4** (RF-4) — Mensagem nova de um lead criado depois da data de corte recalcula as métricas em até ~2 min.
+- [ ] **CA-4** (RF-4) — Mensagem nova de um lead criado depois da data de corte aparece nas métricas no recálculo da madrugada seguinte; proposta paga ou atendimento finalizado recalculam em até ~2 min.
 - [ ] **CA-5** (RF-8) — Filtrar interesse Alto numa campanha adiciona só leads auditados nessa faixa.
 - [ ] **CA-6** (RF-9) — Auditar lead de outra org devolve NOT_FOUND.
 
@@ -115,3 +115,4 @@ Migração aditiva (tabela e enums novos); rollback do código não exige desfaz
 |---|---|---|
 | 2026-09-26 | Weydson | Criada e aprovada (plano aprovado no chat). Implementada no mesmo dia; CA-1 verificado. |
 | 2026-09-26 | Weydson | Anel do avatar passa a mostrar a temperatura calculada (RF-10, D-2b); chips compactos removidos da lateral, ficam só os cartões; largura da lateral igual à da lista de conversas. |
+| 2026-11-11 | Claude (revisão do Inngest) | RF-4/CA-4: mensagem deixa de disparar recálculo (uma execução do Inngest por rajada de conversa); mensagens entram no cron da madrugada, que passa a incluir lead novo sem métricas. Ver `docs/inngest-revisao-2026-11.md`. |

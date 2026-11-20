@@ -6,6 +6,7 @@ import { tagGroupsRouter } from "./tag-groups";
 import { reasonsRouter } from "./reasons";
 import { orgRoutes } from "./org";
 import { workflowRoutes } from "./workflow";
+import { attendanceFlowRoutes } from "./attendance-flow";
 import { automationsHubRouter } from "./automations-hub";
 import { workflowFolderRoutes } from "./workflow-folder";
 import { messageRouter } from "./message";
@@ -102,6 +103,7 @@ export const router = {
   reasons: reasonsRouter,
   orgs: orgRoutes,
   workflow: workflowRoutes,
+  attendanceFlow: attendanceFlowRoutes,
   automationsHub: automationsHubRouter,
   workflowFolder: workflowFolderRoutes,
   message: messageRouter,

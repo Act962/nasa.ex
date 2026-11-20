@@ -17,6 +17,11 @@ import { listTrafegoOrders } from "./list-orders";
 import { getTrafegoOrder } from "./get-order";
 import { getTrafegoOrderPerformance } from "./get-order-performance";
 import {
+  getTrafegoAccountCampaignAds,
+  getTrafegoAccountCampaigns,
+  getTrafegoAccountWideBreakdown,
+} from "./account";
+import {
   getTrafegoAccountBreakdown,
   getTrafegoAccountOverview,
   getTrafegoOrderAds,
@@ -141,6 +146,12 @@ export const trafegoRouter = {
     breakdown: getTrafegoAccountBreakdown,
     serviceFee: getTrafegoServiceFee,
     billingLock: getTrafegoBillingLockProcedure,
+  },
+  /** Conta de anúncios inteira, inclusive campanhas criadas fora do trafeGO. */
+  account: {
+    campaigns: getTrafegoAccountCampaigns,
+    campaignAds: getTrafegoAccountCampaignAds,
+    breakdown: getTrafegoAccountWideBreakdown,
   },
   // Spec 0124: owner/admin cria, publica e edita a campanha pelo painel.
   campaignBuilder: {

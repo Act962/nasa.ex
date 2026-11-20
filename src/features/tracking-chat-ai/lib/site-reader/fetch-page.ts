@@ -1,7 +1,6 @@
 import "server-only";
 import { request } from "node:https";
-import type { LookupFunction } from "node:net";
-import { UnsafeSiteAddressError, parsePublicSiteUrl, resolvePublicAddress, siteKey, type ResolvedAddress } from "./safe-address";
+import { UnsafeSiteAddressError, parsePublicSiteUrl, pinnedLookup, resolvePublicAddress, siteKey, type ResolvedAddress } from "@/lib/safe-public-url";
 
 const PAGE_TIMEOUT_MS = 10_000;
 const MAX_PAGE_BYTES = 1_000_000;
@@ -12,23 +11,6 @@ interface RawResponse {
   location: string | null;
   contentType: string;
   body: string;
-}
-
-/**
- * A conexão usa exatamente o IP já conferido. Sem isso, o nome poderia resolver
- * para um endereço público na checagem e para um interno na hora de conectar.
- */
-function pinnedLookup(resolved: ResolvedAddress): LookupFunction {
-  return ((_hostname: string, options: unknown, callback: unknown) => {
-    const done = (typeof options === "function" ? options : callback) as (
-      error: Error | null,
-      address: string | { address: string; family: number }[],
-      family?: number,
-    ) => void;
-    const wantsAll = typeof options === "object" && options !== null && (options as { all?: boolean }).all === true;
-    if (wantsAll) done(null, [{ address: resolved.address, family: resolved.family }]);
-    else done(null, resolved.address, resolved.family);
-  }) as LookupFunction;
 }
 
 function requestOnce(url: URL, resolved: ResolvedAddress): Promise<RawResponse> {

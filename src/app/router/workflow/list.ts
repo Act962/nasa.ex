@@ -48,6 +48,8 @@ export const listWorkflows = base
     const workflows = await prisma.workflow.findMany({
       where: {
         trackingId: input.trackingId,
+        // Fluxo de Atendimento tem tela própria (spec 0139, RF-1).
+        kind: "AUTOMATION",
       },
       select: {
         id: true,
@@ -78,7 +80,7 @@ export const listWorkflows = base
       if (!isMissingFolderColumn) throw err;
 
       const rows = await prisma.workflow.findMany({
-        where: { trackingId: input.trackingId },
+        where: { trackingId: input.trackingId, kind: "AUTOMATION" },
         select: {
           id: true,
           name: true,

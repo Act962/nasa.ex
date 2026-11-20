@@ -1,3 +1,4 @@
+import { isFacebookGraphToken } from "../domain/access-token";
 import type { Channel } from "../domain/types";
 import type { ChannelCapabilities, ContentPublisher, CredentialRenewer } from "../ports/content-publisher";
 import type { ChannelRepository } from "../ports/repositories";
@@ -71,6 +72,8 @@ export async function renewChannelCredentials(channelId: string, deps: RenewCred
 
   const channel = await deps.channels.findWithCredentialsById(channelId);
   if (!channel) return { status: "skipped", reason: "not-found" };
+  // A renovação `ig_refresh_token` só existe para token do Instagram.
+  if (isFacebookGraphToken(channel.credentials.accessToken)) return { status: "skipped", reason: "not-renewable" };
 
   const renewal = await deps.renewer.renew(channel.credentials.accessToken);
   if (renewal.ok) {

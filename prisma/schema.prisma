@@ -23,6 +23,11 @@ model User {
   updatedAt             DateTime  @default(now()) @updatedAt
   sessions              Session[]
   accounts              Account[]
+  // OAuth das IAs externas no MCP (spec 0135)
+  oauthClients          OauthClient[]
+  oauthRefreshTokens    OauthRefreshToken[]
+  oauthAccessTokens     OauthAccessToken[]
+  oauthConsents         OauthConsent[]
 
   members                            Member[]
   invitations                        Invitation[]
@@ -186,6 +191,9 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   activeOrganizationId String?
+
+  oauthRefreshTokens OauthRefreshToken[]
+  oauthAccessTokens  OauthAccessToken[]
 
   @@unique([token])
   @@index([userId])
@@ -531,6 +539,7 @@ model Organization {
   // ── Automações de redes sociais (app COMMENTS — spec 0024) ──
   socialChannels SocialChannel[]
 
+  attendanceFlows Workflow[] @relation("OrganizationAttendanceFlows")
   @@unique([slug])
   @@map("organization")
 }
@@ -678,6 +687,7 @@ model Tracking {
   // Tracking cujo número envia a régua e os lembretes do financeiro (spec 0115).
   paymentMessagingFor PaymentGovernanceConfig[]
 
+  attendanceFlowLinks WorkflowTrackingLink[] @relation("TrackingAttendanceFlowLinks")
   @@map("tracking")
 }
 
@@ -1928,6 +1938,10 @@ model Workflow {
   /// Quando setado, o Agent delega execução pra este workflow em vez da
   /// spec linear em Agent.spec.goals[].
   agentId        String?  @map("agent_id")
+  /// Fluxo de Atendimento (spec 0139) ou automação de funil. Muda a tela e quem responde a mensagem do cliente.
+  kind           WorkflowKind @default(AUTOMATION)
+  /// Dona do fluxo quando ele é da empresa e não de um funil (FlowAstro, spec 0139 D-11). Só fluxos de atendimento.
+  organizationId String?      @map("organization_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -1937,8 +1951,10 @@ model Workflow {
   workspace  Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folder     WorkflowFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   agent      Agent?          @relation("AgentWorkflow", fields: [agentId], references: [id], onDelete: SetNull)
+  organization Organization? @relation("OrganizationAttendanceFlows", fields: [organizationId], references: [id], onDelete: Cascade)
 
   nodes              Node[]
+  trackingLinks      WorkflowTrackingLink[]
   connections        Connection[]
   runs               WorkflowRun[]
   dailyTriggerClaims LeadDailyTriggerClaim[]
@@ -1950,7 +1966,34 @@ model Workflow {
   @@index([folderId])
   @@index([agentId])
   @@index([agentMode, isActive])
+  @@index([trackingId, kind, isActive])
+  @@index([organizationId, kind])
   @@map("workflows")
+}
+
+/// Números (funis) em que um fluxo do FlowAstro responde (spec 0139, D-11). Um fluxo, vários números.
+model WorkflowTrackingLink {
+  id         String   @id @default(cuid())
+  workflowId String   @map("workflow_id")
+  trackingId String   @map("tracking_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  tracking Tracking @relation("TrackingAttendanceFlowLinks", fields: [trackingId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, trackingId])
+  @@index([trackingId])
+  @@map("workflow_tracking_links")
+}
+
+enum WorkflowKind {
+  AUTOMATION
+  ATTENDANCE
+}
+
+enum WorkflowRunWaitKind {
+  INPUT
+  TIME
 }
 
 /// Auditoria de cada execução de Workflow no Modo Agente IA. Persiste timeline
@@ -1976,10 +2019,19 @@ model WorkflowRun {
   errorMessage   String?   @map("error_message")
   startedAt      DateTime  @default(now()) @map("started_at")
   finishedAt     DateTime? @map("finished_at")
+  /// Fluxo de Atendimento (spec 0139, D-3): preenchido enquanto o lead está dentro do fluxo. Único = um fluxo por lead.
+  attendanceLeadId String?   @unique @map("attendance_lead_id")
+  /// Bloco em que o lead está parado esperando resposta (contador por bloco).
+  currentNodeId    String?   @map("current_node_id")
+  /// Validade da trava: vencida, a trava é tratada como solta (CB-4).
+  waitingUntil     DateTime? @map("waiting_until")
+  /// O que a execução parada espera: resposta do cliente (evento) ou tempo (agendamento). Nunca os dois (spec 0139, D-13).
+  waitingFor       WorkflowRunWaitKind? @map("waiting_for")
 
   workflow Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   nodeRuns WorkflowNodeRun[]
 
+  @@index([workflowId, currentNodeId])
   @@index([workflowId, startedAt(sort: Desc)])
   @@index([leadId])
   @@index([status])
@@ -2151,6 +2203,17 @@ enum NodeType {
   CATALOG_ORDER_ACTION
   // Aba Contábil (spec 0051): obrigação, documento, guia ou nota do mês vencendo.
   COMPLIANCE_ITEM_DUE
+  // Fluxo de Atendimento (spec 0139)
+  ATTENDANCE_START
+  ASK_QUESTION
+  RANDOMIZER
+  DISTRIBUTE
+  AI_AGENT
+  FINISH_ATTENDANCE
+  // Promoção do STAR FRIENDS no FlowAstro (spec 0140)
+  PROMO_ENROLL
+  PROMO_RECEIPT
+  PROMO_LOOKUP
 }
 
 model Node {
@@ -5257,6 +5320,199 @@ model ExternalAiAccessToken {
 
   @@index([createdById])
   @@map("external_ai_access_tokens")
+}
+
+// ── OAuth das IAs externas no MCP (spec 0135) ─────────────────────────────
+// Tabelas exigidas pelos plugins `jwt`, `mcp` (oauth-provider) e `cimd` do better-auth 1.7.14.
+// Os nomes dos campos são os do better-auth: não renomear. São da pessoa, não da empresa:
+// o acesso às empresas é resolvido por Member a cada pedido (spec 0135, D-2).
+
+model Jwks {
+  id         String    @id @default(cuid())
+  publicKey  String
+  privateKey String
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+  alg        String?
+  crv        String?
+
+  @@map("jwks")
+}
+
+model OauthClient {
+  id                               String    @id @default(cuid())
+  clientId                         String    @unique
+  clientSecret                     String?
+  clientDiscoveryId                String?
+  disabled                         Boolean?  @default(false)
+  skipConsent                      Boolean?
+  enableEndSession                 Boolean?
+  subjectType                      String?
+  scopes                           String[]
+  clientCredentialsScopes          String[]
+  userId                           String?
+  user                             User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt                        DateTime? @default(now())
+  updatedAt                        DateTime? @updatedAt
+  name                             String?
+  uri                              String?
+  icon                             String?
+  contacts                         String[]
+  tos                              String?
+  policy                           String?
+  softwareId                       String?
+  softwareVersion                  String?
+  softwareStatement                String?
+  redirectUris                     String[]
+  postLogoutRedirectUris           String[]
+  backchannelLogoutUri             String?
+  backchannelLogoutSessionRequired Boolean?
+  tokenEndpointAuthMethod          String?
+  applicationType                  String?
+  jwks                             String?
+  jwksUri                          String?
+  grantTypes                       String[]
+  responseTypes                    String[]
+  requirePKCE                      Boolean?
+  dpopBoundAccessTokens            Boolean?  @default(false)
+  referenceId                      String?
+  metadata                         Json?
+
+  resources     OauthClientResource[]
+  refreshTokens OauthRefreshToken[]
+  accessTokens  OauthAccessToken[]
+  consents      OauthConsent[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("oauth_client")
+}
+
+model OauthResource {
+  id                            String    @id @default(cuid())
+  identifier                    String    @unique
+  name                          String
+  accessTokenTtl                Int?
+  refreshTokenTtl               Int?
+  signingAlgorithm              String?
+  signingKeyId                  String?
+  allowedScopes                 String[]
+  customClaims                  Json?
+  dpopBoundAccessTokensRequired Boolean?
+  disabled                      Boolean?  @default(false)
+  createdAt                     DateTime? @default(now())
+  updatedAt                     DateTime? @updatedAt
+  policyVersion                 Int?      @default(1)
+  metadata                      Json?
+
+  clients OauthClientResource[]
+
+  @@map("oauth_resource")
+}
+
+model OauthClientResource {
+  id         String        @id @default(cuid())
+  clientId   String
+  client     OauthClient   @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  resourceId String
+  resource   OauthResource @relation(fields: [resourceId], references: [identifier], onDelete: Cascade)
+  metadata   Json?
+  createdAt  DateTime?     @default(now())
+
+  @@index([clientId])
+  @@index([resourceId])
+  @@map("oauth_client_resource")
+}
+
+model OauthRefreshToken {
+  id                      String      @id @default(cuid())
+  token                   String      @unique
+  clientId                String
+  client                  OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  sessionId               String?
+  session                 Session?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  userId                  String
+  user                    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceId             String?
+  authorizationCodeId     String?
+  resources               String[]
+  requestedUserInfoClaims String[]
+  expiresAt               DateTime?
+  createdAt               DateTime?   @default(now())
+  revoked                 DateTime?
+  rotatedAt               DateTime?
+  rotationReplayResponse  String?
+  rotationReplayExpiresAt DateTime?
+  authTime                DateTime?
+  confirmation            Json?
+  scopes                  String[]
+
+  accessTokens OauthAccessToken[]
+
+  @@index([clientId])
+  @@index([sessionId])
+  @@index([userId, clientId])
+  @@index([authorizationCodeId])
+  @@index([expiresAt])
+  @@map("oauth_refresh_token")
+}
+
+model OauthAccessToken {
+  id                      String             @id @default(cuid())
+  token                   String?            @unique
+  clientId                String
+  client                  OauthClient        @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  sessionId               String?
+  session                 Session?           @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  userId                  String?
+  user                    User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceId             String?
+  authorizationCodeId     String?
+  resources               String[]
+  requestedUserInfoClaims String[]
+  refreshId               String?
+  refreshToken            OauthRefreshToken? @relation(fields: [refreshId], references: [id], onDelete: Cascade)
+  expiresAt               DateTime?
+  createdAt               DateTime?          @default(now())
+  revoked                 DateTime?
+  confirmation            Json?
+  scopes                  String[]
+
+  @@index([clientId])
+  @@index([sessionId])
+  @@index([userId, clientId])
+  @@index([authorizationCodeId])
+  @@index([refreshId])
+  @@index([expiresAt])
+  @@map("oauth_access_token")
+}
+
+/// Uma linha por (pessoa, IA) que clicou Permitir. Conferido a cada pedido ao /api/mcp (spec 0135, D-3).
+model OauthConsent {
+  id                      String      @id @default(cuid())
+  clientId                String
+  client                  OauthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  userId                  String?
+  user                    User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referenceId             String?
+  resources               String[]
+  requestedUserInfoClaims String[]
+  scopes                  String[]
+  createdAt               DateTime?   @default(now())
+  updatedAt               DateTime?   @updatedAt
+
+  @@index([clientId])
+  @@index([userId, clientId])
+  @@map("oauth_consent")
+}
+
+/// `jti` das asserções de cliente já usadas (anti-replay); a linha vale até `expiresAt`.
+model OauthClientAssertion {
+  id        String   @id
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("oauth_client_assertion")
 }
 
 model NasaPlannerPublishAttempt {

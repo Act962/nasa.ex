@@ -11,7 +11,6 @@ import { bookingNotification } from "@/inngest/functions/booking-notification";
 import { processUserAction } from "@/inngest/functions/process-user-action";
 import { detectAbsence } from "@/inngest/functions/crons/detect-absence";
 import { markOverdueReceivablesCron } from "@/inngest/functions/crons/mark-overdue-receivables";
-import { remindSalesApprovalsCron } from "@/inngest/functions/nerp-catalog/remind-sales-approvals";
 import { detectChatTimeout } from "@/inngest/functions/crons/detect-chat-timeout";
 import { checkStreaks } from "@/inngest/functions/crons/check-streaks";
 import { checkMilestones } from "@/inngest/functions/crons/check-milestones";
@@ -58,11 +57,9 @@ import { syncMetaAdsStructure } from "@/inngest/functions/crons/sync-meta-ads-st
 import { nasaRouteSubscriptionRenew } from "@/inngest/functions/crons/nasa-route-subscription-renew";
 import { nasaRouteVideoUploadsCleanup } from "@/inngest/functions/crons/nasa-route-video-uploads-cleanup";
 import { nasaRouteCartRecoveryCron } from "@/inngest/functions/crons/nasa-route-cart-recovery";
-import { onVideoUploadProgress } from "@/inngest/functions/nasa-route/on-video-upload-progress";
 import { onVideoUploadCompleted } from "@/inngest/functions/nasa-route/on-video-upload-completed";
 import { nasaRoutePurchaseEmail } from "@/inngest/functions/nasa-route/purchase-email";
 import { astroIngestKnowledge } from "@/inngest/functions/astro/ingest-knowledge";
-import { astroAgentTrigger } from "@/inngest/functions/astro/agent-trigger";
 import { chatSyncMessages } from "@/inngest/functions/chat/sync-conversation-messages";
 import { autoResolveExpiredClaims } from "@/inngest/functions/calendar/auto-resolve-expired-claims";
 import {
@@ -84,7 +81,6 @@ import { seedSampleContent } from "@/inngest/functions/org-defaults/seed-sample-
 import { watchCatalogOrderPayment } from "@/inngest/functions/nerp-catalog/watch-order-payment";
 import { starFriendsExpireStars } from "@/inngest/functions/star-friends/expire-stars";
 import {
-  scheduleIdleChecks,
   checkNoFirstResponse,
   checkInConvIdle,
 } from "@/inngest/functions/triggers/idle-automation";
@@ -93,13 +89,6 @@ import { replicateAccountToNerp } from "@/inngest/functions/sync/replicate-accou
 import { replicateOrgToNerp } from "@/inngest/functions/sync/replicate-org-to-nerp";
 import { replicateMemberToNerp } from "@/inngest/functions/sync/replicate-member-to-nerp";
 import {
-  // autoAgentTickScheduledFn,
-  autoAgentOnLeadReplyFn,
-} from "@/inngest/functions/auto-agent-scheduler";
-import {
-  agentTriggerPaymentReceivedFn,
-  agentTriggerMessageIncomingFn,
-  agentTriggerWebhookExternalFn,
   agentTriggerComplianceItemDueFn,
 } from "@/inngest/functions/agent-workflow-triggers";
 // ── NASA Payment Fase 2 (governança + cobrança event-driven) ──
@@ -110,7 +99,7 @@ import { paymentGoalDailyCheck }    from "@/inngest/functions/payment/goal-daily
 import { paymentGoalWeeklySummary } from "@/inngest/functions/payment/goal-weekly-summary";
 // ── Astro Financeiro (lembretes com boleto + caixa Gmail) ──
 import { paymentReminderFire } from "@/inngest/functions/payment/reminder-fire";
-import { paymentInboxSyncCron, paymentInboxSyncOrg } from "@/inngest/functions/payment/inbox-sync";
+import { paymentInboxSyncOrg } from "@/inngest/functions/payment/inbox-sync";
 // ── Aba Contábil (spec 0051) ──
 import {
   accountingJournalSync,
@@ -185,12 +174,10 @@ export const { GET, POST, PUT } = serve({
     nasaRouteSubscriptionRenew,
     nasaRouteVideoUploadsCleanup,
     nasaRouteCartRecoveryCron,
-    onVideoUploadProgress,
     onVideoUploadCompleted,
     nasaRoutePurchaseEmail,
     // ── ASTRO ──
     astroIngestKnowledge,
-    astroAgentTrigger,
     // ── Chat sync ──
     chatSyncMessages,
     // ── Chat AI (WhatsApp agent interno) ──
@@ -218,11 +205,9 @@ export const { GET, POST, PUT } = serve({
     // ── Alerts: detecção time-based ──
     detectLowMetrics,
     markOverdueReceivablesCron,
-    remindSalesApprovalsCron,
     // ── Campanhas: gasto diário Meta ──
     snapshotMetaDailySpendCron,
     // ── Idle automation por tracking (substitui detect-leads-waiting-attention + LAST_INBOUND_TIMEOUT) ──
-    scheduleIdleChecks,
     checkNoFirstResponse,
     checkInConvIdle,
     // ── Sync auth NASA → NERP ──
@@ -231,12 +216,8 @@ export const { GET, POST, PUT } = serve({
     replicateOrgToNerp,
     replicateMemberToNerp,
     // ── NASA Auto Agent — scheduler de turns assíncronos ──
-    // autoAgentTickScheduledFn,
-    autoAgentOnLeadReplyFn,
+    // Auto Agent: as duas funções ficam fora do registro (tick desligado; ninguém envia lead-replied).
     // ── Modo Agente IA Visual — disparadores dos triggers novos ──
-    agentTriggerPaymentReceivedFn,
-    agentTriggerMessageIncomingFn,
-    agentTriggerWebhookExternalFn,
     agentTriggerComplianceItemDueFn,
     // ── NASA Payment Fase 2 — event-driven, sem cron ──
     paymentDunningFire,
@@ -246,7 +227,6 @@ export const { GET, POST, PUT } = serve({
     paymentGoalWeeklySummary,
     // ── Astro Financeiro — lembrete com boleto (event) + caixa Gmail (cron 30 min) ──
     paymentReminderFire,
-    paymentInboxSyncCron,
     paymentInboxSyncOrg,
     // ── Aba Contábil — journal derivado + reconciliação noturna ──
     accountingJournalSync,

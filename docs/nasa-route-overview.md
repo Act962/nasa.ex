@@ -114,7 +114,7 @@ src/features/nasa-route/components/
 
 Stores/hooks/lib:
 
-- `stores/use-video-upload-manager.ts` — Zustand store para progresso, pause/resume de uploads.
+- `stores/use-video-upload-manager.ts` — Zustand store para progresso, pause/resume de uploads. A barra de progresso vem só daqui; o Inngest Realtime avisa apenas a conclusão (`completed`).
 - `hooks/use-video-upload.ts` — ciclo de vida do upload (seleção → quote → multipart).
 - `lib/pricing.ts` — `getStarPriceBrl()`, `starsToBrl()`, `formatStarsAndBrl()` (cache 5 min).
 - `lib/video-storage-pricing.ts` — `computeVideoUploadCost()` (modelo: 0,015 USD/GB × 36 meses + 10 % de margem).
@@ -428,3 +428,4 @@ A separação de responsabilidades segue rigidamente a arquitetura por features 
 
 - 2026-10-01 — Migração visual para o Design System ÓRBITA (Fase 6): telas logadas (vitrine, painel do criador, editor, player, matrícula, certificados) usam tokens (`info`/`success`/`warning`/`destructive`, `card`/`line`), abas do editor em pílula, sem linha nos cabeçalhos e dock do celular na vitrine e no painel do criador. Ficam fixos de propósito (D-3): página pública do curso/checkout/catálogo, prévia gratuita e o certificado.
 - 2026-10-02 — Celular primeiro (playbook dos Apps): todas as telas logadas ganham `NasaRouteShell` (barra de cima sem título, ASTRO "Criar comando" escondido no celular) e topo com ícone redondo + seção atual. Menu de baixo do aluno, do criador e do player. Vitrine com busca em pílula, categorias em linha que rola, destaque em cartão e "Em alta" em grade de 2; nova seção "Meus cursos". Painel do criador em grade de cursos com capa e KPIs em 2 colunas; Vendas e Alunos com cartões no celular e filtro de curso em pílulas; formulários de aula/módulo/plano/acesso livre como gaveta de baixo com ação fixa; "Novo curso" e "Informações" com botão de salvar fixo embaixo. Player com vídeo na largura toda, gaveta "Aulas" e botão "Próxima". Arquivos grandes divididos (editor, vendas, alunos, player, vitrine). Só UI — sem mudança de servidor.
+- 2026-11-11 — Upload de vídeo: removidos `creator-report-upload-part` e a função Inngest `nasa-route/on-video-upload-progress` (uma execução por pedaço enviado, só para repassar o progresso que o navegador já calcula). Barra de progresso passa a vir só do store local; o canal Realtime fica com `completed`/`failed`. Ver `docs/inngest-revisao-2026-11.md`.

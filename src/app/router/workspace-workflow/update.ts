@@ -1,11 +1,14 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { NodeType } from "@/generated/prisma/enums";
+import { findWorkspaceWorkflowInOrg } from "@/features/workspace/server/lib/workspace-access";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
 export const updateWorkspaceWorkflowName = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .input(
     z.object({
       workflowId: z.string(),
@@ -19,10 +22,11 @@ export const updateWorkspaceWorkflowName = base
       workspaceId: z.string(),
     }),
   )
-  .handler(async ({ input, errors }) => {
-    const wf = await prisma.workflow.findUnique({
-      where: { id: input.workflowId },
-    });
+  .handler(async ({ input, context, errors }) => {
+    const wf = await findWorkspaceWorkflowInOrg(
+      input.workflowId,
+      context.org.id,
+    );
     if (!wf) throw errors.NOT_FOUND({ message: "Workflow not found" });
     if (!wf.workspaceId) {
       throw errors.BAD_REQUEST({ message: "Workflow não pertence a um workspace" });
@@ -41,6 +45,7 @@ export const updateWorkspaceWorkflowName = base
 
 export const updateWorkspaceWorkflowNodes = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .input(
     z.object({
       id: z.string(),
@@ -62,12 +67,11 @@ export const updateWorkspaceWorkflowNodes = base
       ),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
     const { id, nodes, edges } = input;
 
-    const workflow = await prisma.workflow.findUniqueOrThrow({
-      where: { id },
-    });
+    const workflow = await findWorkspaceWorkflowInOrg(id, context.org.id);
+    if (!workflow) throw errors.NOT_FOUND({ message: "Workflow not found" });
 
     return prisma.$transaction(async (tx) => {
       await tx.node.deleteMany({ where: { workflowId: id } });

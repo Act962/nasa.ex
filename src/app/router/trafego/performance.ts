@@ -57,7 +57,7 @@ async function loadOwnedOrder(orderId: string, organizationId: string) {
  * Período de teste interno da nota (spec 0128, RF-14): até `TRAFEGO_QUALITY_SCORE_PUBLIC=true`,
  * só admin do sistema vê. Remover o flag depois de 2 semanas conferidas em 3 clientes.
  */
-async function canSeeQualityScore(userId: string): Promise<boolean> {
+export async function canSeeQualityScore(userId: string): Promise<boolean> {
   if (process.env.TRAFEGO_QUALITY_SCORE_PUBLIC === "true") return true;
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { isSystemAdmin: true } });
   return user?.isSystemAdmin === true;

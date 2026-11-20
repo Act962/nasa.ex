@@ -53,7 +53,7 @@ e o Astro responde "o que chegou no e-mail?" e lança a partir deles.
 | ID | Requisito |
 | --- | --- |
 | RF-1 | `PaymentInboxConfig` por org: `isEnabled` (opt-in, default false), `gmailQuery` (default `has:attachment filename:pdf newer_than:7d`), `lastSyncAt`, `lastError`. |
-| RF-2 | Cron `*/30 * * * *` (`paymentInboxSyncCron`) dispara `payment/inbox.sync` por org com caixa ativa e integração GMAIL ativa. `paymentInboxSyncOrg` roda com `concurrency { key: organizationId, limit: 1 }`. |
+| RF-2 | De hora em hora, o `polling-ticker-hourly` (`runPaymentInboxSyncDispatch`) dispara `payment/inbox.sync` por org com caixa ativa e integração GMAIL ativa. `paymentInboxSyncOrg` roda com `concurrency { key: organizationId, limit: 1 }`. |
 | RF-3 | Descoberta: lista até 25 mensagens da query, pula mensagens já conhecidas e grava um `PaymentInboxItem` `NEW` por anexo elegível (PDF; imagem ≥ 30 KB), com `@@unique(org, gmailMessageId, gmailAttachmentId)` + `skipDuplicates`. Anexo > 16 MB entra como `FAILED` com motivo. |
 | RF-4 | Ingestão (um `step.run` por item, até 20 por execução): baixa do Gmail → `PutObject` em `payment/attachments/<org>/<uuid>.<ext>` → `PaymentAttachment` (`sourceChannel: "gmail"`, `originalFileName`, `uploadedById: null`) → `extractFinancialDocument` (5★, cacheado) → item `PROPOSED` com resumo da extração. |
 | RF-5 | Documento `OUTRO` com `confidence < 0.4` → `IGNORED`; o arquivo permanece em Documentos. |
@@ -130,7 +130,7 @@ e o Astro responde "o que chegou no e-mail?" e lança a partir deles.
 - [x] Schema / migration (`payment_inbox`: `PaymentInboxConfig`, `PaymentInboxItem`, `PaymentInboxItemStatus`)
 - [x] Procedures oRPC (`payment.inbox.*`)
 - [ ] Realtime (Pusher / event-bus) — só o Pusher já disparado por `createNotification`
-- [x] Automações (Inngest: `payment-inbox-sync-cron`, `payment-inbox-sync-org`, evento `payment/inbox.sync`)
+- [x] Automações (Inngest: ticker horário, `payment-inbox-sync-org`, evento `payment/inbox.sync`)
 - [ ] Env vars novas — usa `GOOGLE_INTEGRATIONS_CLIENT_ID/SECRET/REDIRECT_URI` (já exigidas pela integração)
 - [ ] Breaking change para clientes existentes
 - [x] Documentação: `docs/ASTRO_PROGRESS.md`, `docs/STARS_OVERVIEW.md`
@@ -162,3 +162,4 @@ Não há runner de teste instalado (CLAUDE.md §20); os CAs ficam como roteiro m
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-09-15 | Weydson | Criada |
+| 2026-11-11 | Claude (revisão do Inngest) | RF-2: distribuição passa de cron próprio a cada 30 min para o ticker horário; sem e-mail novo o sync da org fecha numa etapa só. Ver `docs/inngest-revisao-2026-11.md`. |

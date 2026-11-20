@@ -1,3 +1,4 @@
+import { FlowCommandError, setAttendanceFlowActive } from "@/features/attendance-flows/server/flow-commands";
 import { isTopicMenuName } from "@/features/tracking-chat-ai/lib/topic-menu";
 import { PLACEHOLDER_PROBLEM, hasPlaceholderText } from "@/features/workflows/lib/placeholder-text";
 import { AUTOMATION_DENIAL, checkWorkflowAccess } from "@/features/workflows/server/workflow-access";
@@ -57,6 +58,19 @@ export const updateIsActive = base
     const access = await checkWorkflowAccess(input.workflowId, context.user.id, "canEdit");
     if (access === "not-found") throw errors.NOT_FOUND({ message: "Workflow not found" });
     if (access === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canEdit });
+
+    // Fluxo do FlowAstro: o mesmo caminho do MCP (spec 0142, D-3), com a disputa de entrada e o texto de exemplo.
+    if (workflow.kind === "ATTENDANCE") {
+      try {
+        const result = await setAttendanceFlowActive({ workflowId: workflow.id, isActive: input.isActive });
+        return { id: workflow.id, isActive: result.isActive };
+      } catch (error) {
+        if (error instanceof FlowCommandError) {
+          throw error.kind === "not_found" ? errors.NOT_FOUND({ message: error.message }) : errors.BAD_REQUEST({ message: error.message });
+        }
+        throw error;
+      }
+    }
 
     // Quando ATIVANDO em Modo Agente IA, checa colisão com outros workflows
     // ativos. Retorna warnings — front decide se mostra dialog de confirmação.

@@ -8,6 +8,7 @@ import {
 import { tenantScope, type TenantScope } from "@/modules/shared/domain/tenant-scope";
 import type { Channel, SocialProviderValue } from "./domain/types";
 import type { ChannelGateway } from "./ports/channel-gateway";
+import { isFacebookGraphToken } from "./domain/access-token";
 import type { ContentPublisher } from "./ports/content-publisher";
 import {
   INSTAGRAM_LOGIN_GRAPH_URL,
@@ -15,6 +16,7 @@ import {
   InstagramLoginCredentialRenewer,
   META_LOGIN_GRAPH_URL,
 } from "./infra/instagram/content-publisher";
+import { FacebookGraphInstagramChannelGateway } from "./infra/instagram/facebook-graph-channel-gateway";
 import { InstagramGraphChannelGateway } from "./infra/instagram/graph-channel-gateway";
 import { MetaLoginInstagramChannelGateway } from "./infra/instagram/meta-login-channel-gateway";
 import { InstagramWebhookTranslator } from "./infra/instagram/webhook-translator";
@@ -61,6 +63,9 @@ export function createChannelGateway(channel: Channel): ChannelGateway {
           channel.credentials.accessToken,
         );
       }
+      if (isFacebookGraphToken(channel.credentials.accessToken)) {
+        return new FacebookGraphInstagramChannelGateway(channel.externalAccountId, channel.credentials.accessToken);
+      }
       return new InstagramGraphChannelGateway(
         channel.externalAccountId,
         channel.credentials.accessToken,
@@ -87,7 +92,7 @@ export function createContentPublisher(channel: Channel): ContentPublisher {
         );
       }
       return new InstagramContentPublisher(
-        INSTAGRAM_LOGIN_GRAPH_URL,
+        isFacebookGraphToken(channel.credentials.accessToken) ? META_LOGIN_GRAPH_URL : INSTAGRAM_LOGIN_GRAPH_URL,
         channel.externalAccountId,
         channel.credentials.accessToken,
         channel.externalAccountId,

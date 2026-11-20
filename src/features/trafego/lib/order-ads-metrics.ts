@@ -99,6 +99,8 @@ export function compareWithAverage(
   average: number | null | undefined,
 ): { direction: "up" | "down"; tone: AverageTone; percent: number } | null {
   if (average === null || average === undefined || average <= 0) return null;
+  // Custo zero é falta de entrega (sem conversa, clique ou impressão), não custo baixo.
+  if (METRIC_POLARITY[metric] === "lower_is_better" && value <= 0) return null;
   const gap = (value - average) / average;
   if (Math.abs(gap) < MIN_AVERAGE_GAP) return null;
   const direction = gap > 0 ? "up" : "down";

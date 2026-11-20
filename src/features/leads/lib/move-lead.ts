@@ -8,12 +8,16 @@ import {
   dispatchMoveLeadStatus,
 } from "@/inngest/utils";
 import { eventBus } from "@/features/alerts/lib/event-bus";
+import { logActivity } from "@/features/admin/lib/activity-logger";
+import { LeadAction } from "@/generated/prisma/enums";
 
 export type MoveLeadToStageInput = {
   leadId: string;
   toTrackingId: string;
   /** Sem status (ou status de outro tracking) → primeira coluna do destino. */
   toStatusId?: string | null;
+  /** Quem moveu (spec 0145). Sem ele é o sistema, como sempre foi. `via` é o nome da IA externa. */
+  actor?: { id: string; name: string; email: string; image?: string | null; via?: string };
 };
 
 export type MoveLeadToStageResult = {
@@ -96,10 +100,12 @@ export async function moveLeadToStage(
     }
   }
 
+  const actorId = input.actor?.id ?? null;
   if (movingLead.statusId !== targetStatus.id) {
     await recordLeadEvent({
       leadId: movingLead.id,
       eventType: "STATUS_CHANGE",
+      userId: actorId,
       previousStatusId: movingLead.statusId,
       newStatusId: targetStatus.id,
     });
@@ -108,6 +114,7 @@ export async function moveLeadToStage(
     await recordLeadEvent({
       leadId: movingLead.id,
       eventType: "TRACKING_CHANGE",
+      userId: actorId,
       previousTrackingId: movingLead.trackingId,
       newTrackingId: input.toTrackingId,
     });
@@ -158,15 +165,16 @@ export async function moveLeadToStage(
   const hasStatusChanged = movingLead.statusId !== targetStatus.id;
   if (hasStatusChanged) {
     // Mesmo evento do arrastar no board: alertas e etapas do pedido do catálogo (spec 0044) reagem igual.
-    const tracking = await prisma.tracking.findUnique({ where: { id: input.toTrackingId }, select: { organizationId: true } });
+    const tracking = await prisma.tracking.findUnique({ where: { id: input.toTrackingId }, select: { organizationId: true, name: true } });
     await eventBus.publish("lead.status_changed", {
       leadId: movingLead.id,
       fromStatusId: movingLead.statusId,
       toStatusId: targetStatus.id,
       orgId: tracking?.organizationId ?? null,
       responsibleId: updatedLead.responsibleId,
-      actorUserId: null,
+      actorUserId: actorId,
     });
+    if (input.actor && tracking) await recordActorMove(input.actor, { lead: updatedLead, tracking, fromStatusId: movingLead.statusId, toStatusId: targetStatus.id });
   }
 
   return {
@@ -176,4 +184,35 @@ export async function moveLeadToStage(
     mergedIntoExistingLead: !!leadAlreadyInTarget,
     hasStatusChanged,
   };
+}
+
+/** Histórico do lead e de atividades com o nome de quem moveu, como o arraste no board grava. */
+async function recordActorMove(
+  actor: NonNullable<MoveLeadToStageInput["actor"]>,
+  params: { lead: { id: string; name: string }; tracking: { organizationId: string; name: string }; fromStatusId: string; toStatusId: string },
+) {
+  const via = actor.via ? ` (via ${actor.via})` : "";
+  try {
+    const status = await prisma.status.findUnique({ where: { id: params.toStatusId }, select: { name: true } });
+    await prisma.leadHistory.create({
+      data: { leadId: params.lead.id, userId: actor.id, action: LeadAction.ACTIVE, notes: `Status do lead alterado${via}` },
+    });
+    await logActivity({
+      organizationId: params.tracking.organizationId,
+      userId: actor.id,
+      userName: actor.name,
+      userEmail: actor.email,
+      userImage: actor.image,
+      appSlug: "tracking",
+      subAppSlug: "tracking-pipeline",
+      featureKey: "lead.moved",
+      action: "lead.moved",
+      actionLabel: `Moveu o lead "${params.lead.name}" para a coluna "${status?.name ?? params.toStatusId}"${via}`,
+      resource: params.lead.name,
+      resourceId: params.lead.id,
+      metadata: { trackingName: params.tracking.name, fromStatusId: params.fromStatusId, toStatusId: params.toStatusId, ...(actor.via ? { via: actor.via } : {}) },
+    });
+  } catch (error) {
+    console.error("[move-lead] actor_history_failed", error);
+  }
 }

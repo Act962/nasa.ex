@@ -6,7 +6,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { cn } from "@/lib/utils";
 import { useTrafegoAccountBreakdown } from "@/features/trafego/hooks/use-trafego-performance";
-import type { PerformanceBreakdown, PerformanceRange } from "@/features/trafego/lib/order-meta-metrics";
+import { useTrafegoAccountWideBreakdown } from "@/features/trafego/hooks/use-trafego-account";
+import type { AccountPeriodSelection, PerformanceBreakdown, PerformanceRange } from "@/features/trafego/lib/order-meta-metrics";
 
 /** Blocos do Desempenho pela conta do cliente: gráfico diário, campanhas e públicos (spec 0122, RF-12). */
 
@@ -14,7 +15,7 @@ export function formatMoneyFromCents(cents: number, currency: string): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: currency || "BRL" }).format(cents / 100);
 }
 
-const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
+export const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
   ACTIVE: "Ativa",
   PAUSED: "Pausada",
   CAMPAIGN_PAUSED: "Pausada",
@@ -140,17 +141,30 @@ export function AccountCampaignList({
   );
 }
 
+/** Pelo pedido (período do pedido) ou pela conta inteira (`accountPeriod`). */
+type BreakdownSource = { orderId: string; range: PerformanceRange } | { accountPeriod: AccountPeriodSelection };
+
 export function AccountBreakdownSection({
-  orderId,
-  range,
+  source,
   currency,
 }: {
-  orderId: string;
-  range: PerformanceRange;
+  source: BreakdownSource;
   currency: string;
 }) {
   const [activeBreakdown, setActiveBreakdown] = useState<PerformanceBreakdown>("age");
-  const { data, isLoading } = useTrafegoAccountBreakdown(orderId, range, activeBreakdown);
+  const isAccountWide = "accountPeriod" in source;
+  const orderQuery = useTrafegoAccountBreakdown(
+    isAccountWide ? "" : source.orderId,
+    isAccountWide ? "order" : source.range,
+    activeBreakdown,
+    { enabled: !isAccountWide },
+  );
+  const accountQuery = useTrafegoAccountWideBreakdown(
+    isAccountWide ? source.accountPeriod : { range: "last_30d" },
+    activeBreakdown,
+    { enabled: isAccountWide },
+  );
+  const { data, isLoading } = isAccountWide ? accountQuery : orderQuery;
   const rows = data?.mode === "account" ? data.rows : [];
   const maxSpend = Math.max(...rows.map((row) => row.spendCents), 1);
 
@@ -190,7 +204,7 @@ export function AccountBreakdownSection({
           {rows.map((row) => (
             <li key={row.segment} className="text-xs">
               <div className="flex justify-between gap-2">
-                <span>{SEGMENT_LABEL[row.segment] ?? row.segment}</span>
+                <span>{SEGMENT_LABEL[row.segment.toLowerCase()] ?? row.segment}</span>
                 <span className="tabular-nums text-muted-foreground">
                   {formatMoneyFromCents(row.spendCents, currency)} · {row.reach.toLocaleString("pt-BR")} pessoas
                 </span>

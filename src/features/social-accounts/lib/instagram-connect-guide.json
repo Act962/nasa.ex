@@ -670,7 +670,7 @@
       "phase": "webhook",
       "slug": "webhook",
       "title": "Configure o webhook",
-      "instruction": "Na Meta, no bloco 3. Configurar webhooks, cole a URL de callback e o Verificar token abaixo. Clique em Verificar e salvar.",
+      "instruction": "Na Meta, no bloco 3. Configurar webhooks, cole a URL de callback e o Verificar token abaixo. Clique em Verificar e salvar. Se este app já tem outra conta na ÓRBITA com o webhook salvo, pode pular: a mesma URL atende todas as contas do app, basta ligar a Assinatura do webhook desta conta no bloco 2.",
       "copy": [
         "callbackUrl",
         "verifyToken"

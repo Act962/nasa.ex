@@ -393,3 +393,13 @@ export const GatilhosIcon = () => (
     <path d="M26.5 9 14 27h8.5L21 39l13-18.5h-8.5L26.5 9Z" fill="white" />
   </svg>
 );
+
+export const FlowAstroIcon = () => (
+  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={S}>
+    <rect width="48" height="48" rx="12" fill="#2563EB" />
+    <rect x="9" y="11" width="12" height="9" rx="2.5" fill="white" />
+    <rect x="27" y="11" width="12" height="9" rx="2.5" fill="white" fillOpacity="0.75" />
+    <rect x="18" y="28" width="12" height="9" rx="2.5" fill="white" />
+    <path d="M15 20v4h9v4M33 20v4h-9" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);

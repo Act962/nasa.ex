@@ -3,43 +3,32 @@
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Check, Clapperboard, Copy, Download, KeyRound, Plug } from "lucide-react";
+import { Clapperboard, Download, KeyRound, Plug } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { usePlannerClients } from "@/features/nasa-planner/hooks/use-planner-calendar";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { useCreateExternalAiToken, useExternalAiTokens, useRevokeExternalAiToken } from "../hooks/use-external-ai-tokens";
+import { MCP_PATH } from "../server/oauth-config";
+import { CopyBlock } from "./copy-block";
+import { OAuthConnectPanel } from "./oauth-connect-panel";
 
 /** Satélites → IA externa (spec 0065, RF-5): chave do MCP do ÓRBITA para Claude Code e outras IAs. */
-
-const MCP_PATH = "/api/mcp";
 
 function buildClaudeCommand(token: string) {
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   return `claude mcp add --transport http orbita ${origin}${MCP_PATH} --header "Authorization: Bearer ${token}"`;
 }
 
-function CopyBlock({ text }: { text: string }) {
-  const [isCopied, setIsCopied] = useState(false);
-  return (
-    <div className="relative mt-2 rounded-xl bg-foreground p-3 pr-10 font-mono text-xs break-all text-background">
-      {text}
-      <button
-        type="button"
-        aria-label="Copiar"
-        onClick={async () => {
-          await navigator.clipboard.writeText(text);
-          setIsCopied(true);
-          setTimeout(() => setIsCopied(false), 1500);
-        }}
-        className="absolute top-2 right-2 rounded-md p-1 text-background/70 hover:text-background"
-      >
-        {isCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
-      </button>
-    </div>
-  );
-}
+/** Apps que entraram no MCP depois do FlowAstro: chave antiga não ganha nenhum sem ser recriada. */
+const NEWER_APPS = [
+  { scope: "workspace", label: "Workspace" },
+  { scope: "financeiro", label: "Financeiro" },
+  { scope: "tracking", label: "Tracking" },
+];
+
+const missingAppsOf = (scopes: string[]) => NEWER_APPS.filter((app) => !scopes.includes(app.scope)).map((app) => app.label);
 
 export function ExternalAiSection() {
   const { clients } = usePlannerClients();
@@ -75,13 +64,17 @@ export function ExternalAiSection() {
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-bold">IA externa (Claude Code, ChatGPT e outras)</h3>
           <p className="text-sm text-muted-foreground">
-            A IA lê o Kit da Marca, o calendário e os horários livres, e cria rascunhos que entram na Caixa de criações do Planner. Ela nunca aprova, programa nem publica.
+            A IA lê o Kit da Marca, o calendário e os horários livres, e cria rascunhos que entram na Caixa de criações do Planner. Ela também revisa, aprova, programa e publica, monta os fluxos de atendimento do FlowAstro, cria e organiza os cards do Workspace, lê e lança contas no Financeiro e trabalha nos leads do Tracking, sempre com as suas permissões e pedindo sua confirmação antes de publicar ou ligar.
           </p>
         </div>
       </div>
 
+      <OAuthConnectPanel />
+
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_340px]">
         <div className="rounded-2xl bg-panel p-4">
+          <p className="text-sm font-semibold">Chave de acesso (Claude Code, Codex e rotinas)</p>
+          <p className="mt-1 mb-3 text-xs text-muted-foreground">Para IA que roda no seu computador ou sem navegador. Você escolhe as empresas da chave.</p>
           <p className="mb-2 text-xs text-muted-foreground">Nome da chave</p>
           <Input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={80} className="h-9 rounded-full" />
           <p className="mt-3 mb-2 text-xs text-muted-foreground">Empresas que a IA pode acessar</p>
@@ -151,6 +144,19 @@ export function ExternalAiSection() {
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1.5 truncate text-sm font-medium">
                     {token.label}
+                    {!token.scopes.includes("flowastro") && (
+                      <span title="Chave criada antes do FlowAstro no MCP: crie uma nova para montar fluxos" className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        sem FlowAstro
+                      </span>
+                    )}
+                    {token.scopes.includes("flowastro") && missingAppsOf(token.scopes).length > 0 && (
+                      <span
+                        title={`Chave criada antes de ${missingAppsOf(token.scopes).join(", ")} no MCP: crie uma nova para usar esses apps`}
+                        className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                      >
+                        sem {missingAppsOf(token.scopes).join(", ")}
+                      </span>
+                    )}
                     {token.scopes.includes("trafego") && (
                       <span className="rounded-full bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold text-info">trafeGO</span>
                     )}

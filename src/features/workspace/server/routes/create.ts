@@ -2,7 +2,7 @@ import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { isTrackingAccessibleByUser } from "@/features/workspace/lib/tracking-link";
-import prisma from "@/lib/prisma";
+import { createWorkspaceRecord } from "../lib/workspace-commands";
 import { z } from "zod";
 
 export const createWorkspace = base
@@ -31,51 +31,13 @@ export const createWorkspace = base
       }
     }
 
-    const members = await prisma.member.findMany({
-      where: {
-        organizationId: context.org.id,
-      },
-    });
-
-    const workspace = await prisma.workspace.create({
-      data: {
-        name: input.name,
-        description: input.description,
-        organizationId: context.org.id,
-        createdBy: context.user.id,
-        icon: input.icon,
-        trackingId: input.trackingId ?? null,
-        members: {
-          createMany: {
-            data: members.map((member) => ({
-              role: member.userId === context.user.id ? "OWNER" : "MEMBER",
-              userId: member.userId,
-            })),
-          },
-        },
-        columns: {
-          createMany: {
-            data: [
-              {
-                name: "Para fazer",
-                order: 0,
-              },
-              {
-                name: "Em progresso",
-                order: 1,
-              },
-              {
-                name: "Em revisão",
-                order: 2,
-              },
-              {
-                name: "Concluído",
-                order: 3,
-              },
-            ],
-          },
-        },
-      },
+    const workspace = await createWorkspaceRecord({
+      organizationId: context.org.id,
+      userId: context.user.id,
+      name: input.name,
+      description: input.description,
+      icon: input.icon,
+      trackingId: input.trackingId,
     });
 
     return {

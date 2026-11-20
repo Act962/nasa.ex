@@ -1,9 +1,9 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { logActivity } from "@/features/admin/lib/activity-logger";
-import { NodeType } from "@/generated/prisma/enums";
 import { AUTOMATION_DENIAL, checkWorkflowAccess } from "@/features/workflows/server/workflow-access";
 import prisma from "@/lib/prisma";
+import { saveWorkflowGraph, WorkflowSaveError } from "@/features/workflows/server/save-workflow-graph";
 import z from "zod";
 
 export const updateName = base
@@ -48,7 +48,8 @@ export const updateName = base
       data: { name: input.name },
     });
 
-    if (!updatedWorkflow.trackingId) {
+    // Fluxo do FlowAstro é da empresa, sem funil (spec 0139, D-11).
+    if (!updatedWorkflow.trackingId && !updatedWorkflow.organizationId) {
       throw errors.BAD_REQUEST({
         message: "Workflow não pertence a um tracking",
       });
@@ -77,7 +78,7 @@ export const updateName = base
     return {
       id: updatedWorkflow.id,
       workflowName: updatedWorkflow.name,
-      trackingId: updatedWorkflow.trackingId,
+      trackingId: updatedWorkflow.trackingId ?? "",
     };
   });
 
@@ -112,118 +113,16 @@ export const updateNodes = base
     if (access === "not-found") throw errors.NOT_FOUND({ message: "Workflow não encontrado" });
     if (access === "forbidden") throw errors.FORBIDDEN({ message: AUTOMATION_DENIAL.canEdit });
 
-    const workflow = await prisma.workflow.findUniqueOrThrow({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        trackingId: true,
-        workspaceId: true,
-        userId: true,
-        folderId: true,
-        isActive: true,
-        agentMode: true,
-        description: true,
-        createdAt: true,
-        updatedAt: true,
-        tracking: { select: { name: true, organizationId: true } },
-      },
-    });
-
-    // Modo Agente IA: roda cycle-detector ANTES de persistir.
-    // Workflows clássicos não têm branches/loops, então o detector é skip.
-    if (workflow.agentMode) {
-      const { detectCycles } = await import(
-        "@/features/workflows/lib/cycle-detector"
-      );
-      const report = detectCycles(
-        nodes.map((n) => ({ id: n.id, type: n.type || "" })),
-        edges.map((e) => ({ fromNodeId: e.source, toNodeId: e.target })),
-      );
-      if (!report.safe) {
-        throw errors.BAD_REQUEST({
-          message: `Loop infinito detectado:\n${report.warnings.join("\n")}`,
-        });
-      }
+    try {
+      const saved = await saveWorkflowGraph({
+        workflowId: id,
+        nodes,
+        edges,
+        actor: { userId: context.user.id, userName: context.user.name, userEmail: context.user.email, userImage: context.user.image },
+      });
+      return { ...saved.workflow, entryConflict: saved.entryConflict };
+    } catch (error) {
+      if (error instanceof WorkflowSaveError) throw errors.BAD_REQUEST({ message: error.message });
+      throw error;
     }
-
-    return await prisma.$transaction(async (tx) => {
-      await tx.node.deleteMany({
-        where: {
-          workflowId: id,
-        },
-      });
-
-      await tx.node.createMany({
-        data: nodes.map((node) => ({
-          id: node.id,
-          workflowId: id,
-          name: node.type || "unknown",
-          type: node.type as NodeType,
-          position: node.position,
-          data: node.data || {},
-        })),
-      });
-
-      await tx.connection.createMany({
-        data: edges.map((edge) => ({
-          workflowId: id,
-          fromNodeId: edge.source,
-          toNodeId: edge.target,
-          // Normaliza handles visuais default → semântica "main" no DB.
-          // Handles nomeados (true/false/loop/done/case_X, branches IA) são
-          // preservados pra que o engine `run-workflow.ts` resolva
-          // `adjBy.get(nodeId).get(fromOutput)` corretamente.
-          fromOutput:
-            !edge.sourceHandle || edge.sourceHandle === "source-1"
-              ? "main"
-              : edge.sourceHandle,
-          toInput:
-            !edge.targetHandle || edge.targetHandle === "target-1"
-              ? "main"
-              : edge.targetHandle,
-        })),
-      });
-
-      // Update workflow's updatedAt timestamp
-      await tx.workflow.update({
-        where: { id },
-        data: { updatedAt: new Date() },
-      });
-
-      return workflow;
-    }).then(async (result) => {
-      // Estrutura de nodes mudou — invalida o cache do gatilho
-      // FIRST_INTERACTION_OF_DAY (pode ter adicionado/removido o nó).
-      if (workflow.trackingId) {
-        const { invalidateReturningTriggerCache } = await import(
-          "@/features/triggers/components/first-interaction-of-day/dispatch"
-        );
-        invalidateReturningTriggerCache(workflow.trackingId);
-      }
-      // Log fora da transaction — best-effort, não trava save.
-      if (workflow.tracking?.organizationId) {
-        await logActivity({
-          organizationId: workflow.tracking.organizationId,
-          userId: context.user.id,
-          userName: context.user.name,
-          userEmail: context.user.email,
-          userImage: (context.user as any).image,
-          appSlug: "tracking",
-          action: "workflow.updated",
-          actionLabel: `Editou a estrutura da automação "${workflow.name}"`,
-          resource: workflow.name,
-          resourceId: workflow.id,
-          metadata: {
-            trackingName: workflow.tracking.name,
-            agentMode: workflow.agentMode,
-            nodesCount: nodes.length,
-            edgesCount: edges.length,
-          },
-        }).catch((e) =>
-          console.warn("[workflow/updateNodes] logActivity failed", e),
-        );
-      }
-      return result;
-    });
   });

@@ -5,7 +5,7 @@ import type { AiModelConfig } from "./model";
 import { loadActiveCatalogOrder } from "@/features/nerp-catalog/lib/order-context";
 import { hasProductCheckCoordinator } from "@/features/nerp-catalog/lib/approvals/product-check";
 import { getActiveProgram } from "@/features/star-friends/lib/program";
-import { parseAiCapabilities } from "./capabilities";
+import { mergeBlockCapabilities, parseAiCapabilities, type BlockAiCapabilities } from "./capabilities";
 import { isAudioTooLong, readAudioTranscription } from "./audio-metadata";
 
 const HISTORY_LIMIT = 20;
@@ -33,7 +33,8 @@ export interface AgentEventData {
   idleMinutes?: number;
 }
 
-export async function loadAgentContext(data: AgentEventData) {
+/** `blockCapabilities`: etapa do FlowAstro com configuração própria (spec 0139, D-14); o número decide só o resto. */
+export async function loadAgentContext(data: AgentEventData, options: { blockCapabilities?: BlockAiCapabilities } = {}) {
   const [
     lead,
     conversation,
@@ -132,7 +133,8 @@ export async function loadAgentContext(data: AgentEventData) {
     hasProductCheckCoordinator(data.organizationId).catch(() => false),
   ]);
 
-  const capabilities = parseAiCapabilities(settings?.capabilities);
+  const funnelCapabilities = parseAiCapabilities(settings?.capabilities);
+  const capabilities = options.blockCapabilities ? mergeBlockCapabilities(funnelCapabilities, options.blockCapabilities) : funnelCapabilities;
   // Agendas liberadas ao agente (spec 0084): nome e id entram no prompt, para ele não precisar perguntar.
   const availableAgendas =
     capabilities.agenda.isEnabled && capabilities.agenda.agendaIds.length > 0

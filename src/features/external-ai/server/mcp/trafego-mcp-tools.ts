@@ -44,7 +44,8 @@ export async function guardTrafegoTool(caller: ExternalAiCaller, work: () => Pro
     if (!caller.scopes.includes(TRAFEGO_SCOPE) || !(await isSystemAdmin(caller.userId))) {
       return asError("Esta chave não tem acesso às ferramentas do trafeGO. Só a equipe do ÓRBITA gera chave com esse escopo.");
     }
-    const limit = takeRateLimit("mcp-trafego", caller.tokenId, RATE_LIMIT);
+    // No OAuth o tokenId é o client_id da IA, igual para todos que usam o mesmo app: o limite é por pessoa.
+    const limit = takeRateLimit("mcp-trafego", `${caller.userId}:${caller.tokenId}`, RATE_LIMIT);
     if (!limit.allowed) return asError(`Muitas chamadas seguidas. Tente de novo em ${Math.ceil(limit.retryAfterSeconds / 60)} min.`);
     return await work();
   } catch (error) {

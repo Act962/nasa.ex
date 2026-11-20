@@ -23,7 +23,7 @@ export function wrongDeviceMessage(mode: CampaignMode): string {
   return `Você não está acessando pelo dispositivo que se cadastrou ${campaignNoun(mode).in}.`;
 }
 
-export function receiptReplyOf(result: RegisterReceiptResult, campaign: ActiveCampaign, starsBalance: number | null): string {
+export function receiptReplyOf(result: RegisterReceiptResult, campaign: ActiveCampaign, starsBalance: number | null = null): string {
   const noun = campaignNoun(campaign.mode);
   switch (result.outcome) {
     case "accepted":

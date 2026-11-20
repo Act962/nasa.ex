@@ -49,6 +49,8 @@ export interface SendButtonsToLeadParams {
   chargeStars?: boolean;
   /** Passo de fluxo que mandou: o chat mostra "Editar gatilho" (spec 0113, RF-20). */
   origin?: FlowMessageOrigin | null;
+  /** Botões de verdade na API oficial mesmo com o interruptor da 0090 desligado (FlowAstro, spec 0139). */
+  forceOfficialInteractive?: boolean;
 }
 
 export async function sendButtonsToLead(
@@ -109,7 +111,7 @@ export async function sendButtonsToLead(
     }
   }
   const sendOfficialInteractive =
-    resolvedProvider && !resolvedProvider.uazapiToken && isMetaInteractiveOn()
+    resolvedProvider && !resolvedProvider.uazapiToken && (isMetaInteractiveOn() || params.forceOfficialInteractive === true)
       ? resolvedProvider.provider.sendInteractive?.bind(resolvedProvider.provider)
       : undefined;
   if (resolvedProvider && sendOfficialInteractive) {

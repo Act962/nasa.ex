@@ -24,7 +24,7 @@ const RANGE_OPTIONS: { key: PerformanceRange; label: string }[] = [
   { key: "last_30d", label: "30 dias" },
 ];
 
-const KPI_TERMS: Record<string, TechnicalTermKey> = {
+export const KPI_TERMS: Record<string, TechnicalTermKey> = {
   conversations: "conversation",
   costPerConversation: "costPerConversation",
   reach: "reach",
@@ -35,7 +35,7 @@ const KPI_TERMS: Record<string, TechnicalTermKey> = {
   frequency: "frequency",
 };
 
-function formatKpi(value: number, format: AccountKpiFormat, currency: string): string {
+export function formatKpi(value: number, format: AccountKpiFormat, currency: string): string {
   if (format === "currency") return formatMoneyFromCents(value, currency);
   if (format === "pct") return `${value.toFixed(2).replace(".", ",")}%`;
   if (format === "decimal") return value.toFixed(2).replace(".", ",");
@@ -151,7 +151,7 @@ export function AccountPerformanceView({ orderId, orderCode }: { orderId: string
         orderCode={orderCode}
         isTruncated={overview.isTruncated}
       />
-      <AccountBreakdownSection orderId={orderId} range={range} currency={currency} />
+      <AccountBreakdownSection source={{ orderId, range }} currency={currency} />
     </div>
   );
 }

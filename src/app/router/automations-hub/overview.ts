@@ -76,7 +76,7 @@ export const getAutomationsOverview = base
 
     const [trackingFlows, workspaceFlows, socialAutomations, leadTriggers, idleAutomations, astroCommands, alertRules] = await Promise.all([
       trackingIds.length > 0
-        ? prisma.workflow.findMany({ where: { trackingId: { in: trackingIds } }, select: flowSelect, orderBy: { updatedAt: "desc" }, take: MAX_ITEMS_PER_ORIGIN })
+        ? prisma.workflow.findMany({ where: { trackingId: { in: trackingIds }, kind: "AUTOMATION" }, select: flowSelect, orderBy: { updatedAt: "desc" }, take: MAX_ITEMS_PER_ORIGIN })
         : [],
       workspaceIds.length > 0
         ? prisma.workflow.findMany({ where: { workspaceId: { in: workspaceIds } }, select: flowSelect, orderBy: { updatedAt: "desc" }, take: MAX_ITEMS_PER_ORIGIN })

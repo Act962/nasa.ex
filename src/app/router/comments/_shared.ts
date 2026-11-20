@@ -80,10 +80,7 @@ export async function withDomainErrors<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-export function webhookUrlFor(
-  provider: string,
-  webhookPathToken: string,
-  headers?: Headers,
-): string {
-  return `${resolvePublicOrigin(headers)}/api/social/webhook/${provider.toLowerCase()}/${webhookPathToken}`;
+/** Uma URL para todas as contas do mesmo app da Meta. A antiga, `/<provider>/<webhookPathToken>`, segue valendo para quem já a configurou. */
+export function sharedWebhookUrlFor(provider: string, headers?: Headers): string {
+  return `${resolvePublicOrigin(headers)}/api/social/webhook/${provider.toLowerCase()}`;
 }

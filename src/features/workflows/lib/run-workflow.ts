@@ -34,6 +34,10 @@ import { isWindowWait, minutesUntilWindowDeadline } from "./window-wait";
 import { findLatestSectionSummary } from "@/features/org-defaults/lib/attendance/section";
 import { describeAppointmentsForFlow } from "@/features/org-defaults/lib/attendance/appointment-context";
 import { isAttendanceStateConfigured } from "@/features/org-defaults/lib/attendance/flag";
+import { RELEASED_LOCK_FIELDS, RUNNING_LOCK_MS, waitingUntilFor } from "@/features/attendance-flows/server/lock";
+import { NO_REPLY_OUTPUT, resolveReplyDeadline } from "@/features/attendance-flows/lib/nodes";
+import { isFlowAstroCondition } from "@/features/attendance-flows/lib/conditions";
+import { flowLog } from "@/features/attendance-flows/lib/flow-log";
 
 // ─── Types ─────────────────────────────────────────
 
@@ -60,6 +64,8 @@ export type RunWorkflowInput = {
    * salvo roda só o que está ligado àquela opção.
    */
   startFrom?: { nodeId: string; output: string };
+  /** Execução já criada (com a trava do lead) pelo roteador do Fluxo de Atendimento (spec 0139, D-3). */
+  attendanceRunId?: string;
   resumeFromRunId?: string;
   resumeQueue?: QueueItem[];
   resumeContext?: WorkflowContext;
@@ -98,6 +104,8 @@ export type SuspendedState = {
   contextSnapshot: WorkflowContext;
   executions: number;
   starsSpent: number;
+  /** Fluxo de Atendimento (spec 0139, D-13): resposta do cliente (evento) ou tempo (agendamento). */
+  waitKind?: "INPUT" | "TIME";
 };
 
 export type NodeExecutionResult = {
@@ -122,6 +130,8 @@ export type NodeExecutor = (params: {
 }) => Promise<NodeExecutionResult>;
 
 // ─── Engine ────────────────────────────────────────
+
+const MAX_ATTENDANCE_EXECUTIONS = 300;
 
 type GraphNode = {
   id: string;
@@ -156,6 +166,7 @@ export async function runWorkflow(
     resumeExecutions,
     resumeStars,
     startFrom,
+    attendanceRunId,
   } = input;
   const isResume = !!resumeFromRunId && !!resumeQueue;
 
@@ -166,6 +177,12 @@ export async function runWorkflow(
   });
   if (!workflow) throw new Error(`Workflow ${workflowId} não encontrado`);
   if (!workflow.isActive && !dryRun) {
+    // Fluxo de Atendimento desligado com o lead dentro: solta a trava, senão as mensagens dele ficariam sem resposta.
+    const lockedRunId = workflow.kind === "ATTENDANCE" ? (attendanceRunId ?? resumeFromRunId) : undefined;
+    if (lockedRunId) {
+      const { endAttendanceRun } = await import("@/features/attendance-flows/server/lock");
+      await endAttendanceRun(lockedRunId, "flow_removed");
+    }
     return { runId: null, status: "SKIPPED", reason: "workflow_inactive" };
   }
   if (!workflow.agentMode) {
@@ -174,8 +191,18 @@ export async function runWorkflow(
     );
   }
 
-  // 2. Rate limit (cap maxRunsPerHour) — só pra runs reais
-  if (!dryRun) {
+  const isAttendanceFlow = workflow.kind === "ATTENDANCE";
+
+  // Equipe assumiu ou tirou o lead do fluxo enquanto ele esperava (spec 0139, RF-11): não retoma.
+  if (isResume && !dryRun) {
+    const pausedRun = await prisma.workflowRun.findUnique({ where: { id: resumeFromRunId! }, select: { status: true } });
+    if (!pausedRun || pausedRun.status === "CANCELED") {
+      return { runId: resumeFromRunId!, status: "CANCELED", reason: "run_canceled" };
+    }
+  }
+
+  // 2. Rate limit (cap maxRunsPerHour) — só pra runs reais. Fluxo de atendimento já é limitado pela trava por lead.
+  if (!dryRun && !isAttendanceFlow) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const recentRuns = await prisma.workflowRun.count({
       where: {
@@ -213,7 +240,17 @@ export async function runWorkflow(
     ? { id: `dry-${Date.now()}` }
     : isResume
       ? { id: resumeFromRunId! }
-      : await prisma.workflowRun.create({
+      : attendanceRunId
+        ? await prisma.workflowRun.update({
+            where: { id: attendanceRunId },
+            data: {
+              initialContext: JSON.parse(
+                JSON.stringify({ lead: lead ? sanitizeForJson(lead) : null, trigger: triggerPayload ?? null, vars: initialVars ?? null }),
+              ),
+            },
+            select: { id: true },
+          })
+        : await prisma.workflowRun.create({
           data: {
             workflowId,
             leadId: leadId ?? null,
@@ -238,9 +275,19 @@ export async function runWorkflow(
   if (isResume && !dryRun) {
     await prisma.workflowRun.update({
       where: { id: run.id },
-      data: { status: "RUNNING" },
+      data: {
+        status: "RUNNING",
+        ...(isAttendanceFlow ? { currentNodeId: null, waitingFor: null, waitingUntil: new Date(Date.now() + RUNNING_LOCK_MS) } : {}),
+      },
     });
   }
+
+  // FlowAstro: uma linha por passo no terminal, para seguir o lead (spec 0139).
+  const nodeNameById = new Map(workflow.nodes.map((graphNode) => [graphNode.id, graphNode.name]));
+  const logStep = (event: string, fields: Record<string, string | number | boolean | null | undefined>) => {
+    if (isAttendanceFlow && !dryRun) flowLog(event, { run: run.id, lead: leadId, ...fields });
+  };
+  logStep(isResume ? "run.resumed" : "run.started", { flow: workflow.name, queue: isResume ? resumeQueue!.length : undefined });
 
   // 5. Encontra trigger-nodes que casam com triggerType
   const triggerNodes = workflow.nodes.filter((n) => n.type === triggerType);
@@ -263,6 +310,7 @@ export async function runWorkflow(
       await prisma.workflowRun.update({
         where: { id: run.id },
         data: {
+          ...RELEASED_LOCK_FIELDS,
           status: "FAILED",
           errorMessage,
           finishedAt: new Date(),
@@ -300,7 +348,7 @@ export async function runWorkflow(
   // 7. Executa caminhos. Resume reidrata estado; nova execução inicia do trigger.
   // Execução retomada de antes do deploy não tinha `workflowId`: a origem das mensagens vem dele (spec 0113).
   let ctx: WorkflowContext = isResume
-    ? { ...resumeContext!, workflowId }
+    ? { ...resumeContext!, workflowId, ...(isAttendanceFlow ? { flowKind: "ATTENDANCE" as const } : {}) }
     : createInitialContext({
         lead: lead
           ? (sanitizeForJson(lead) as Record<string, unknown>)
@@ -313,6 +361,7 @@ export async function runWorkflow(
           ...initialVars,
         },
         workflowId,
+        ...(isAttendanceFlow ? { flowKind: "ATTENDANCE" as const } : {}),
       });
   let executions = isResume ? resumeExecutions ?? 0 : 0;
   let totalStars = isResume ? resumeStars ?? 0 : 0;
@@ -332,24 +381,28 @@ export async function runWorkflow(
       ? (adjBy.get(startFrom.nodeId)?.get(startFrom.output) ?? []).map((nodeId) => ({ nodeId }))
       : triggerNodes.map((n) => ({ nodeId: n.id }));
 
+  // Conversa de atendimento volta ao menu várias vezes: o teto por execução é maior (spec 0139).
+  const maxExecutions = isAttendanceFlow ? MAX_ATTENDANCE_EXECUTIONS : MAX_EXECUTIONS_PER_RUN;
   while (queue.length > 0) {
-    if (executions >= MAX_EXECUTIONS_PER_RUN) {
+    if (executions >= maxExecutions) {
+      logStep("run.max_executions", { max: maxExecutions });
       log.push({
         nodeId: "<engine>",
         type: "ENGINE",
         chosenOutput: "main",
         output: null,
         status: "FAILED",
-        errorMessage: `Cap de ${MAX_EXECUTIONS_PER_RUN} node-executions atingido — possível loop infinito.`,
+        errorMessage: `Cap de ${maxExecutions} node-executions atingido — possível loop infinito.`,
       });
       if (!dryRun) {
         await prisma.workflowRun.update({
           where: { id: run.id },
           data: {
+            ...RELEASED_LOCK_FIELDS,
             status: "MAX_EXECUTIONS_HIT",
             nodesExecuted: executions,
             starsSpent: totalStars,
-            errorMessage: `Cap de ${MAX_EXECUTIONS_PER_RUN} execuções atingido.`,
+            errorMessage: `Cap de ${maxExecutions} execuções atingido.`,
             finishedAt: new Date(),
           },
         });
@@ -371,12 +424,34 @@ export async function runWorkflow(
     // agora só escolhe por qual saída seguir, sem enviar de novo.
     if (cur.buttonReplyIds) {
       const vars = (ctx.vars as Record<string, unknown> | undefined) ?? {};
+      const hasTimedOut = vars.lastWaitTimedOut === true;
+      // FlowAstro: digitar outra coisa segue por "Próximo passo"; o prazo vencido tem saída própria, e sem prazo o fluxo
+      // do lead termina em silêncio (spec 0139, D-13).
+      if (isAttendanceFlow && hasTimedOut) {
+        const replyPayload = (((node.data.action as Record<string, unknown> | undefined)?.payload ?? {}) as Record<string, unknown>);
+        if (!resolveReplyDeadline(replyPayload.replyTimeoutMinutes).hasDeadline) {
+          log.push({ nodeId: node.id, type: node.type, chosenOutput: "expired", output: { resumedBy: "expired" }, status: "SUCCESS" });
+          logStep("node.reply_expired", { node: nodeNameById.get(node.id), type: node.type, action: "end_flow" });
+          queue.length = 0;
+          break;
+        }
+        log.push({ nodeId: node.id, type: node.type, chosenOutput: NO_REPLY_OUTPUT, output: { resumedBy: NO_REPLY_OUTPUT }, status: "SUCCESS" });
+        logStep("node.reply_expired", { node: nodeNameById.get(node.id), type: node.type, out: NO_REPLY_OUTPUT });
+        for (const nextId of adjBy.get(node.id)?.get(NO_REPLY_OUTPUT) ?? []) queue.push({ nodeId: nextId });
+        continue;
+      }
       const replyOutput = chooseButtonReplyOutput({
         sentButtonIds: cur.buttonReplyIds,
-        hasTimedOut: vars.lastWaitTimedOut === true,
+        hasTimedOut,
         clickedButtonId: (vars.lastEvent as { interactiveReplyId?: unknown } | undefined)?.interactiveReplyId,
       });
       log.push({ nodeId: node.id, type: node.type, chosenOutput: replyOutput, output: { resumedBy: replyOutput }, status: "SUCCESS" });
+      logStep("node.button_reply", {
+        node: nodeNameById.get(node.id),
+        clicked: String((vars.lastEvent as { interactiveReplyId?: unknown } | undefined)?.interactiveReplyId ?? ""),
+        out: replyOutput,
+        next: (adjBy.get(node.id)?.get(replyOutput) ?? []).length,
+      });
       for (const nextId of adjBy.get(node.id)?.get(replyOutput) ?? []) queue.push({ nodeId: nextId });
       continue;
     }
@@ -396,6 +471,14 @@ export async function runWorkflow(
       output: result.output,
       status: result.status ?? "SUCCESS",
       errorMessage: result.errorMessage,
+    });
+    logStep(result.status === "FAILED" ? "node.failed" : "node.done", {
+      node: nodeNameById.get(node.id),
+      type: node.type,
+      status: result.status ?? "SUCCESS",
+      out: result.chosenOutput ?? "main",
+      error: result.errorMessage,
+      detail: isAttendanceFlow && result.output && typeof result.output === "object" ? JSON.stringify(result.output).slice(0, 200) : undefined,
     });
 
     if (!dryRun) {
@@ -473,16 +556,20 @@ export async function runWorkflow(
           1440,
       );
 
+      // Espera por tempo é só o bloco Atraso; todo o resto que para espera a resposta do cliente (spec 0139, D-13).
+      const waitKind: "INPUT" | "TIME" = node.type === "WAIT" ? "TIME" : "INPUT";
       await prisma.workflowRun.update({
         where: { id: run.id },
         data: {
           status: "SUSPENDED",
+          ...(isAttendanceFlow ? { currentNodeId: node.id, waitingUntil: waitingUntilFor(timeoutMinutes), waitingFor: waitKind } : {}),
           nodesExecuted: executions,
           starsSpent: totalStars,
           errorMessage: `Aguardando eventos [${eventNames.join(", ")}] (timeout ${timeoutMinutes} min)`,
         },
       });
 
+      logStep("run.suspended", { node: nodeNameById.get(node.id), type: node.type, waitFor: waitKind, timeoutMin: timeoutMinutes, resumeSameNode: remainingQueue[0]?.nodeId === node.id });
       return {
         runId: run.id,
         status: "SUSPENDED",
@@ -498,12 +585,20 @@ export async function runWorkflow(
           contextSnapshot: pendingCtx,
           executions,
           starsSpent: totalStars,
+          ...(isAttendanceFlow ? { waitKind } : {}),
         } as SuspendedState,
       };
     }
 
     totalStars += result.starsSpent ?? 0;
     ctx = mergeOutputInto(ctx, node.id, result.output);
+
+    // "Finalizar" encerra o fluxo do lead inteiro, inclusive caminhos paralelos (spec 0139, RF-10).
+    if (isEndFlowOutput(result.output)) {
+      logStep("run.end_flow_block", { node: nodeNameById.get(node.id) });
+      queue.length = 0;
+      break;
+    }
 
     // Enfileira próximos nodes pela branch escolhida
     const chosen = result.chosenOutput ?? "main";
@@ -523,10 +618,12 @@ export async function runWorkflow(
     }
   }
 
+  logStep("run.finished", { executions, stars: totalStars });
   if (!dryRun) {
     await prisma.workflowRun.update({
       where: { id: run.id },
       data: {
+        ...RELEASED_LOCK_FIELDS,
         status: "SUCCESS",
         nodesExecuted: executions,
         starsSpent: totalStars,
@@ -572,6 +669,7 @@ async function executeNode(params: {
     node.type === "WEBHOOK_EXTERNAL" ||
     node.type === "SCHEDULE_TRIGGER" ||
     node.type === "COMPLIANCE_ITEM_DUE" ||
+    node.type === "ATTENDANCE_START" ||
     node.type === "WS_INITIAL" ||
     node.type === "WS_MANUAL_TRIGGER" ||
     node.type === "WS_ACTION_CREATED" ||
@@ -590,6 +688,12 @@ async function executeNode(params: {
   // Built-in: nodes de lógica não precisam de executor externo
   switch (node.type) {
     case "IF_CONDITION": {
+      // Bloco Condição do FlowAstro (spec 0139): regras de etiqueta, dia, hora e campos lidas do banco na hora.
+      if (isFlowAstroCondition(node.data)) {
+        const { evaluateFlowAstroCondition } = await import("@/features/attendance-flows/server/conditions");
+        const evaluation = await evaluateFlowAstroCondition(node.data, context);
+        return { output: { passed: evaluation.passed, results: evaluation.results }, chosenOutput: evaluation.passed ? "true" : "false" };
+      }
       const conditions = (node.data.conditions as Condition[]) ?? [];
       const combinator = (node.data.combinator as "AND" | "OR") ?? "AND";
       const result = evaluateConditionGroup(context, conditions, combinator);
@@ -711,6 +815,10 @@ async function executeNode(params: {
       }
     }
   }
+}
+
+function isEndFlowOutput(output: unknown): boolean {
+  return Boolean(output && typeof output === "object" && (output as { endFlow?: unknown }).endFlow === true);
 }
 
 function mergeOutputInto(

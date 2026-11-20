@@ -11,6 +11,7 @@ import { LeadContext } from "../../schemas";
 import { sendTextMessage } from "./message/send-text-message";
 import { sendImageMessage } from "./message/send-image";
 import { sendDocumentMessage } from "./message/send-document";
+import { sendAudioMessage } from "./message/send-audio";
 import { sendButtonsOrList, sendItemsAsList } from "@/http/uazapi/send-menu";
 import {
   isLeadWindowOpen,
@@ -308,6 +309,19 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             origin: flowOrigin,
           });
           break;
+        case "AUDIO": {
+          const audioUrl = data.action?.payload.audioUrl || "";
+          if (!audioUrl) throw new NonRetriableError("Áudio não escolhido no passo.");
+          await sendAudioMessage({
+            conversationId,
+            leadPhone: phone,
+            provider: resolved.provider,
+            mediaUrl: audioUrl,
+            fileName: data.action?.payload.fileName || "",
+            origin: flowOrigin,
+          });
+          break;
+        }
         case "BUTTONS": {
           // Resolve preset OU inline. Preset: lê AiButtonPreset do banco
           // (validação de tracking-scope já foi feita pela UI). Inline:

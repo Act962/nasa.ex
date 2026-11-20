@@ -19,6 +19,12 @@ const CONTROL_NODE_TYPES = new Set([
   "AI_DECISION",
   // FILTER_LEAD legado também serve como saída condicional
   "FILTER_LEAD",
+  // Fluxo de Atendimento (spec 0139): sempre esperam o cliente antes de seguir.
+  "ASK_QUESTION",
+  "AI_AGENT",
+  // Promoção STAR FRIENDS (spec 0140): Inscrever e Consultar esperam o cliente.
+  "PROMO_ENROLL",
+  "PROMO_LOOKUP",
 ]);
 
 export type GraphNode = { id: string; type: string };

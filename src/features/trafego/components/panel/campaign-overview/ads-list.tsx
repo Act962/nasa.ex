@@ -94,12 +94,15 @@ export function AdsList({
   canFix,
   isQualityScoreVisible,
 }: {
-  orderId: string;
+  /** Sem pedido (visão da conta inteira) não há correção pelo painel. */
+  orderId: string | null;
   ads: AdRow[];
   currency: string;
   canFix: boolean;
   isQualityScoreVisible: boolean;
 }) {
+  const fixOrderId = orderId ?? "";
+  const isFixAvailable = canFix && Boolean(orderId);
   return (
     <>
       <div className="space-y-3 md:hidden">
@@ -123,7 +126,7 @@ export function AdsList({
                   <dt className="truncate text-[11px] text-muted-foreground">{definition.label}</dt>
                   <dd className="flex items-baseline gap-1 truncate text-sm font-semibold tabular-nums">
                     {formatMetric(ad.metrics, definition, currency)}
-                    <IndicatorPopover orderId={orderId} ad={ad} metric={definition.key} canFix={canFix} isEnabled={isQualityScoreVisible} />
+                    <IndicatorPopover orderId={fixOrderId} ad={ad} metric={definition.key} canFix={isFixAvailable} isEnabled={isQualityScoreVisible} />
                   </dd>
                 </div>
               ))}
@@ -170,7 +173,7 @@ export function AdsList({
                 {AD_METRICS.map((definition) => (
                   <td key={definition.key} className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
                     <span className="inline-flex items-baseline gap-1">
-                      <IndicatorPopover orderId={orderId} ad={ad} metric={definition.key} canFix={canFix} isEnabled={isQualityScoreVisible} />
+                      <IndicatorPopover orderId={fixOrderId} ad={ad} metric={definition.key} canFix={isFixAvailable} isEnabled={isQualityScoreVisible} />
                       {formatMetric(ad.metrics, definition, currency)}
                     </span>
                   </td>

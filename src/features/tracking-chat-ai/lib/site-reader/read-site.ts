@@ -1,7 +1,7 @@
 import "server-only";
 import { fetchPublicPage } from "./fetch-page";
 import { extractPageLinks, extractPageText, extractPageTitle, type PageLink } from "./html-text";
-import { parsePublicSiteUrl, siteKey } from "./safe-address";
+import { parsePublicSiteUrl, siteKey } from "@/lib/safe-public-url";
 
 const MAX_INNER_PAGES = 7;
 const MAX_PAGE_CHARS = 12_000;

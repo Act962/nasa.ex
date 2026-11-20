@@ -5,7 +5,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { meter } from "@/features/stars/lib/metering";
 import { ASTRO_WRITE_DENIAL } from "@/features/astro/lib/permission-denial";
 import { readSite } from "@/features/tracking-chat-ai/lib/site-reader/read-site";
-import { UnsafeSiteAddressError, parsePublicSiteUrl, siteKey } from "@/features/tracking-chat-ai/lib/site-reader/safe-address";
+import { UnsafeSiteAddressError, parsePublicSiteUrl, siteKey } from "@/lib/safe-public-url";
 import { extractAttendanceDraft } from "@/features/tracking-chat-ai/lib/attendance-setup/extract-draft";
 import { applyAttendanceDraft } from "@/features/tracking-chat-ai/lib/attendance-setup/apply-draft";
 import { attendanceDraftSchema, pickAssistantName, type AttendanceDraft } from "@/features/tracking-chat-ai/lib/attendance-setup/draft";

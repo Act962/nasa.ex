@@ -45,6 +45,8 @@ import { seiActionAgentExecutor } from "./agent-executors/sei";
 import { notifyTeamExecutor } from "./agent-executors/notify-team";
 import { filterLeadAgentExecutor } from "./agent-executors/filter-lead";
 import { runClassicNodeInAgentMode } from "./agent-executors/classic-node";
+import { ATTENDANCE_EXECUTORS } from "@/features/attendance-flows/server/executors";
+import { PROMO_EXECUTORS } from "@/features/attendance-flows/server/promo-executors";
 import { executorRegistry as classicExecutorRegistry } from "@/features/tracking-executions/lib/executor-registry";
 import {
   catalogOrderActionExecutor,
@@ -102,6 +104,9 @@ export function getAgentExecutorRegistry(): Map<string, NodeExecutor> {
     ["CATALOG_ORDER_ACTION", catalogOrderActionExecutor],
     // Gatilho da aba Contábil (spec 0051)
     ["COMPLIANCE_ITEM_DUE", complianceItemDueTriggerExecutor],
+    // Fluxo de Atendimento (spec 0139)
+    ...ATTENDANCE_EXECUTORS,
+    ...PROMO_EXECUTORS,
   ]);
 
   // Paridade com o modo normal (spec 0112): passo do motor clássico sem versão própria aqui roda

@@ -38,7 +38,6 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { assignLeadRoundRobin } from "@/http/rodizio/create-lead";
 import { LeadSource } from "@/generated/prisma/enums";
 import type { WorkflowLeadMessage } from "@/features/tracking-executions/lib/lead-message";
-import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
 import { findActiveCampaign } from "@/features/star-friends/lib/campaign/campaign";
 import { recordLeadOriginFromLead } from "@/features/leads/lib/lead-origin/record-lead-origin";
 
@@ -79,6 +78,8 @@ export interface FirePostInboundParams {
   isButtonClick?: boolean;
   /** Eco de mensagem que a própria plataforma enviou (IA, fluxo, mensagem fixa): não é fala de atendente. */
   isPlatformEcho?: boolean;
+  /** O Fluxo de Atendimento pegou a mensagem: IA, inatividade e gatilhos de conversa ficam de fora (spec 0139, RF-6). */
+  isHandledByAttendanceFlow?: boolean;
   /** Hora da mensagem no provedor; ausente usa a hora do processamento. */
   messageAt?: Date;
   /** Dados serializáveis pro Pusher per-conversation event. */
@@ -172,9 +173,11 @@ export async function firePostInboundAutomations(
 
   // A IA está calada porque um atendente falou há pouco: se ele sumir, uma checagem no fim do prazo a traz de
   // volta. Só na primeira mensagem da espera, e só se a resposta humana pode estar dentro do prazo máximo.
+  const isHandledByAttendanceFlow = params.isHandledByAttendanceFlow === true;
   if (
     inboundWait?.isFirstOfWait &&
     params.globalAiActive &&
+    !isHandledByAttendanceFlow &&
     isHumanReplyRecent(inboundWait.lastHumanReplyAt, now, MAX_IN_SERVICE_AI_MINUTES)
   ) {
     await scheduleHumanAbsentCheck({
@@ -209,7 +212,7 @@ export async function firePostInboundAutomations(
         wasAwaitingReply: awaitingState?.isAwaitingReply ?? false,
         isAttendanceStateManaged,
       });
-      if (isAttendanceStateManaged) {
+      if (isAttendanceStateManaged && !isHandledByAttendanceFlow) {
         await applyClientMessageAttendance({
           leadId: params.lead.id,
           messageId: params.messageId,
@@ -308,6 +311,7 @@ export async function firePostInboundAutomations(
   if (
     !params.fromMe &&
     params.globalAiActive &&
+    !isHandledByAttendanceFlow &&
     (isLeadAiActiveNow || params.isButtonClick || hasActiveCampaign) &&
     params.lead.conversation?.id
   ) {
@@ -334,11 +338,8 @@ export async function firePostInboundAutomations(
     }
   }
 
-  // ── 4b. Métricas do lead (spec 0035) — entrada e saída ──────────────
-  await requestLeadMetricsRecompute(params.lead.id);
-
   // ── 5. Idle automation (só inbound) ──────────────────────────────────
-  if (!params.fromMe) {
+  if (!params.fromMe && !isHandledByAttendanceFlow) {
     try {
       const { dispatchIdleActivityIfActive } = await import(
         "@/features/tracking-settings/lib/idle-automation-gate"
@@ -356,7 +357,7 @@ export async function firePostInboundAutomations(
   // ── 5b. Primeira interação do dia (só inbound) ───────────────────────
   // Usa `params.lead.lastInboundAt` = valor ANTERIOR (snapshot carregado
   // antes do update da etapa 1) pra detectar lead que volta após dias.
-  if (!params.fromMe) {
+  if (!params.fromMe && !isHandledByAttendanceFlow) {
     try {
       const { dispatchFirstInteractionOfDayIfReturning } = await import(
         "@/features/triggers/components/first-interaction-of-day/dispatch"

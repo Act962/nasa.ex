@@ -41,7 +41,8 @@ src/modules/social/
 ├─ ports/        channel-gateway · inbound-translator · repositories
 │                ai-reply-generator
 ├─ application/  handle-inbound-event · connect-channel · activate-automation
-├─ infra/        instagram/{graph-channel-gateway,webhook-translator}
+├─ infra/        instagram/{graph-channel-gateway,facebook-graph-channel-gateway,
+│                meta-login-channel-gateway,webhook-translator}
 │                prisma-{channel,automation,event}-repository
 │                credential-cipher · schemas · stars-ai-reply-generator
 └─ index.ts      composition root
@@ -62,7 +63,8 @@ src/modules/social/
 
 | Rota | Papel |
 | --- | --- |
-| `POST/GET /api/social/webhook/instagram/[token]` | Webhook, **um endpoint por conexão** |
+| `POST/GET /api/social/webhook/instagram` | Webhook **único** das contas do passo a passo: uma URL para todas as contas do mesmo app da Meta. Conta achada pelo `entry.id`, assinatura conferida com o App Secret dela (`features/comments/server/instagram-app-webhook.ts`). Chave errada de uma conta responde 200 e só registra no log, para a Meta não desligar a URL do app. `GET` limitado a 10 por minuto por IP. É a URL que o guia mostra |
+| `POST/GET /api/social/webhook/instagram/[token]` | Webhook antigo, **um endpoint por conexão**. Mantido para quem já configurou. A assinatura é conferida com a chave da conta da URL (401 se não bater) e os eventos vão para a conta do `entry.id`, como na URL única |
 | `src/app/router/social-accounts/index.ts` | Contas da organização (spec 0069): listar, conectar, reconectar, desativar, reativar, reenviar inscrição, `webhookSetup` (URL + verify token, só admin), conectar pela Meta |
 | `src/app/router/comments/channel.ts` | O que o Comments lê **de uma conta**: publicações e tracking de leads. Toda procedure recebe `channelId` |
 | `src/app/router/comments/automations.ts` | CRUD, salvar gatilho, ativar, histórico. Listar e criar recebem `channelId` |
@@ -112,7 +114,7 @@ Sem contadores denormalizados: `sentCount` é derivado dos runs.
 | Credenciais | `accessToken`, `appSecret`, `verifyToken` cifrados (AES-256-GCM, `AI_SECRETS_KEY`). UI só vê `••••1234` |
 | Assinatura | `x-hub-signature-256` sobre o **raw body**, `timingSafeEqual`, fail-closed |
 | Handshake | `hub.verify_token` comparado ao da conexão daquele token de URL |
-| Tenancy | `findByWebhookPathToken` é a **única** leitura sem escopo; dela nasce o `TenantScope` |
+| Tenancy | As leituras sem escopo ficam todas em `PrismaChannelLookupRepository`: `findByWebhookPathToken`, `findByExternalAccountId`/`findManyByExternalAccountIds` (conta do `entry.id`; o `TenantScope` nasce da linha) e `hasManualVerifyToken` (só devolve sim/não) |
 | Conta duplicada | `@@unique([provider, external_account_id])` impede duas orgs na mesma conta |
 | Papel | Conectar/desconectar exige owner ou admin |
 | Desconectar | **Desativa, não apaga.** `SocialAutomation`/`SocialContact`/`SocialInboundEvent` cascateiam do canal — deletar a linha destruía a configuração do usuário. Também preserva o `webhook_path_token`, mantendo válida a URL já registrada na Meta |
@@ -227,6 +229,8 @@ cria lead, o outro responde. Sem dedupe entre sistemas nesta fase.
 
 | Data | Mudança |
 | --- | --- |
+| 2026-11-16 | **URL única do webhook para várias contas no mesmo app** (spec 0024, D-11 revista): a Meta aceita uma URL por app, então com várias contas manuais no mesmo app só a dona da URL recebia eventos. Nova rota `/api/social/webhook/instagram` roteia pelo `entry.id` e confere a assinatura com o App Secret da conta; o `GET` aceita o verify token de qualquer conta manual ativa. O guia mostra a URL única; a URL por conexão segue valendo e também passa a entregar as outras contas do mesmo app. Despacho por conta compartilhado pelas três rotas (`instagram-event-dispatch.ts`): uma consulta por lote, até 50 contas por entrega, falha de uma conta não derruba as outras |
+| 2026-11-09 | **Passo a passo aceita token do Facebook** (`EAA...`): app criado na Meta com "API setup with Unified login" não mostra a chave do app do Instagram nem gera token `IGAA...`. Com token `EAA`, a conta usa `FacebookGraphInstagramChannelGateway` (graph.facebook.com, perfil por `/{ig-id}`), o publicador e as consultas do Chat vão para graph.facebook.com e a renovação `ig_refresh_token` é pulada. A chave secreta, nesse caso, é a de Configurações do app → Básico. Envio de DM e assinatura do webhook nesse modo ainda não conferidos em produção |
 | 2026-10-05 | **Conta conectada pelo formulário também alimenta o Chat** (spec 0062, changelog): o webhook por conexão passa a ponte `ingestInstagramEventToChat`; perfil e mídia consultados em `graph.instagram.com` quando a conta usa o token do app do Instagram. O ícone do Instagram na fileira de canais do Chat deixou de depender da marcação do catálogo guardada no navegador |
 | 2026-10-05 | **Contas ganham capacidades e validade do token** (spec 0071): `social_channels.can_publish`, `can_read_insights` e `credentials_expires_at`. Conferidas ao conectar, ao trocar a credencial, em "conferir de novo" (`socialAccounts.recheckCapabilities`) e na rotina diária `social-channels-daily-maintenance`, que também renova o token do app do Instagram a 10 dias de vencer. Credencial recusada vira `NEEDS_RECONNECT` com notificação para owners e admins. Guia de conexão pede também a permissão de insights |
 | 2026-10-05 | **`social_channels.brand_kit_id`** (spec 0070): qual Kit da Marca do Planner os posts da conta usam; nulo = kit padrão da empresa. O módulo `social` só transporta o campo (`ChannelSummary.brandKitId`); quem lê e grava é o Planner (`features/nasa-planner/server/brand-kit/brand-kits.ts`). O cartão da conta mostra o kit e leva à aba do Planner para trocar |

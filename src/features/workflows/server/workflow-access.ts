@@ -10,12 +10,13 @@ export async function canAccessWorkflow(workflowId: string, userId: string): Pro
     where: { id: workflowId },
     select: {
       userId: true,
+      organizationId: true,
       tracking: { select: { organizationId: true } },
       workspace: { select: { organizationId: true } },
     },
   });
   if (!workflow) return false;
-  const organizationId = workflow.tracking?.organizationId ?? workflow.workspace?.organizationId;
+  const organizationId = workflow.organizationId ?? workflow.tracking?.organizationId ?? workflow.workspace?.organizationId;
   // Fluxo solto, sem funil nem workspace: só quem criou.
   if (!organizationId) return workflow.userId === userId;
   const membership = await prisma.member.findFirst({ where: { organizationId, userId }, select: { id: true } });
@@ -64,15 +65,22 @@ export async function checkWorkflowAccess(workflowId: string, userId: string, ac
     where: { id: workflowId },
     select: {
       userId: true,
+      organizationId: true,
       tracking: { select: { organizationId: true } },
       workspace: { select: { organizationId: true } },
     },
   });
   if (!workflow) return "not-found";
+  // Fluxo do FlowAstro: da empresa, sem funil (spec 0139, D-11). Vale a permissão de Automações do Tracking.
+  if (workflow.organizationId) return checkOrganizationAutomations(workflow.organizationId, userId, "tracking-automacoes", action);
   if (workflow.tracking) return checkOrganizationAutomations(workflow.tracking.organizationId, userId, "tracking-automacoes", action);
   if (workflow.workspace) return checkOrganizationAutomations(workflow.workspace.organizationId, userId, "workspace-automacoes", action);
   // Fluxo solto, sem funil nem workspace: só quem criou.
   return workflow.userId === userId ? "allowed" : "not-found";
+}
+
+export async function checkOrganizationAttendanceAccess(organizationId: string, userId: string, action: AutomationAction): Promise<AutomationAccess> {
+  return checkOrganizationAutomations(organizationId, userId, "tracking-automacoes", action);
 }
 
 export async function checkTrackingAutomationsAccess(trackingId: string, userId: string, action: AutomationAction): Promise<AutomationAccess> {

@@ -118,6 +118,7 @@ export const callWorkflowExecutor: NodeExecutor = async ({
       name: true,
       agentMode: true,
       isActive: true,
+      organizationId: true,
       tracking: { select: { organizationId: true } },
       nodes: { select: { id: true, type: true } },
       connections: { select: { toNodeId: true } },
@@ -131,11 +132,12 @@ export const callWorkflowExecutor: NodeExecutor = async ({
     };
   }
   // O id do fluxo de destino vem do desenho, que qualquer editor do funil pode alterar: só vale
-  // fluxo da mesma empresa do lead (spec 0092).
+  // fluxo da mesma empresa do lead (spec 0092). Fluxo do FlowAstro é da empresa, sem funil (spec 0139, D-11).
   const leadTrackingId = typeof context.lead?.trackingId === "string" ? (context.lead.trackingId as string) : null;
-  if (leadTrackingId && subWorkflow.tracking?.organizationId) {
+  const subWorkflowOrganizationId = subWorkflow.organizationId ?? subWorkflow.tracking?.organizationId ?? null;
+  if (leadTrackingId && subWorkflowOrganizationId) {
     const leadTracking = await prisma.tracking.findUnique({ where: { id: leadTrackingId }, select: { organizationId: true } });
-    if (leadTracking && leadTracking.organizationId !== subWorkflow.tracking.organizationId) {
+    if (leadTracking && leadTracking.organizationId !== subWorkflowOrganizationId) {
       return {
         output: { error: `Workflow ${workflowId} não encontrado` },
         status: "FAILED",
