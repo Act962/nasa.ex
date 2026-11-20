@@ -752,7 +752,11 @@ export function Footer({
           kind: "conversation",
           leadId: lead.id,
           leadPhone: lead.phone ?? null,
-          sendBlockedReason: isTextDisabled ? "Nenhum número conectado: use \"Só gerar\" e copie o link." : null,
+          sendBlockedReason: isTextDisabled
+            ? "Nenhum número conectado: o recibo é gerado e você copia o link."
+            : outsideWindow
+              ? "Fora da janela de 24h do WhatsApp: o recibo é gerado e você copia o link."
+              : null,
           onSendText: (body) => mutation.mutateAsync({ body, leadPhone: lead.phone, conversationId }),
         }}
       />

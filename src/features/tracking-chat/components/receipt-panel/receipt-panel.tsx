@@ -93,7 +93,8 @@ function ReceiptForm({
           number: sale.number,
           url: `${window.location.origin}/proposta/${sale.publicToken}/recibo`,
           clientName: draft.client.name,
-          whatsappPhone: isStandalone ? draft.client.phone : null,
+          // No chat o link vai na própria conversa; no avulso, só se a conversa estiver na janela de 24h.
+          openWhatsapp: isStandalone ? sale.openWhatsapp : null,
         };
         if (sale.isDuplicate) toast.info("Essa venda já tinha sido registrada agora há pouco.");
         if (!shouldSend || sale.isDuplicate || mode.kind !== "conversation") {
@@ -127,7 +128,7 @@ function ReceiptForm({
         <div className="space-y-5 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">Cliente</h3>
-            {isStandalone ? (
+            {isStandalone || sendBlockedReason ? (
               <p className="text-xs text-muted-foreground">Se o número já for de um cliente, o recibo vai para ele; senão, o cliente entra no funil.</p>
             ) : null}
             <ReceiptClientFields

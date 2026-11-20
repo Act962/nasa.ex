@@ -45,6 +45,8 @@ No chat de um lead, o atendente toca em "Recibo", confere ou ajusta os dados, to
 | RF-7 | Prévia do recibo atualizada enquanto edita (abaixo no celular, ao lado no computador). |
 | RF-8 | "Gerar e enviar": registra a venda pela mesma rota da 0148 e envia na conversa a mensagem "Olá, {primeiro nome}! Segue o seu recibo: {link}". Botão secundário "Só gerar", que registra e mostra o link sem enviar. |
 | RF-10 | Recibo avulso: no celular, o menu redondo do chat troca "Gatilhos" (que já existe no topo do chat) por "Recibo". Abre a mesma tela vazia, com nome e WhatsApp obrigatórios; número que já é de um lead leva a venda para ele, número novo cria o lead no tracking aberto. Ao gerar, mostra o link com "Copiar link" e "Enviar no WhatsApp". |
+| RF-11 | Recibo emitido entra no Financeiro como conta a receber **paga** (valor, data, forma de pagamento e link nas observações, ligada ao lead e ao funil), com o PDF do recibo nos comprovantes (tipo Recibo). Vale para todo recibo (chat, avulso e "Registrar venda" do Forge). Roda depois da resposta; se falhar, a venda continua. Idempotente pelo nº do documento ("Recibo 0012"). |
+| RF-12 | Envio pelo WhatsApp só dentro da janela de 24h. No avulso, "Enviar por WhatsApp" (pelo número da empresa, na conversa do lead) só aparece se o lead tem conversa de WhatsApp com mensagem dele nas últimas 24h; senão, só "Copiar link". No chat de número oficial fora da janela, "Gerar e enviar" vira "Gerar recibo" e mostra o link para copiar. |
 | RF-9 | Se o envio falhar (ex.: fora da janela de 24 h no número oficial), a venda continua registrada e a tela mostra o link com "Copiar link", explicando que a mensagem não foi. |
 
 ## 4. Critérios de aceite
@@ -78,7 +80,7 @@ No chat de um lead, o atendente toca em "Recibo", confere ou ajusta os dados, to
 
 ### Impacto
 
-- Sem tabela nova e sem migration. Sem função nova no Inngest e sem variável de ambiente.
+- Sem tabela nova e sem migration. Sem função nova no Inngest e sem variável de ambiente. O lançamento no Financeiro usa `after()` do Next (depois da resposta), não Inngest. `@react-pdf/renderer` (já no projeto) passa a rodar no servidor e entrou em `serverExternalPackages` (Regra 24f).
 - `forge.sales.register` passa a aceitar, em cada item, ou `productId` ou `{ name }` (produto digitado), e opcionalmente `leadId` para ligar direto ao lead da conversa em vez de procurar pelo telefone.
 - Componente novo no chat: `tracking-chat/components/receipt-panel/` (formulário e prévia). Reaproveita a prévia do recibo da 0148.
 - Guia do Astro: âncora no item "Recibo" do menu e no botão "Gerar e enviar" (Regra 21).
@@ -89,3 +91,4 @@ No chat de um lead, o atendente toca em "Recibo", confere ou ajusta os dados, to
 - 2026-11-20: implementada. WhatsApp fica só para leitura na tela (é o número da conversa; trocar mudaria para quem o recibo vai). Item digitado mostra sugestões do catálogo enquanto escreve; escolher uma liga o item ao produto existente.
 - 2026-11-20: ajuste do Weydson após teste. Telefone vem do cadastro do lead e, se vazio, pode ser digitado (decisão: gravar no próprio lead em vez de criar outro). Campo de item vira busca no catálogo, com aviso quando o nome não existe e vai ser criado.
 - 2026-11-20: RF-10, recibo avulso pelo menu redondo do chat no celular, no lugar de Gatilhos (decisão do Weydson: o componente tem 4 posições fixas usadas em 30 telas).
+- 2026-11-20: RF-11 (recibo = venda paga no Financeiro, com PDF nos comprovantes) e RF-12 (WhatsApp só na janela de 24h; fora dela, só copiar link), pedidos do Weydson. O "Enviar no WhatsApp" pelo wa.me saiu do avulso.

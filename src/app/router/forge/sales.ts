@@ -10,6 +10,10 @@ import { findSaleClientByPhone } from "@/features/forge/server/sale/find-sale-cl
 import { runProposalPaidEffects } from "@/features/forge/server/proposal-paid-effects";
 import { resolveTypedProducts } from "@/features/forge/server/sale/resolve-sale-products";
 import { normalizeProductName } from "@/features/forge/utils/normalize-product-name";
+import { after } from "next/server";
+import { resolvePublicOrigin } from "@/lib/public-origin";
+import { getCustomerWindow } from "@/features/tracking-chat/lib/customer-window";
+import { recordSaleInFinance } from "@/features/forge/server/sale/record-sale-in-finance";
 
 const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
 const MAX_INSTALLMENTS = 24;
@@ -32,6 +36,20 @@ const addressShape = z.object({
   state: z.string().optional(),
   zipCode: z.string().optional(),
 });
+
+/**
+ * Conversa de WhatsApp do lead aberta nas últimas 24h: só então o recibo avulso oferece "Enviar por WhatsApp"
+ * pelo número da empresa; fora dela, só o link para copiar (spec 0151, RF-12).
+ */
+async function findOpenWhatsappConversation(leadId: string) {
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { phone: true, conversation: { select: { id: true, channel: true } } },
+  });
+  if (!lead?.phone || !lead.conversation || lead.conversation.channel !== "WHATSAPP") return null;
+  const { withinWindow } = await getCustomerWindow(lead.conversation.id);
+  return withinWindow ? { conversationId: lead.conversation.id, phone: lead.phone } : null;
+}
 
 const filledOrUndefined = (value?: string) => (value && value.trim() !== "" ? value.trim() : undefined);
 
@@ -86,7 +104,16 @@ export const registerSale = base
       installments: z.number().int().min(1).max(MAX_INSTALLMENTS).optional(),
     }),
   )
-  .output(z.object({ proposalId: z.string(), number: z.number(), publicToken: z.string(), leadId: z.string(), isDuplicate: z.boolean() }))
+  .output(
+    z.object({
+      proposalId: z.string(),
+      number: z.number(),
+      publicToken: z.string(),
+      leadId: z.string(),
+      isDuplicate: z.boolean(),
+      openWhatsapp: z.object({ conversationId: z.string(), phone: z.string() }).nullable(),
+    }),
+  )
   .handler(async ({ input, context, errors }) => {
     const organizationId = context.org.id;
     if (input.items.some((item) => item.discountPerUnit > item.unitValue)) {
@@ -209,12 +236,13 @@ export const registerSale = base
         return Math.abs(saleTotal - total) < 0.01;
       });
     };
-    const duplicateResult = (duplicate: { id: string; number: number; publicToken: string }) => ({
+    const duplicateResult = async (duplicate: { id: string; number: number; publicToken: string }) => ({
       proposalId: duplicate.id,
       number: duplicate.number,
       publicToken: duplicate.publicToken,
-      leadId,
+      leadId: leadId!,
       isDuplicate: true,
+      openWhatsapp: await findOpenWhatsappConversation(leadId!),
     });
 
     const duplicate = await findRecentDuplicate();
@@ -297,5 +325,28 @@ export const registerSale = base
       console.error("[forge/sales] efeitos depois da venda falharam", { proposalId: proposal.id, error });
     }
 
-    return { proposalId: proposal.id, number: proposal.number, publicToken: proposal.publicToken, leadId, isDuplicate: false };
+    // Lançamento pago + PDF nos comprovantes do Financeiro, depois da resposta: não atrasa o "Gerar recibo".
+    const saleProposalId = proposal.id;
+    const receiptUrl = `${resolvePublicOrigin()}/proposta/${proposal.publicToken}/recibo`;
+    after(() =>
+      recordSaleInFinance({ proposalId: saleProposalId, userId: context.user.id, receiptUrl }).catch((error) =>
+        console.error("[forge/sales] lancamento_financeiro_falhou", { proposalId: saleProposalId, error }),
+      ),
+    );
+
+    let openWhatsapp: Awaited<ReturnType<typeof findOpenWhatsappConversation>> = null;
+    try {
+      openWhatsapp = await findOpenWhatsappConversation(leadId);
+    } catch (error) {
+      console.error("[forge/sales] janela_whatsapp_falhou", { proposalId: proposal.id, error });
+    }
+
+    return {
+      proposalId: proposal.id,
+      number: proposal.number,
+      publicToken: proposal.publicToken,
+      leadId,
+      isDuplicate: false,
+      openWhatsapp,
+    };
   });

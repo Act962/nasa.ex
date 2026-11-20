@@ -1058,3 +1058,8 @@ export function useMutationButtonsMessage({
     }),
   );
 }
+
+/** Envia o link do recibo avulso numa conversa de WhatsApp aberta, fora da tela do chat (spec 0151, RF-12). */
+export function useSendReceiptLinkMessage() {
+  return useMutation(orpc.message.create.mutationOptions());
+}
