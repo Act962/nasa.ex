@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { Download } from "lucide-react";
 import { useConstructUrl as constructUrl } from "@/hooks/use-construct-url";
 import { formatDecimalToMoney } from "@/utils/mask-money";
@@ -44,14 +43,6 @@ export function SaleReceipt({ receipt }: { receipt: SaleReceiptData }) {
   const payment = describeSalePayment(receipt.paymentMethod, receipt.installments);
   const quantityLabel = receipt.items.map((item) => `${item.quantity} ${item.name}`).join(", ");
 
-  useEffect(() => {
-    const previousTitle = document.title;
-    document.title = `Recibo ${String(receipt.number).padStart(4, "0")} - ${organization.name}`;
-    return () => {
-      document.title = previousTitle;
-    };
-  }, [receipt.number, organization.name]);
-
   return (
     <main className="min-h-screen bg-neutral-200 px-3 py-6 text-neutral-900 print:bg-white print:p-0">
       <div className="mx-auto max-w-3xl overflow-hidden rounded-2xl bg-white shadow-xl print:rounded-none print:shadow-none">
@@ -83,30 +74,30 @@ export function SaleReceipt({ receipt }: { receipt: SaleReceiptData }) {
           </p>
 
           <div className="overflow-hidden rounded-xl border-2 border-neutral-900">
-            <div className="grid grid-cols-[1fr_60px_130px] bg-neutral-900 px-4 py-3 text-sm font-bold text-white">
+            <div className="grid grid-cols-[1fr_36px_96px] sm:grid-cols-[1fr_60px_130px] bg-neutral-900 px-4 py-3 text-sm font-bold text-white">
               <span>DESCRIÇÃO</span>
               <span className="text-center">QTD</span>
-              <span className="text-right">VALOR</span>
+              <span className="whitespace-nowrap text-right">VALOR</span>
             </div>
             {receipt.items.map((item, index) => (
-              <div key={index} className="grid grid-cols-[1fr_60px_130px] border-t px-4 py-3">
+              <div key={index} className="grid grid-cols-[1fr_36px_96px] sm:grid-cols-[1fr_60px_130px] border-t px-4 py-3">
                 <span className="font-medium">
                   {item.name}
                   {item.description ? <span className="block text-sm font-normal text-neutral-600">{item.description}</span> : null}
                 </span>
                 <span className="text-center">{item.quantity}</span>
-                <span className="text-right">{formatDecimalToMoney(item.quantity * item.unitValue)}</span>
+                <span className="whitespace-nowrap text-right">{formatDecimalToMoney(item.quantity * item.unitValue)}</span>
               </div>
             ))}
             {discount > 0 ? (
-              <div className="grid grid-cols-[1fr_130px] border-t px-4 py-3 font-medium text-green-700">
+              <div className="grid grid-cols-[1fr_96px] sm:grid-cols-[1fr_130px] border-t px-4 py-3 font-medium text-green-700">
                 <span>Desconto</span>
-                <span className="text-right">− {formatDecimalToMoney(discount)}</span>
+                <span className="whitespace-nowrap text-right">− {formatDecimalToMoney(discount)}</span>
               </div>
             ) : null}
-            <div className="grid grid-cols-[1fr_160px] border-t bg-neutral-100 px-4 py-3 text-lg font-black">
+            <div className="grid grid-cols-[1fr_auto] gap-3 border-t bg-neutral-100 px-4 py-3 text-base sm:text-lg font-black">
               <span>TOTAL RECEBIDO</span>
-              <span className="text-right">{formatDecimalToMoney(total)}</span>
+              <span className="whitespace-nowrap text-right">{formatDecimalToMoney(total)}</span>
             </div>
           </div>
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { SaleReceipt, type SaleReceiptData } from "@/features/forge/components/public/sale-receipt";
@@ -6,7 +7,15 @@ interface Props {
   params: Promise<{ token: string }>;
 }
 
-export const metadata = { robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { token } = await params;
+  const proposal = await prisma.forgeProposal.findUnique({
+    where: { publicToken: token },
+    select: { number: true, status: true, organization: { select: { name: true } } },
+  });
+  const title = proposal?.status === "PAGA" ? `Recibo ${String(proposal.number).padStart(4, "0")} - ${proposal.organization.name}` : "Recibo";
+  return { title, robots: { index: false, follow: false } };
+}
 
 /**
  * O link do recibo é público: o CPF sai do servidor já com o miolo escondido, para o número inteiro
