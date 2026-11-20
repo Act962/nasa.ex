@@ -1,6 +1,7 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { useState } from "react";
+import { Check, Download, Link2 } from "lucide-react";
 import { useConstructUrl as constructUrl } from "@/hooks/use-construct-url";
 import { formatDecimalToMoney } from "@/utils/mask-money";
 import { reaisPorExtenso } from "@/features/forge/utils/reais-por-extenso";
@@ -41,6 +42,12 @@ export function SaleReceipt({ receipt }: { receipt: SaleReceiptData }) {
   const organization = receipt.organization;
   const city = [organization.city, organization.state].filter(Boolean).join(" - ");
   const payment = describeSalePayment(receipt.paymentMethod, receipt.installments);
+  const [isLinkCopied, setIsLinkCopied] = useState(false);
+  const copyReceiptLink = async () => {
+    await navigator.clipboard.writeText(window.location.href);
+    setIsLinkCopied(true);
+    setTimeout(() => setIsLinkCopied(false), 2000);
+  };
   const quantityLabel = receipt.items.map((item) => `${item.quantity} ${item.name}`).join(", ");
 
   return (
@@ -123,12 +130,21 @@ export function SaleReceipt({ receipt }: { receipt: SaleReceiptData }) {
         ) : null}
       </div>
 
-      <button
-        onClick={() => window.print()}
-        className="forge-no-print mx-auto mt-5 flex items-center gap-2 rounded-xl bg-neutral-900 px-5 py-3 text-sm font-semibold text-white"
-      >
-        <Download className="size-4" /> Salvar como PDF
-      </button>
+      <div className="forge-no-print mx-auto mt-5 flex flex-wrap justify-center gap-3">
+        <button
+          onClick={copyReceiptLink}
+          className="flex items-center gap-2 rounded-xl border-2 border-neutral-900 bg-white px-5 py-3 text-sm font-semibold text-neutral-900"
+        >
+          {isLinkCopied ? <Check className="size-4" /> : <Link2 className="size-4" />}
+          {isLinkCopied ? "Link copiado" : "Copiar link"}
+        </button>
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 rounded-xl bg-neutral-900 px-5 py-3 text-sm font-semibold text-white"
+        >
+          <Download className="size-4" /> Salvar como PDF
+        </button>
+      </div>
     </main>
   );
 }
