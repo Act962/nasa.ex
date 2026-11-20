@@ -75,6 +75,9 @@ import { StarFriendsRedeemDialog } from "@/features/star-friends/components/star
 import { useStarFriendsPermissions } from "@/features/star-friends/hooks/use-star-friends-permissions";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { ReceiptPanel } from "./receipt-panel/receipt-panel";
+import { useComposerShortcuts } from "./composer-shortcuts/use-composer-shortcuts";
+import { ShortcutMenu } from "./composer-shortcuts/shortcut-menu";
+import { ShortcutHighlightMirror } from "./composer-shortcuts/shortcut-highlight-mirror";
 import { emitTourResult } from "@/features/tour/store";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 
@@ -170,6 +173,17 @@ export function Footer({
       inputRef.current?.focus();
     }
   }, [messageSelected]);
+
+  const highlightMirrorRef = useRef<HTMLDivElement>(null);
+  const shortcuts = useComposerShortcuts({
+    message,
+    setMessage,
+    textareaRef: inputRef as unknown as React.RefObject<HTMLTextAreaElement | null>,
+    trackingId,
+    lead: { id: lead.id, name: lead.name, phone: lead.phone ?? null },
+    responsibleName: session?.user.name,
+    onOpenReceipt: () => setIsReceiptOpen(true),
+  });
 
   const mutation = useMutationTextMessage({
     conversationId,
@@ -606,10 +620,34 @@ export function Footer({
                 </div>
               )}
 
+              {shortcuts.isOpen ? (
+                <ShortcutMenu
+                  items={shortcuts.items}
+                  activeIndex={shortcuts.activeIndex}
+                  onHover={shortcuts.setActiveIndex}
+                  onPick={shortcuts.pick}
+                />
+              ) : null}
+              <div className="relative w-full">
+              {shortcuts.highlight ? (
+                <ShortcutHighlightMirror
+                  ref={highlightMirrorRef}
+                  text={message}
+                  highlight={shortcuts.highlight}
+                  className="px-3 py-3 text-base md:text-sm"
+                />
+              ) : null}
               <InputGroupTextarea
                 ref={inputRef as any}
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={(e) => {
+                  setMessage(e.target.value);
+                  shortcuts.syncCaret(e.target.selectionStart);
+                }}
+                onSelect={(e) => shortcuts.syncCaret(e.currentTarget.selectionStart)}
+                onScroll={(e) => {
+                  if (highlightMirrorRef.current) highlightMirrorRef.current.scrollTop = e.currentTarget.scrollTop;
+                }}
                 placeholder={
                   outsideWindow
                     ? "Fora da janela de 24h — envie um template"
@@ -620,8 +658,12 @@ export function Footer({
                         : "Mensagem"
                 }
                 disabled={isTextDisabled || outsideWindow}
-                className="min-h-12 max-h-50 resize-none px-3 py-3 text-base"
+                className={cn(
+                  "min-h-12 max-h-50 resize-none px-3 py-3 text-base",
+                  shortcuts.highlight && "relative text-transparent caret-foreground",
+                )}
                 onKeyDown={(e) => {
+                  if (shortcuts.handleKeyDown(e)) return;
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     if (message.trim().length > 0) {
@@ -631,6 +673,7 @@ export function Footer({
                   }
                 }}
               />
+              </div>
 
               <InputGroupAddon align="block-end" className="justify-between gap-1 px-1 pb-0">
                 <TrackingChatCopilot

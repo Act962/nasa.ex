@@ -45,14 +45,18 @@ export function useDeleteForgeProduct() {
 
 // ─── Proposals ──────────────────────────────────────────────────────────────
 
-export function useForgeProposals(filters?: {
-  status?: string;
-  responsibleId?: string;
-  clientId?: string;
-}) {
-  return useQuery(
-    orpc.forge.proposals.list.queryOptions({ input: filters ?? {} }),
-  );
+export function useForgeProposals(
+  filters?: {
+    status?: string;
+    responsibleId?: string;
+    clientId?: string;
+  },
+  { enabled = true }: { enabled?: boolean } = {},
+) {
+  return useQuery({
+    ...orpc.forge.proposals.list.queryOptions({ input: filters ?? {} }),
+    enabled,
+  });
 }
 
 export function useCreateForgeProposal() {

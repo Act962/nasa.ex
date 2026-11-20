@@ -129,6 +129,8 @@ model User {
 
   metaAccountAccess MemberMetaAccountAccess[]
 
+  memberAppPermissions MemberAppPermission[]
+
   // Meta Ads MCP — autorização do user pra usar Astro IA Meta Ads
   metaMcpAuthorizationsAuthorized MetaMcpAuthorization[] @relation("McpAuthorizedUser")
   metaMcpAuthorizationsGranted    MetaMcpAuthorization[] @relation("McpAuthorizedBy")
@@ -358,6 +360,7 @@ model Organization {
   brandKitAssets         BrandKitAsset[]
   brandKits              BrandKit[]
   orgPermissions         OrgPermission[]
+  memberAppPermissions   MemberAppPermission[]
   activityLogs           OrgActivityLog[]
   systemActivityLogs     SystemActivityLog[]
   userPresences          UserPresence[]
@@ -5722,6 +5725,29 @@ model OrgPermission {
   @@unique([organizationId, role, appKey])
   @@index([organizationId])
   @@map("org_permission")
+}
+
+// Exceção de permissão para UM usuário numa org (spec 0152): vence a de `OrgPermission` (papel).
+// Linha ausente = segue o papel. O Master (owner) nunca tem exceção.
+model MemberAppPermission {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appKey         String       @map("app_key")
+  canView        Boolean      @map("can_view")
+  canCreate      Boolean      @map("can_create")
+  canEdit        Boolean      @map("can_edit")
+  canDelete      Boolean      @map("can_delete")
+  canApprove     Boolean      @default(false) @map("can_approve")
+  canPay         Boolean      @default(false) @map("can_pay")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@unique([organizationId, userId, appKey])
+  @@index([organizationId, userId])
+  @@map("member_app_permission")
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════╗

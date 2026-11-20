@@ -8,6 +8,7 @@ import {
   type AppPermissions,
   type OrgAction,
 } from "../lib/catalog";
+import { loadMemberAppOverrides } from "./member-overrides";
 
 /**
  * Resolve a matriz de permissões de um usuário numa organização.
@@ -66,6 +67,9 @@ export async function resolveOrgPermissions(
       canPay: row.canPay,
     };
   }
+
+  // Exceção da pessoa vence a do papel (spec 0152, RF-3).
+  if (member.role !== "owner") Object.assign(overrides, await loadMemberAppOverrides(organizationId, userId));
 
   return { role: member.role, overrides, fallback };
 }
