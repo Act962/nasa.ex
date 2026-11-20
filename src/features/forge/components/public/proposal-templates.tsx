@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, CreditCard, Download, FileText } from "lucide-react";
+import { CheckCircle2, CreditCard, Download, FileText, Receipt } from "lucide-react";
 import DOMPurify from "isomorphic-dompurify";
 import { useConstructUrl as constructUrl } from "@/hooks/use-construct-url";
 import { AcceptButton } from "./parts/accept-button";
@@ -360,6 +360,15 @@ export function TemplateModern({
               >
                 <CreditCard className="size-5" />
                 Pagar com segurança
+              </a>
+            ) : null}
+            {isPaid ? (
+              <a
+                href={`/proposta/${token}/recibo`}
+                className="forge-no-print mt-6 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-success px-5 text-base font-bold text-white"
+              >
+                <Receipt className="size-5" />
+                Ver recibo
               </a>
             ) : null}
             {!hasPayment && !isPaid && !isExpired ? (

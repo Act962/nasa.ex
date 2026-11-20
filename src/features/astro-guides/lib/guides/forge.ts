@@ -3,6 +3,42 @@ import { GUIDE_RESULT_KINDS } from "../result-kinds";
 
 export const FORGE_GUIDES: GuideDef[] = [
   {
+    key: "forge.register-sale",
+    app: "forge",
+    title: "Registrar uma venda e entregar o recibo",
+    summary: "Digite o WhatsApp do cliente, os produtos e o pagamento: a venda fica registrada e o recibo sai pronto.",
+    topicPattern: /\b(registr\w*|lanc\w*|anot\w*)\b.*\bvendas?\b|\b(recibos?)\b/,
+    steps: [
+      {
+        anchor: "forgeProposalsTab",
+        route: "/forge",
+        title: "Abra a aba Propostas",
+        message: "As vendas registradas aparecem aqui como propostas pagas.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "forgeRegisterSaleButton",
+        title: "Clique em Registrar venda",
+        message: "Digite o WhatsApp do cliente: se ele já conversou com a empresa, o nome aparece sozinho.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "forgeRegisterSaleSubmit",
+        title: "Clique em Gerar recibo",
+        message: "Escolha os produtos e a forma de pagamento antes. O recibo sai pronto para mandar no WhatsApp.",
+        position: "top",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.saleRegistered,
+      },
+    ],
+    finish: {
+      title: "Venda registrada! 🧾",
+      message: "Toque em \"Enviar recibo no WhatsApp\" para mandar ao cliente.",
+    },
+  },
+  {
     key: "forge.share-proposal",
     app: "forge",
     title: "Enviar a proposta ao cliente",

@@ -299,6 +299,14 @@ export const GUIDE_ANCHORS = {
     id: "forge.new-proposal",
     description: "Botão \"Nova Proposta\" na aba Propostas",
   },
+  forgeRegisterSaleButton: {
+    id: "forge.register-sale",
+    description: "Botão \"Registrar venda\" na aba Propostas",
+  },
+  forgeRegisterSaleSubmit: {
+    id: "forge.register-sale-submit",
+    description: "Botão \"Gerar recibo\" na janela Registrar venda",
+  },
   forgeProposalTitle: {
     id: "forge.proposal.title",
     description: "Campo de título no formulário de proposta",

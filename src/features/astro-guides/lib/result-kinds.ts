@@ -6,6 +6,7 @@ export const GUIDE_RESULT_KINDS = {
   whatsappConnected: "whatsapp.connected",
   agendaCreated: "agenda.created",
   proposalCreated: "proposal.created",
+  saleRegistered: "forge.sale-registered",
   productCreated: "product.created",
   formCreated: "form.created",
   formPublished: "form.published",

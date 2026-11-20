@@ -4134,6 +4134,14 @@ model Widget {
 // FORGE — Propostas & Contratos
 // ─────────────────────────────────────────────
 
+enum ForgePaymentMethod {
+  PIX
+  DINHEIRO
+  DEBITO
+  CREDITO
+  BOLETO
+}
+
 enum ForgeProposalStatus {
   RASCUNHO
   ENVIADA
@@ -4213,6 +4221,11 @@ model ForgeProposal {
   discountType              ForgeDiscountType?   @map("discount_type")
   paymentLink               String?              @map("payment_link")
   paymentGateway            ForgePaymentGateway? @map("payment_gateway")
+  /// Como o cliente pagou e em quantas vezes (spec 0148): aparece no recibo.
+  paymentMethod             ForgePaymentMethod?  @map("payment_method")
+  installments              Int?
+  /// Quando a proposta virou PAGA (spec 0148): data do recibo e vendas do mês.
+  paidAt                    DateTime?            @map("paid_at")
   publicToken               String               @unique @default(cuid()) @map("public_token")
   headerConfig              Json                 @default("{}") @map("header_config")
   /// Imposto embutido no preço, estruturado (spec 0051): alíquota, base, fonte.
@@ -4238,6 +4251,7 @@ model ForgeProposal {
 
   @@unique([organizationId, number])
   @@index([organizationId])
+  @@index([organizationId, paidAt])
   @@index([clientId])
   @@index([status])
   @@map("forge_proposals")
