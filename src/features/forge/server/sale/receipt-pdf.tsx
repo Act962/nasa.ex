@@ -1,5 +1,5 @@
 import "server-only";
-import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Font, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { formatDecimalToMoney } from "@/utils/mask-money";
 import { reaisPorExtenso } from "@/features/forge/utils/reais-por-extenso";
 import { describeSalePayment } from "@/features/forge/lib/sale-payment";
@@ -7,6 +7,9 @@ import type { SaleReceiptData } from "@/features/forge/components/public/sale-re
 
 // PDF do recibo para os comprovantes do Financeiro (spec 0151, RF-11). Mesmo conteúdo da página pública,
 // em layout simples: sem logo, para não depender de baixar imagem no servidor.
+
+// Sem isso o react-pdf hifeniza palavras em português e quebra "(duzentos" em "(-" + "duzentos".
+Font.registerHyphenationCallback((word) => [word]);
 
 const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const INK = "#111111";
