@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, CheckCircle2, Link2, Receipt, Send } from "lucide-react";
+import { Receipt, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { authClient } from "@/lib/auth-client";
 import { formatDecimalToMoney } from "@/utils/mask-money";
-import { phoneMaskFull } from "@/utils/format-phone";
 import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 import { emitTourResult } from "@/features/tour/store";
@@ -31,161 +30,83 @@ import {
   type ReceiptClientDraft,
   type ReceiptDraft,
   type ReceiptOrganization,
+  type ReceiptTarget,
 } from "./receipt-draft";
 import { ReceiptItemsEditor } from "./receipt-items-editor";
+import { ReceiptClientFields } from "./receipt-client-fields";
+import { IssuedReceiptView, type IssuedReceipt } from "./issued-receipt-view";
 
 const MAX_INSTALLMENTS = 24;
 
-interface ReceiptPanelProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  leadId: string;
-  leadPhone: string | null;
-  /** Motivo para não enviar na conversa (sem telefone, sem número conectado); `null` = pode enviar. */
-  sendBlockedReason: string | null;
-  onSendText: (body: string) => Promise<unknown>;
-}
+/** Recibo da conversa aberta (envia o link nela) ou avulso pelo menu do chat (cria ou acha o lead pelo telefone). */
+export type ReceiptPanelMode =
+  | {
+      kind: "conversation";
+      leadId: string;
+      leadPhone: string | null;
+      /** Motivo para não enviar na conversa (ex.: sem número conectado); `null` = pode enviar. */
+      sendBlockedReason: string | null;
+      onSendText: (body: string) => Promise<unknown>;
+    }
+  | { kind: "standalone"; trackingId: string };
 
-interface IssuedReceipt {
-  number: number;
-  url: string;
-  isSent: boolean;
-  hasSendFailed: boolean;
-}
+const EMPTY_CLIENT: ReceiptClientDraft = { name: "", phone: "", document: "", street: "", number: "", neighborhood: "", city: "", state: "" };
 
-function ClientFields({ client, phone, onChange }: { client: ReceiptClientDraft; phone: string | null; onChange: (client: ReceiptClientDraft) => void }) {
-  const set = (key: keyof ReceiptClientDraft) => (event: React.ChangeEvent<HTMLInputElement>) => onChange({ ...client, [key]: event.target.value });
-  return (
-    <div className="grid gap-2">
-      <div>
-        <Label className="text-xs text-muted-foreground">Nome</Label>
-        <Input value={client.name} onChange={set("name")} maxLength={120} />
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <div>
-          <Label className="text-xs text-muted-foreground">WhatsApp</Label>
-          {phone ? (
-            <Input value={phoneMaskFull(phone)} disabled />
-          ) : (
-            <Input
-              inputMode="tel"
-              placeholder="(86) 99999-9999"
-              value={phoneMaskFull(client.phone)}
-              onChange={(event) => onChange({ ...client, phone: event.target.value.replace(/\D/g, "") })}
-            />
-          )}
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">CPF ou CNPJ</Label>
-          <Input value={client.document} onChange={set("document")} inputMode="numeric" maxLength={20} />
-        </div>
-      </div>
-      <div className="grid grid-cols-[1fr_5.5rem] gap-2">
-        <div className="min-w-0">
-          <Label className="text-xs text-muted-foreground">Rua</Label>
-          <Input value={client.street} onChange={set("street")} />
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">Número</Label>
-          <Input value={client.number} onChange={set("number")} />
-        </div>
-      </div>
-      <div className="grid grid-cols-[1fr_1fr_4rem] gap-2">
-        <div className="min-w-0">
-          <Label className="text-xs text-muted-foreground">Bairro</Label>
-          <Input value={client.neighborhood} onChange={set("neighborhood")} />
-        </div>
-        <div className="min-w-0">
-          <Label className="text-xs text-muted-foreground">Cidade</Label>
-          <Input value={client.city} onChange={set("city")} />
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">UF</Label>
-          <Input value={client.state} onChange={set("state")} maxLength={2} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function IssuedReceiptView({ issued, onClose }: { issued: IssuedReceipt; onClose: () => void }) {
-  const [isLinkCopied, setIsLinkCopied] = useState(false);
-  const copyLink = async () => {
-    await navigator.clipboard.writeText(issued.url);
-    setIsLinkCopied(true);
-    setTimeout(() => setIsLinkCopied(false), 2000);
-  };
-  return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 text-center">
-      {issued.hasSendFailed ? <AlertTriangle className="size-12 text-warning" /> : <CheckCircle2 className="size-12 text-success" />}
-      <p className="text-lg font-semibold">Recibo nº {String(issued.number).padStart(4, "0")} emitido</p>
-      <p className="text-sm text-muted-foreground">
-        {issued.isSent
-          ? "O link do recibo foi enviado na conversa."
-          : issued.hasSendFailed
-            ? "A venda ficou registrada, mas a mensagem não foi enviada. Copie o link e mande ao cliente."
-            : "A venda ficou registrada. Copie o link para mandar ao cliente."}
-      </p>
-      <div className="flex w-full items-center gap-2 rounded-lg border bg-muted/40 p-2">
-        <span className="min-w-0 flex-1 truncate text-left text-xs">{issued.url}</span>
-        <Button type="button" size="sm" variant="outline" className="gap-1" onClick={copyLink}>
-          {isLinkCopied ? <Check className="size-4" /> : <Link2 className="size-4" />}
-          {isLinkCopied ? "Copiado" : "Copiar link"}
-        </Button>
-      </div>
-      <div className="flex w-full flex-col gap-2">
-        <Button asChild variant="outline" className="h-11 gap-2">
-          <a href={issued.url} target="_blank" rel="noopener noreferrer">
-            <Receipt className="size-4" /> Ver recibo
-          </a>
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClose}>
-          Fechar
-        </Button>
-      </div>
-    </div>
-  );
+function newDraft(client: ReceiptClientDraft): ReceiptDraft {
+  return { client, items: [EMPTY_RECEIPT_ITEM], paymentMethod: "PIX", installments: 1 };
 }
 
 function ReceiptForm({
+  mode,
+  fixedPhone,
   initialDraft,
   organization,
-  leadId,
-  leadPhone,
-  sendBlockedReason,
-  onSendText,
   onClose,
-}: Omit<ReceiptPanelProps, "open" | "onOpenChange"> & { initialDraft: ReceiptDraft; organization: ReceiptOrganization; onClose: () => void }) {
+}: {
+  mode: ReceiptPanelMode;
+  fixedPhone: string | null;
+  initialDraft: ReceiptDraft;
+  organization: ReceiptOrganization;
+  onClose: () => void;
+}) {
   const [draft, setDraft] = useState(initialDraft);
   const [issued, setIssued] = useState<IssuedReceipt | null>(null);
   const [isSending, setIsSending] = useState(false);
   const registerSale = useRegisterSale();
   const preview = useMemo(() => toReceiptPreview(draft, organization), [draft, organization]);
-  const blocker = receiptBlocker(draft);
+  const isStandalone = mode.kind === "standalone";
+  const blocker = receiptBlocker(draft, { isPhoneRequired: isStandalone });
+  const sendBlockedReason = mode.kind === "conversation" ? mode.sendBlockedReason : null;
   const total = receiptTotal(draft.items);
   const isBusy = registerSale.isPending || isSending;
+  const target: ReceiptTarget = mode.kind === "conversation" ? { leadId: mode.leadId } : { trackingId: mode.trackingId };
 
   // Dois toques seguidos chegam antes de o botão desabilitar: o ref segura o segundo (spec 0151, CA-5).
   const isSubmittingRef = useRef(false);
   const issue = (shouldSend: boolean) => {
     if (isSubmittingRef.current || blocker) return;
     isSubmittingRef.current = true;
-    registerSale.mutate(toRegisterSaleInput(draft, leadId), {
+    registerSale.mutate(toRegisterSaleInput(draft, target), {
       onSuccess: async (sale) => {
         emitTourResult({ kind: GUIDE_RESULT_KINDS.saleRegistered });
-        const url = `${window.location.origin}/proposta/${sale.publicToken}/recibo`;
-        if (!shouldSend || sale.isDuplicate) {
-          if (sale.isDuplicate) toast.info("Essa venda já tinha sido registrada agora há pouco.");
-          setIssued({ number: sale.number, url, isSent: false, hasSendFailed: false });
+        const base = {
+          number: sale.number,
+          url: `${window.location.origin}/proposta/${sale.publicToken}/recibo`,
+          clientName: draft.client.name,
+          whatsappPhone: isStandalone ? draft.client.phone : null,
+        };
+        if (sale.isDuplicate) toast.info("Essa venda já tinha sido registrada agora há pouco.");
+        if (!shouldSend || sale.isDuplicate || mode.kind !== "conversation") {
+          setIssued({ ...base, isSent: false, hasSendFailed: false });
           isSubmittingRef.current = false;
           return;
         }
         setIsSending(true);
         try {
-          await onSendText(receiptMessage(draft.client.name, url));
-          setIssued({ number: sale.number, url, isSent: true, hasSendFailed: false });
+          await mode.onSendText(receiptMessage(draft.client.name, base.url));
+          setIssued({ ...base, isSent: true, hasSendFailed: false });
         } catch {
-          setIssued({ number: sale.number, url, isSent: false, hasSendFailed: true });
+          setIssued({ ...base, isSent: false, hasSendFailed: true });
         } finally {
           setIsSending(false);
           isSubmittingRef.current = false;
@@ -206,7 +127,15 @@ function ReceiptForm({
         <div className="space-y-5 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">Cliente</h3>
-            <ClientFields client={draft.client} phone={leadPhone} onChange={(client) => setDraft({ ...draft, client })} />
+            {isStandalone ? (
+              <p className="text-xs text-muted-foreground">Se o número já for de um cliente, o recibo vai para ele; senão, o cliente entra no funil.</p>
+            ) : null}
+            <ReceiptClientFields
+              client={draft.client}
+              fixedPhone={fixedPhone}
+              isRequired={isStandalone}
+              onChange={(client) => setDraft({ ...draft, client })}
+            />
           </section>
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">Itens</h3>
@@ -260,52 +189,45 @@ function ReceiptForm({
         </div>
         {blocker ? <p className="text-xs text-destructive">{blocker}</p> : null}
         {!blocker && sendBlockedReason ? <p className="text-xs text-muted-foreground">{sendBlockedReason}</p> : null}
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
-          <Button type="button" variant="outline" className="h-11" disabled={Boolean(blocker) || isBusy} onClick={() => issue(false)}>
-            Só gerar
-          </Button>
+        {isStandalone ? (
           <Button
             type="button"
-            className="h-11 gap-2"
-            disabled={Boolean(blocker) || Boolean(sendBlockedReason) || isBusy}
-            onClick={() => issue(true)}
+            className="h-11 w-full gap-2 sm:ml-auto sm:flex sm:w-auto"
+            disabled={Boolean(blocker) || isBusy}
+            onClick={() => issue(false)}
             data-guide={GUIDE_ANCHORS.chatReceiptSubmit.id}
           >
-            {isBusy ? <OrbitaSpinner className="size-4" /> : <Send className="size-4" />}
-            Gerar e enviar
+            {isBusy ? <OrbitaSpinner className="size-4" /> : <Receipt className="size-4" />}
+            Gerar recibo
           </Button>
-        </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+            <Button type="button" variant="outline" className="h-11" disabled={Boolean(blocker) || isBusy} onClick={() => issue(false)}>
+              Só gerar
+            </Button>
+            <Button
+              type="button"
+              className="h-11 gap-2"
+              disabled={Boolean(blocker) || Boolean(sendBlockedReason) || isBusy}
+              onClick={() => issue(true)}
+              data-guide={GUIDE_ANCHORS.chatReceiptSubmit.id}
+            >
+              {isBusy ? <OrbitaSpinner className="size-4" /> : <Send className="size-4" />}
+              Gerar e enviar
+            </Button>
+          </div>
+        )}
       </div>
     </>
   );
 }
 
-/** Recibo pelo chat (spec 0151): tela cheia, já preenchida com o lead da conversa, com prévia ao vivo. */
-export function ReceiptPanel(props: ReceiptPanelProps) {
-  const { open, onOpenChange, leadId } = props;
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-screen max-w-none flex-col gap-3 rounded-none p-4 sm:h-[92dvh] sm:w-[96vw] sm:max-w-[1300px] sm:rounded-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Receipt className="size-4" /> Recibo
-          </DialogTitle>
-        </DialogHeader>
-        {open ? <ReceiptPanelBody key={leadId} {...props} onClose={() => onOpenChange(false)} /> : null}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ReceiptPanelBody({ leadId, onClose, ...rest }: ReceiptPanelProps & { onClose: () => void }) {
-  const { data: leadData, isLoading } = useQueryLead(leadId);
+function useReceiptOrganization(): ReceiptOrganization {
   const { data: companyData } = useCompanyProfile();
   const { data: forgeData } = useForgeSettings();
   const { data: activeOrganization } = authClient.useActiveOrganization();
-  const lead = leadData?.lead;
   const company = companyData?.org;
-
-  const organization = useMemo<ReceiptOrganization>(
+  return useMemo(
     () => ({
       name: company?.name ?? activeOrganization?.name ?? "Sua empresa",
       logo: activeOrganization?.logo ?? forgeData?.settings.logoUrl ?? null,
@@ -317,7 +239,12 @@ function ReceiptPanelBody({ leadId, onClose, ...rest }: ReceiptPanelProps & { on
     }),
     [company, activeOrganization?.name, activeOrganization?.logo, forgeData?.settings.logoUrl],
   );
+}
 
+function ConversationReceiptBody({ mode, onClose }: { mode: Extract<ReceiptPanelMode, { kind: "conversation" }>; onClose: () => void }) {
+  const { data: leadData, isLoading } = useQueryLead(mode.leadId);
+  const organization = useReceiptOrganization();
+  const lead = leadData?.lead;
   if (isLoading || !lead) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -325,22 +252,40 @@ function ReceiptPanelBody({ leadId, onClose, ...rest }: ReceiptPanelProps & { on
       </div>
     );
   }
+  const initialDraft = newDraft({
+    ...EMPTY_CLIENT,
+    name: lead.name ?? "",
+    document: lead.document ?? "",
+    street: lead.addressStreet ?? "",
+    number: lead.addressNumber ?? "",
+    neighborhood: lead.addressNeighborhood ?? "",
+    city: lead.addressCity ?? "",
+    state: lead.addressState ?? "",
+  });
+  return (
+    <ReceiptForm mode={mode} fixedPhone={lead.phone ?? mode.leadPhone} initialDraft={initialDraft} organization={organization} onClose={onClose} />
+  );
+}
 
-  const initialDraft: ReceiptDraft = {
-    client: {
-      name: lead.name ?? "",
-      phone: "",
-      document: lead.document ?? "",
-      street: lead.addressStreet ?? "",
-      number: lead.addressNumber ?? "",
-      neighborhood: lead.addressNeighborhood ?? "",
-      city: lead.addressCity ?? "",
-      state: lead.addressState ?? "",
-    },
-    items: [EMPTY_RECEIPT_ITEM],
-    paymentMethod: "PIX",
-    installments: 1,
-  };
+function StandaloneReceiptBody({ mode, onClose }: { mode: Extract<ReceiptPanelMode, { kind: "standalone" }>; onClose: () => void }) {
+  const organization = useReceiptOrganization();
+  return <ReceiptForm mode={mode} fixedPhone={null} initialDraft={newDraft(EMPTY_CLIENT)} organization={organization} onClose={onClose} />;
+}
 
-  return <ReceiptForm {...rest} leadId={leadId} leadPhone={lead.phone ?? rest.leadPhone} initialDraft={initialDraft} organization={organization} onClose={onClose} />;
+/** Recibo pelo chat (spec 0151): tela cheia com prévia ao vivo. */
+export function ReceiptPanel({ open, onOpenChange, mode }: { open: boolean; onOpenChange: (open: boolean) => void; mode: ReceiptPanelMode }) {
+  const close = () => onOpenChange(false);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-screen max-w-none flex-col gap-3 rounded-none p-4 sm:h-[92dvh] sm:w-[96vw] sm:max-w-[1300px] sm:rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Receipt className="size-4" /> {mode.kind === "standalone" ? "Recibo avulso" : "Recibo"}
+          </DialogTitle>
+        </DialogHeader>
+        {open && mode.kind === "conversation" ? <ConversationReceiptBody key={mode.leadId} mode={mode} onClose={close} /> : null}
+        {open && mode.kind === "standalone" ? <StandaloneReceiptBody mode={mode} onClose={close} /> : null}
+      </DialogContent>
+    </Dialog>
+  );
 }

@@ -44,6 +44,7 @@ No chat de um lead, o atendente toca em "Recibo", confere ou ajusta os dados, to
 | RF-6 | Forma de pagamento e parcelas (só crédito), como na 0148. |
 | RF-7 | Prévia do recibo atualizada enquanto edita (abaixo no celular, ao lado no computador). |
 | RF-8 | "Gerar e enviar": registra a venda pela mesma rota da 0148 e envia na conversa a mensagem "Olá, {primeiro nome}! Segue o seu recibo: {link}". Botão secundário "Só gerar", que registra e mostra o link sem enviar. |
+| RF-10 | Recibo avulso: no celular, o menu redondo do chat troca "Gatilhos" (que já existe no topo do chat) por "Recibo". Abre a mesma tela vazia, com nome e WhatsApp obrigatórios; número que já é de um lead leva a venda para ele, número novo cria o lead no tracking aberto. Ao gerar, mostra o link com "Copiar link" e "Enviar no WhatsApp". |
 | RF-9 | Se o envio falhar (ex.: fora da janela de 24 h no número oficial), a venda continua registrada e a tela mostra o link com "Copiar link", explicando que a mensagem não foi. |
 
 ## 4. Critérios de aceite
@@ -87,3 +88,4 @@ No chat de um lead, o atendente toca em "Recibo", confere ou ajusta os dados, to
 - 2026-11-20: criada a partir da decisão do Weydson no chat (ícone no menu de anexos, tela cheia pré-preenchida e editável, item digitado vira produto do catálogo).
 - 2026-11-20: implementada. WhatsApp fica só para leitura na tela (é o número da conversa; trocar mudaria para quem o recibo vai). Item digitado mostra sugestões do catálogo enquanto escreve; escolher uma liga o item ao produto existente.
 - 2026-11-20: ajuste do Weydson após teste. Telefone vem do cadastro do lead e, se vazio, pode ser digitado (decisão: gravar no próprio lead em vez de criar outro). Campo de item vira busca no catálogo, com aviso quando o nome não existe e vai ser criado.
+- 2026-11-20: RF-10, recibo avulso pelo menu redondo do chat no celular, no lugar de Gatilhos (decisão do Weydson: o componente tem 4 posições fixas usadas em 30 telas).

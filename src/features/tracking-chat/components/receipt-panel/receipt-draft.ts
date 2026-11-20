@@ -43,9 +43,10 @@ export function receiptTotal(items: ReceiptItemDraft[]): number {
 }
 
 /** O que impede emitir, em palavras do atendente; `null` quando está tudo certo (spec 0151, casos de borda). */
-export function receiptBlocker(draft: ReceiptDraft): string | null {
+export function receiptBlocker(draft: ReceiptDraft, { isPhoneRequired }: { isPhoneRequired: boolean }): string | null {
   if (!draft.client.name.trim()) return "Informe o nome do cliente.";
   const phoneDigits = draft.client.phone.replace(/\D/g, "");
+  if (isPhoneRequired && !phoneDigits) return "Informe o WhatsApp do cliente.";
   if (phoneDigits && phoneDigits.length < MIN_PHONE_DIGITS) return "WhatsApp incompleto: confira o DDD e o número.";
   if (draft.items.some((item) => !item.name.trim())) return "Dê um nome a cada item.";
   if (draft.items.some((item) => maskedToReais(item.unitValue) <= 0)) return "Cada item precisa de um preço.";
@@ -85,10 +86,13 @@ export function toReceiptPreview(draft: ReceiptDraft, organization: ReceiptOrgan
   };
 }
 
-export function toRegisterSaleInput(draft: ReceiptDraft, leadId: string) {
+/** Lead da conversa (chat aberto) ou funil onde entra o cliente do recibo avulso. */
+export type ReceiptTarget = { leadId: string } | { trackingId: string };
+
+export function toRegisterSaleInput(draft: ReceiptDraft, target: ReceiptTarget) {
   const { client } = draft;
   return {
-    leadId,
+    ...target,
     name: client.name.trim(),
     phone: client.phone.replace(/\D/g, "") || undefined,
     document: client.document.trim() || undefined,

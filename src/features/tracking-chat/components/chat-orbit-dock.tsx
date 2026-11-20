@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { ListFilterIcon, MegaphoneIcon, ZapIcon } from "lucide-react";
+import { ListFilterIcon, MegaphoneIcon, ReceiptIcon } from "lucide-react";
 import { useRegisterOrbitDock } from "@/components/orbit-dock/orbit-dock-store";
 import { CHANNEL_LABEL, ChannelIcon } from "../utils/channel-display";
 import type { ChannelFilter } from "../utils/channel-filter";
 import { useUnansweredCounts } from "../hooks/use-unanswered-counts";
-import { QuickWorkflowDialog } from "@/features/workflows/components/quick-builder/quick-workflow-dialog";
+import { ReceiptPanel } from "./receipt-panel/receipt-panel";
 
 interface ChatOrbitDockProps {
   trackingId: string | null;
@@ -17,7 +17,10 @@ interface ChatOrbitDockProps {
   onOpenChannels: () => void;
 }
 
-/** Dock do Chat no celular: Filtros e Canais à esquerda do ASTRO, Campanhas e Gatilhos à direita. */
+/**
+ * Dock do Chat no celular: Filtros e Canais à esquerda do ASTRO, Campanhas e Recibo à direita.
+ * Gatilhos saiu daqui porque já tem botão no topo do chat (spec 0151).
+ */
 export function ChatOrbitDock({
   trackingId,
   selectedChannel,
@@ -26,7 +29,7 @@ export function ChatOrbitDock({
   onOpenChannels,
 }: ChatOrbitDockProps) {
   const { total: unansweredTotal } = useUnansweredCounts(trackingId);
-  const [isTriggersDialogOpen, setIsTriggersDialogOpen] = useState(false);
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
 
   useRegisterOrbitDock({
     leftItems: [
@@ -47,21 +50,14 @@ export function ChatOrbitDock({
     rightItems: [
       { label: "Campanhas", href: "/campanhas", icon: <MegaphoneIcon /> },
       {
-        label: "Gatilhos",
-        icon: <ZapIcon />,
-        // Mesmo popup do "Gatilhos" do topo do chat: novo gatilho para o tracking inteiro.
-        onSelect: () =>
-          trackingId ? setIsTriggersDialogOpen(true) : toast.info("Selecione um tracking primeiro"),
+        label: "Recibo",
+        icon: <ReceiptIcon />,
+        // Recibo avulso: o cliente novo entra no tracking aberto no chat.
+        onSelect: () => (trackingId ? setIsReceiptOpen(true) : toast.info("Selecione um tracking primeiro")),
       },
     ],
   });
 
   if (!trackingId) return null;
-  return (
-    <QuickWorkflowDialog
-      isOpen={isTriggersDialogOpen}
-      onOpenChange={setIsTriggersDialogOpen}
-      trackingId={trackingId}
-    />
-  );
+  return <ReceiptPanel open={isReceiptOpen} onOpenChange={setIsReceiptOpen} mode={{ kind: "standalone", trackingId }} />;
 }

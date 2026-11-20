@@ -748,10 +748,13 @@ export function Footer({
       <ReceiptPanel
         open={isReceiptOpen}
         onOpenChange={setIsReceiptOpen}
-        leadId={lead.id}
-        leadPhone={lead.phone ?? null}
-        sendBlockedReason={isTextDisabled ? "Nenhum número conectado: use \"Só gerar\" e copie o link." : null}
-        onSendText={(body) => mutation.mutateAsync({ body, leadPhone: lead.phone, conversationId })}
+        mode={{
+          kind: "conversation",
+          leadId: lead.id,
+          leadPhone: lead.phone ?? null,
+          sendBlockedReason: isTextDisabled ? "Nenhum número conectado: use \"Só gerar\" e copie o link." : null,
+          onSendText: (body) => mutation.mutateAsync({ body, leadPhone: lead.phone, conversationId }),
+        }}
       />
       <StarFriendsRedeemDialog
         leadId={lead.id}
