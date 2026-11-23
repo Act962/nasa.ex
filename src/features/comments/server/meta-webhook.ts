@@ -1,8 +1,6 @@
 import "server-only";
 import { channelLookup, getInboundTranslator, socialLogger } from "@/modules/social";
-import { processChannelEvents } from "@/modules/social/process-channel-events";
-import { ingestInstagramEventToChat } from "@/features/tracking-chat/server/instagram/ingest-instagram-event";
-import type { InboundEvent } from "@/modules/social/domain/types";
+import { dispatchInstagramEventsByAccount } from "./instagram-event-dispatch";
 
 /**
  * Eventos do Instagram que chegam pelo app da Meta da plataforma (spec 0061, RF-5).
@@ -28,17 +26,11 @@ export async function processMetaCommentsWebhook(input: {
     return "invalid_json";
   }
 
-  const eventsByAccount = new Map<string, InboundEvent[]>();
-  for (const event of translator.parse(payload)) {
-    eventsByAccount.set(event.externalAccountId, [...(eventsByAccount.get(event.externalAccountId) ?? []), event]);
-  }
-
-  for (const [externalAccountId, events] of eventsByAccount) {
-    const found = await channelLookup.findByExternalAccountId("INSTAGRAM", externalAccountId);
-    // Conta conectada pelo passo a passo manual é de outro app e tem a própria rota (CA-6).
-    if (!found || found.channel.credentials.authMode !== "META_LOGIN") continue;
-    await processChannelEvents(found, events, ingestInstagramEventToChat);
-  }
+  // Conta conectada pelo passo a passo manual é de outro app e tem a própria rota (CA-6).
+  await dispatchInstagramEventsByAccount(
+    translator.parse(payload),
+    (channel) => channel.credentials.authMode === "META_LOGIN",
+  );
   return "processed";
 }
 

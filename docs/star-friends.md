@@ -92,6 +92,8 @@ A varredura anula números, mas não estorna as stars já creditadas por eles.
 
 **Simulador**: `/star-friends/sorteio?modo=simulacao`, a mesma tela com os nomes da campanha (ou fictícios), sorteio no navegador e nada gravado.
 
+**Avisar ganhadores** (spec 0148): botão no quadro "Sorteio" (permissão "Aprovar") que manda um modelo aprovado da Meta para os ganhadores ativos ainda não avisados, pelo número (funil) da campanha, que precisa ser da API oficial. Na janela escolhe-se o modelo (só aparecem os sem botão e sem variável no cabeçalho), o que entra em cada variável (nome, primeiro nome, número da sorte, prêmio da posição, posição, nome da campanha ou texto fixo) e o nome do prêmio de cada posição, gravado em `LoyaltyCampaign.prizeNames`. Cada ganhador é reservado antes do envio (`LoyaltyCampaignDraw.notifiedAt`): dois cliques não mandam duas mensagens; falha volta a reserva e grava `notifyError`. Ganhador avisado não pode mais ser revogado. A mensagem fica no chat quando o lead tem conversa no número e cobra como mensagem de modelo. Conferência no banco local: `pnpm tsx --conditions=react-server scripts/star-friends-notify-winners-check.ts`.
+
 **Quantidade de ganhadores**: no quadro "Sorteio" da aba Campanha e no cartão da aba Configurações (`starFriends.campaign.setPrizeCount`). Não fica abaixo de uma posição já sorteada.
 
 **Ajustar números** (permissão "Aprovar"): **Lançar cupom manual** (aba Campanha, acima da lista de cupons) escolhe um participante e lança um cupom com valor, data e número opcionais e motivo; os números saem pela conta de sempre, somando a sobra, e o sorteio volta a exigir varredura. Não roda com o sorteio em andamento. **Anular cupom** (em cada cupom aceito) pede motivo, tira os números dele do sorteio, recalcula a sobra (os números a mais que a sobra dele ajudou a formar também saem) e estorna as stars no extrato. Cupom com número sorteado não é anulado. Código em `lib/campaign/manual-receipt.ts`.
@@ -120,6 +122,7 @@ Permissões: ver cupons e números = "Ver"; configurar = "Editar"; varredura, so
 
 ## Changelog
 
+- **2026-11-23** — Avisar ganhadores pelo WhatsApp com modelo aprovado e nomes dos prêmios por posição (spec 0148).
 - **2026-11-06** — Lançar cupom manual e anular cupom com estorno das stars (spec 0134, RF-8 e RF-9).
 - **2026-11-06** — Sorteio ao vivo um a um com tela cheia e confete, simulador, revogação em 30 minutos, quantidade de ganhadores em Configurações e exclusão de participante (spec 0134).
 - **2026-10-13** — Campanha com vários prêmios, um por pessoa; corrigida a data de fim que andava um dia a cada salvamento.

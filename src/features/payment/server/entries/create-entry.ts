@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { addCalendarMonths, parseCalendarDate } from "@/features/payment/lib/dates";
 import { shouldTriggerApproval } from "@/features/payment/server/approvals/should-trigger-approval";
-import { ENTRY_INCLUDE, type PaymentActor } from "./entry-include";
+import { ENTRY_INCLUDE, formatCents, type PaymentActor } from "./entry-include";
 import { queueJournalSync } from "@/features/accounting/server/journal/queue-journal-sync";
 
 // Criação de lançamento (com parcelas, aprovação, régua e anexos) como serviço.
@@ -38,14 +38,15 @@ export interface CreatePaymentEntryInput {
 }
 
 /**
- * Cliente, lead, régua e tracking vêm do client e de vários chamadores (Astro, Forms, chat). Um id
- * de outra empresa faria a régua mandar mensagem para o cliente dela: fica de fora.
+ * Cliente, lead, régua, tracking, categoria, conta e centro de custo vêm do client e de vários
+ * chamadores (Astro, Forms, chat). Um id de outra empresa faria a régua mandar mensagem para o
+ * cliente dela, ou ligaria o lançamento a um cadastro dela: fica de fora.
  */
 async function dropForeignReferences(
   organizationId: string,
   input: CreatePaymentEntryInput,
 ): Promise<CreatePaymentEntryInput> {
-  const [contact, lead, rule, tracking] = await Promise.all([
+  const [contact, lead, rule, tracking, category, account, costCenter] = await Promise.all([
     input.contactId
       ? prisma.paymentContact.findFirst({ where: { id: input.contactId, organizationId }, select: { id: true } })
       : null,
@@ -61,12 +62,24 @@ async function dropForeignReferences(
     input.trackingId
       ? prisma.tracking.findFirst({ where: { id: input.trackingId, organizationId }, select: { id: true } })
       : null,
+    input.categoryId
+      ? prisma.paymentCategory.findFirst({ where: { id: input.categoryId, organizationId }, select: { id: true } })
+      : null,
+    input.accountId
+      ? prisma.paymentBankAccount.findFirst({ where: { id: input.accountId, organizationId }, select: { id: true } })
+      : null,
+    input.costCenterId
+      ? prisma.paymentCostCenter.findFirst({ where: { id: input.costCenterId, organizationId }, select: { id: true } })
+      : null,
   ]);
   if (
     (input.contactId && !contact) ||
     (input.leadId && !lead) ||
     (input.dunningRuleId && !rule) ||
-    (input.trackingId && !tracking)
+    (input.trackingId && !tracking) ||
+    (input.categoryId && !category) ||
+    (input.accountId && !account) ||
+    (input.costCenterId && !costCenter)
   ) {
     console.warn("[payment/entries create] referência de outra organização ignorada", {
       organizationId,
@@ -74,10 +87,16 @@ async function dropForeignReferences(
       leadId: input.leadId && !lead ? input.leadId : undefined,
       dunningRuleId: input.dunningRuleId && !rule ? input.dunningRuleId : undefined,
       trackingId: input.trackingId && !tracking ? input.trackingId : undefined,
+      categoryId: input.categoryId && !category ? input.categoryId : undefined,
+      accountId: input.accountId && !account ? input.accountId : undefined,
+      costCenterId: input.costCenterId && !costCenter ? input.costCenterId : undefined,
     });
   }
   return {
     ...input,
+    categoryId: category?.id,
+    accountId: account?.id,
+    costCenterId: costCenter?.id,
     contactId: contact?.id,
     leadId: lead?.id,
     trackingId: tracking?.id ?? lead?.trackingId,
@@ -259,7 +278,7 @@ async function runPostCreateEffects(params: {
     subAppSlug: "payment-entries",
     featureKey: input.type === "RECEIVABLE" ? "payment.receivable.created" : "payment.payable.created",
     action: input.type === "RECEIVABLE" ? "payment.receivable.created" : "payment.payable.created",
-    actionLabel: `${input.type === "RECEIVABLE" ? "Lançou recebimento" : "Lançou pagamento"} "${input.description}" (R$ ${totalAmount.toFixed(2)})`,
+    actionLabel: `${input.type === "RECEIVABLE" ? "Lançou recebimento" : "Lançou pagamento"} "${input.description}" (${formatCents(totalAmount)})`,
     resource: input.description,
     resourceId: entries[0]?.id,
     metadata: { amount: totalAmount, installments, type: input.type },

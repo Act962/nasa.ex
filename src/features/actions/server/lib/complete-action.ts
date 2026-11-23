@@ -25,8 +25,10 @@ export async function runActionCompletedEffects(params: {
   action: CompletableAction;
   organizationId: string;
   actor: ActionCompletionActor;
+  /** Nome da IA externa que concluiu (spec 0143, RF-6). */
+  via?: string;
 }) {
-  const { action, organizationId, actor } = params;
+  const { action, organizationId, actor, via } = params;
   await awardPoints(action.createdBy, organizationId, "complete_card", "Card concluído ✅");
 
   try {
@@ -51,10 +53,10 @@ export async function runActionCompletedEffects(params: {
     subAppSlug: "workspace-actions",
     featureKey: "workspace.action.completed",
     action: "workspace.action.completed",
-    actionLabel: `Concluiu a ação "${action.title}"`,
+    actionLabel: via ? `Concluiu a ação "${action.title}" (via ${via})` : `Concluiu a ação "${action.title}"`,
     resource: action.title,
     resourceId: action.id,
-    metadata: { changedFields: ["isDone"] },
+    metadata: via ? { changedFields: ["isDone"], via } : { changedFields: ["isDone"] },
   });
 }
 

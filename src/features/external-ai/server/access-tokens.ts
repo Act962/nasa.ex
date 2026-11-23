@@ -15,6 +15,14 @@ export const PLANNER_SCOPE = "planner";
 export const TRAFEGO_SCOPE = "trafego";
 /** Fluxos do FlowAstro (spec 0142). Só chave criada depois dele: chave antiga não ganha poder sem ser recriada. */
 export const FLOWASTRO_SCOPE = "flowastro";
+/** Cards do Workspace (spec 0143). Mesma regra: só chave criada depois dele. */
+export const WORKSPACE_SCOPE = "workspace";
+/** Financeiro (spec 0144). Mesma regra: só chave criada depois dele. */
+export const FINANCE_SCOPE = "financeiro";
+/** Leads do Tracking (spec 0145). Mesma regra: só chave criada depois dele. */
+export const TRACKING_SCOPE = "tracking";
+/** Horários e compromissos da Agenda (spec 0146). Mesma regra: só chave criada depois dela. */
+export const AGENDA_SCOPE = "agenda";
 
 /** Começo de toda chave do ÓRBITA; o que não começa assim é tratado como token OAuth (spec 0135, CB-11). */
 export const isAccessKeyToken = (token: string) => token.startsWith(TOKEN_PREFIX);
@@ -46,7 +54,9 @@ export async function createExternalAiToken(input: {
       tokenHash: hashToken(token),
       tokenPrefix: token.slice(0, VISIBLE_PREFIX_LENGTH),
       organizationIds: input.organizationIds,
-      scopes: input.includeTrafego ? [PLANNER_SCOPE, FLOWASTRO_SCOPE, TRAFEGO_SCOPE] : [PLANNER_SCOPE, FLOWASTRO_SCOPE],
+      scopes: input.includeTrafego
+        ? [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE, FINANCE_SCOPE, TRACKING_SCOPE, AGENDA_SCOPE, TRAFEGO_SCOPE]
+        : [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE, FINANCE_SCOPE, TRACKING_SCOPE, AGENDA_SCOPE],
     },
     select: { id: true },
   });

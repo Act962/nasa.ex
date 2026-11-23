@@ -595,7 +595,8 @@ export async function runWorkflow(
 
     // "Finalizar" encerra o fluxo do lead inteiro, inclusive caminhos paralelos (spec 0139, RF-10).
     if (isEndFlowOutput(result.output)) {
-      logStep("run.end_flow_block", { node: nodeNameById.get(node.id) });
+      const isHandoff = (result.output as { handedOff?: unknown }).handedOff !== undefined;
+      logStep(isHandoff ? "run.ended_by_flow_connection" : "run.end_flow_block", { node: nodeNameById.get(node.id) });
       queue.length = 0;
       break;
     }

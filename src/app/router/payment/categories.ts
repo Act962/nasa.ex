@@ -56,6 +56,14 @@ export const createPaymentCategory = base
   }))
   .output(z.object({ category: categoryShape }))
   .handler(async ({ input, context, errors }) => {
+    if (input.parentId) {
+      const parent = await prisma.paymentCategory.findFirst({
+        where: { id: input.parentId, organizationId: context.org.id },
+        select: { id: true },
+      });
+      if (!parent) throw errors.NOT_FOUND({ message: "Categoria pai não encontrada" });
+    }
+
     try {
       const category = await prisma.paymentCategory.create({
         data: { ...input, organizationId: context.org.id },

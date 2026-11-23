@@ -6,7 +6,8 @@ import { findOrderIdByCode, listOrderReviewQueue, recordOrderReview } from "@/fe
 import { markOrderPublished } from "@/features/trafego/server/lib/order-review-actions";
 import { loadOrderForReview } from "@/features/trafego/server/lib/order-review-draft";
 import type { ExternalAiCaller } from "../access-tokens";
-import { asResult, guardTrafegoTool, type ToolResult } from "./trafego-mcp-tools";
+import { guardTrafegoTool } from "./trafego-mcp-tools";
+import { asResult, type ToolResult } from "./tool-runner";
 
 /**
  * Avaliar e publicar pela rotina do Claude (spec 0132, RF-7). O ÓRBITA só lê e grava o próprio banco: a
