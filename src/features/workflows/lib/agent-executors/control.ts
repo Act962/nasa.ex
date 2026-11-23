@@ -16,7 +16,7 @@
 import "server-only";
 import prisma from "@/lib/prisma";
 import { runWorkflow, type NodeExecutor } from "../run-workflow";
-import { interpolate } from "../workflow-context";
+import { interpolate, isAttendanceFlowContext, type WorkflowContext } from "../workflow-context";
 import { HANDOFF_MODE, MAX_HANDOFF_DEPTH } from "../flow-links";
 
 const MAX_SUBWORKFLOW_DEPTH = 5;
@@ -118,6 +118,7 @@ export const callWorkflowExecutor: NodeExecutor = async ({
       name: true,
       agentMode: true,
       isActive: true,
+      kind: true,
       organizationId: true,
       tracking: { select: { organizationId: true } },
       nodes: { select: { id: true, type: true } },
@@ -153,10 +154,24 @@ export const callWorkflowExecutor: NodeExecutor = async ({
     };
   }
 
+  // Fluxo do FlowAstro só começa pelo Início, com a trava do lead: chamado de uma automação comum, rodaria sem gatilho
+  // e não mandaria nada ao cliente. Melhor falhar dizendo o motivo.
+  if (subWorkflow.kind === "ATTENDANCE" && !isAttendanceFlowContext(context)) {
+    return failedHandoff(
+      "attendance_flow_from_automation",
+      `"${subWorkflow.name}" é um fluxo do FlowAstro e só pode ser conectado a partir de outro fluxo do FlowAstro.`,
+    );
+  }
+
   if (dryRun) {
     return {
       output: { dryRun: true, calledWorkflowId: workflowId, depth: depth + 1 },
     };
+  }
+
+  // FlowAstro para FlowAstro (spec 0139, CB-8): o destino ganha execução própria com a trava do lead.
+  if (isAttendanceFlowContext(context) && subWorkflow.kind === "ATTENDANCE") {
+    return handOffBetweenAttendanceFlows({ context, subWorkflow, subWorkflowOrganizationId });
   }
 
   // Modo passagem ("terminou um, roda o outro", spec 0092): em vez de rodar aqui dentro, dispara o
@@ -244,3 +259,74 @@ export const callWorkflowExecutor: NodeExecutor = async ({
     chosenOutput: "main",
   };
 };
+
+type AttendanceTargetFlow = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  nodes: { id: string; type: string }[];
+};
+
+/** `reason` é o código para filtrar nos logs; `userMessage` é o que a equipe lê no histórico da execução. */
+function failedHandoff(reason: string, userMessage: string) {
+  return { output: { error: userMessage, reason }, status: "FAILED" as const, errorMessage: userMessage };
+}
+
+/**
+ * Passagem entre fluxos do FlowAstro: a execução atual termina e o destino começa pela Entrada dele, com a trava do
+ * lead. A volta ao menu (A → B → A) é normal; só a passagem em sequência sem o cliente responder no meio é limitada.
+ */
+async function handOffBetweenAttendanceFlows(params: {
+  context: WorkflowContext;
+  subWorkflow: AttendanceTargetFlow;
+  subWorkflowOrganizationId: string | null;
+}) {
+  const { context, subWorkflow } = params;
+  const leadId = typeof context.lead?.id === "string" ? context.lead.id : null;
+  const sourceWorkflowId = context.workflowId;
+  if (!leadId || !sourceWorkflowId) return failedHandoff("attendance_handoff_without_lead", "A conexão de fluxo precisa de um contato.");
+
+  const sourceWorkflow = await prisma.workflow.findUnique({ where: { id: sourceWorkflowId }, select: { organizationId: true } });
+  if (!sourceWorkflow?.organizationId || sourceWorkflow.organizationId !== params.subWorkflowOrganizationId) {
+    return failedHandoff("subworkflow_not_found", `O fluxo conectado (${subWorkflow.id}) não foi encontrado nesta empresa.`);
+  }
+  if (!subWorkflow.isActive) {
+    return failedHandoff("subworkflow_inactive", `O fluxo conectado "${subWorkflow.name}" está desligado. Ligue-o para o cliente seguir nele.`);
+  }
+  if (!subWorkflow.nodes.some((node) => node.type === "ATTENDANCE_START")) {
+    return failedHandoff("subworkflow_without_start", `O fluxo conectado "${subWorkflow.name}" não tem bloco de Início.`);
+  }
+
+  const hasClientRepliedInThisRun = context.vars.lastEvent !== undefined;
+  const previousDepth = hasClientRepliedInThisRun ? 0 : Number((context.trigger as { __handoffDepth?: unknown } | undefined)?.__handoffDepth ?? 0);
+  if (previousDepth >= MAX_HANDOFF_DEPTH) {
+    return failedHandoff(
+      "max_handoff_depth_reached",
+      `Mais de ${MAX_HANDOFF_DEPTH} conexões de fluxo seguidas sem o cliente responder: parado para não girar em círculo.`,
+    );
+  }
+
+  const { handOffAttendanceFlow } = await import("@/features/attendance-flows/server/handoff");
+  const trigger = (context.trigger ?? {}) as { trackingId?: unknown };
+  const handoff = await handOffAttendanceFlow({
+    leadId,
+    fromWorkflowId: sourceWorkflowId,
+    toWorkflowId: subWorkflow.id,
+    initialData: {
+      __handoffDepth: previousDepth + 1,
+      handedOffFromWorkflow: sourceWorkflowId,
+      ...(typeof trigger.trackingId === "string" ? { trackingId: trigger.trackingId } : {}),
+    },
+    flowVariables: context.vars,
+  });
+  if (handoff.status === "lock_not_held") {
+    // Equipe assumiu enquanto o fluxo rodava: o lead já não é do fluxo, então este também para.
+    return { output: { handedOff: false, reason: "lock_not_held", endFlow: true }, chosenOutput: "main" };
+  }
+  if (handoff.status === "dispatch_failed") {
+    // A trava já saiu desta execução: ela para aqui (um FAILED deixaria o motor seguir os caminhos paralelos sem a trava).
+    return { output: { handedOff: false, reason: "dispatch_failed", error: "Falha ao iniciar o fluxo conectado.", endFlow: true }, chosenOutput: "main" };
+  }
+  // `endFlow` encerra esta execução, inclusive caminhos paralelos: o lead agora é do fluxo de destino.
+  return { output: { handedOff: true, subWorkflowId: subWorkflow.id, subRunId: handoff.runId, endFlow: true }, chosenOutput: "main" };
+}
