@@ -3,6 +3,7 @@ import { requiredAuthMiddleware } from "../../middlewares/auth";
 import prisma from "@/lib/prisma";
 import { isAttendanceStateEnabled } from "@/features/org-defaults/lib/attendance/flag";
 import { z } from "zod";
+import { isTrackingParticipant } from "@/features/leads/lib/tracking-participant-guard";
 import { deriveResponseState } from "@/features/form/lib/form-response-state";
 import { buildResponseSlug } from "@/features/form/lib/response-slug";
 import {
@@ -99,7 +100,11 @@ export const listLeadsByStatus = base
       statusFlowFilter: z.array(z.string()).optional(),
     }),
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context, errors }) => {
+    if (!(await isTrackingParticipant(input.trackingId, context.user.id))) {
+      throw errors.NOT_FOUND;
+    }
+
     const {
       statusId,
       trackingId,
