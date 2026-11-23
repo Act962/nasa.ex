@@ -1,3 +1,4 @@
+import { insertAgendaAppointment } from "@/features/agenda/server/appointment-commands";
 import { meter } from "@/features/stars/lib/metering";
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
@@ -1055,20 +1056,26 @@ CTA: [chamada para ação]`;
         const startsAt = buildDateTime(finalDate, finalTime);
         const endsAt = new Date(startsAt.getTime() + 30 * 60 * 1000);
 
-        const createdAppointment = await prisma.appointment.create({
-          data: {
-            agendaId: agenda.id,
-            title: `${actionContext === "create" ? "Reunião" : "Compromisso"} - ${resolvedLead.name}`,
-            leadId: resolvedLead.id,
-            userId: context.user.id,
-            status: "PENDING" as never,
-            startsAt,
-            endsAt,
-            trackingId: agenda.trackingId ?? null,
-            notes: command,
-          },
-          select: { id: true },
+        const inserted = await insertAgendaAppointment({
+          agendaId: agenda.id,
+          title: `${actionContext === "create" ? "Reunião" : "Compromisso"} - ${resolvedLead.name}`,
+          leadId: resolvedLead.id,
+          userId: context.user.id,
+          status: "PENDING",
+          startsAt,
+          endsAt,
+          trackingId: agenda.trackingId ?? null,
+          notes: command,
         });
+        if (!inserted.ok) {
+          return {
+            type: "error" as const,
+            title: "Horário ocupado",
+            description: `Já existe um compromisso na agenda ${agenda.name} neste horário. Escolha outro.`,
+            appName: "Spacetime",
+          } satisfies ExecuteOutput;
+        }
+        const createdAppointment = inserted.appointment;
         await recordAppointmentChange({ appointmentId: createdAppointment.id, change: "scheduled", actorId: context.user.id }).catch((error: unknown) => console.warn("[nasa-command] atendimento do agendamento falhou", error));
 
         const costKind = "create" as const;

@@ -1,17 +1,8 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import prisma from "@/lib/prisma";
-import { logActivity } from "@/features/admin/lib/activity-logger";
-import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
 import z from "zod";
-import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
+import { createAgendaAppointment } from "@/features/agenda/server/appointment-commands";
 
 export const createAdminAppointment = base
   .use(requiredAuthMiddleware)
@@ -35,137 +26,12 @@ export const createAdminAppointment = base
       meetingType: z.enum(["ONLINE", "IN_PERSON"]).optional(),
     }),
   )
-  .handler(async ({ input, context, errors }) => {
-    const agenda = await prisma.agenda.findFirst({
-      where: {
-        id: input.agendaId,
-        organizationId: context.org.id,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        slotDuration: true,
-        trackingId: true,
-        statusId: true,
-        tags: { select: { id: true } },
-      },
-    });
-
-    if (!agenda) {
-      throw errors.NOT_FOUND({ message: "Agenda não encontrada" });
-    }
-
-    const startsAt = (dayjs as any).tz(
-      `${input.date} ${input.time}`,
-      input.timeZone || "America/Sao_Paulo",
-    );
-    const endsAt = startsAt.add(agenda.slotDuration, "minute");
-
-    // Verificar conflito de horário
-    const conflict = await prisma.appointment.findFirst({
-      where: {
-        agendaId: agenda.id,
-        startsAt: { lt: endsAt.toDate() },
-        endsAt: { gt: startsAt.toDate() },
-        status: { notIn: ["CANCELLED"] },
-      },
-    });
-
-    if (conflict) {
-      throw errors.BAD_REQUEST({ message: "Este horário já está preenchido." });
-    }
-
-    // Buscar ou criar lead no CRM
-    let lead = await prisma.lead.findFirst({
-      where: { phone: input.phone, trackingId: agenda.trackingId },
-    });
-
-    if (!lead) {
-      let statusId = agenda.statusId;
-      if (!statusId) {
-        const firstStatus = await prisma.status.findFirst({
-          where: { trackingId: agenda.trackingId },
-          orderBy: { order: "asc" },
-        });
-
-        if (!firstStatus) {
-          throw errors.BAD_REQUEST({
-            message: "A trilha da agenda não possui status configurados.",
-          });
-        }
-
-        statusId = firstStatus.id;
-      }
-
-      lead = await prisma.lead.create({
-        data: {
-          name: input.name,
-          phone: input.phone,
-          email: input.email || null,
-          trackingId: agenda.trackingId,
-          statusId,
-          source: "AGENDA",
-        },
-      });
-
-      // Só ADICIONA tags da agenda ao lead novo. Nunca remove tags
-      // existentes (leads pré-existentes nem entram aqui).
-      if (agenda.tags.length > 0) {
-        await prisma.leadTag.createMany({
-          data: agenda.tags.map((tag) => ({
-            leadId: lead!.id,
-            tagId: tag.id,
-          })),
-          skipDuplicates: true,
-        });
-      }
-    }
-
-    const appointment = await prisma.appointment.create({
-      data: {
-        agendaId: agenda.id,
-        leadId: lead.id,
-        userId: context.user.id,
-        startsAt: startsAt.toDate(),
-        endsAt: endsAt.toDate(),
-        title: input.title?.trim() || `Agendamento: ${input.name}`,
-        notes: input.notes,
-        status: "CONFIRMED",
-        trackingId: agenda.trackingId,
-      },
-    });
-
-    if (input.meetingType) {
-      await prisma.appointment.update({
-        where: { id: appointment.id },
-        data: { meetingType: input.meetingType },
-      });
-    }
-
-    // Log activity (action alinhada com a regra global "appointment_create")
-    await logActivity({
-      organizationId: context.org.id,
-      userId: context.user.id,
-      userName: context.user.name,
-      userEmail: context.user.email,
-      userImage: (context.user as any).image,
-      appSlug: "spacetime",
-      action: "appointment_create",
-      actionLabel: `Criou agendamento para ${input.name} em ${input.date} às ${input.time} (${agenda.name})`,
-      resource: input.name,
-      resourceId: appointment.id,
-      metadata: { agendaName: agenda.name, date: input.date, time: input.time, phone: input.phone },
-    });
-
-    // Cobra Stars conforme regra global `appointment_create`.
-    await chargeStarsByAction(context.org.id, "appointment_create", {
-      userId: context.user.id,
-      description: `Criou agendamento (${agenda.name})`,
-      appSlug: "spacetime",
-    });
-
-    await recordAppointmentChange({ appointmentId: appointment.id, change: "scheduled", actorId: context.user.id }).catch((error: unknown) => console.warn("[agenda.createAdmin] atendimento do agendamento falhou", error));
-
+  .handler(async ({ input, context }) => {
+    const appointment = await createAgendaAppointment({ organizationId: context.org.id, actor: {
+        id: context.user.id,
+        name: context.user.name,
+        email: context.user.email,
+        image: (context.user as { image?: string | null }).image,
+      }, input });
     return { success: true, appointment };
   });

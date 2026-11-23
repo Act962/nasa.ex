@@ -1,10 +1,8 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import prisma from "@/lib/prisma";
-import { logActivity } from "@/features/admin/lib/activity-logger";
-import { z } from "zod";
-import { recordAppointmentChange } from "@/features/org-defaults/lib/attendance/appointment";
+import z from "zod";
+import { cancelAgendaAppointment } from "@/features/agenda/server/appointment-commands";
 
 export const cancelAppointment = base
   .use(requiredAuthMiddleware)
@@ -14,54 +12,12 @@ export const cancelAppointment = base
       appointmentId: z.string().min(1, "Appointment ID is required"),
     }),
   )
-  .handler(async ({ input, context, errors }) => {
-    const { appointmentId } = input;
-
-    const appointment = await prisma.appointment.findUnique({
-      where: {
-        id: appointmentId,
-        agenda: {
-          organizationId: context.org.id,
-        },
-      },
-    });
-
-    if (!appointment) {
-      throw errors.BAD_REQUEST({
-        message: "Appointment not found",
-      });
-    }
-
-    if (appointment.status === "CANCELLED") {
-      throw errors.BAD_REQUEST({
-        message: "Appointment is already cancelled",
-      });
-    }
-
-    const updatedAppointment = await prisma.appointment.update({
-      where: {
-        id: appointmentId,
-      },
-      data: {
-        status: "CANCELLED",
-        cancelledBy: "SYSTEM",
-      },
-    });
-
-    await logActivity({
-      organizationId: context.org.id,
-      userId: context.user.id,
-      userName: context.user.name,
-      userEmail: context.user.email,
-      userImage: (context.user as any).image,
-      appSlug: "spacetime",
-      action: "appointment.cancelled",
-      actionLabel: `Cancelou agendamento "${appointment.title ?? appointmentId}"`,
-      resourceId: appointmentId,
-      metadata: { previousStatus: appointment.status },
-    });
-
-    await recordAppointmentChange({ appointmentId, change: "cancelled", actorId: context.user.id }).catch((error: unknown) => console.warn("[agenda.cancel] atendimento do agendamento falhou", error));
-
-    return { appointment: updatedAppointment };
+  .handler(async ({ input, context }) => {
+    const appointment = await cancelAgendaAppointment({ organizationId: context.org.id, actor: {
+        id: context.user.id,
+        name: context.user.name,
+        email: context.user.email,
+        image: (context.user as { image?: string | null }).image,
+      }, appointmentId: input.appointmentId });
+    return { appointment };
   });
