@@ -161,8 +161,13 @@ export async function revokeCampaignDraw(params: { organizationId: string; drawI
       }
     });
   } catch (error) {
-    if (error instanceof DrawAbort) return { ok: false as const, reason: error.reason as RevokeFailure };
-    throw error;
+    if (!(error instanceof DrawAbort)) throw error;
+    if (error.reason === "already_revoked") {
+      // O aviso pode ter reservado o ganhador entre a leitura e a revogação (spec 0148).
+      const current = await prisma.loyaltyCampaignDraw.findUnique({ where: { id: draw.id }, select: { notifiedAt: true, revokedAt: true } });
+      if (current?.notifiedAt && !current.revokedAt) return { ok: false as const, reason: "already_notified" as const };
+    }
+    return { ok: false as const, reason: error.reason as RevokeFailure };
   }
 
   await auditLoyaltyAction({

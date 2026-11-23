@@ -78,7 +78,7 @@ export function CampaignNotifyWinnersDialog({ campaign, winners }: { campaign: N
   const send = () => {
     if (!template) return;
     notify.mutate(
-      { campaignId: campaign.id, templateName: template.name, languageCode: template.language, templateBody: template.bodyText, variables, prizeNames },
+      { campaignId: campaign.id, templateName: template.name, languageCode: template.language, variables, prizeNames },
       {
         onSuccess: (result) => {
           const failures = result.results.filter((item) => !item.isSent);
