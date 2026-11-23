@@ -3860,6 +3860,7 @@ model LoyaltyCampaign {
   rulesVersion          String    @map("rules_version")
   maxReceiptsPerDay     Int       @default(5) @map("max_receipts_per_day")
   prizeCount            Int       @default(1) @map("prize_count")
+  prizeNames            String[]  @default([]) @map("prize_names")
   lastSweepAt           DateTime? @map("last_sweep_at")
   drawnAt               DateTime? @map("drawn_at")
   drawSeed              String?   @map("draw_seed")
@@ -3979,6 +3980,9 @@ model LoyaltyCampaignDraw {
   revokedAt     DateTime? @map("revoked_at")
   revokedByName String?   @map("revoked_by_name")
   revokeReason  String?   @map("revoke_reason")
+  notifiedAt      DateTime? @map("notified_at")
+  notifyMessageId String?   @map("notify_message_id")
+  notifyError     String?   @map("notify_error")
 
   campaign    LoyaltyCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   luckyNumber LoyaltyLuckyNumber? @relation(fields: [luckyNumberId], references: [id], onDelete: SetNull)

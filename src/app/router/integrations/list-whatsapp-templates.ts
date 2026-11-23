@@ -37,7 +37,7 @@ function countPlaceholders(text: string | undefined): number {
   return matches ? new Set(matches).size : 0;
 }
 
-function summarizeTemplate(template: MessageTemplate): WhatsAppTemplateSummary {
+export function summarizeTemplate(template: MessageTemplate): WhatsAppTemplateSummary {
   const body = template.components.find((component) => component.type === "BODY");
   const header = template.components.find(
     (component) => component.type === "HEADER",
