@@ -10,6 +10,7 @@ import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { cn } from "@/lib/utils";
 import { useSweepStarFriendsCampaign } from "../hooks/use-star-friends-campaign";
 import { CampaignDrawRevokeButton } from "./campaign-draw-revoke-button";
+import { CampaignNotifyWinnersDialog } from "./campaign-notify-winners-dialog";
 import { CampaignPrizeCountField } from "./campaign-prize-count";
 
 type PanelDraw = {
@@ -24,12 +25,22 @@ type PanelDraw = {
   revokedAt: Date | string | null;
   revokedByName: string | null;
   revokeReason: string | null;
+  notifiedAt: Date | string | null;
+  notifyError: string | null;
 };
 
 type PanelWinner = { position: number; code: string; name: string; phone: string };
 
 type CampaignDrawPanelProps = {
-  campaign: { id: string; prizeCount: number; lastSweepAt: Date | string | null; drawnAt: Date | string | null };
+  campaign: {
+    id: string;
+    name: string;
+    trackingId: string | null;
+    prizeNames: string[];
+    prizeCount: number;
+    lastSweepAt: Date | string | null;
+    drawnAt: Date | string | null;
+  };
   stats: { validNumbers: number; participants: number; pendingReceipts: number; receiptsAfterSweep: number };
   draws: PanelDraw[];
   legacyWinners: PanelWinner[];
@@ -51,6 +62,7 @@ function ReadinessItem({ isOk, children }: { isOk: boolean; children: React.Reac
 export function CampaignDrawPanel({ campaign, stats, draws, legacyWinners, canEdit, canApprove, isExporting, onExport }: CampaignDrawPanelProps) {
   const sweep = useSweepStarFriendsCampaign();
   const activeDraws = draws.filter((draw) => !draw.revokedAt);
+  const pendingNotice = activeDraws.filter((draw) => !draw.notifiedAt).sort((first, second) => first.position - second.position);
   const hasStarted = activeDraws.length > 0;
   // Campanha sorteada antes do sorteio ao vivo: só tem os ganhadores marcados nos números.
   const isLegacyDraw = Boolean(campaign.drawnAt) && draws.length === 0;
@@ -139,6 +151,7 @@ export function CampaignDrawPanel({ campaign, stats, draws, legacyWinners, canEd
             {sweep.isPending ? <OrbitaSpinner className="size-4" /> : <ScanSearch className="size-4" />} Varredura de duplicados
           </Button>
         )}
+        {canApprove && pendingNotice.length > 0 && <CampaignNotifyWinnersDialog campaign={campaign} winners={pendingNotice} />}
         <Button variant="ghost" className="h-11 rounded-full px-4" disabled={isExporting} onClick={onExport}>
           {isExporting ? <OrbitaSpinner className="size-4" /> : <Download className="size-4" />} Exportar números
         </Button>
@@ -179,9 +192,17 @@ export function CampaignDrawPanel({ campaign, stats, draws, legacyWinners, canEd
                         ? `Revogado por ${draw.revokedByName ?? "—"} em ${format(new Date(draw.revokedAt), "dd/MM HH:mm")} · ${draw.revokeReason ?? ""}`
                         : `Sorteado por ${draw.actorName} em ${format(new Date(draw.drawnAt), "dd/MM HH:mm:ss")}`}
                     </p>
+                    {!draw.revokedAt && draw.notifiedAt && (
+                      <p className="truncate text-xs font-medium text-success">Avisado pelo WhatsApp em {format(new Date(draw.notifiedAt), "dd/MM HH:mm")}</p>
+                    )}
+                    {!draw.revokedAt && !draw.notifiedAt && draw.notifyError && (
+                      <p className="truncate text-xs text-destructive" title={draw.notifyError}>
+                        Aviso falhou: {draw.notifyError}
+                      </p>
+                    )}
                   </div>
                   <span className={cn("font-mono font-semibold", draw.revokedAt && "line-through")}>{draw.code}</span>
-                  {canApprove && !draw.revokedAt && <CampaignDrawRevokeButton draw={draw} />}
+                  {canApprove && !draw.revokedAt && !draw.notifiedAt && <CampaignDrawRevokeButton draw={draw} />}
                 </li>
               ))}
           </ol>
