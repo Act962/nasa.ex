@@ -39,6 +39,8 @@ A equipe gera, numa pasta do Nbox, um link com validade (7, 15 ou 30 dias). O cl
 | RF-2a | A seção **"Pedidos de arquivos"** na lateral lista todas as pastas com link: prazo, quantos arquivos chegaram, tamanho e último envio; clicar abre a pasta, e o mesmo menu de ações da faixa fica em cada linha. |
 | RF-3 | A página pública mostra o nome da empresa, o nome da pasta e a validade; pede o nome de quem envia (opcional) e aceita vários arquivos de até 5 GB cada, com progresso. |
 | RF-4 | O cliente vê e pode apagar **só os arquivos enviados pelo próprio navegador**, enquanto o link vale. Vencido, a página mostra "link encerrado" e não lista nada. |
+| RF-4a | Na lista, o cliente vê o arquivo que enviou: vídeo, imagem, áudio e PDF tocam numa janela na própria página; outros tipos abrem em outra aba (link assinado de 5 min, só do próprio navegador, só com o link aberto). Apagar pede confirmação antes. |
+| RF-4b | A prévia do link no WhatsApp e nas redes mostra quem pede, a pasta e o prazo (título, descrição e imagem 1200×630 gerada na hora). A página continua fora dos buscadores (noindex). |
 | RF-5 | Os arquivos recebidos aparecem na pasta como qualquer outro, com "Enviado por <nome> pelo link" na descrição. |
 | RF-6 | Quem criou o link recebe uma notificação no sino quando um envio termina, com a quantidade de arquivos e atalho para a pasta (no máximo uma a cada 10 minutos por link). |
 
@@ -108,6 +110,8 @@ Sem runner de teste no projeto (CLAUDE.md, regra 20): verificação manual no na
 
 | Data | Autor | Mudança |
 | --- | --- | --- |
+| 2026-11-24 | João Gabriel (com Claude) | RF-4a: prévia na própria página (vídeo toca sem trocar de aba). No mesmo PR, fora da spec: "Baixar" do Nbox passa por `/api/nbox/items/<id>/download` (o atributo `download` não vale para o domínio do R2 e o arquivo só abria). |
+| 2026-11-24 | João Gabriel (com Claude) | RF-4a e RF-4b: abrir o próprio arquivo, confirmação antes de apagar e prévia do link no WhatsApp (pedido do dev). |
 | 2026-11-24 | João Gabriel (com Claude) | RF-2a: seção "Pedidos de arquivos" na lateral (pedido do dev). |
 | 2026-11-24 | João Gabriel (com Claude) | Barra do Nbox simplificada: "Enviar" como ação principal e Pedir arquivos, Transferir, Nova pasta e Guardar link no menu ao lado (pedido do dev; a barra quebrava em tela estreita). |
 | 2026-11-24 | João Gabriel (com Claude) | Criada e aprovada no chat (visibilidade só do próprio envio; prazos 7/15/30; aviso no sino). |

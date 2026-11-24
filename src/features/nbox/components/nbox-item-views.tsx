@@ -132,15 +132,24 @@ export function useResolvedItemHref(item: NBoxItemView, resolveHref?: NBoxItemHr
   return isStorageKey ? storageUrl : item.url;
 }
 
+/** Arquivo guardado no storage baixa pela rota do app; link e tela com `resolveHref` próprio seguem o endereço resolvido. */
+export function itemDownloadHref(item: NBoxItemView, resolvedUrl: string | null, hasCustomResolver: boolean): string | null {
+  if (!resolvedUrl || hasCustomResolver || item.type === "LINK" || !item.url) return resolvedUrl;
+  return `/api/nbox/items/${item.id}/download`;
+}
+
 export function ItemActionsMenuItems({
   item,
   resolvedUrl,
   onDelete,
   canPublish,
   isPrimaryActionHidden = false,
+  hasCustomResolver = false,
 }: {
   item: NBoxItemView;
   resolvedUrl: string | null;
+  /** A tela passou `resolveHref` próprio: o download segue esse endereço. */
+  hasCustomResolver?: boolean;
   onDelete?: (itemId: string) => void;
   canPublish: boolean;
   /** Esconde "Baixar/Abrir link" quando a tela já mostra esse botão. */
@@ -148,11 +157,15 @@ export function ItemActionsMenuItems({
 }) {
   const isLink = item.type === "LINK";
   const hasPrimaryAction = !!resolvedUrl && !isPrimaryActionHidden;
+  const downloadHref = itemDownloadHref(item, resolvedUrl, hasCustomResolver);
   return (
     <>
       {hasPrimaryAction && (
         <DropdownMenuItem asChild>
-          <a href={resolvedUrl ?? undefined} target="_blank" rel="noopener noreferrer" download={!isLink}>
+          <a
+            href={downloadHref ?? undefined}
+            {...(isLink ? { target: "_blank", rel: "noopener noreferrer" } : { download: item.name })}
+          >
             {isLink ? <ExternalLinkIcon className="size-3.5" /> : <DownloadIcon className="size-3.5" />}
             {isLink ? "Abrir link" : "Baixar"}
           </a>
@@ -350,6 +363,7 @@ export function ItemCardGrid({
                 resolvedUrl={resolvedUrl}
                 onDelete={onDelete}
                 canPublish={canPublish}
+                hasCustomResolver={!!resolveHref}
               />
             </DropdownMenuContent>
           </DropdownMenu>
@@ -400,7 +414,13 @@ export function ItemRowList({
         <DropdownMenu>
           <ItemMenuTrigger className="shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground" />
           <DropdownMenuContent align="end">
-            <ItemActionsMenuItems item={item} resolvedUrl={resolvedUrl} onDelete={onDelete} canPublish={canPublish} />
+            <ItemActionsMenuItems
+              item={item}
+              resolvedUrl={resolvedUrl}
+              onDelete={onDelete}
+              canPublish={canPublish}
+              hasCustomResolver={!!resolveHref}
+            />
           </DropdownMenuContent>
         </DropdownMenu>
       )}
