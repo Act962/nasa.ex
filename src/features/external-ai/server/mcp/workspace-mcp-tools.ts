@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
-import { takeRateLimit } from "@/lib/rate-limit";
 import {
   addActionChecklistItem,
   addActionParticipant,
@@ -23,11 +22,10 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { isTrackingAccessibleByUser } from "@/features/workspace/lib/tracking-link";
 import { createWorkspaceColumnRecord, createWorkspaceRecord } from "@/features/workspace/server/lib/workspace-commands";
 import { WORKSPACE_SCOPE, type ExternalAiCaller } from "../access-tokens";
-import { asResult, type ToolResult } from "./trafego-mcp-tools";
+import { createScopedToolRunner } from "./tool-runner";
 
 // Workspace pelo MCP (spec 0143): a IA da pessoa lê e mexe nos cards com as permissões que ela tem na tela.
 
-const RATE_LIMIT = { max: 300, windowMs: 60 * 60 * 1000 };
 const ACTIONS_PER_COLUMN = 50;
 const SEARCH_LIMIT = 50;
 const PEOPLE_PER_CALL = 20;
@@ -37,7 +35,6 @@ const NOT_FOUND_WORKSPACE = "Workspace não encontrado, ou você não é membro 
 
 const PRIORITIES = ["NONE", "LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 
-const asError = (message: string): ToolResult => ({ content: [{ type: "text", text: message }], isError: true });
 
 interface OrganizationContext {
   id: string;
@@ -135,18 +132,7 @@ const parseOptionalDate = (value: string | null | undefined, field: string) =>
 
 const userSummary = { select: { id: true, name: true } } as const;
 
-async function runWorkspaceTool(caller: ExternalAiCaller, work: () => Promise<unknown>): Promise<ToolResult> {
-  try {
-    if (!caller.scopes.includes(WORKSPACE_SCOPE)) {
-      return asError("Esta chave não tem acesso ao Workspace. Gere uma chave nova em Satélites › IA externa ou conecte pelo OAuth.");
-    }
-    const limit = takeRateLimit("mcp-workspace", `${caller.userId}:${caller.tokenId}`, RATE_LIMIT);
-    if (!limit.allowed) return asError(`Muitas chamadas seguidas. Tente de novo em ${Math.ceil(limit.retryAfterSeconds / 60)} min.`);
-    return asResult(await work());
-  } catch (error) {
-    return asError(error instanceof Error ? error.message : "Erro inesperado.");
-  }
-}
+const runWorkspaceTool = createScopedToolRunner({ scope: WORKSPACE_SCOPE, appName: "ao Workspace", rateLimitKey: "mcp-workspace" });
 
 const DESCRIPTION_HINT = "Em Markdown: ## título, **negrito**, *itálico*, listas com - ou 1., > citação, [texto](link). Vira a formatação do editor do card.";
 

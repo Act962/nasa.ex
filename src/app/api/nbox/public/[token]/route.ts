@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getPresignedReadUrl } from "@/lib/r2-url";
+import { createDownloadUrl } from "@/features/nbox/server/storage-objects";
+
+// Mesmo prazo do cache antigo: despublicar corta o acesso em até 5 min.
+const PUBLIC_DOWNLOAD_URL_TTL_SECONDS = 300;
 
 /**
  * Download público de itens N-Box marcados como isPublic=true.
@@ -26,8 +29,6 @@ export async function GET(
       id: true,
       name: true,
       url: true,
-      mimeType: true,
-      size: true,
       type: true,
       isPublic: true,
       folder: { select: { isRestricted: true } },
@@ -60,37 +61,13 @@ export async function GET(
     );
   }
 
-  // FILE/IMAGE/CONTRACT/PROPOSAL: streamar do storage.
+  // Download por link assinado curto: os bytes não passam pelo app (spec 0148, D-6).
+  if (/^https?:\/\//.test(item.url)) return NextResponse.redirect(item.url, 302);
   try {
-    // Upload do N-Box guarda a chave do bucket, não a URL.
-    const downloadUrl = /^https?:\/\//.test(item.url) ? item.url : await getPresignedReadUrl(item.url, 300);
-    const upstream = await fetch(downloadUrl);
-    if (!upstream.ok || !upstream.body) {
-      return NextResponse.json(
-        { error: "Falha ao buscar arquivo" },
-        { status: 502 },
-      );
-    }
-
-    const headers = new Headers();
-    headers.set(
-      "Content-Type",
-      item.mimeType || upstream.headers.get("content-type") || "application/octet-stream",
-    );
-    if (item.size) headers.set("Content-Length", String(item.size));
-    headers.set(
-      "Content-Disposition",
-      `inline; filename="${encodeURIComponent(item.name)}"`,
-    );
-    // Cache curto — se admin despublicar, invalida em 5min.
-    headers.set("Cache-Control", "public, max-age=300, s-maxage=300");
-
-    return new NextResponse(upstream.body, { status: 200, headers });
-  } catch (err) {
-    console.error("[nbox/public] fetch error", err);
-    return NextResponse.json(
-      { error: "Erro ao baixar arquivo" },
-      { status: 500 },
-    );
+    const downloadUrl = await createDownloadUrl(item.url, item.name, PUBLIC_DOWNLOAD_URL_TTL_SECONDS, "inline");
+    return NextResponse.redirect(downloadUrl, 302);
+  } catch (error) {
+    console.error("[nbox/public] presign error", error);
+    return NextResponse.json({ error: "Erro ao baixar arquivo" }, { status: 500 });
   }
 }

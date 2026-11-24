@@ -119,7 +119,7 @@ export async function buildNBoxBriefing({ organizationId, firstName, period }: B
       ? `${firstName}, seu N-Box ainda está vazio.`
       : `${firstName}, nada novo no N-Box esta semana. São ${pluralize(totalItems, "item guardado", "itens guardados")}.`;
   }
-  const weekMegabytes = (weekItems._sum.size ?? 0) / BYTES_PER_MEGABYTE;
+  const weekMegabytes = Number(weekItems._sum.size ?? 0) / BYTES_PER_MEGABYTE;
   const sizeText = weekMegabytes >= 0.1 ? ` (${weekMegabytes.toFixed(1).replace(".", ",")} MB)` : "";
   return `${firstName}, esta semana ${weekCount === 1 ? "entrou 1 arquivo" : `entraram ${weekCount} arquivos`} no N-Box${sizeText}. São ${pluralize(totalItems, "item", "itens")} no total.`;
 }

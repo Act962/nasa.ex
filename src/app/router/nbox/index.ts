@@ -8,6 +8,8 @@ import { updateItem } from "./update-item";
 import { deleteItem } from "./delete-item";
 import { toggleItemPublic } from "./toggle-item-public";
 import { getStorage } from "./get-storage";
+import { completeUpload, startUpload } from "./uploads";
+import { createTransfer, listTransfers, updateTransfer } from "./transfers";
 
 export const nboxRouter = {
   folders: {
@@ -24,4 +26,13 @@ export const nboxRouter = {
     togglePublic: toggleItemPublic,
   },
   getStorage,
+  uploads: {
+    start: startUpload,
+    complete: completeUpload,
+  },
+  transfers: {
+    create: createTransfer,
+    getMany: listTransfers,
+    update: updateTransfer,
+  },
 };

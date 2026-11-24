@@ -687,6 +687,18 @@ export const GUIDE_ANCHORS = {
     id: "nbox.folder.submit",
     description: "Botão \"Criar\" da pasta",
   },
+  nboxTransfersButton: {
+    id: "nbox.transfers",
+    description: "Botão \"Transferir\" do N-Box (link com prazo)",
+  },
+  nboxTransferDropzone: {
+    id: "nbox.transfer.dropzone",
+    description: "Área de arrastar arquivos da nova transferência",
+  },
+  nboxTransferCreateButton: {
+    id: "nbox.transfer.create",
+    description: "Botão \"Criar link\" da transferência",
+  },
   plannerNewButton: {
     id: "planner.new-button",
     description: "Botão \"Novo Planner\" em /nasa-planner",
@@ -874,6 +886,10 @@ export const GUIDE_ANCHORS = {
   starFriendsDrawSimulator: {
     id: "star-friends.draw-simulator",
     description: "Botão \"Simular sorteio\" da aba Campanha",
+  },
+  starFriendsNotifyWinners: {
+    id: "star-friends.notify-winners",
+    description: "Botão \"Avisar ganhadores\" do quadro Sorteio da aba Campanha",
   },
   starFriendsDrawNext: {
     id: "star-friends.draw-next",

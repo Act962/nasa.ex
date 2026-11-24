@@ -1,4 +1,5 @@
 import "server-only";
+import { insertAgendaAppointment } from "@/features/agenda/server/appointment-commands";
 import { tool } from "ai";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -782,20 +783,19 @@ export function buildMutationTools(ctx: AgentContext) {
           };
         }
 
-        const appointment = await prisma.appointment.create({
-          data: {
-            agendaId: agenda.id,
-            startsAt: start,
-            endsAt: end,
-            title: resolvedTitle,
-            notes: notes ?? null,
-            leadId: leadId ?? null,
-            userId: ctx.userId,
-            meetingType,
-            status: "PENDING",
-          },
-          select: { id: true, title: true, startsAt: true },
+        const inserted = await insertAgendaAppointment({
+          agendaId: agenda.id,
+          startsAt: start,
+          endsAt: end,
+          title: resolvedTitle,
+          notes: notes ?? null,
+          leadId: leadId ?? null,
+          userId: ctx.userId,
+          meetingType,
+          status: "PENDING",
         });
+        if (!inserted.ok) return { error: "Alguém acabou de marcar nesse horário. Escolha outro horário." };
+        const { appointment } = inserted;
         await recordAppointmentChange({ appointmentId: appointment.id, change: "scheduled", actorId: ctx.userId }).catch((error: unknown) => console.warn("[astro.tools.createAppointment] atendimento do agendamento falhou", error));
 
         // Verifica se o tracking da agenda tem WhatsApp ativo —

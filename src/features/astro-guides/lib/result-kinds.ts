@@ -26,6 +26,7 @@ export const GUIDE_RESULT_KINDS = {
   linnkerLinkCreated: "linnker.link-created",
   nboxFileUploaded: "nbox.file-uploaded",
   nboxFolderCreated: "nbox.folder-created",
+  nboxTransferCreated: "nbox.transfer-created",
   plannerCreated: "planner.created",
   plannerPostCreated: "planner.post-created",
   plannerPostApproved: "planner.post-approved",

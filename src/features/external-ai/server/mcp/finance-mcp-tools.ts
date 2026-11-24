@@ -2,7 +2,6 @@ import "server-only";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import prisma from "@/lib/prisma";
-import { takeRateLimit } from "@/lib/rate-limit";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { isValidDateValue } from "@/features/payment/lib/dates";
 import { PAYMENT_ACTIONS, PAYMENT_RESOURCES, type PaymentAction, type PaymentResource } from "@/features/payment/lib/permissions";
@@ -20,11 +19,10 @@ import { queryPaymentEntries } from "@/features/payment/server/entries/query-ent
 import { loadPaymentProjection } from "@/features/payment/server/projection/load-projection";
 import { loadIncomeStatement, loadOperationalResult } from "@/features/payment/server/reports/load-reports";
 import { FINANCE_SCOPE, type ExternalAiCaller } from "../access-tokens";
-import { asResult, type ToolResult } from "./trafego-mcp-tools";
+import { createScopedToolRunner } from "./tool-runner";
 
 // Financeiro pelo MCP (spec 0144): a IA da pessoa lê e lança com as permissões que ela tem no Financeiro. Nada que mova dinheiro.
 
-const RATE_LIMIT = { max: 300, windowMs: 60 * 60 * 1000 };
 const ENTRIES_LIMIT = 100;
 const CONTACTS_LIMIT = 50;
 const CATEGORIES_LIMIT = 200;
@@ -35,7 +33,6 @@ const ENTRY_STATUSES = ["PENDING_APPROVAL", "PENDING", "PARTIAL", "PAID", "OVERD
 const CATEGORY_TYPES = ["REVENUE", "EXPENSE", "COST"] as const;
 const CONTACT_TYPES = ["CUSTOMER", "SUPPLIER", "BOTH"] as const;
 
-const asError = (message: string): ToolResult => ({ content: [{ type: "text", text: message }], isError: true });
 
 type FinanceActor = { id: string; name: string; email: string; image: string | null };
 
@@ -102,18 +99,7 @@ async function assertSameOrganization(organizationId: string, references: { cate
 
 const toDay = (date: Date | null | undefined) => (date ? date.toISOString().slice(0, 10) : null);
 
-async function runFinanceTool(caller: ExternalAiCaller, work: () => Promise<unknown>): Promise<ToolResult> {
-  try {
-    if (!caller.scopes.includes(FINANCE_SCOPE)) {
-      return asError("Esta chave não tem acesso ao Financeiro. Gere uma chave nova em Satélites › IA externa ou conecte pelo OAuth.");
-    }
-    const limit = takeRateLimit("mcp-finance", `${caller.userId}:${caller.tokenId}`, RATE_LIMIT);
-    if (!limit.allowed) return asError(`Muitas chamadas seguidas. Tente de novo em ${Math.ceil(limit.retryAfterSeconds / 60)} min.`);
-    return asResult(await work());
-  } catch (error) {
-    return asError(error instanceof Error ? error.message : "Erro inesperado.");
-  }
-}
+const runFinanceTool = createScopedToolRunner({ scope: FINANCE_SCOPE, appName: "ao Financeiro", rateLimitKey: "mcp-finance" });
 
 const organizationIdInput = z.string().describe("Id da empresa (de finance_list_organizations)");
 const dayInput = (description: string) => z.string().describe(`${description} (AAAA-MM-DD)`);
