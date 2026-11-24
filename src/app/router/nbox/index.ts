@@ -16,6 +16,7 @@ import {
   deletePublicUpload,
   finishPublicUpload,
   getPublicUploadLink,
+  listUploadLinks,
   startPublicUpload,
   updateUploadLink,
 } from "./upload-links";
@@ -46,6 +47,7 @@ export const nboxRouter = {
   },
   uploadLinks: {
     create: createUploadLink,
+    getMany: listUploadLinks,
     update: updateUploadLink,
     public: {
       get: getPublicUploadLink,

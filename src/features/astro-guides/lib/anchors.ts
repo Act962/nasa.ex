@@ -699,6 +699,10 @@ export const GUIDE_ANCHORS = {
     id: "nbox.transfer.create",
     description: "Botão \"Criar link\" da transferência",
   },
+  nboxUploadLinksNav: {
+    id: "nbox.upload-links",
+    description: "Seção \"Pedidos de arquivos\" na lateral do N-Box (links de envio para clientes)",
+  },
   nboxMoreActionsButton: {
     id: "nbox.more-actions",
     description: "Seta ao lado de \"Enviar\" do N-Box: abre Pedir arquivos, Transferir, Nova pasta e Guardar link",

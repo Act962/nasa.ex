@@ -9,6 +9,7 @@ import {
   createNboxUploadLink,
   deletePublicNboxUpload,
   getPublicNboxUploadLink,
+  listNboxUploadLinks,
   notifyPublicNboxUploadFinished,
   startPublicNboxUpload,
   updateNboxUploadLink,
@@ -52,6 +53,11 @@ export const createUploadLink = base
       (message) => errors.BAD_REQUEST({ message }),
     ),
   );
+
+export const listUploadLinks = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .handler(async ({ context }) => ({ uploadLinks: await listNboxUploadLinks(context.org.id) }));
 
 export const updateUploadLink = base
   .use(requiredAuthMiddleware)

@@ -36,6 +36,7 @@ A equipe gera, numa pasta do Nbox, um link com validade (7, 15 ou 30 dias). O cl
 | --- | --- |
 | RF-1 | Na tela do Nbox, "Pedir arquivos" cria uma pasta nova (nome dado pela equipe, ex.: nome do cliente) na pasta atual e gera o link `/enviar/<token>` com validade de 7, 15 ou 30 dias (padrão 7). Uma pasta existente também pode ganhar o link pelo menu dela. |
 | RF-2 | Dentro da pasta com link, a equipe vê o link, a validade e pode: copiar, prorrogar (nova validade de 7, 15 ou 30 dias a partir de agora), encerrar já e, depois de vencido, gerar um link novo (o antigo morre). |
+| RF-2a | A seção **"Pedidos de arquivos"** na lateral lista todas as pastas com link: prazo, quantos arquivos chegaram, tamanho e último envio; clicar abre a pasta, e o mesmo menu de ações da faixa fica em cada linha. |
 | RF-3 | A página pública mostra o nome da empresa, o nome da pasta e a validade; pede o nome de quem envia (opcional) e aceita vários arquivos de até 5 GB cada, com progresso. |
 | RF-4 | O cliente vê e pode apagar **só os arquivos enviados pelo próprio navegador**, enquanto o link vale. Vencido, a página mostra "link encerrado" e não lista nada. |
 | RF-5 | Os arquivos recebidos aparecem na pasta como qualquer outro, com "Enviado por <nome> pelo link" na descrição. |
@@ -107,5 +108,6 @@ Sem runner de teste no projeto (CLAUDE.md, regra 20): verificação manual no na
 
 | Data | Autor | Mudança |
 | --- | --- | --- |
+| 2026-11-24 | João Gabriel (com Claude) | RF-2a: seção "Pedidos de arquivos" na lateral (pedido do dev). |
 | 2026-11-24 | João Gabriel (com Claude) | Barra do Nbox simplificada: "Enviar" como ação principal e Pedir arquivos, Transferir, Nova pasta e Guardar link no menu ao lado (pedido do dev; a barra quebrava em tela estreita). |
 | 2026-11-24 | João Gabriel (com Claude) | Criada e aprovada no chat (visibilidade só do próprio envio; prazos 7/15/30; aviso no sino). |

@@ -9,11 +9,19 @@ import { uploadNboxFiles, type NboxUploadProgress, type NboxUploadSummary } from
 
 const UPLOADER_TOKEN_STORAGE_KEY = "nbox-uploader-token";
 
+export const useNboxUploadLinks = () => {
+  const { data, isLoading } = useQuery(orpc.nbox.uploadLinks.getMany.queryOptions({}));
+  return { uploadLinks: data?.uploadLinks ?? [], isLoading };
+};
+
 export const useCreateNboxUploadLink = () => {
   const queryClient = useQueryClient();
   return useMutation(
     orpc.nbox.uploadLinks.create.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: orpc.nbox.folders.key() }),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: orpc.nbox.folders.key() });
+        queryClient.invalidateQueries({ queryKey: orpc.nbox.uploadLinks.getMany.key() });
+      },
     }),
   );
 };
@@ -25,6 +33,7 @@ export const useUpdateNboxUploadLink = () => {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: orpc.nbox.folders.key() });
         queryClient.invalidateQueries({ queryKey: orpc.nbox.items.key() });
+        queryClient.invalidateQueries({ queryKey: orpc.nbox.uploadLinks.getMany.key() });
       },
     }),
   );

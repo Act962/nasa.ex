@@ -136,6 +136,42 @@ export async function updateNboxUploadLink(params: {
   return { path: uploadLinkPublicPath(updated.uploadToken!), uploadExpiresAt: updated.uploadExpiresAt! };
 }
 
+const UPLOAD_LINK_LIST_LIMIT = 100;
+
+/** Seção "Pedidos de arquivos": todas as pastas com link, com o que já chegou por ele. */
+export async function listNboxUploadLinks(organizationId: string) {
+  const folders = await prisma.nBoxFolder.findMany({
+    where: { organizationId, uploadToken: { not: null }, isRestricted: false },
+    select: { id: true, name: true, parentId: true, uploadToken: true, uploadExpiresAt: true, updatedAt: true },
+    orderBy: { updatedAt: "desc" },
+    take: UPLOAD_LINK_LIST_LIMIT,
+  });
+  const receivedByFolder = folders.length
+    ? await prisma.nBoxItem.groupBy({
+        by: ["folderId"],
+        where: { folderId: { in: folders.map((folder) => folder.id) }, uploaderTokenHash: { not: null } },
+        _count: { _all: true },
+        _sum: { size: true },
+        _max: { createdAt: true },
+      })
+    : [];
+  const receivedMap = new Map(receivedByFolder.map((group) => [group.folderId, group]));
+  return folders.map((folder) => {
+    const received = receivedMap.get(folder.id);
+    return {
+      folderId: folder.id,
+      name: folder.name,
+      parentId: folder.parentId,
+      uploadToken: folder.uploadToken!,
+      uploadExpiresAt: folder.uploadExpiresAt!,
+      path: uploadLinkPublicPath(folder.uploadToken!),
+      receivedCount: received?._count._all ?? 0,
+      receivedBytes: Number(received?._sum.size ?? BigInt(0)),
+      lastReceivedAt: received?._max.createdAt ?? null,
+    };
+  });
+}
+
 // ── Lado público: sem login, identificado pelo token do link + código do navegador ──
 
 async function loadUploadLinkFolder(uploadToken: string) {
