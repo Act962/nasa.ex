@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { NBoxItemType } from "@/generated/prisma/enums";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import { NBOX_TRANSFER_MAX_DAYS } from "@/features/nbox/lib/storage-limits";
-import { toNboxItemDto, type NboxActor } from "@/features/nbox/server/items";
+import { deleteNboxObjectIfUnused, toNboxItemDto, type NboxActor } from "@/features/nbox/server/items";
 import { assertNboxStorageAvailable } from "@/features/nbox/server/storage-usage";
 import {
   buildNboxObjectKey,
@@ -21,6 +21,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const TRANSFER_DOWNLOAD_URL_TTL_SECONDS = 15 * 60;
 const TRANSFER_LIST_LIMIT = 50;
 const PURGE_BATCH_SIZE = 200;
+const PURGE_MAX_BATCHES_PER_RUN = 25;
 
 const transferItemSelect = { id: true, name: true, size: true, mimeType: true, type: true } as const;
 
@@ -66,34 +67,44 @@ export async function createNboxTransfer(params: {
   const copiedBytes = sourceItems.reduce((total, item) => total + Number(item.size ?? BigInt(0)), 0);
   if (copiedBytes > 0) await assertNboxStorageAvailable(params.organizationId, copiedBytes);
 
+  // Copia antes de gravar: se uma cópia falhar, nenhum link nasce pela metade e as cópias feitas são apagadas.
+  const copiedKeys: string[] = [];
+  try {
+    for (const sourceItem of sourceItems) {
+      const targetKey = buildNboxObjectKey(params.organizationId, sourceItem.name, "transfer");
+      await copyStoredObject(sourceItem.url!, targetKey);
+      copiedKeys.push(targetKey);
+    }
+  } catch (error) {
+    await Promise.all(copiedKeys.map((key) => deleteNboxObjectIfOwned(params.organizationId, key)));
+    console.error("[nbox/transfer] falha ao copiar arquivo", error);
+    throw new NboxUploadError("Não deu para copiar os arquivos para a transferência. Tente de novo.");
+  }
+
+  // createdAt explícito: o teto de 7 dias é contado dele e precisa bater com o expiresAt de uma transferência de 7 dias.
   const now = new Date();
   const folder = await prisma.nBoxFolder.create({
     data: {
       organizationId: params.organizationId,
       name: params.name?.trim() || defaultTransferName(now),
       createdById: params.actor.id,
+      createdAt: now,
       expiresAt: new Date(now.getTime() + params.days * DAY_MS),
       shareToken: randomBytes(18).toString("base64url"),
+      items: {
+        create: sourceItems.map((sourceItem, index) => ({
+          organizationId: params.organizationId,
+          type: sourceItem.type,
+          name: sourceItem.name,
+          url: copiedKeys[index],
+          mimeType: sourceItem.mimeType,
+          size: sourceItem.size,
+          createdById: params.actor.id,
+        })),
+      },
     },
     select: { id: true, name: true, expiresAt: true, shareToken: true },
   });
-
-  for (const sourceItem of sourceItems) {
-    const targetKey = buildNboxObjectKey(params.organizationId, sourceItem.name, "transfer");
-    await copyStoredObject(sourceItem.url!, targetKey);
-    await prisma.nBoxItem.create({
-      data: {
-        organizationId: params.organizationId,
-        folderId: folder.id,
-        type: sourceItem.type,
-        name: sourceItem.name,
-        url: targetKey,
-        mimeType: sourceItem.mimeType,
-        size: sourceItem.size,
-        createdById: params.actor.id,
-      },
-    });
-  }
 
   await logActivity({
     organizationId: params.organizationId,
@@ -229,22 +240,30 @@ export async function createPublicTransferDownloadUrl(shareToken: string, itemId
 
 /** Apaga arquivos e registros das transferências vencidas (D-4). Chamado pela limpeza diária. */
 export async function purgeExpiredNboxTransfers(): Promise<{ transfers: number; files: number }> {
-  const expiredFolders = await prisma.nBoxFolder.findMany({
-    where: { expiresAt: { lt: new Date() } },
-    select: { id: true, organizationId: true, items: { select: { id: true, url: true } } },
-    take: PURGE_BATCH_SIZE,
-  });
+  const purgeStartedAt = new Date();
+  let transfers = 0;
   let files = 0;
-  for (const folder of expiredFolders) {
-    for (const item of folder.items) {
-      await deleteNboxObjectIfOwned(folder.organizationId, item.url);
-      files += 1;
+  // Vários lotes por execução: com mais de um lote vencendo por dia, a fila não pode crescer sem parar.
+  for (let batchIndex = 0; batchIndex < PURGE_MAX_BATCHES_PER_RUN; batchIndex++) {
+    const expiredFolders = await prisma.nBoxFolder.findMany({
+      where: { expiresAt: { lt: purgeStartedAt } },
+      select: { id: true, organizationId: true, items: { select: { url: true } } },
+      orderBy: { expiresAt: "asc" },
+      take: PURGE_BATCH_SIZE,
+    });
+    for (const folder of expiredFolders) {
+      await prisma.$transaction([
+        prisma.nBoxItem.deleteMany({ where: { folderId: folder.id } }),
+        prisma.nBoxFolder.delete({ where: { id: folder.id } }),
+      ]);
+      // Depois do registro: se o R2 falhar, sobra objeto órfão que a regra do bucket apaga (D-8).
+      for (const item of folder.items) {
+        if (await deleteNboxObjectIfUnused(folder.organizationId, item.url)) files += 1;
+      }
     }
-    await prisma.$transaction([
-      prisma.nBoxItem.deleteMany({ where: { folderId: folder.id } }),
-      prisma.nBoxFolder.delete({ where: { id: folder.id } }),
-    ]);
+    transfers += expiredFolders.length;
+    if (expiredFolders.length < PURGE_BATCH_SIZE) break;
   }
-  return { transfers: expiredFolders.length, files };
+  return { transfers, files };
 }
 

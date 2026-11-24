@@ -210,6 +210,7 @@ Não há runner de testes instalado (CLAUDE.md, regra 20). Até haver, cada CA �
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-11-23 | João Gabriel (com Claude) | Criada. Limite de 150 GB em todos os planos decidido pelo produto. |
+| 2026-11-24 | João Gabriel (com Claude) | Revisão: limpeza em vários lotes por execução; transferência copia os arquivos antes de gravar (sem link pela metade); objeto do R2 só é apagado se nenhum outro item aponta para ele; `createdAt` explícito para o teto de 7 dias; tamanho de chave do bucket sempre lido no R2; listagem de envios em partes paginada. |
 | 2026-11-24 | João Gabriel (com Claude) | RNF-4: transferência não cobra Star. |
 | 2026-11-23 | João Gabriel (com Claude) | D-8: arquivos de transferência em `nbox-transfers/` com regra de 8 dias no R2; transferência vale no máximo 7 dias desde a criação. |
 | 2026-11-23 | João Gabriel (com Claude) | Aprovada. Na implementação: `size` virou BigInt (D-7); envio em partes abandonado é abortado pela limpeza diária, não por regra do bucket (CB-2); caminho antigo `items.create` mantido para o chat, com tamanho lido no R2 (CB-14); CB-13. |

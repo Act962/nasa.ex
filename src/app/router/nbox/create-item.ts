@@ -47,8 +47,8 @@ export const createItem = base
     if (isStoredFile && isForbiddenNboxKey(context.org.id, input.url!)) {
       throw errors.FORBIDDEN({ message: "Arquivo não pertence a esta empresa." });
     }
-    const storedSize = isStoredFile ? await readStoredObjectSize(input.url!) : null;
-    const sizeBytes = storedSize ?? input.size ?? null;
+    // Chave sem objeto no bucket não ocupa espaço: o tamanho informado pelo navegador nunca vale para ela.
+    const sizeBytes = isStoredFile ? await readStoredObjectSize(input.url!) : (input.size ?? null);
     if (sizeBytes) {
       try {
         await assertNboxStorageAvailable(context.org.id, sizeBytes);

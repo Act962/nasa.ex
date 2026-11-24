@@ -7,7 +7,7 @@ import { logActivity } from "@/features/admin/lib/activity-logger";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { canViewRestrictedNBox } from "@/features/nbox/server/can-view-restricted-nbox";
 import { finishNboxUpload, NboxUploadError } from "@/features/nbox/server/uploads";
-import type { NboxObjectKind } from "@/features/nbox/server/storage-objects";
+import { type NboxObjectKind, deleteNboxObjectIfOwned } from "@/features/nbox/server/storage-objects";
 
 export interface NboxActor {
   id: string;
@@ -24,6 +24,18 @@ export const NBOX_TREE_ITEM_FILTER: Prisma.NBoxItemWhereInput = {
 /** `size` é BigInt no banco; a tela e o MCP recebem número (até 9 PB cabe sem perda). */
 export function toNboxItemDto<Item extends { size: bigint | null }>(item: Item): Omit<Item, "size"> & { size: number | null } {
   return { ...item, size: item.size === null ? null : Number(item.size) };
+}
+
+/**
+ * Apaga o objeto do R2 só se nenhum outro item da empresa ainda aponta para ele: duas linhas com a mesma chave
+ * (envio repetido, salvar de novo pelo chat) não podem quebrar uma à outra. Chame depois de apagar o registro.
+ */
+export async function deleteNboxObjectIfUnused(organizationId: string, key: string | null | undefined): Promise<boolean> {
+  if (!key) return false;
+  const remainingReferences = await prisma.nBoxItem.count({ where: { organizationId, url: key } });
+  if (remainingReferences > 0) return false;
+  await deleteNboxObjectIfOwned(organizationId, key);
+  return true;
 }
 
 /** Confere a pasta de destino e diz se o arquivo é guardado ou temporário (pasta de transferência). */

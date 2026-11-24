@@ -20,6 +20,8 @@ import { S3, deleteStoredObject } from "@/lib/s3-client";
 // item sem risco de apagar arquivo usado por outra tela. A regra de expiração do bucket só olha `nbox-transfers/` (D-8).
 
 const UPLOAD_URL_TTL_SECONDS = 60 * 60;
+const MULTIPART_LIST_PAGE_SIZE = 500;
+const MULTIPART_LIST_MAX_PAGES = 20;
 
 const bucketName = () => process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES!;
 
@@ -129,16 +131,33 @@ export async function deleteNboxObjectIfOwned(organizationId: string, key: strin
 /** Aborta envios em partes do Nbox abandonados há mais de 1 dia (spec 0148, CB-2). Sem tabela: o R2 lista os pendentes. */
 export async function abortStaleNboxMultipartUploads(): Promise<number> {
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-  const listings = await Promise.all(
-    [STORED_ROOT, TRANSFER_ROOT].map((prefix) =>
-      S3.send(new ListMultipartUploadsCommand({ Bucket: bucketName(), Prefix: prefix, MaxUploads: 500 })),
-    ),
-  );
-  const staleUploads = listings.flatMap((listing) => listing.Uploads ?? []).filter(
-    (upload) => upload.Key && upload.UploadId && upload.Initiated && upload.Initiated.getTime() < cutoff,
-  );
-  for (const upload of staleUploads) {
-    await S3.send(new AbortMultipartUploadCommand({ Bucket: bucketName(), Key: upload.Key!, UploadId: upload.UploadId! })).catch(() => null);
+  let abortedCount = 0;
+  for (const prefix of [STORED_ROOT, TRANSFER_ROOT]) {
+    let keyMarker: string | undefined;
+    let uploadIdMarker: string | undefined;
+    for (let pageIndex = 0; pageIndex < MULTIPART_LIST_MAX_PAGES; pageIndex++) {
+      const listing = await S3.send(
+        new ListMultipartUploadsCommand({
+          Bucket: bucketName(),
+          Prefix: prefix,
+          MaxUploads: MULTIPART_LIST_PAGE_SIZE,
+          KeyMarker: keyMarker,
+          UploadIdMarker: uploadIdMarker,
+        }),
+      );
+      const staleUploads = (listing.Uploads ?? []).filter(
+        (upload) => upload.Key && upload.UploadId && upload.Initiated && upload.Initiated.getTime() < cutoff,
+      );
+      for (const upload of staleUploads) {
+        const isAborted = await S3.send(
+          new AbortMultipartUploadCommand({ Bucket: bucketName(), Key: upload.Key!, UploadId: upload.UploadId! }),
+        ).then(() => true, () => false);
+        if (isAborted) abortedCount += 1;
+      }
+      if (!listing.IsTruncated) break;
+      keyMarker = listing.NextKeyMarker;
+      uploadIdMarker = listing.NextUploadIdMarker;
+    }
   }
-  return staleUploads.length;
+  return abortedCount;
 }
