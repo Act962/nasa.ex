@@ -18,6 +18,9 @@ export const deleteFolder = base
     if (restriction?.systemKey) {
       throw errors.FORBIDDEN({ message: "Pasta do sistema não pode ser excluída." });
     }
+    if (restriction?.expiresAt) {
+      throw errors.BAD_REQUEST({ message: "Transferência se encerra na seção Transferências." });
+    }
     if (restriction?.isRestricted) {
       if (!(await canViewRestrictedNBox(context.user, context.org.id))) {
         throw errors.FORBIDDEN({ message: "Pasta restrita: só administradores do financeiro." });

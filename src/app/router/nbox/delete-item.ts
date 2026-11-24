@@ -9,6 +9,7 @@ import {
   isCompanyDocumentFile,
   isItemInRestrictedFolder,
 } from "@/features/nbox/server/can-view-restricted-nbox";
+import { deleteNboxObjectIfOwned } from "@/features/nbox/server/storage-objects";
 
 export const deleteItem = base
   .use(requiredAuthMiddleware)
@@ -29,12 +30,14 @@ export const deleteItem = base
 
     const item = await prisma.nBoxItem.findUnique({
       where: { id: input.itemId, organizationId: context.org.id },
-      select: { name: true },
+      select: { name: true, url: true },
     });
 
     await prisma.nBoxItem.delete({
       where: { id: input.itemId, organizationId: context.org.id },
     });
+    // Depois do registro: se o R2 falhar, sobra um objeto órfão, nunca um item quebrado (spec 0148, RF-6).
+    await deleteNboxObjectIfOwned(context.org.id, item?.url);
 
     await logActivity({
       organizationId: context.org.id,

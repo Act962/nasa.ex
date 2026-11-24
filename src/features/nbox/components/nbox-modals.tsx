@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, type FileRejection } from "react-dropzone";
 import { FolderIcon, Link2Icon, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCreateNBoxFolder, useCreateNBoxItem } from "../hooks/use-nbox";
+import { useNboxUpload, type NboxUploadProgress } from "../hooks/use-nbox-upload";
+import { NBOX_MAX_FILE_BYTES } from "../lib/storage-limits";
+import { formatBytes } from "./nbox-file-type-icon";
 import { useSpacePointCtx } from "@/features/space-point/components/space-point-provider";
 import { NBoxItemType } from "@/generated/prisma/enums";
 import { emitTourResult } from "@/features/tour/store";
@@ -28,78 +31,29 @@ export function UploadModal({
   onClose: () => void;
   folderId: string | null;
 }) {
-  const createItem = useCreateNBoxItem();
+  const { uploadFiles, progress, isUploading } = useNboxUpload();
   const { earn } = useSpacePointCtx();
-  const [uploading, setUploading] = useState(false);
 
   const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
+    async (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
+      for (const rejected of rejectedFiles) toast.error(`${rejected.file.name}: arquivo maior que 5 GB.`);
       if (!acceptedFiles.length) return;
-      setUploading(true);
-      let successCount = 0;
-      for (const file of acceptedFiles) {
-        try {
-          // Get presigned URL
-          const isImage = file.type.startsWith("image/");
-          const res = await fetch("/api/s3/upload", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              filename: file.name,
-              contentType: file.type,
-              size: file.size,
-              isImage,
-            }),
-          });
-          const { presignedUrl, key } = await res.json();
-          const url = presignedUrl;
-
-          // Upload to S3
-          await fetch(url, {
-            method: "PUT",
-            body: file,
-            headers: { "Content-Type": file.type },
-          });
-
-          // Create item
-          const itemType: NBoxItemType = isImage
-            ? NBoxItemType.IMAGE
-            : NBoxItemType.FILE;
-          await createItem.mutateAsync({
-            folderId,
-            type: itemType,
-            name: file.name,
-            url: key,
-            mimeType: file.type,
-            size: file.size,
-          });
-          successCount++;
-        } catch (e) {
-          toast.error(`Erro ao enviar ${file.name}`);
-        }
-      }
-      setUploading(false);
-      if (successCount > 0) {
+      const summary = await uploadFiles(acceptedFiles, folderId);
+      for (const failure of summary.failures) toast.error(`${failure.fileName}: ${failure.message}`);
+      if (summary.uploadedCount > 0) {
+        toast.success(summary.uploadedCount === 1 ? "Arquivo enviado!" : `${summary.uploadedCount} arquivos enviados!`);
         earn("upload_nbox", "Upload de arquivo no N.Box");
         emitTourResult({ kind: GUIDE_RESULT_KINDS.nboxFileUploaded });
+        onClose();
       }
-      onClose();
     },
-    [createItem, folderId, earn, onClose],
+    [uploadFiles, folderId, earn, onClose],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      "image/*": [],
-      "application/pdf": [],
-      "application/msword": [],
-      "application/vnd.openxmlformats-officedocument.*": [],
-      "text/*": [],
-      "video/*": [],
-    },
-    maxSize: 50 * 1024 * 1024, // 50MB
-    disabled: uploading,
+    maxSize: NBOX_MAX_FILE_BYTES,
+    disabled: isUploading,
   });
 
   return (
@@ -118,13 +72,13 @@ export function UploadModal({
             isDragActive
               ? "border-primary bg-primary/5"
               : "border-border hover:border-primary/40",
-            uploading && "opacity-50 cursor-not-allowed",
+            isUploading && "opacity-50 cursor-not-allowed",
           )}
         >
           <input {...getInputProps()} />
           <UploadIcon className="size-10 mx-auto mb-3 text-muted-foreground/50" />
-          {uploading ? (
-            <p className="text-sm text-muted-foreground">Enviando...</p>
+          {progress ? (
+            <UploadProgressText progress={progress} />
           ) : isDragActive ? (
             <p className="text-sm font-medium text-primary">
               Solte os arquivos aqui
@@ -136,13 +90,31 @@ export function UploadModal({
                 <span className="max-sm:hidden">Arraste ou clique para selecionar</span>
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Imagens, PDFs, documentos — até 50 MB
+                Qualquer arquivo, até 5 GB cada
               </p>
             </>
           )}
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function UploadProgressText({ progress }: { progress: NboxUploadProgress }) {
+  const percent = progress.totalBytes ? Math.round((progress.loadedBytes / progress.totalBytes) * 100) : 0;
+  return (
+    <div className="space-y-2">
+      <p className="truncate text-sm font-medium">
+        {progress.fileCount > 1 && `${progress.fileIndex + 1} de ${progress.fileCount} · `}
+        {progress.fileName}
+      </p>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${percent}%` }} />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {formatBytes(progress.loadedBytes)} de {formatBytes(progress.totalBytes)} · não feche esta janela
+      </p>
+    </div>
   );
 }
 

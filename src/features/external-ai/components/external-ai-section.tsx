@@ -27,6 +27,7 @@ const NEWER_APPS = [
   { scope: "financeiro", label: "Financeiro" },
   { scope: "tracking", label: "Tracking" },
   { scope: "agenda", label: "Agenda" },
+  { scope: "nbox", label: "Nbox" },
 ];
 
 const missingAppsOf = (scopes: string[]) => NEWER_APPS.filter((app) => !scopes.includes(app.scope)).map((app) => app.label);

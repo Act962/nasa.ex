@@ -10,6 +10,15 @@ import {
   canViewRestrictedNBox,
   loadFolderRestriction,
 } from "@/features/nbox/server/can-view-restricted-nbox";
+import { toNboxItemDto } from "@/features/nbox/server/items";
+import { NboxStorageFullError, assertNboxStorageAvailable } from "@/features/nbox/server/storage-usage";
+import { TRANSFER_ROOT, isNboxObjectKeyOf, readStoredObjectSize } from "@/features/nbox/server/storage-objects";
+
+const isExternalUrl = (url: string) => /^https?:\/\//.test(url);
+
+/** Chave do Nbox de outra empresa, ou temporária (some pela regra do bucket), nunca vira item aqui (spec 0148, CA-6). */
+const isForbiddenNboxKey = (organizationId: string, key: string) =>
+  (key.startsWith("nbox/") || key.startsWith(TRANSFER_ROOT)) && !isNboxObjectKeyOf(organizationId, key, "stored");
 
 export const createItem = base
   .use(requiredAuthMiddleware)
@@ -28,8 +37,25 @@ export const createItem = base
   }))
   .handler(async ({ input, context, errors }) => {
     const folder = await loadFolderRestriction(input.folderId, context.org.id);
+    if (input.folderId && !folder) throw errors.NOT_FOUND({ message: "Pasta não encontrada." });
     if (folder?.isRestricted && !(await canViewRestrictedNBox(context.user, context.org.id))) {
       throw errors.FORBIDDEN({ message: "Pasta restrita: só administradores do financeiro." });
+    }
+
+    // Arquivo do nosso bucket: o tamanho vem do R2, não do navegador (spec 0148, RF-4).
+    const isStoredFile = input.type !== NBoxItemType.LINK && !!input.url && !isExternalUrl(input.url);
+    if (isStoredFile && isForbiddenNboxKey(context.org.id, input.url!)) {
+      throw errors.FORBIDDEN({ message: "Arquivo não pertence a esta empresa." });
+    }
+    const storedSize = isStoredFile ? await readStoredObjectSize(input.url!) : null;
+    const sizeBytes = storedSize ?? input.size ?? null;
+    if (sizeBytes) {
+      try {
+        await assertNboxStorageAvailable(context.org.id, sizeBytes);
+      } catch (error) {
+        if (error instanceof NboxStorageFullError) throw errors.BAD_REQUEST({ message: error.message });
+        throw error;
+      }
     }
 
     const item = await prisma.nBoxItem.create({
@@ -40,7 +66,7 @@ export const createItem = base
         name: input.name,
         url: input.url ?? null,
         mimeType: input.mimeType ?? null,
-        size: input.size ?? null,
+        size: sizeBytes === null ? null : BigInt(sizeBytes),
         description: input.description ?? null,
         tags: input.tags ?? [],
         forgeContractId: input.forgeContractId ?? null,
@@ -62,7 +88,7 @@ export const createItem = base
       actionLabel: `Adicionou o ${input.type === NBoxItemType.FILE ? "arquivo" : "link"} "${item.name}" no NBox`,
       resource: item.name,
       resourceId: item.id,
-      metadata: { type: item.type, hasFolder: !!input.folderId, size: item.size },
+      metadata: { type: item.type, hasFolder: !!input.folderId, size: sizeBytes },
     });
 
     // Cobra só pra uploads (FILE) — links externos são gratuitos.
@@ -74,5 +100,5 @@ export const createItem = base
       });
     }
 
-    return { item };
+    return { item: toNboxItemDto(item) };
   });
