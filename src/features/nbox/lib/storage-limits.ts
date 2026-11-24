@@ -36,3 +36,11 @@ export const NBOX_TRANSFER_BUCKET_RULE_DAYS = NBOX_TRANSFER_MAX_DAYS + 1;
 
 export const NBOX_STORAGE_FULL_MESSAGE = "Espaço do Nbox cheio. Apague arquivos para liberar espaço.";
 
+
+/** Link para cliente sem conta enviar arquivos (spec 0149). */
+export const NBOX_UPLOAD_LINK_DAY_OPTIONS = [7, 15, 30] as const;
+export type NboxUploadLinkDays = (typeof NBOX_UPLOAD_LINK_DAY_OPTIONS)[number];
+export const NBOX_UPLOAD_LINK_DEFAULT_DAYS: NboxUploadLinkDays = 7;
+/** Teto de um link, além do espaço da empresa: um link vazado não lota os 150 GB. */
+export const NBOX_UPLOAD_LINK_MAX_BYTES = 20 * GIGABYTE;
+export const NBOX_UPLOAD_LINK_MAX_FILES = 500;

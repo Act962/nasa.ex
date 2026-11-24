@@ -3,6 +3,43 @@ import { GUIDE_RESULT_KINDS } from "../result-kinds";
 
 export const NBOX_GUIDES: GuideDef[] = [
   {
+    key: "nbox.request-files",
+    app: "nbox",
+    title: "Receber arquivos de um cliente por link",
+    summary: "Gere um link para o cliente enviar arquivos direto numa pasta, sem criar conta.",
+    topicPattern:
+      /\b(receb\w*|ped\w*|pedir|solicit\w*|colet\w*)\b.*\b(arquivos?|fotos?|videos?|documentos?|cliente)\b/,
+    steps: [
+      {
+        anchor: "nboxMoreActionsButton",
+        route: "/nbox",
+        title: "Abra o menu ao lado de Enviar",
+        message: "Clique na seta: ali ficam Pedir arquivos, Transferir, Nova pasta e Guardar link.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "nboxRequestFilesButton",
+        title: "Clique em Pedir arquivos",
+        message: "Abre a janela para criar o link de envio.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "nboxRequestFilesCreateButton",
+        title: "Dê um nome e crie o link",
+        message: "Use o nome do cliente. Escolha por quantos dias o link aceita arquivos e clique em Criar link de envio.",
+        position: "top",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.nboxUploadLinkCreated,
+      },
+    ],
+    finish: {
+      title: "Link de envio pronto! 📥",
+      message: "Mande o link para o cliente. O que ele enviar aparece nesta pasta e você é avisado no sino.",
+    },
+  },
+  {
     key: "nbox.transfer",
     app: "nbox",
     title: "Mandar arquivos pesados por link",
@@ -11,8 +48,15 @@ export const NBOX_GUIDES: GuideDef[] = [
       /\b(transfer\w*|mand\w*|envi\w*|compartilh\w*)\b.*\b(arquivos? pesados?|videos?|link|cliente|wetransfer|transferencias?)\b/,
     steps: [
       {
-        anchor: "nboxTransfersButton",
+        anchor: "nboxMoreActionsButton",
         route: "/nbox",
+        title: "Abra o menu ao lado de Enviar",
+        message: "Clique na seta: ali ficam Pedir arquivos, Transferir, Nova pasta e Guardar link.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "nboxTransfersButton",
         title: "Clique em Transferir",
         message: "Abre a janela para montar o link.",
         position: "bottom",
@@ -47,9 +91,16 @@ export const NBOX_GUIDES: GuideDef[] = [
     topicPattern: /\b(cri\w*|fac\w*|faz\w*|novas?|adicion\w*)\b.*\b(pastas?|diretorios?)\b/,
     steps: [
       {
-        anchor: "nboxNewFolderButton",
+        anchor: "nboxMoreActionsButton",
         route: "/nbox",
-        title: "Clique em Pasta",
+        title: "Abra o menu ao lado de Enviar",
+        message: "Clique na seta: ali ficam Pedir arquivos, Transferir, Nova pasta e Guardar link.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "nboxNewFolderButton",
+        title: "Clique em Nova pasta",
         message: "A pasta nasce dentro da pasta aberta no momento.",
         position: "bottom",
         advanceOn: "click",

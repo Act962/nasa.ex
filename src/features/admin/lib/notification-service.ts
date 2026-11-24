@@ -49,6 +49,7 @@ export const NOTIF_TYPES = {
   PLANNER_ACCOUNT_RECONNECT: "PLANNER_ACCOUNT_RECONNECT",
   // ── Estado de atendimento (spec 0113) ─────────────────────────────────
   LEAD_AWAITING_ATTENTION:   "LEAD_AWAITING_ATTENTION",
+  NBOX_FILES_RECEIVED:       "NBOX_FILES_RECEIVED",
 } as const;
 
 export type NotifType = (typeof NOTIF_TYPES)[keyof typeof NOTIF_TYPES];
@@ -86,6 +87,7 @@ export const NOTIF_META: Record<NotifType, { label: string; appKey: string; desc
   PLANNER_PUBLISH_FAILED:    { label: "Publicação falhou",                 appKey: "nasa-planner", description: "Um post programado não foi publicado" },
   LEAD_AWAITING_ATTENTION:   { label: "Cliente esperando atendimento",     appKey: "tracking",   description: "Um cliente está sem atendimento humano e a IA assumiu a conversa" },
   PLANNER_ACCOUNT_RECONNECT: { label: "Reconectar conta da Meta",          appKey: "nasa-planner", description: "A conexão de uma conta do Instagram/Facebook expirou" },
+  NBOX_FILES_RECEIVED:       { label: "Arquivos recebidos no Nbox",        appKey: "nbox",       description: "Um cliente enviou arquivos pelo link de envio de uma pasta" },
 };
 
 interface CreateNotificationOptions {

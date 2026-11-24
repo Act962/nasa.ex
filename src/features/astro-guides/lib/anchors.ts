@@ -699,6 +699,18 @@ export const GUIDE_ANCHORS = {
     id: "nbox.transfer.create",
     description: "Botão \"Criar link\" da transferência",
   },
+  nboxMoreActionsButton: {
+    id: "nbox.more-actions",
+    description: "Seta ao lado de \"Enviar\" do N-Box: abre Pedir arquivos, Transferir, Nova pasta e Guardar link",
+  },
+  nboxRequestFilesButton: {
+    id: "nbox.request-files",
+    description: "Botão \"Pedir arquivos\" do N-Box (link para cliente enviar arquivos)",
+  },
+  nboxRequestFilesCreateButton: {
+    id: "nbox.request-files.create",
+    description: "Botão \"Criar link de envio\" da janela Pedir arquivos",
+  },
   plannerNewButton: {
     id: "planner.new-button",
     description: "Botão \"Novo Planner\" em /nasa-planner",
