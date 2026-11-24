@@ -10,6 +10,7 @@ import {
   NBOX_UPLOAD_LINK_MAX_FILES,
 } from "@/features/nbox/lib/storage-limits";
 import { deleteNboxObjectIfUnused, registerUploadedNboxFile, toNboxItemDto, type NboxActor } from "@/features/nbox/server/items";
+import { createDownloadUrl, isNboxObjectKeyOf } from "@/features/nbox/server/storage-objects";
 import { NboxUploadError, startNboxUpload } from "@/features/nbox/server/uploads";
 
 // Link para cliente sem conta enviar arquivos a uma pasta (spec 0149). O link é da pasta (D-1): token + data de validade.
@@ -17,6 +18,7 @@ import { NboxUploadError, startNboxUpload } from "@/features/nbox/server/uploads
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOTIFY_INTERVAL_MS = 10 * 60 * 1000;
 const SENDER_NAME_MAX_LENGTH = 80;
+const PUBLIC_OPEN_URL_TTL_SECONDS = 5 * 60;
 
 export const uploadLinkPublicPath = (uploadToken: string) => `/enviar/${uploadToken}`;
 export const nboxFolderAppPath = (folderId: string) => `/nbox?pasta=${folderId}`;
@@ -185,7 +187,7 @@ async function loadUploadLinkFolder(uploadToken: string) {
       isRestricted: true,
       uploadExpiresAt: true,
       createdBy: { select: { id: true, name: true, email: true, image: true } },
-      organization: { select: { name: true, logo: true } },
+      organization: { select: { name: true } },
     },
   });
 }
@@ -229,9 +231,25 @@ export async function getNboxUploadLinkSummary(uploadToken: string) {
   return {
     folderName: folder.name,
     companyName: folder.organization.name,
-    companyLogo: folder.organization.logo,
     uploadExpiresAt: folder.uploadExpiresAt,
     isOpen: isUploadLinkOpen(folder),
+  };
+}
+
+type UploadLinkSummary = NonNullable<Awaited<ReturnType<typeof getNboxUploadLinkSummary>>>;
+
+export const formatUploadLinkDeadline = (deadline: Date) =>
+  deadline.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" });
+
+/** Textos da prévia do link (WhatsApp, redes): diz quem pede, para onde vai e até quando. */
+export function describeUploadLinkForPreview(summary: UploadLinkSummary) {
+  const title = `${summary.companyName} pediu arquivos para você`;
+  if (!summary.isOpen || !summary.uploadExpiresAt) {
+    return { title, description: "Este link de envio foi encerrado. Peça um novo link para quem te enviou." };
+  }
+  return {
+    title,
+    description: `Envie fotos, vídeos e documentos para "${summary.folderName}" até ${formatUploadLinkDeadline(summary.uploadExpiresAt)}. Não precisa criar conta.`,
   };
 }
 
@@ -244,7 +262,6 @@ export async function getPublicNboxUploadLink(uploadToken: string, uploaderToken
   return {
     folderName: folder.name,
     companyName: folder.organization.name,
-    companyLogo: folder.organization.logo,
     uploadExpiresAt: folder.uploadExpiresAt,
     isOpen,
     myItems: myItems.map(toNboxItemDto),
@@ -313,6 +330,19 @@ export async function deletePublicNboxUpload(params: { uploadToken: string; uplo
   if (!item) throw new NboxUploadError("Arquivo não encontrado.");
   await prisma.nBoxItem.delete({ where: { id: item.id } });
   await deleteNboxObjectIfUnused(folder.organizationId, item.url);
+}
+
+/** Link curto para o cliente abrir o que ele mesmo enviou, enquanto o link vale (RF-4a). */
+export async function openPublicNboxUpload(params: { uploadToken: string; uploaderToken: string; itemId: string }) {
+  const folder = await loadOpenUploadLink(params.uploadToken);
+  const item = await prisma.nBoxItem.findFirst({
+    where: { id: params.itemId, folderId: folder.id, uploaderTokenHash: hashUploaderToken(params.uploaderToken) },
+    select: { name: true, url: true },
+  });
+  if (!item?.url || !isNboxObjectKeyOf(folder.organizationId, item.url, "stored")) {
+    throw new NboxUploadError("Arquivo não encontrado.");
+  }
+  return createDownloadUrl(item.url, item.name, PUBLIC_OPEN_URL_TTL_SECONDS, "inline");
 }
 
 /** Avisa quem criou o link que chegaram arquivos; no máximo um aviso a cada 10 min por link (RF-6). */
