@@ -1600,7 +1600,7 @@ export function buildAnalyticsTools(ctx: AgentContext) {
           }),
         ]);
 
-        const totalSizeBytes = sizeAgg._sum.size ?? 0;
+        const totalSizeBytes = Number(sizeAgg._sum.size ?? 0);
         const totalSizeMB = Math.round((totalSizeBytes / (1024 * 1024)) * 10) /
           10;
 

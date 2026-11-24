@@ -100,7 +100,7 @@ export async function listCompanyDocuments(organizationId: string, today: Date =
       displayStatus: resolveDisplayStatus(document.status, daysToExpire),
       hasExtraction: isStoredCompanyDocumentExtraction(document.extraction),
       isFromCertificate: readCertificateId(document.extraction) !== null,
-      file: item ? { nboxItemId: item.id, name: item.name, mimeType: item.mimeType, size: item.size } : null,
+      file: item ? { nboxItemId: item.id, name: item.name, mimeType: item.mimeType, size: item.size === null ? null : Number(item.size) } : null,
       createdAt: document.createdAt,
     };
   });

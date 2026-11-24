@@ -1,5 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
+import { toNboxItemDto } from "@/features/nbox/server/items";
 import { z } from "zod";
 import { spaceVisibilityGuard } from "./middlewares/visibility-guard";
 import { UNRESTRICTED_ITEM_FILTER } from "@/features/nbox/server/can-view-restricted-nbox";
@@ -29,5 +30,5 @@ export const listPublicNBox = base
         createdAt: true,
       },
     });
-    return { items };
+    return { items: items.map(toNboxItemDto) };
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { DownloadIcon, ExternalLinkIcon, MoreHorizontalIcon } from "lucide-react";
+import { DownloadIcon, ExternalLinkIcon, MoreHorizontalIcon, SendIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -25,6 +25,9 @@ export interface NBoxItemPreviewSheetProps {
   onDelete?: (itemId: string) => void;
   resolveHref?: NBoxItemHrefResolver;
   canPublish?: boolean;
+  /** Mostra "Transferir" (spec 0148). Some quando `canTransfer` recusa o item. */
+  onTransfer?: (item: NBoxItemView) => void;
+  canTransfer?: (item: NBoxItemView) => boolean;
 }
 
 export function NBoxItemPreviewSheet({ item, open, onOpenChange, ...contentProps }: NBoxItemPreviewSheetProps) {
@@ -51,7 +54,10 @@ function PreviewSheetBody({
   onDelete,
   resolveHref,
   canPublish = true,
+  onTransfer,
+  canTransfer,
 }: Omit<NBoxItemPreviewSheetProps, "item" | "open"> & { item: NBoxItemView }) {
+  const isTransferShown = !!onTransfer && (canTransfer?.(item) ?? true);
   const resolvedUrl = useResolvedItemHref(item, resolveHref);
   const previewKind = getItemPreviewKind(item);
   const isOpenAction = item.type === "LINK" || previewKind === "contract" || previewKind === "proposal";
@@ -103,6 +109,18 @@ function PreviewSheetBody({
               )}
               {isOpenAction ? "Abrir link" : "Baixar"}
             </a>
+          </Button>
+        )}
+        {isTransferShown && (
+          <Button
+            variant="outline"
+            className="h-12 shrink-0 rounded-full"
+            onClick={() => {
+              onTransfer?.(item);
+              onOpenChange(false);
+            }}
+          >
+            <SendIcon className="size-4" /> Transferir
           </Button>
         )}
         {hasSecondaryActions && (

@@ -13,6 +13,7 @@ import {
   Link2Icon,
   ListIcon,
   SearchIcon,
+  SendIcon,
   UploadIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,12 @@ import type { NBoxFolderView as NBoxFolder, NBoxItemView, NBoxViewMode as ViewMo
 import { StorageBar } from "./nbox-sidebar-parts";
 import { NBoxFolderNavigation, buildFolderPath } from "./nbox-folder-navigation";
 import { UploadModal, NewLinkModal, NewFolderModal } from "./nbox-modals";
+import { NboxTransfersPanel, NewTransferModal } from "./nbox-transfers";
+
+type NboxSection = "files" | "transfers";
+
+const isTransferable = (item: NBoxItemView) =>
+  (item.type === "FILE" || item.type === "IMAGE") && !!item.url && !/^https?:\/\//.test(item.url);
 
 /** N-Box: drive da empresa — pastas, arquivos e links, com o menu de baixo no celular. */
 
@@ -58,6 +65,8 @@ export function NBoxApp() {
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
   const [deleteFolderId, setDeleteFolderId] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<NBoxItemView | null>(null);
+  const [section, setSection] = useState<NboxSection>("files");
+  const [transferDraft, setTransferDraft] = useState<{ key: number; items: NBoxItemView[] } | null>(null);
 
   const { folders, isLoading: foldersLoading } = useNBoxFolders();
   const { items, isLoading: itemsLoading } = useNBoxItems({
@@ -77,7 +86,7 @@ export function NBoxApp() {
   // Celular: Enviar é a ação da tela — fica no centro do menu de baixo, no lugar do ASTRO.
   useRegisterOrbitDock({
     leftItems: [
-      { label: "Arquivos", icon: <HardDriveIcon />, onSelect: () => setSelectedFolderId(null), isActive: selectedFolderId === null },
+      { label: "Arquivos", icon: <HardDriveIcon />, onSelect: () => selectFolder(null), isActive: section === "files" && selectedFolderId === null },
       { label: "Pastas", icon: <FolderIcon />, onSelect: () => setIsFoldersSheetOpen(true), isActive: isFoldersSheetOpen },
     ],
     rightItems: [
@@ -103,8 +112,16 @@ export function NBoxApp() {
 
   const selectFolder = (folderId: string | null) => {
     setSelectedFolderId(folderId);
+    setSection("files");
     setIsFoldersSheetOpen(false);
   };
+
+  const openTransfers = () => {
+    setSection("transfers");
+    setIsFoldersSheetOpen(false);
+  };
+
+  const startTransfer = (items: NBoxItemView[] = []) => setTransferDraft({ key: Date.now(), items });
 
   const storageLabel = storage ? `${formatBytes(storage.usedBytes)} de ${formatBytes(storage.limitBytes)} usados` : "Seus arquivos e links";
   const ViewToggleIcon = viewMode === "grid" ? ListIcon : GridIcon;
@@ -123,6 +140,7 @@ export function NBoxApp() {
           </div>
         </div>
         <div className="flex-1 space-y-0.5 overflow-y-auto px-2 pt-2">
+          <TransfersNavButton isActive={section === "transfers"} onSelect={openTransfers} />
           <NBoxFolderNavigation
             folders={folders}
             rootFolders={rootFolders}
@@ -146,7 +164,7 @@ export function NBoxApp() {
             <BoxIcon className="size-5 text-primary-foreground" />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl leading-tight font-bold tracking-tight">{selectedFolder?.name ?? "Todos os arquivos"}</h1>
+            <h1 className="truncate text-xl leading-tight font-bold tracking-tight">{section === "transfers" ? "Transferências" : (selectedFolder?.name ?? "Todos os arquivos")}</h1>
             <p className="truncate text-xs text-muted-foreground">{storageLabel}</p>
           </div>
           <Button
@@ -164,15 +182,21 @@ export function NBoxApp() {
         {/* Barra do computador: caminho da pasta, busca, visualização e ações. */}
         <div className="hidden shrink-0 flex-wrap items-center gap-3 bg-background px-6 py-3 md:flex">
           <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm text-muted-foreground" aria-label="Caminho da pasta">
-            <button type="button" onClick={() => setSelectedFolderId(null)} className={cn("truncate rounded-full px-2 py-1 hover:bg-muted", !selectedFolderId && "font-semibold text-foreground")}>
+            <button type="button" onClick={() => selectFolder(null)} className={cn("truncate rounded-full px-2 py-1 hover:bg-muted", section === "files" && !selectedFolderId && "font-semibold text-foreground")}>
               Todos os arquivos
             </button>
-            {folderPath.map((folder, index) => (
+            {section === "transfers" && (
+              <span className="flex min-w-0 items-center gap-1">
+                <ChevronRightIcon className="size-3.5 shrink-0" />
+                <span className="truncate px-2 py-1 font-semibold text-foreground">Transferências</span>
+              </span>
+            )}
+            {section === "files" && folderPath.map((folder, index) => (
               <span key={folder.id} className="flex min-w-0 items-center gap-1">
                 <ChevronRightIcon className="size-3.5 shrink-0" />
                 <button
                   type="button"
-                  onClick={() => setSelectedFolderId(folder.id)}
+                  onClick={() => selectFolder(folder.id)}
                   className={cn("truncate rounded-full px-2 py-1 hover:bg-muted", index === folderPath.length - 1 && "font-semibold text-foreground")}
                 >
                   {folder.name}
@@ -203,12 +227,19 @@ export function NBoxApp() {
           <Button size="sm" variant="outline" className="rounded-full" onClick={() => setLinkOpen(true)}>
             <Link2Icon className="size-4" /> Link
           </Button>
-          <Button size="sm" variant="outline" className="rounded-full" onClick={() => setFolderOpen(true)} data-guide={GUIDE_ANCHORS.nboxNewFolderButton.id}>
-            <FolderIcon className="size-4" /> Pasta
+          <Button size="sm" variant="outline" className="rounded-full" onClick={() => startTransfer()} data-guide={GUIDE_ANCHORS.nboxTransfersButton.id}>
+            <SendIcon className="size-4" /> Transferir
           </Button>
-          <Button size="sm" className="rounded-full" onClick={() => setUploadOpen(true)} data-guide={GUIDE_ANCHORS.nboxUploadButton.id}>
-            <UploadIcon className="size-4" /> Enviar
-          </Button>
+          {section === "files" && (
+            <>
+              <Button size="sm" variant="outline" className="rounded-full" onClick={() => setFolderOpen(true)} data-guide={GUIDE_ANCHORS.nboxNewFolderButton.id}>
+                <FolderIcon className="size-4" /> Pasta
+              </Button>
+              <Button size="sm" className="rounded-full" onClick={() => setUploadOpen(true)} data-guide={GUIDE_ANCHORS.nboxUploadButton.id}>
+                <UploadIcon className="size-4" /> Enviar
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Celular: busca em pílula e pastas numa linha que rola. */}
@@ -221,7 +252,7 @@ export function NBoxApp() {
             {selectedFolder && (
               <button
                 type="button"
-                onClick={() => setSelectedFolderId(selectedFolder.parentId)}
+                onClick={() => selectFolder(selectedFolder.parentId)}
                 className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-line bg-card px-3 text-sm"
               >
                 <ChevronLeftIcon className="size-4" /> Voltar
@@ -231,7 +262,7 @@ export function NBoxApp() {
               <button
                 key={folder.id}
                 type="button"
-                onClick={() => setSelectedFolderId(folder.id)}
+                onClick={() => selectFolder(folder.id)}
                 className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-sm"
               >
                 {folder.isRestricted ? (
@@ -244,6 +275,13 @@ export function NBoxApp() {
             ))}
             <button
               type="button"
+              onClick={openTransfers}
+              className={cn("flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line px-3 text-sm", section === "transfers" ? "bg-foreground text-background" : "bg-card")}
+            >
+              <SendIcon className="size-4" /> Transferências
+            </button>
+            <button
+              type="button"
               onClick={() => setIsFoldersSheetOpen(true)}
               className="flex h-9 shrink-0 items-center gap-1 rounded-full bg-muted px-3 text-sm text-muted-foreground"
             >
@@ -254,7 +292,14 @@ export function NBoxApp() {
 
         {/* Arquivos */}
         <div className="flex-1 overflow-y-auto px-4 pt-2 pb-[150px] md:px-6 md:py-4">
-          {itemsLoading ? (
+          {section === "transfers" ? (
+            <div className="space-y-3">
+              <Button className="h-11 rounded-full px-5 md:hidden" onClick={() => startTransfer()}>
+                <SendIcon className="size-4" /> Nova transferência
+              </Button>
+              <NboxTransfersPanel onCreate={() => startTransfer()} />
+            </div>
+          ) : itemsLoading ? (
             <div className={cn("gap-3 md:gap-4", viewMode === "grid" ? NBOX_ITEM_GRID_CLASSNAME : "flex flex-col")}>
               {[1, 2, 3, 4, 5, 6].map((index) => (
                 <Skeleton key={index} className={viewMode === "grid" ? "aspect-[4/5] rounded-[20px]" : "h-16 rounded-[18px]"} />
@@ -299,6 +344,7 @@ export function NBoxApp() {
             <SheetTitle>Pastas</SheetTitle>
           </SheetHeader>
           <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+            <TransfersNavButton isActive={section === "transfers"} onSelect={openTransfers} />
             <NBoxFolderNavigation
               folders={folders}
               rootFolders={rootFolders}
@@ -324,9 +370,22 @@ export function NBoxApp() {
         onOpenChange={(isOpen) => !isOpen && setPreviewItem(null)}
         onDelete={setDeleteItemId}
         canPublish={canPublish}
+        onTransfer={canPublish ? (item) => startTransfer([item]) : undefined}
+        canTransfer={isTransferable}
       />
 
       {/* ── Modals ── */}
+      {transferDraft && (
+        <NewTransferModal
+          key={transferDraft.key}
+          open
+          initialItems={transferDraft.items}
+          onClose={() => {
+            setTransferDraft(null);
+            setSection("transfers");
+          }}
+        />
+      )}
       <UploadModal
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
@@ -385,5 +444,20 @@ export function NBoxApp() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function TransfersNavButton({ isActive, onSelect }: { isActive: boolean; onSelect: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "flex min-h-10 w-full items-center gap-2 rounded-full px-3 py-1 text-sm transition-colors",
+        isActive ? "bg-foreground text-background" : "hover:bg-muted",
+      )}
+    >
+      <SendIcon className="size-4" /> Transferências
+    </button>
   );
 }

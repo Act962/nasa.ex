@@ -4846,6 +4846,10 @@ model NBoxFolder {
   systemKey      String?  @map("system_key")
   /// Pasta restrita: só quem é ADMIN/OWNER do financeiro vê (spec 0051).
   isRestricted   Boolean  @default(false) @map("is_restricted")
+  /// Transferência com prazo (spec 0148): pasta fora da árvore que some depois desta data.
+  expiresAt      DateTime? @map("expires_at")
+  /// Token do link público da transferência (`/t/<token>`).
+  shareToken     String?   @unique @map("share_token")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parent       NBoxFolder?  @relation("FolderChildren", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -4856,6 +4860,7 @@ model NBoxFolder {
   @@unique([organizationId, systemKey])
   @@index([organizationId])
   @@index([parentId])
+  @@index([expiresAt])
   @@map("nbox_folders")
 }
 
@@ -4867,7 +4872,8 @@ model NBoxItem {
   name            String
   url             String?
   mimeType        String?      @map("mime_type")
-  size            Int?
+  /// Bytes. BigInt porque o arquivo pode passar de 2 GB (spec 0148).
+  size            BigInt?
   description     String?
   tags            String[]
   forgeContractId String?      @map("forge_contract_id")

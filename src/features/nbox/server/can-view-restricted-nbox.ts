@@ -22,6 +22,8 @@ export interface FolderRestriction {
   id: string;
   isRestricted: boolean;
   systemKey: string | null;
+  /** Preenchido nas transferências (spec 0148). */
+  expiresAt: Date | null;
 }
 
 export async function loadFolderRestriction(
@@ -31,7 +33,7 @@ export async function loadFolderRestriction(
   if (!folderId) return null;
   return prisma.nBoxFolder.findFirst({
     where: { id: folderId, organizationId },
-    select: { id: true, isRestricted: true, systemKey: true },
+    select: { id: true, isRestricted: true, systemKey: true, expiresAt: true },
   });
 }
 
