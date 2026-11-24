@@ -11,6 +11,7 @@ import {
   getPublicNboxUploadLink,
   listNboxUploadLinks,
   notifyPublicNboxUploadFinished,
+  openPublicNboxUpload,
   startPublicNboxUpload,
   updateNboxUploadLink,
 } from "@/features/nbox/server/upload-links";
@@ -124,6 +125,12 @@ export const deletePublicUpload = base
       await deletePublicNboxUpload(input);
       return { ok: true as const };
     }, (message) => errors.BAD_REQUEST({ message })),
+  );
+
+export const openPublicUpload = base
+  .input(z.object({ uploadToken: uploadTokenSchema, uploaderToken: uploaderTokenSchema, itemId: z.string().min(1) }))
+  .handler(({ input, errors }) =>
+    runWithUserMessage(async () => ({ url: await openPublicNboxUpload(input) }), (message) => errors.BAD_REQUEST({ message })),
   );
 
 export const finishPublicUpload = base

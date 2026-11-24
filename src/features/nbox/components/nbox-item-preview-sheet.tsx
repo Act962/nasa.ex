@@ -14,7 +14,7 @@ import {
   getLinkHostname,
 } from "../lib/item-preview";
 import { formatBytes } from "./nbox-file-type-icon";
-import { ItemActionsMenuItems, NBoxItemThumb, NBoxPublicBadge, useResolvedItemHref } from "./nbox-item-views";
+import { ItemActionsMenuItems, NBoxItemThumb, NBoxPublicBadge, itemDownloadHref, useResolvedItemHref } from "./nbox-item-views";
 import type { NBoxItemHrefResolver, NBoxItemView } from "./nbox-types";
 
 export interface NBoxItemPreviewSheetProps {
@@ -62,6 +62,7 @@ function PreviewSheetBody({
   const previewKind = getItemPreviewKind(item);
   const isOpenAction = item.type === "LINK" || previewKind === "contract" || previewKind === "proposal";
   const hasSecondaryActions = canPublish || !!onDelete;
+  const primaryHref = isOpenAction ? resolvedUrl : itemDownloadHref(item, resolvedUrl, !!resolveHref);
 
   function deleteAndClose(itemId: string) {
     onDelete?.(itemId);
@@ -101,7 +102,10 @@ function PreviewSheetBody({
       <div className="flex shrink-0 items-center gap-2 border-t border-line p-4">
         {resolvedUrl && (
           <Button asChild className="h-12 flex-1 rounded-full text-[15px]">
-            <a href={resolvedUrl} target="_blank" rel="noopener noreferrer" download={!isOpenAction}>
+            <a
+              href={primaryHref ?? undefined}
+              {...(isOpenAction ? { target: "_blank", rel: "noopener noreferrer" } : { download: item.name })}
+            >
               {isOpenAction ? (
                 <ExternalLinkIcon className="size-4" />
               ) : (
@@ -142,6 +146,7 @@ function PreviewSheetBody({
                 onDelete={onDelete ? deleteAndClose : undefined}
                 canPublish={canPublish}
                 isPrimaryActionHidden
+                hasCustomResolver={!!resolveHref}
               />
             </DropdownMenuContent>
           </DropdownMenu>

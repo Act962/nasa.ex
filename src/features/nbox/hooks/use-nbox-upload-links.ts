@@ -108,6 +108,8 @@ export function usePublicNboxUpload(uploadToken: string, uploaderToken: string |
   return { uploadFiles, progress, isUploading: progress !== null };
 }
 
+export const useOpenPublicNboxUpload = () => useMutation(orpc.nbox.uploadLinks.public.openUpload.mutationOptions());
+
 export const useDeletePublicNboxUpload = () => {
   const queryClient = useQueryClient();
   return useMutation(
