@@ -150,13 +150,14 @@ export const registerSale = base
       // para ele; senão o número é gravado no próprio lead, sem duplicar a pessoa (decisão do Weydson, 20/11).
       if (!conversationLead.phone && filledOrUndefined(input.phone)) {
         const found = await findSaleClientByPhone(organizationId, input.phone!);
-        if (!found.normalizedPhone) throw errors.BAD_REQUEST({ message: "Número de telefone inválido." });
+        const typedPhone = found.normalizedPhone;
+        if (!typedPhone) throw errors.BAD_REQUEST({ message: "Número de telefone inválido." });
         if (found.lead) {
           leadId = found.lead.id;
           leadName = filledOrUndefined(input.name) ?? found.lead.name;
         } else {
           try {
-            await prisma.lead.update({ where: { id: conversationLead.id }, data: { phone: found.normalizedPhone } });
+            await prisma.lead.update({ where: { id: conversationLead.id }, data: { phone: typedPhone } });
           } catch (error) {
             if ((error as { code?: string } | null)?.code !== "P2002") throw error;
             throw errors.BAD_REQUEST({ message: "Esse número já é de outro cliente neste funil." });

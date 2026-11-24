@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 import { isOrgOwnerOrAdmin } from "@/features/permissions/server/is-org-admin";
 import { normalizePaymentMethods, normalizeProposalSections, proposalLookInputSchema } from "@/features/forge/lib/proposal-look";
@@ -150,8 +151,8 @@ export const updateForgeProposalLook = base
       proposalTemplate: input.proposalTemplate,
       brandColor: input.brandColor?.toLowerCase() ?? null,
       accentColor: input.accentColor?.toLowerCase() ?? null,
-      proposalSections: normalizeProposalSections(input.proposalSections),
-      paymentMethods: normalizePaymentMethods(input.paymentMethods),
+      proposalSections: normalizeProposalSections(input.proposalSections) as unknown as Prisma.InputJsonValue,
+      paymentMethods: normalizePaymentMethods(input.paymentMethods) as unknown as Prisma.InputJsonValue,
       commercialTerms: input.commercialTerms || null,
     };
     await prisma.forgeSettings.upsert({
