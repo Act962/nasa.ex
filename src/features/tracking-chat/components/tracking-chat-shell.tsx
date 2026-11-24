@@ -34,11 +34,12 @@ function useChatListWidthVariable() {
   }, []);
 }
 
-interface LayoutProps {
+interface TrackingChatShellProps {
   children: React.ReactNode;
 }
 
-export default function Layout({ children }: LayoutProps) {
+/** Moldura das telas de Chats (lista + conversa). O layout da rota só confere o "Ver" e a usa. */
+export function TrackingChatShell({ children }: TrackingChatShellProps) {
   // Tablets (<1024px) recebem a mesma UX de smartphone: 1 painel por vez
   // (lista OU chat, nunca ambos lado a lado). Layout de 2 colunas só
   // entra em ≥lg, onde tem espaço pra resizable panels sem apertar.

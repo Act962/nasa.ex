@@ -33,9 +33,9 @@ export function AppsLauncher() {
   // App que já está na faixa ao lado não se repete aqui: o painel existe para
   // alcançar o que NÃO está no menu. Some do painel quando entra no menu, e
   // volta quando sai — a lista se ajusta sozinha.
-  const { isSidebarItemHidden } = useCheckPermission();
+  const { isAppHidden } = useCheckPermission();
   const apps = LAUNCHABLE_APPS.filter((app) => {
-    if (app.sidebarKey && isSidebarItemHidden(app.sidebarKey)) return false;
+    if (isAppHidden(app.id)) return false;
     const navItem = app.sidebarKey
       ? SIDEBAR_NAV_ITEMS.find((item) => item.key === app.sidebarKey)
       : undefined;

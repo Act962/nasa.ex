@@ -4,7 +4,7 @@ import { orpc } from "@/lib/orpc";
 import { useOrgRole } from "./use-org-role";
 import { useQuery } from "@tanstack/react-query";
 import type { PermissionAction } from "@/features/permissions/lib/app-permission-catalog";
-import { SIDEBAR_PERMISSION_APP } from "@/features/permissions/lib/sidebar-permission-app";
+import { isAppViewAllowed } from "@/features/permissions/lib/app-view-keys";
 
 // Chaves do catálogo em features/permissions/lib/app-permission-catalog.ts.
 // Actions estendidas (`canApprove`, `canPay`) só valem para os apps de
@@ -32,14 +32,13 @@ export function useCheckPermission() {
   };
 
   /**
-   * Item do menu lateral escondido por "Ver" desligado (spec 0152, RF-5). Enquanto carrega, nada some:
-   * esconder tudo por um instante faria o menu piscar.
+   * App (item do menu ou card de /apps) escondido por "Ver" desligado (specs 0152 e 0153).
+   * Enquanto carrega, nada some: esconder tudo por um instante faria o menu piscar.
    */
-  const isSidebarItemHidden = (sidebarKey: string): boolean => {
-    const appKey = SIDEBAR_PERMISSION_APP[sidebarKey];
-    if (!appKey || isMaster || !role || !data?.matrix) return false;
-    return !checkPermission(appKey, "canView");
+  const isAppHidden = (viewId: string): boolean => {
+    if (isMaster || !role || !data?.matrix) return false;
+    return !isAppViewAllowed(viewId, (appKey) => checkPermission(appKey, "canView"));
   };
 
-  return { checkPermission, isSidebarItemHidden, isLoading: !data && !!role };
+  return { checkPermission, isAppHidden, isLoading: !data && !!role };
 }

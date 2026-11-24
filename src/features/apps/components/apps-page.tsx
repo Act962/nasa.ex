@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Package } from "lucide-react";
 import { APPS, type AppDef } from "./apps-data";
+import { useCheckPermission } from "@/hooks/use-check-permission";
 import { AppCard, ComingSoonModal } from "./app-card";
 import { PersonalizarMenu } from "./personalizar-menu";
 import { HeaderTracking } from "@/features/leads/components/header-tracking";
@@ -35,9 +36,10 @@ export function AppsPage() {
   const [modalApp, setModalApp] = useState<AppDef | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Filtra apps com `hidden: true` por default (apps em beta/rollout).
-  // Pra revelar, basta tirar o `.filter((a) => !a.hidden)` daqui.
-  const filteredApps = APPS.filter((app) => !app.hidden).filter((app) => {
+  // `hidden: true` = app em beta/rollout; "Ver" desligado na matriz também tira o card (spec 0153).
+  const { isAppHidden } = useCheckPermission();
+  const visibleApps = APPS.filter((app) => !app.hidden && !isAppHidden(app.id));
+  const filteredApps = visibleApps.filter((app) => {
     if (filter === "all") return true;
     if (filter === "installed") return app.status === "installed";
     if (filter === "development") return app.status === "development";
@@ -56,8 +58,8 @@ export function AppsPage() {
     }
   };
 
-  const installedCount = APPS.filter((a) => a.status === "installed").length;
-  const devCount = APPS.filter((a) => a.status === "development").length;
+  const installedCount = visibleApps.filter((a) => a.status === "installed").length;
+  const devCount = visibleApps.filter((a) => a.status === "development").length;
 
   return (
     <div className="min-h-full bg-background w-full">
@@ -104,7 +106,7 @@ export function AppsPage() {
             </div>
             <div className="flex items-center gap-1.5 text-sm">
               <span className="w-2 h-2 rounded-full bg-info" />
-              <span className="font-semibold">{APPS.length}</span>
+              <span className="font-semibold">{visibleApps.length}</span>
               <span className="text-muted-foreground">total</span>
             </div>
           </div>
@@ -117,7 +119,7 @@ export function AppsPage() {
           {FILTERS.map((f) => {
             const count =
               f.value === "all"
-                ? APPS.length
+                ? visibleApps.length
                 : f.value === "installed"
                   ? installedCount
                   : f.value === "development"

@@ -53,7 +53,7 @@ export function NavMenu() {
   // Org com escopo de produto vê só os apps daquele escopo — inclusive itens
   // `alwaysVisible`, que aqui são deliberadamente ignorados.
   const scopedKeys = scope?.appScope ? SCOPED_NAV_KEYS[scope.appScope] : undefined;
-  const { isSidebarItemHidden } = useCheckPermission();
+  const { isAppHidden } = useCheckPermission();
 
   const visibleItems = (
     scopedKeys
@@ -63,7 +63,7 @@ export function NavMenu() {
             item.alwaysVisible ||
             isItemVisible(prefs, `app:${item.key}`, item.defaultVisible),
         )
-  ).filter((item) => !isSidebarItemHidden(item.key));
+  ).filter((item) => !isAppHidden(item.key));
 
   // Map sidebar keys → data-tour attribute names
   const TOUR_ATTRS: Record<string, string> = {
