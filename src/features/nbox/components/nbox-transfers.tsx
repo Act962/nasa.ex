@@ -34,14 +34,14 @@ import type { NBoxItemView } from "./nbox-types";
 
 // Transferências com prazo do Nbox (spec 0148): link público que some sozinho, como um WeTransfer dentro do ÓRBITA.
 
-const MOBILE_SHEET_CLASSNAME =
+export const MOBILE_SHEET_CLASSNAME =
   "max-sm:top-auto max-sm:bottom-0 max-sm:translate-y-0 max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-[26px] max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-[max(1.5rem,env(safe-area-inset-bottom))] max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=open]:zoom-in-100 max-w-md";
 
-const dayLabel = (days: number) => (days === 1 ? "1 dia" : `${days} dias`);
+export const dayLabel = (days: number) => (days === 1 ? "1 dia" : `${days} dias`);
 
-const toAbsoluteUrl = (path: string) => (typeof window === "undefined" ? path : `${window.location.origin}${path}`);
+export const toAbsoluteUrl = (path: string) => (typeof window === "undefined" ? path : `${window.location.origin}${path}`);
 
-async function copyTransferLink(path: string) {
+export async function copyNboxPublicLink(path: string) {
   try {
     await navigator.clipboard.writeText(toAbsoluteUrl(path));
     toast.success("Link copiado!");
@@ -50,7 +50,7 @@ async function copyTransferLink(path: string) {
   }
 }
 
-function formatExpiry(expiresAt: Date | string) {
+export function formatExpiry(expiresAt: Date | string) {
   const date = new Date(expiresAt);
   return date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
@@ -119,7 +119,7 @@ export function NboxTransfersPanel({ onCreate }: { onCreate: () => void }) {
               </p>
             </div>
             {!isExpired && (
-              <Button size="sm" variant="outline" className="rounded-full max-sm:hidden" onClick={() => copyTransferLink(transfer.path)}>
+              <Button size="sm" variant="outline" className="rounded-full max-sm:hidden" onClick={() => copyNboxPublicLink(transfer.path)}>
                 <CopyIcon className="size-4" /> Copiar link
               </Button>
             )}
@@ -131,7 +131,7 @@ export function NboxTransfersPanel({ onCreate }: { onCreate: () => void }) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem className="sm:hidden" onSelect={() => copyTransferLink(transfer.path)}>
+                  <DropdownMenuItem className="sm:hidden" onSelect={() => copyNboxPublicLink(transfer.path)}>
                     <CopyIcon className="size-4" /> Copiar link
                   </DropdownMenuItem>
                   {canExtend && (
@@ -220,7 +220,7 @@ export function NewTransferModal({
 
   const handleCopy = async () => {
     if (!createdPath) return;
-    await copyTransferLink(createdPath);
+    await copyNboxPublicLink(createdPath);
     setIsCopied(true);
   };
 
@@ -257,22 +257,7 @@ export function NewTransferModal({
 
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-muted-foreground">O link vale por</p>
-              <div className="flex gap-1.5">
-                {NBOX_TRANSFER_DAY_OPTIONS.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    disabled={isBusy}
-                    onClick={() => setDays(option)}
-                    className={cn(
-                      "h-9 flex-1 rounded-full border text-sm transition-colors",
-                      days === option ? "border-foreground bg-foreground text-background" : "border-line hover:bg-muted",
-                    )}
-                  >
-                    {dayLabel(option)}
-                  </button>
-                ))}
-              </div>
+              <NboxDayChips options={NBOX_TRANSFER_DAY_OPTIONS} value={days} onChange={setDays} disabled={isBusy} />
             </div>
 
             <div
@@ -332,6 +317,37 @@ export function NewTransferModal({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function NboxDayChips<Days extends number>({
+  options,
+  value,
+  onChange,
+  disabled,
+}: {
+  options: readonly Days[];
+  value: Days;
+  onChange: (days: Days) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex gap-1.5">
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange(option)}
+          className={cn(
+            "h-9 flex-1 rounded-full border text-sm transition-colors",
+            value === option ? "border-foreground bg-foreground text-background" : "border-line hover:bg-muted",
+          )}
+        >
+          {dayLabel(option)}
+        </button>
+      ))}
+    </div>
   );
 }
 

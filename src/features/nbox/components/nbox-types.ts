@@ -10,6 +10,9 @@ export interface NBoxFolderView {
   createdAt: Date | string;
   isRestricted?: boolean;
   systemKey?: string | null;
+  /** Link para cliente enviar arquivos (spec 0149). */
+  uploadToken?: string | null;
+  uploadExpiresAt?: Date | string | null;
 }
 
 export interface NBoxItemView {

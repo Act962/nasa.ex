@@ -27,6 +27,7 @@ export const GUIDE_RESULT_KINDS = {
   nboxFileUploaded: "nbox.file-uploaded",
   nboxFolderCreated: "nbox.folder-created",
   nboxTransferCreated: "nbox.transfer-created",
+  nboxUploadLinkCreated: "nbox.upload-link-created",
   plannerCreated: "planner.created",
   plannerPostCreated: "planner.post-created",
   plannerPostApproved: "planner.post-approved",

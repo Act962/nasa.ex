@@ -4889,6 +4889,10 @@ model NBoxFolder {
   expiresAt      DateTime? @map("expires_at")
   /// Token do link público da transferência (`/t/<token>`).
   shareToken     String?   @unique @map("share_token")
+  /// Link para cliente sem conta enviar arquivos para esta pasta (`/enviar/<token>`, spec 0149).
+  uploadToken     String?   @unique @map("upload_token")
+  /// Até quando o link de envio aceita arquivos. A pasta e os arquivos ficam depois disso.
+  uploadExpiresAt DateTime? @map("upload_expires_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parent       NBoxFolder?  @relation("FolderChildren", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -4929,7 +4933,11 @@ model NBoxItem {
   isPublic    Boolean @default(false) @map("is_public")
   publicToken String? @unique @map("public_token")
 
+  /// Hash do código do navegador que enviou pelo link de envio (spec 0149). Nulo = enviado pela equipe.
+  uploaderTokenHash String? @map("uploader_token_hash")
+
   @@index([organizationId])
+  @@index([folderId, uploaderTokenHash])
   @@index([folderId])
   @@index([organizationId, isPublic])
   @@map("nbox_items")
