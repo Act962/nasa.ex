@@ -70,12 +70,18 @@ export async function registerUploadedNboxFile(params: {
   description?: string;
   multipartUploadId?: string;
   parts?: Array<{ partNumber: number; etag: string }>;
+  /** Envio pelo link de envio do cliente (spec 0149): marca o navegador, não cobra Star e confere o teto do link. */
+  viaUploadLink?: { uploaderTokenHash: string; assertFits: (sizeBytes: number) => Promise<void> };
 }) {
   const existing = await prisma.nBoxItem.findFirst({
     where: { organizationId: params.organizationId, url: params.key },
     include: { createdBy: { select: { id: true, name: true, image: true } } },
   });
-  if (existing) return toNboxItemDto(existing);
+  if (existing) {
+    const isSameSender = (existing.uploaderTokenHash ?? null) === (params.viaUploadLink?.uploaderTokenHash ?? null);
+    if (!isSameSender || existing.folderId !== params.folderId) throw new NboxUploadError("Arquivo já registrado.");
+    return toNboxItemDto(existing);
+  }
 
   const kind = await assertFolderWritable(params.actor, params.organizationId, params.folderId);
   const { sizeBytes } = await finishNboxUpload({
@@ -85,6 +91,14 @@ export async function registerUploadedNboxFile(params: {
     multipartUploadId: params.multipartUploadId,
     parts: params.parts,
   });
+  if (params.viaUploadLink) {
+    try {
+      await params.viaUploadLink.assertFits(sizeBytes);
+    } catch (error) {
+      await deleteNboxObjectIfOwned(params.organizationId, params.key);
+      throw error;
+    }
+  }
 
   const type = params.mimeType.startsWith("image/") ? NBoxItemType.IMAGE : NBoxItemType.FILE;
   const item = await prisma.nBoxItem.create({
@@ -97,6 +111,7 @@ export async function registerUploadedNboxFile(params: {
       mimeType: params.mimeType,
       size: BigInt(sizeBytes),
       description: params.description ?? null,
+      uploaderTokenHash: params.viaUploadLink?.uploaderTokenHash ?? null,
       createdById: params.actor.id,
     },
     include: { createdBy: { select: { id: true, name: true, image: true } } },
@@ -117,7 +132,7 @@ export async function registerUploadedNboxFile(params: {
     resourceId: item.id,
     metadata: { type: item.type, hasFolder: !!params.folderId, size: sizeBytes },
   });
-  if (kind === "stored") {
+  if (kind === "stored" && !params.viaUploadLink) {
     await chargeStarsByAction(params.organizationId, "nbox_upload", {
       userId: params.actor.id,
       description: `Upload N-Box: ${item.name}`,
