@@ -111,7 +111,9 @@ export function MemberList({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="owner">Master</SelectItem>
+                    {(isMaster || member.role === "owner") && (
+                      <SelectItem value="owner">Master</SelectItem>
+                    )}
                     <SelectItem value="admin">Adm</SelectItem>
                     <SelectItem value="member">Single</SelectItem>
                     <SelectItem value="moderador">Moderador</SelectItem>
@@ -131,7 +133,7 @@ export function MemberList({
                   </Button>
                 ) : null}
 
-                {/* Remove */}
+                {(isMaster || member.role !== "owner") && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -163,6 +165,7 @@ export function MemberList({
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+                )}
               </div>
             )}
           </div>

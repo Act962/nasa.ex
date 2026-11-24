@@ -34,8 +34,17 @@ export const updateMemberRole = base
     });
     if (!target) throw new ORPCError("NOT_FOUND", { message: "Membro não encontrado" });
 
-    // Cannot downgrade yourself if you're the only owner
-    if (target.userId === context.user.id && input.role !== "owner") {
+    // O Moderador gerencia a equipe, mas não pode se promover nem mexer no Master.
+    if (currentMember.role !== "owner") {
+      if (target.userId === context.user.id) {
+        throw new ORPCError("FORBIDDEN", { message: "Você não pode alterar o próprio cargo" });
+      }
+      if (target.role === "owner" || input.role === "owner") {
+        throw new ORPCError("FORBIDDEN", { message: "Apenas o Master pode promover ou alterar um Master" });
+      }
+    }
+
+    if (target.role === "owner" && input.role !== "owner") {
       const ownerCount = await prisma.member.count({ where: { organizationId: orgId, role: "owner" } });
       if (ownerCount <= 1) throw new ORPCError("BAD_REQUEST", { message: "A empresa precisa de pelo menos 1 Master" });
     }
