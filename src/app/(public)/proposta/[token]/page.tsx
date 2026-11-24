@@ -63,49 +63,6 @@ export default async function PublicProposalPage({ params, searchParams }: Props
     where: { organizationId: proposal.organizationId },
   });
 
-  // ── Ecosystem links da org (best-effort, server-side) ──────────
-  // Descobre quais integrações da empresa proposante exibir como CTAs
-  // na proposta: agenda pública, SpaceHome, Linnker, NASA Route.
-  const orgSlug = proposal.organization.slug;
-  const [agenda, spaceStation, linnkerPage, courseCount] = await Promise.all([
-    prisma.agenda.findFirst({
-      where: { organizationId: proposal.organizationId, isActive: true },
-      select: { slug: true, name: true },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.spaceStation.findFirst({
-      where: {
-        orgId: proposal.organizationId,
-        type: "ORG",
-        isPublic: true,
-      },
-      select: { nick: true },
-    }),
-    prisma.linnkerPage.findFirst({
-      where: { organizationId: proposal.organizationId, isPublished: true },
-      select: { slug: true, title: true },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.nasaRouteCourse.count({
-      where: {
-        creatorOrgId: proposal.organizationId,
-        isPublished: true,
-      },
-    }),
-  ]);
-
-  const ecosystemLinks = {
-    agendaUrl:
-      agenda && orgSlug ? `/agenda/${orgSlug}/${agenda.slug}` : null,
-    agendaLabel: agenda?.name ?? null,
-    spaceHomeUrl: spaceStation?.nick
-      ? `/space/${spaceStation.nick}`
-      : null,
-    linnkerUrl: linnkerPage ? `/l/${linnkerPage.slug}` : null,
-    nasaRouteUrl: courseCount > 0 && orgSlug ? `/c/${orgSlug}` : null,
-    nasaRouteCount: courseCount,
-  };
-
   const ctx: RenderContext = {
     organization: {
       name: proposal.organization.name,
@@ -176,7 +133,6 @@ export default async function PublicProposalPage({ params, searchParams }: Props
       <PublicProposalView
         proposal={serialized}
         token={token}
-        ecosystemLinks={ecosystemLinks}
       />
     </>
   );

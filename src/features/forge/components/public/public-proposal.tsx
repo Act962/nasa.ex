@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { TemplateModern, type TemplateProposal } from "./proposal-templates";
+import { resolveProposalLook } from "@/features/forge/lib/proposal-look";
+import { ProposalDocument } from "./proposal-document/proposal-document";
+import type { DocumentProposal, SimulationBreakdown } from "./proposal-document/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,20 +63,15 @@ interface Proposal {
   headerConfig?: Record<string, unknown> | null;
   settings: {
     logoUrl: string | null;
-    letterheadHeader: string | null;
-    letterheadFooter: string | null;
-    proposalBgColor: string;
+    proposalTemplate?: string | null;
+    brandColor?: string | null;
+    accentColor?: string | null;
+    proposalSections?: unknown;
+    paymentMethods?: unknown;
+    commercialTerms?: string | null;
   } | null;
 }
 
-export interface EcosystemLinks {
-  agendaUrl: string | null;
-  agendaLabel: string | null;
-  spaceHomeUrl: string | null;
-  linnkerUrl: string | null;
-  nasaRouteUrl: string | null;
-  nasaRouteCount: number;
-}
 
 // ─── Filename slug: OrgName_TituloProposita_0001 ──────────────────────────────
 
@@ -94,11 +91,9 @@ function makeDocTitle(org: string, title: string, number: number): string {
 export function PublicProposalView({
   proposal,
   token,
-  ecosystemLinks,
 }: {
   proposal: Proposal;
   token: string;
-  ecosystemLinks: EcosystemLinks;
 }) {
   const isExpired = proposal.validUntil
     ? new Date(proposal.validUntil) < new Date()
@@ -120,53 +115,43 @@ export function PublicProposalView({
   }, [docTitle]);
 
   const breakdown =
-    (proposal.headerConfig as { simulationBreakdown?: TemplateProposal["breakdown"] } | null)
-      ?.simulationBreakdown ?? null;
+    (proposal.headerConfig as { simulationBreakdown?: SimulationBreakdown } | null)?.simulationBreakdown ?? null;
 
-  const templateProposal: TemplateProposal = {
-    ...proposal,
-    breakdown,
+  const organization = proposal.organization;
+  const documentProposal: DocumentProposal = {
+    title: proposal.title,
+    number: proposal.number,
+    status: proposal.status,
+    description: proposal.description,
+    validUntil: proposal.validUntil,
     createdAt: proposal.createdAt,
+    discount: proposal.discount,
+    discountType: proposal.discountType,
+    paymentLink: proposal.paymentLink,
+    breakdown,
+    products: proposal.products,
     organization: {
-      name: proposal.organization.name,
-      logo: proposal.organization.logo,
-      slug: proposal.organization.slug,
-      cnpj: proposal.organization.cnpj ?? null,
-      contactEmail: proposal.organization.contactEmail ?? null,
-      contactPhone: proposal.organization.contactPhone ?? null,
-      addressLine: proposal.organization.addressLine ?? null,
-      city: proposal.organization.city ?? null,
-      state: proposal.organization.state ?? null,
-      postalCode: proposal.organization.postalCode ?? null,
-      website: proposal.organization.website ?? null,
-      bio: proposal.organization.bio ?? null,
+      name: organization.name,
+      logo: proposal.settings?.logoUrl ?? organization.logo,
+      cnpj: organization.cnpj ?? null,
+      contactEmail: organization.contactEmail ?? null,
+      contactPhone: organization.contactPhone ?? null,
+      addressLine: organization.addressLine ?? null,
+      city: organization.city ?? null,
+      state: organization.state ?? null,
+      website: organization.website ?? null,
     },
     client: proposal.client
-      ? {
-          name: proposal.client.name,
-          email: proposal.client.email,
-          phone: proposal.client.phone,
-          document: proposal.client.document ?? null,
-          profile: proposal.client.profile ?? null,
-        }
+      ? { name: proposal.client.name, email: proposal.client.email, phone: proposal.client.phone, document: proposal.client.document ?? null }
       : null,
-    responsible: proposal.responsible
-      ? {
-          name: proposal.responsible.name,
-          image: proposal.responsible.image,
-        }
-      : null,
+    responsible: proposal.responsible ? { name: proposal.responsible.name, image: proposal.responsible.image } : null,
   };
 
   return (
-    <div>
-      <TemplateModern
-        proposal={templateProposal}
-        isExpired={isExpired}
-        isPaid={isPaid}
-        token={token}
-        ecosystemLinks={ecosystemLinks}
-      />
-    </div>
+    <ProposalDocument
+      proposal={documentProposal}
+      look={resolveProposalLook(proposal.settings)}
+      state={{ isExpired, isPaid, token, isPreview: false }}
+    />
   );
 }

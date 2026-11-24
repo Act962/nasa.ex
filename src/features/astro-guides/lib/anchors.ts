@@ -299,6 +299,42 @@ export const GUIDE_ANCHORS = {
     id: "forge.new-proposal",
     description: "Botão \"Nova Proposta\" na aba Propostas",
   },
+  forgeRegisterSaleButton: {
+    id: "forge.register-sale",
+    description: "Botão \"Registrar venda\" na aba Propostas",
+  },
+  forgeRegisterSaleSubmit: {
+    id: "forge.register-sale-submit",
+    description: "Botão \"Gerar recibo\" na janela Registrar venda",
+  },
+  chatReceiptMenuItem: {
+    id: "chat.receipt-menu-item",
+    description: "Item \"Recibo\" no menu de anexos (+) do chat",
+  },
+  forgeReceiptsCard: {
+    id: "forge.receipts-card",
+    description: "Cartão \"Recibos\" no Painel do Forge (abre Meus recibos)",
+  },
+  chatMyReceiptsButton: {
+    id: "chat.my-receipts",
+    description: "Botão \"Meus recibos\" no topo da tela Recibos do chat",
+  },
+  chatReceiptSubmit: {
+    id: "chat.receipt-submit",
+    description: "Botão \"Gerar e enviar\" na tela Recibo do chat",
+  },
+  forgeSettingsButton: {
+    id: "forge.settings-button",
+    description: "Botão de configurações (engrenagem) do Forge",
+  },
+  forgeProposalLookOpen: {
+    id: "forge.proposal-look-open",
+    description: "Botão \"Personalizar visual\" nas configurações do Forge",
+  },
+  forgeProposalLookSave: {
+    id: "forge.proposal-look-save",
+    description: "Botão \"Salvar visual\" na janela Visual da proposta",
+  },
   forgeProposalTitle: {
     id: "forge.proposal.title",
     description: "Campo de título no formulário de proposta",

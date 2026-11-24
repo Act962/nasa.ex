@@ -32,6 +32,8 @@ interface Props {
   isPaid: boolean;
   variant?: Variant;
   accentClassName?: string;
+  /** Cor da marca da empresa (spec 0150): sobrepõe a cor padrão do botão. */
+  accentStyle?: React.CSSProperties;
 }
 
 export function AcceptButton({
@@ -41,6 +43,7 @@ export function AcceptButton({
   isPaid,
   variant = "dark",
   accentClassName,
+  accentStyle,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -102,6 +105,7 @@ export function AcceptButton({
           "w-full flex items-center justify-center gap-3 rounded-xl py-4 text-base font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100",
           accentClassName ?? defaultAccent,
         )}
+        style={accentStyle}
       >
         <CheckCircle2 className="size-5" />
         {isExpired ? "Proposta expirada" : "Aceitar e assinar proposta"}

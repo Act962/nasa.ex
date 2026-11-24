@@ -7,7 +7,8 @@ import { resolveOutboundProvider } from "@/features/tracking-chat/lib/providers/
 import type { LoyaltyActor } from "../actor";
 import { auditLoyaltyAction } from "../audit";
 import { getActiveProgram } from "../program";
-import { buildReceiptFingerprint, formatCents, onlyDigits, parseIssuedAt, toBrasiliaDay } from "../../utils/campaign";
+import { buildReceiptFingerprint, onlyDigits, parseIssuedAt, toBrasiliaDay } from "../../utils/campaign";
+import { reviewApprovedMessage } from "../../utils/campaign-messages";
 import { grantLuckyNumbers } from "./grant-lucky-numbers";
 
 // Conferência manual do cupom que a leitura automática não resolveu (spec 0102, RF-15). Quem
@@ -15,8 +16,6 @@ import { grantLuckyNumbers } from "./grant-lucky-numbers";
 // mesmos do cupom aceito na hora.
 
 const DEFAULT_REJECT_REASON = "Recusado na conferência";
-// O texto do WhatsApp tem limite de tamanho, e um cupom alto rende centenas de números.
-const MAX_CODES_IN_MESSAGE = 60;
 
 type ReviewFailure = "not_found" | "not_pending" | "already_drawn" | "out_of_period" | "duplicate";
 
@@ -60,7 +59,7 @@ async function findPendingReceipt(organizationId: string, receiptId: string) {
       receiptNumber: true,
       issuedAt: true,
       member: { select: { name: true } },
-      campaign: { select: { id: true, name: true, amountPerNumberCents: true, startsAt: true, endsAt: true, drawnAt: true } },
+      campaign: { select: { id: true, name: true, mode: true, amountPerNumberCents: true, startsAt: true, endsAt: true, drawnAt: true } },
     },
   });
 }
@@ -139,23 +138,21 @@ export async function approveReceipt(params: {
     organizationId: params.organizationId,
     actor: params.actor,
     action: "campaign.receipt_approved",
-    actionLabel: `${campaign.name}: cupom de ${receipt.member.name} aprovado na conferência, ${granted.codes.length} número(s) da sorte`,
+    actionLabel: `${campaign.name}: cupom de ${receipt.member.name} aprovado na conferência, ${granted.codes.length} ${campaign.mode === "POINTS" ? "⭐" : "número(s) da sorte"}`,
     leadId: receipt.leadId,
     resourceId: receipt.id,
     metadata: { campaignId: campaign.id, totalCents, numbers: granted.codes.length },
   });
 
-  const perNumber = formatCents(campaign.amountPerNumberCents);
-  const carryLine = `Saldo acumulado para o próximo número: ${formatCents(granted.carryOverCents)} de ${perNumber}.`;
-  const shownCodes = granted.codes.slice(0, MAX_CODES_IN_MESSAGE);
-  const hiddenLine = granted.codes.length > shownCodes.length ? `\n… e mais ${granted.codes.length - shownCodes.length}, em "Ver meus códigos".` : "";
-  const codesBlock =
-    granted.codes.length === 0
-      ? `Ele ainda não completou ${perNumber}, então o valor ficou guardado.`
-      : `${granted.codes.length === 1 ? "Seu número da sorte" : `Seus ${granted.codes.length} números da sorte`}:\n${shownCodes.map((code) => `🎟️ ${code}`).join("\n")}${hiddenLine}`;
   const wasCustomerNotified = await notifyCustomer(
     receipt.leadId,
-    `Seu cupom de ${formatCents(totalCents)} foi conferido e aprovado. ✅\n\n${codesBlock}\n\n${carryLine}`,
+    reviewApprovedMessage({
+      mode: campaign.mode,
+      totalCents,
+      codes: granted.codes,
+      carryOverCents: granted.carryOverCents,
+      amountPerNumberCents: campaign.amountPerNumberCents,
+    }),
   );
   return { ok: true, decision: "approved", codes: granted.codes, carryOverCents: granted.carryOverCents, wasCustomerNotified };
 }

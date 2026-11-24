@@ -4,12 +4,9 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
-import { inngest } from "@/inngest/client";
-import { awardPoints } from "../space-point/utils";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { eventBus } from "@/features/alerts/lib/event-bus";
-import { requestLeadMetricsRecompute } from "@/features/leads/lib/metrics/request-recompute";
-import { awardStarFriendsForProposal } from "@/features/star-friends/lib/earn-forge";
+import { runProposalPaidEffects } from "@/features/forge/server/proposal-paid-effects";
 
 const proposalProductShape = z.object({
   id: z.string(),
@@ -369,6 +366,8 @@ export const updateForgeProposal = base
                 ? (input.headerConfig as Prisma.InputJsonValue)
                 : undefined,
             status: strOrUndef(input.status) as never,
+            // Data do recibo (spec 0148): só na primeira vez que vira PAGA.
+            paidAt: input.status === "PAGA" && prevProposal?.status !== "PAGA" ? new Date() : undefined,
           },
         });
         if (input.products !== undefined) {
@@ -431,52 +430,13 @@ export const updateForgeProposal = base
         });
       }
 
-      // Disparar automação de onboarding quando proposta for paga
+      // Proposta paga: onboarding de agência + pontos, Star Friends e métricas do lead.
       if (input.status === "PAGA") {
-        try {
-          const updated = await prisma.forgeProposal.findUnique({
-            where: { id: input.id },
-            select: {
-              id: true,
-              organizationId: true,
-              clientId: true,
-              orgProjectId: true,
-              responsibleId: true,
-            },
-          });
-          if (updated?.clientId) {
-            await awardStarFriendsForProposal(updated.id, updated.organizationId, updated.clientId).catch(
-              (error) => console.error("[forge] star_friends_award_failed", error),
-            );
-          }
-          if (updated) {
-            await inngest.send({
-              name: "onboarding/proposal.paid",
-              data: {
-                proposalId: updated.id,
-                organizationId: updated.organizationId,
-                leadId: updated.clientId,
-                orgProjectId: updated.orgProjectId,
-              },
-            });
-
-            // Compra nova muda o potencial e as compras do lead (spec 0035).
-            if (updated.clientId) await requestLeadMetricsRecompute(updated.clientId);
-
-            // Recompensar o responsável pela proposta com pontos (Space Points)
-            await awardPoints(
-              updated.responsibleId,
-              updated.organizationId,
-              "proposal_accepted",
-            );
-          }
-        } catch (inngestErr) {
-          console.error(
-            "[forge/proposals] Inngest send / SpacePoints error:",
-            inngestErr,
-          );
-          // não bloqueia — onboarding é best-effort
-        }
+        const updated = await prisma.forgeProposal.findUnique({
+          where: { id: input.id },
+          select: { id: true, organizationId: true, clientId: true, orgProjectId: true, responsibleId: true },
+        });
+        if (updated) await runProposalPaidEffects(updated, { withOnboarding: true });
       }
 
       return { ok: true };

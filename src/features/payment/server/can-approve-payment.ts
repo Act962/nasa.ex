@@ -13,6 +13,7 @@
  */
 
 import prisma from "@/lib/prisma";
+import { loadMemberAppOverride } from "@/features/permissions/server/member-overrides";
 
 const PAYMENT_APP_KEY = "financeiro";
 const ROLES_WITH_DEFAULT_APPROVE = new Set(["owner", "admin"]);
@@ -26,6 +27,11 @@ export async function canUserApprovePayment(
     select: { role: true },
   });
   if (!member) return false;
+  if (member.role === "owner") return true;
+
+  // Exceção da pessoa vence a do papel (spec 0152).
+  const memberOverride = await loadMemberAppOverride(organizationId, userId, PAYMENT_APP_KEY);
+  if (memberOverride) return memberOverride.canApprove;
 
   // Owner/Admin: True por default, mas honra override explícito False.
   if (ROLES_WITH_DEFAULT_APPROVE.has(member.role)) {
@@ -68,7 +74,7 @@ export async function canUserApprovePayment(
 export async function listPaymentApproverIds(
   organizationId: string,
 ): Promise<string[]> {
-  const [members, overrides] = await Promise.all([
+  const [members, overrides, memberOverrides] = await Promise.all([
     prisma.member.findMany({
       where: { organizationId },
       select: { userId: true, role: true },
@@ -77,12 +83,22 @@ export async function listPaymentApproverIds(
       where: { organizationId, appKey: PAYMENT_APP_KEY },
       select: { role: true, canApprove: true },
     }),
+    prisma.memberAppPermission.findMany({
+      where: { organizationId, appKey: PAYMENT_APP_KEY },
+      select: { userId: true, canApprove: true },
+    }),
   ]);
 
   const overrideByRole = new Map(overrides.map((o) => [o.role, o.canApprove]));
+  const memberOverrideByUser = new Map(memberOverrides.map((override) => [override.userId, override.canApprove]));
 
   const approverIds: string[] = [];
   for (const m of members) {
+    const memberOverride = m.role === "owner" ? undefined : memberOverrideByUser.get(m.userId);
+    if (memberOverride !== undefined) {
+      if (memberOverride) approverIds.push(m.userId);
+      continue;
+    }
     const override = overrideByRole.get(m.role);
     if (ROLES_WITH_DEFAULT_APPROVE.has(m.role)) {
       // Owner/Admin: incluído a menos que override seja explicitamente false.

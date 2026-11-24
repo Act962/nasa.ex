@@ -26,11 +26,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Plus, FileText, User, Calendar, Share2, Pencil, Trash2, Eye,
-  MoreHorizontal, Send, ScanEye, CheckCircle2, Clock, XCircle, FilePlus2, Sparkles,
+  MoreHorizontal, Send, ScanEye, CheckCircle2, Clock, XCircle, FilePlus2, Sparkles, Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ProposalForm } from "./proposal-form";
+import { RegisterSaleDialog } from "../sales/register-sale-dialog";
 import { ProposalThumbnail } from "./proposal-thumbnail";
 import { ContractForm } from "../contracts/contract-form";
 import { PatternsSection } from "@/features/admin/components/patterns-section";
@@ -78,6 +79,7 @@ interface GenerateContractState {
 
 export function ProposalsTab() {
   const [formOpen, setFormOpen] = useState(false);
+  const [saleOpen, setSaleOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -142,14 +144,25 @@ export function ProposalsTab() {
     <div className="space-y-4">
       {/* Ações e filtros */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <Button
-          className="h-11 w-full gap-1.5 rounded-full md:order-last md:ml-auto md:h-9 md:w-auto"
-          onClick={() => { setEditingId(null); setFormOpen(true); }}
-          data-guide={GUIDE_ANCHORS.forgeNewProposalButton.id}
-        >
-          <Plus className="size-4" />
-          Nova proposta
-        </Button>
+        <div className="flex gap-2 md:order-last md:ml-auto">
+          <Button
+            variant="outline"
+            className="h-11 flex-1 gap-1.5 rounded-full md:h-9 md:flex-none"
+            onClick={() => setSaleOpen(true)}
+            data-guide={GUIDE_ANCHORS.forgeRegisterSaleButton.id}
+          >
+            <Receipt className="size-4" />
+            Registrar venda
+          </Button>
+          <Button
+            className="h-11 flex-1 gap-1.5 rounded-full md:h-9 md:flex-none"
+            onClick={() => { setEditingId(null); setFormOpen(true); }}
+            data-guide={GUIDE_ANCHORS.forgeNewProposalButton.id}
+          >
+            <Plus className="size-4" />
+            Nova proposta
+          </Button>
+        </div>
         <div className="scroll-hidden-x -mx-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
           {filters.map((filterKey) => (
             <button
@@ -309,6 +322,7 @@ export function ProposalsTab() {
       )}
 
       {/* Proposal form */}
+      {saleOpen && <RegisterSaleDialog open={saleOpen} onClose={() => setSaleOpen(false)} />}
       {formOpen && (
         <ProposalForm
           open={formOpen}
