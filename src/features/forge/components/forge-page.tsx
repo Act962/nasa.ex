@@ -87,6 +87,7 @@ export function ForgePage() {
           variant="ghost"
           className="size-10 shrink-0 rounded-full bg-knob md:size-9 md:bg-transparent"
           onClick={() => setSettingsOpen(true)}
+          data-guide={GUIDE_ANCHORS.forgeSettingsButton.id}
           title="Configurações do FORGE"
           aria-label="Configurações do FORGE"
         >

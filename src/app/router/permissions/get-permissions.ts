@@ -2,6 +2,7 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import { loadMemberAppOverrides, loadOrgMemberOverrides } from "@/features/permissions/server/member-overrides";
 
 // A matriz mora em src/features/permissions/lib/app-permission-catalog.ts —
 // a tela, o gate das procedures e o gate das ações do Astro leem a mesma.
@@ -75,6 +76,12 @@ export const getPermissions = base
       }
     }
 
+    // Exceções por pessoa (spec 0152): o Master recebe as de todos, para editar; os demais, só as próprias.
+    const callerRole = members.find((member) => member.userId === context.user.id)?.role;
+    const isCallerMaster = callerRole === "owner";
+    const memberOverrides = isCallerMaster ? await loadOrgMemberOverrides(orgId) : {};
+    const myOverrides = isCallerMaster ? {} : await loadMemberAppOverrides(orgId, context.user.id);
+
     // Recent activity log
     const logs = await prisma.orgActivityLog.findMany({
       where: { organizationId: orgId },
@@ -96,6 +103,8 @@ export const getPermissions = base
       roleLabels: ROLE_LABELS,
       roleColors: ROLE_COLORS,
       matrix,
+      memberOverrides,
+      myOverrides,
       // Sinaliza pra UI quais appKeys mostram as colunas extra (Aprovar/Pagar).
       // Hoje só "financeiro"; UI usa pra renderizar 6 colunas (vs 4 default).
       extendedActionApps: Array.from(APPS_WITH_EXTENDED_ACTIONS),

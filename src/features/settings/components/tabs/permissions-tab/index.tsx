@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { ROLE_META, RoleBadge } from "./role-config";
 import { PermissionMatrix } from "./permission-matrix";
 import { MemberList } from "./member-list";
+import { MemberPermissionsDialog } from "./member-permissions-dialog";
 import { AddMemberDialog } from "./add-member-dialog";
 import { MetaAccountsTab } from "./meta-accounts-tab";
 import { AccessPanel as PaymentAccessPanel } from "@/features/payment/components/access/access-panel";
@@ -38,6 +39,7 @@ export function PermissionsTab() {
   // Add member dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  const [editingMember, setEditingMember] = useState<{ userId: string; name: string; role: string } | null>(null);
 
   const { data, isLoading } = useQuery({
     ...orpc.permissions.getPermissions.queryOptions(),
@@ -196,7 +198,18 @@ export function PermissionsTab() {
             })
           }
           onRemoveMember={(memberId) => removeMember.mutate(memberId)}
+          onEditPermissions={(member) => setEditingMember({ userId: member.userId, name: member.user.name, role: member.role })}
         />
+        {editingMember && data ? (
+          <MemberPermissionsDialog
+            key={editingMember.userId}
+            open
+            onOpenChange={(isOpen) => !isOpen && setEditingMember(null)}
+            member={editingMember}
+            rolePermissions={data.matrix[editingMember.role] ?? {}}
+            savedOverrides={data.memberOverrides?.[editingMember.userId] ?? {}}
+          />
+        ) : null}
       </div>
 
       {/* ── Permission Matrix ──────────────────────────────────────────────── */}

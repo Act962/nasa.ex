@@ -20,8 +20,8 @@ function listSourceFiles(directory: string, extensions: string[]): string[] {
 }
 
 function isAnchorRendered(anchorKey: GuideAnchorKey, sources: string[]): boolean {
-  // Direto em data-guide ou repassado por prop de um botão próprio (ex.: guideAnchorId).
-  const byConstant = new RegExp(`=\\{[^}]*GUIDE_ANCHORS\\.${anchorKey}\\.id\\b`);
+  // Direto em data-guide, repassado por prop de um botão próprio (ex.: guideAnchorId) ou num item de menu (guideAnchor:).
+  const byConstant = new RegExp(`(=\\{[^}]*|guideAnchor:\\s*)GUIDE_ANCHORS\\.${anchorKey}\\.id\\b`);
   const byLiteral = `data-guide="${GUIDE_ANCHORS[anchorKey].id}"`;
   return sources.some((source) => byConstant.test(source) || source.includes(byLiteral));
 }

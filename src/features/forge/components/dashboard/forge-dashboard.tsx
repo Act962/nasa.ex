@@ -14,7 +14,10 @@ import {
   User,
   Eye,
   MoreHorizontal,
+  Receipt,
 } from "lucide-react";
+import Link from "next/link";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -33,10 +36,10 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 function KpiCard({
-  title, value, icon: Icon, color,
-}: { title: string; value: string; icon: React.ElementType; color: string }) {
-  return (
-    <Card className="gap-2 py-4 max-sm:gap-1.5 max-sm:py-3">
+  title, value, icon: Icon, color, href, guideAnchor,
+}: { title: string; value: string; icon: React.ElementType; color: string; href?: string; guideAnchor?: string }) {
+  const card = (
+    <Card className={cn("gap-2 py-4 max-sm:gap-1.5 max-sm:py-3", href && "h-full transition-colors hover:bg-muted/40")}>
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-0 max-sm:px-3">
         <CardTitle className="text-sm leading-tight font-medium text-muted-foreground max-sm:text-[12px]">{title}</CardTitle>
         <div className={cn("grid size-8 shrink-0 place-items-center rounded-full max-sm:size-7", color)}>
@@ -47,6 +50,12 @@ function KpiCard({
         <p className="truncate text-2xl font-bold tabular-nums max-sm:text-lg">{value}</p>
       </CardContent>
     </Card>
+  );
+  if (!href) return card;
+  return (
+    <Link href={href} data-guide={guideAnchor} className="block">
+      {card}
+    </Link>
   );
 }
 
@@ -68,8 +77,8 @@ export function ForgeDashboard() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}><CardHeader className="pb-2"><Skeleton className="h-4 w-24" /></CardHeader><CardContent><Skeleton className="h-7 w-20" /></CardContent></Card>
           ))}
         </div>
@@ -86,11 +95,12 @@ export function ForgeDashboard() {
     { title: "Valor Gerado em Propostas",  value: fmt(data.totalProposalValue),    icon: DollarSign, color: "bg-info" },
     { title: "Propostas Pagas",            value: String(data.proposalsPaid),      icon: CreditCard, color: "bg-warning" },
     { title: "Comissões Geradas",          value: fmt(data.commissionsGenerated),  icon: TrendingUp, color: "bg-destructive" },
+    { title: "Recibos",                    value: String(data.receiptsCount),      icon: Receipt,    color: "bg-success", href: "/forge/recibos", guideAnchor: GUIDE_ANCHORS.forgeReceiptsCard.id },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-6">
         {kpis.map((k) => <KpiCard key={k.title} {...k} />)}
       </div>
 

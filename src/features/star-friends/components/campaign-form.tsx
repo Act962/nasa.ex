@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -17,11 +17,13 @@ import { GUIDE_RESULT_KINDS } from "@/features/astro-guides/lib/result-kinds";
 import { emitTourResult } from "@/features/tour/store";
 import { useUpsertStarFriendsCampaign } from "../hooks/use-star-friends-campaign";
 import { toBrasiliaDay } from "../utils/campaign";
+import { defaultRulesSummary, type CampaignMode } from "../utils/campaign-messages";
 
 const ANY_FUNNEL = "any";
 
 const campaignSchema = z.object({
   name: z.string().trim().min(3, "Informe o nome da campanha"),
+  mode: z.enum(["RAFFLE", "POINTS"]),
   isActive: z.boolean(),
   startsOn: z.string().min(10, "Informe o início"),
   endsOn: z.string().min(10, "Informe o fim"),
@@ -39,6 +41,7 @@ type CampaignValues = z.infer<typeof campaignSchema>;
 export type CampaignFormSource = {
   id: string;
   name: string;
+  mode: CampaignMode;
   isActive: boolean;
   startsAt: Date | string;
   endsAt: Date | string;
@@ -51,8 +54,7 @@ export type CampaignFormSource = {
   prizeCount: number;
 };
 
-const DEFAULT_RULES =
-  "A cada R$ 100,00 em compras você ganha 1 número da sorte. Envie a foto do cupom por aqui. Cada cupom vale uma vez só e os cupons são conferidos antes do sorteio: cupom repetido ou irregular tem os números cancelados.";
+const DEFAULT_AMOUNT_CENTS = 10_000;
 
 // O fim é gravado como 23:59 de Brasília, que em UTC já é o dia seguinte.
 function toDateInput(value: Date | string): string {
@@ -64,12 +66,13 @@ function toValues(campaign: CampaignFormSource | null): CampaignValues {
   const inThirtyDays = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
   return {
     name: campaign?.name ?? "",
+    mode: campaign?.mode ?? "RAFFLE",
     isActive: campaign?.isActive ?? false,
     startsOn: toDateInput(campaign?.startsAt ?? today),
     endsOn: toDateInput(campaign?.endsAt ?? inThirtyDays),
-    amountPerNumber: (campaign?.amountPerNumberCents ?? 10_000) / 100,
+    amountPerNumber: (campaign?.amountPerNumberCents ?? DEFAULT_AMOUNT_CENTS) / 100,
     issuerDocuments: campaign?.issuerDocuments.join(", ") ?? "",
-    rulesSummary: campaign?.rulesSummary ?? DEFAULT_RULES,
+    rulesSummary: campaign?.rulesSummary ?? defaultRulesSummary("RAFFLE", DEFAULT_AMOUNT_CENTS),
     rulesUrl: campaign?.rulesUrl ?? "",
     trackingId: campaign?.trackingId ?? ANY_FUNNEL,
     maxReceiptsPerDay: campaign?.maxReceiptsPerDay ?? 5,
@@ -85,6 +88,18 @@ export function CampaignForm({ campaign, trackings }: { campaign: CampaignFormSo
     form.reset(toValues(campaign));
   }, [campaign, form]);
 
+  const mode = useWatch({ control: form.control, name: "mode" });
+  const isPoints = mode === "POINTS";
+
+  // Trocar o tipo troca também o resumo, desde que ele ainda seja o texto sugerido (RF-12).
+  const changeMode = (nextMode: CampaignMode) => {
+    const amountCents = Math.round(form.getValues("amountPerNumber") * 100);
+    if (form.getValues("rulesSummary").trim() === defaultRulesSummary(mode, amountCents)) {
+      form.setValue("rulesSummary", defaultRulesSummary(nextMode, amountCents));
+    }
+    form.setValue("mode", nextMode);
+  };
+
   return (
     <form
       className="flex w-full flex-col gap-4 rounded-[20px] border border-line bg-card p-4 md:max-w-2xl md:p-5"
@@ -93,6 +108,7 @@ export function CampaignForm({ campaign, trackings }: { campaign: CampaignFormSo
           {
             id: campaign?.id,
             name: values.name,
+            mode: values.mode,
             isActive: values.isActive,
             // O dia do fim vale inteiro, no horário de Brasília.
             startsAt: new Date(`${values.startsOn}T00:00:00-03:00`),
@@ -131,11 +147,35 @@ export function CampaignForm({ campaign, trackings }: { campaign: CampaignFormSo
         />
         <Controller
           control={form.control}
+          name="mode"
+          render={({ field }) => (
+            <Field>
+              <FieldLabel>Tipo da campanha</FieldLabel>
+              <Select value={field.value} onValueChange={(value) => changeMode(value as CampaignMode)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RAFFLE">Sorteio (números da sorte)</SelectItem>
+                  <SelectItem value="POINTS">Pontos de fidelidade (⭐ e prêmios)</SelectItem>
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                {isPoints
+                  ? "O cliente junta ⭐ com o cupom e troca por prêmios, sem sorteio. Precisa do programa ligado."
+                  : "Sorteio comercial exige autorização prévia (Lei 5.768/71)."}{" "}
+                Não muda depois do primeiro cupom.
+              </FieldDescription>
+            </Field>
+          )}
+        />
+        <Controller
+          control={form.control}
           name="name"
           render={({ field, fieldState }) => (
             <Field>
               <FieldLabel htmlFor="campaign-name">Nome da campanha</FieldLabel>
-              <Input id="campaign-name" placeholder="Ex.: 15 anos — Comprou, Participou!" {...field} />
+              <Input id="campaign-name" placeholder={isPoints ? "Ex.: Sempre +" : "Ex.: 15 anos — Comprou, Participou!"} {...field} />
               {fieldState.error && <FieldDescription className="text-destructive">{fieldState.error.message}</FieldDescription>}
             </Field>
           )}
@@ -168,7 +208,7 @@ export function CampaignForm({ campaign, trackings }: { campaign: CampaignFormSo
             name="amountPerNumber"
             render={({ field }) => (
               <Field>
-                <FieldLabel htmlFor="campaign-amount">Valor por número da sorte (R$)</FieldLabel>
+                <FieldLabel htmlFor="campaign-amount">{isPoints ? "Valor por ⭐ (R$)" : "Valor por número da sorte (R$)"}</FieldLabel>
                 <Input id="campaign-amount" type="number" min={1} step="0.01" value={field.value} onChange={(event) => field.onChange(Number(event.target.value))} />
                 <FieldDescription>A sobra de um cupom soma no próximo.</FieldDescription>
               </Field>
@@ -185,17 +225,19 @@ export function CampaignForm({ campaign, trackings }: { campaign: CampaignFormSo
             )}
           />
         </div>
-        <Controller
-          control={form.control}
-          name="prizeCount"
-          render={({ field }) => (
-            <Field>
-              <FieldLabel htmlFor="campaign-prizes">Quantidade de prêmios</FieldLabel>
-              <Input id="campaign-prizes" type="number" min={1} max={100} value={field.value} onChange={(event) => field.onChange(Number(event.target.value))} />
-              <FieldDescription>O sorteio tira um número para cada prêmio. Cada cliente ganha no máximo um.</FieldDescription>
-            </Field>
-          )}
-        />
+        {!isPoints && (
+          <Controller
+            control={form.control}
+            name="prizeCount"
+            render={({ field }) => (
+              <Field>
+                <FieldLabel htmlFor="campaign-prizes">Quantidade de prêmios</FieldLabel>
+                <Input id="campaign-prizes" type="number" min={1} max={100} value={field.value} onChange={(event) => field.onChange(Number(event.target.value))} />
+                <FieldDescription>O sorteio tira um número para cada prêmio. Cada cliente ganha no máximo um.</FieldDescription>
+              </Field>
+            )}
+          />
+        )}
         <Controller
           control={form.control}
           name="issuerDocuments"

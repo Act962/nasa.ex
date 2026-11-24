@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
   // runtime do server). Inclui SDKs de IA server-side, AWS, parsers e nativos.
   serverExternalPackages: [
     "sharp",
+    "@react-pdf/renderer",
     "pdf-parse",
     "mammoth",
     "@langchain/community",

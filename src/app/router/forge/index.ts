@@ -25,7 +25,9 @@ import {
   updateForgeTemplate,
   deleteForgeTemplate,
 } from "./templates";
-import { getForgeSettings, updateForgeSettings } from "./settings";
+import { getForgeSettings, updateForgeProposalLook, updateForgeSettings } from "./settings";
+import { lookupSaleClient, registerSale } from "./sales";
+import { listSaleReceipts } from "./sale-receipts";
 import { getForgeDashboard } from "./dashboard";
 import { acceptProposalAsContract } from "./accept-proposal";
 import {
@@ -62,6 +64,11 @@ export const forgeRouter = {
     trackProposalView: trackProposalView,
     acceptAsContract: acceptProposalAsContract,
   },
+  sales: {
+    lookupClient: lookupSaleClient,
+    register: registerSale,
+    listReceipts: listSaleReceipts,
+  },
   contracts: {
     list: listForgeContracts,
     create: createForgeContract,
@@ -77,6 +84,7 @@ export const forgeRouter = {
   settings: {
     get: getForgeSettings,
     update: updateForgeSettings,
+    updateProposalLook: updateForgeProposalLook,
   },
   dashboard: {
     get: getForgeDashboard,

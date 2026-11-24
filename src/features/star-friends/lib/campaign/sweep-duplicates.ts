@@ -6,7 +6,8 @@ import { findReceiptsToVoid } from "../../utils/campaign";
 
 // Varredura antes do sorteio (spec 0102, RF-10). O bloqueio na hora só pega repetição exata; aqui
 // entram os cupons que passaram com leitura incompleta. O mais antigo de cada grupo fica, os
-// demais são anulados junto com os números que renderam.
+// demais são anulados junto com os números que renderam. No modo pontos (spec 0135, RF-10) as ⭐
+// desses números também são estornadas; no sorteio não (spec 0134, D-5).
 
 const VOID_REASON_DUPLICATE = "Cupom repetido encontrado na varredura";
 const VOID_REASON_EXCESS = "Número acima do total de compras válidas após a varredura";
@@ -14,7 +15,7 @@ const VOID_REASON_EXCESS = "Número acima do total de compras válidas após a v
 export async function sweepCampaignDuplicates(params: { organizationId: string; campaignId: string; actor: LoyaltyActor }) {
   const campaign = await prisma.loyaltyCampaign.findFirst({
     where: { id: params.campaignId, organizationId: params.organizationId },
-    select: { id: true, name: true, amountPerNumberCents: true, drawnAt: true },
+    select: { id: true, name: true, mode: true, amountPerNumberCents: true, drawnAt: true },
   });
   if (!campaign) return { ok: false as const, reason: "not_found" as const };
   if (campaign.drawnAt) return { ok: false as const, reason: "already_drawn" as const };
@@ -27,8 +28,11 @@ export async function sweepCampaignDuplicates(params: { organizationId: string; 
     const receipts = await tx.loyaltyReceipt.findMany({
       where: { campaignId: campaign.id, status: "ACCEPTED", createdAt: { lte: sweptAt } },
       orderBy: { createdAt: "asc" },
-      select: { id: true, memberId: true, issuerDocument: true, receiptNumber: true, issuedAt: true, totalCents: true, numbersAwarded: true },
+      select: { id: true, memberId: true, leadId: true, issuerDocument: true, receiptNumber: true, issuedAt: true, totalCents: true, numbersAwarded: true },
     });
+    const reverseStars = campaign.mode === "POINTS";
+    // Estornos a lançar no fim da transação: só de cupom que de fato rendeu ⭐ (programa ligado na hora).
+    const reversals: { memberId: string; leadId: string | null; sourceId: string; stars: number; receiptId: string; reason: string }[] = [];
     const duplicateOfByReceipt = findReceiptsToVoid(receipts);
     const voidedReceipts = receipts.filter((receipt) => duplicateOfByReceipt.has(receipt.id));
     const affectedMemberIds = [...new Set(voidedReceipts.map((receipt) => receipt.memberId))];
@@ -43,6 +47,9 @@ export async function sweepCampaignDuplicates(params: { organizationId: string; 
         data: { status: "VOIDED", voidReason: VOID_REASON_DUPLICATE },
       });
       voidedCount += voided.count;
+      if (reverseStars && voided.count > 0) {
+        reversals.push({ memberId: receipt.memberId, leadId: receipt.leadId, sourceId: receipt.id, stars: voided.count, receiptId: receipt.id, reason: VOID_REASON_DUPLICATE });
+      }
       await tx.loyaltyCampaignEntry.update({
         where: { campaignId_memberId: { campaignId: campaign.id, memberId: receipt.memberId } },
         data: { totalSpentCents: { decrement: receipt.totalCents ?? 0 } },
@@ -60,26 +67,61 @@ export async function sweepCampaignDuplicates(params: { organizationId: string; 
       const validNumbers = await tx.loyaltyLuckyNumber.findMany({
         where: { campaignId: campaign.id, memberId, status: "VALID" },
         orderBy: { createdAt: "desc" },
-        select: { id: true },
+        select: { id: true, receiptId: true },
       });
-      const excessIds = validNumbers.slice(0, Math.max(0, validNumbers.length - entitledNumbers)).map((luckyNumber) => luckyNumber.id);
+      const excessNumbers = validNumbers.slice(0, Math.max(0, validNumbers.length - entitledNumbers));
+      const excessIds = excessNumbers.map((luckyNumber) => luckyNumber.id);
       if (excessIds.length > 0) {
         await tx.loyaltyLuckyNumber.updateMany({ where: { id: { in: excessIds } }, data: { status: "VOIDED", voidReason: VOID_REASON_EXCESS } });
         voidedCount += excessIds.length;
+      }
+      if (reverseStars) {
+        // Um estorno por número: o cupom dele continua aceito e ainda pode ser anulado à mão (estorno com o id do cupom).
+        const leadByReceipt = new Map(receipts.map((receipt) => [receipt.id, receipt.leadId]));
+        for (const luckyNumber of excessNumbers) {
+          reversals.push({ memberId, leadId: leadByReceipt.get(luckyNumber.receiptId) ?? null, sourceId: luckyNumber.id, stars: 1, receiptId: luckyNumber.receiptId, reason: VOID_REASON_EXCESS });
+        }
       }
       await tx.loyaltyCampaignEntry.update({
         where: { id: entry.id },
         data: { totalSpentCents: validTotalCents, carryOverCents: validTotalCents % campaign.amountPerNumberCents },
       });
     }
-    return { receiptsChecked: receipts.length, receiptsVoided: voidedReceipts.length, numbersVoided: voidedCount };
+    let starsReversed = 0;
+    if (reversals.length > 0) {
+      const earnedReceipts = await tx.loyaltyLedgerEntry.findMany({
+        where: { source: "CAMPAIGN_RECEIPT", type: "EARN", sourceId: { in: [...new Set(reversals.map((reversal) => reversal.receiptId))] } },
+        select: { sourceId: true },
+      });
+      const earnedReceiptIds = new Set(earnedReceipts.map((earned) => earned.sourceId));
+      const toCreate = reversals.filter((reversal) => earnedReceiptIds.has(reversal.receiptId));
+      // Saldo pode ficar negativo, como no "Anular cupom" (spec 0134, CB-6); skipDuplicates segura uma segunda varredura.
+      await tx.loyaltyLedgerEntry.createMany({
+        skipDuplicates: true,
+        data: toCreate.map((reversal) => ({
+          organizationId: params.organizationId,
+          memberId: reversal.memberId,
+          leadId: reversal.leadId,
+          type: "REVERSAL" as const,
+          stars: -reversal.stars,
+          source: "CAMPAIGN_RECEIPT" as const,
+          sourceId: reversal.sourceId,
+          reason: reversal.reason,
+          actorType: params.actor.type,
+          actorUserId: params.actor.userId,
+          actorName: params.actor.name,
+        })),
+      });
+      starsReversed = toCreate.reduce((sum, reversal) => sum + reversal.stars, 0);
+    }
+    return { receiptsChecked: receipts.length, receiptsVoided: voidedReceipts.length, numbersVoided: voidedCount, starsReversed };
   });
 
   await auditLoyaltyAction({
     organizationId: params.organizationId,
     actor: params.actor,
     action: "campaign.sweep",
-    actionLabel: `${campaign.name}: varredura anulou ${swept.receiptsVoided} cupom(ns) e ${swept.numbersVoided} número(s)`,
+    actionLabel: `${campaign.name}: varredura anulou ${swept.receiptsVoided} cupom(ns) e ${swept.numbersVoided} número(s)${swept.starsReversed > 0 ? `, estornando ${swept.starsReversed} ⭐` : ""}`,
     resourceId: campaign.id,
     metadata: swept,
   });
