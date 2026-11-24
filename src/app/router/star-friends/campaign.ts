@@ -7,6 +7,8 @@ import { drawNextWinner, getCampaignDrawPool, revokeCampaignDraw, setCampaignPri
 import { approveReceipt, rejectReceipt } from "@/features/star-friends/lib/campaign/review-receipt";
 import { registerManualReceipt, voidAcceptedReceipt } from "@/features/star-friends/lib/campaign/manual-receipt";
 import { sweepCampaignDuplicates } from "@/features/star-friends/lib/campaign/sweep-duplicates";
+import { notifyCampaignWinners } from "@/features/star-friends/lib/campaign/notify-winners";
+import { WINNER_VARIABLE_SOURCES } from "@/features/star-friends/utils/winner-notice";
 import { onlyDigits, rulesVersionOf } from "@/features/star-friends/utils/campaign";
 import { firstAndLastName, maskPhone } from "@/features/star-friends/utils/live-draw";
 import { starFriendsWith } from "./_base";
@@ -29,6 +31,13 @@ const CAMPAIGN_ERRORS: Record<string, string> = {
   duplicate: "Já existe um cupom com o mesmo número, data e valor nesta campanha.",
   already_revoked: "Este sorteio já foi revogado.",
   revoke_expired: "Passou o prazo de 30 minutos para revogar este sorteio.",
+  already_notified: "Este ganhador já foi avisado pelo WhatsApp e não pode mais ser revogado.",
+  no_tracking: "Escolha o funil do WhatsApp na campanha: o aviso sai pelo número dele.",
+  not_official: "O aviso usa modelo aprovado da Meta e só sai por número da API oficial.",
+  no_winners: "Não há ganhador para avisar: todos já foram avisados ou revogados.",
+  empty_fixed_text: "Preencha o texto fixo de todas as variáveis.",
+  template_not_found: "Modelo não encontrado entre os aprovados do número da campanha.",
+  template_mismatch: "O modelo mudou ou não pode ser enviado: escolha de novo e confira as variáveis.",
   prize_below_winners: "Já há ganhadores em posições acima dessa quantidade. Revogue-os antes de diminuir.",
   draw_in_progress: "O sorteio já começou: a campanha não pode mais ser alterada, só a quantidade de ganhadores.",
   not_participant: "Esta pessoa não está cadastrada na campanha.",
@@ -74,7 +83,7 @@ export const getStarFriendsCampaign = starFriendsWith("canView")
       prisma.loyaltyCampaignDraw.findMany({
         where: { campaignId: campaign.id },
         orderBy: { drawnAt: "asc" },
-        select: { id: true, position: true, code: true, memberName: true, memberPhone: true, actorName: true, drawnAt: true, revokedAt: true, revokedByName: true, revokeReason: true },
+        select: { id: true, position: true, code: true, memberName: true, memberPhone: true, actorName: true, drawnAt: true, revokedAt: true, revokedByName: true, revokeReason: true, notifiedAt: true, notifyError: true },
       }),
     ]);
     const countOf = (status: string) => receiptsByStatus.find((row) => row.status === status)?._count._all ?? 0;
@@ -374,5 +383,27 @@ export const voidStarFriendsCampaignReceipt = starFriendsWith("canApprove")
   .handler(async ({ input, context, errors }) => {
     const result = await voidAcceptedReceipt({ organizationId: context.org.id, receiptId: input.receiptId, reason: input.reason, actor: userActor(context.user) });
     if (!result.ok) throw errors.BAD_REQUEST({ message: CAMPAIGN_ERRORS[result.reason] });
+    return result;
+  });
+
+export const notifyStarFriendsCampaignWinners = starFriendsWith("canApprove")
+  .input(
+    z.object({
+      campaignId: z.string(),
+      templateName: z.string().trim().min(1).max(512),
+      languageCode: z.string().trim().min(2).max(15),
+      variables: z.array(z.object({ source: z.enum(WINNER_VARIABLE_SOURCES), fixedText: z.string().max(200).optional() })).max(20),
+      prizeNames: z.array(z.string().max(120)).max(100),
+    }),
+  )
+  .handler(async ({ input, context, errors }) => {
+    const result = await notifyCampaignWinners({ organizationId: context.org.id, ...input, actor: userActor(context.user) });
+    if (!result.ok) {
+      const message =
+        result.reason === "missing_prize"
+          ? `Falta o nome do prêmio da${result.missingPositions.length > 1 ? "s posições" : " posição"} ${result.missingPositions.map((position) => `${position}º`).join(", ")}.`
+          : CAMPAIGN_ERRORS[result.reason];
+      throw errors.BAD_REQUEST({ message });
+    }
     return result;
   });

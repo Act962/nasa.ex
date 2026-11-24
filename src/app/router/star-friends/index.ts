@@ -15,6 +15,7 @@ import {
   drawNextStarFriendsCampaignWinner,
   listStarFriendsCampaignParticipants,
   voidStarFriendsCampaignReceipt,
+  notifyStarFriendsCampaignWinners,
   exportStarFriendsCampaignNumbers,
   getStarFriendsCampaignDrawPool,
   revokeStarFriendsCampaignDraw,
@@ -55,5 +56,6 @@ export const starFriendsRouter = {
     participants: listStarFriendsCampaignParticipants,
     addManualReceipt: addStarFriendsCampaignManualReceipt,
     voidReceipt: voidStarFriendsCampaignReceipt,
+    notifyWinners: notifyStarFriendsCampaignWinners,
   },
 };

@@ -851,6 +851,10 @@ export const GUIDE_ANCHORS = {
     id: "star-friends.draw-simulator",
     description: "Botão \"Simular sorteio\" da aba Campanha",
   },
+  starFriendsNotifyWinners: {
+    id: "star-friends.notify-winners",
+    description: "Botão \"Avisar ganhadores\" do quadro Sorteio da aba Campanha",
+  },
   starFriendsDrawNext: {
     id: "star-friends.draw-next",
     description: "Botão \"Sortear\" da tela do sorteio ao vivo",
