@@ -8,6 +8,7 @@ import {
   canViewRestrictedNBox,
   loadFolderRestriction,
 } from "@/features/nbox/server/can-view-restricted-nbox";
+import { NBOX_TREE_ITEM_FILTER, toNboxItemDto } from "@/features/nbox/server/items";
 
 export const getItems = base
   .use(requiredAuthMiddleware)
@@ -30,10 +31,10 @@ export const getItems = base
         ...(input.search ? {
           name: { contains: input.search, mode: "insensitive" },
         } : {}),
-        ...(canViewRestricted ? {} : UNRESTRICTED_ITEM_FILTER),
+        AND: [NBOX_TREE_ITEM_FILTER, ...(canViewRestricted ? [] : [UNRESTRICTED_ITEM_FILTER])],
       },
       include: { createdBy: { select: { id: true, name: true, image: true } } },
       orderBy: { createdAt: "desc" },
     });
-    return { items };
+    return { items: items.map(toNboxItemDto) };
   });

@@ -651,6 +651,18 @@ export const GUIDE_ANCHORS = {
     id: "nbox.folder.submit",
     description: "Botão \"Criar\" da pasta",
   },
+  nboxTransfersButton: {
+    id: "nbox.transfers",
+    description: "Botão \"Transferir\" do N-Box (link com prazo)",
+  },
+  nboxTransferDropzone: {
+    id: "nbox.transfer.dropzone",
+    description: "Área de arrastar arquivos da nova transferência",
+  },
+  nboxTransferCreateButton: {
+    id: "nbox.transfer.create",
+    description: "Botão \"Criar link\" da transferência",
+  },
   plannerNewButton: {
     id: "planner.new-button",
     description: "Botão \"Novo Planner\" em /nasa-planner",

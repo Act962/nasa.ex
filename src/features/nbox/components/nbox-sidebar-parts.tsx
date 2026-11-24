@@ -12,24 +12,21 @@ import {
 import { cn } from "@/lib/utils";
 import { useNBoxStorage } from "../hooks/use-nbox";
 import { formatBytes } from "./nbox-file-type-icon";
+import { NBOX_STORAGE_WARNING_RATIO } from "../lib/storage-limits";
 import type { NBoxFolderView as NBoxFolder } from "./nbox-types";
 
 /** Peças da lateral do N-Box: barra de armazenamento e árvore de pastas. */
-
-const PLAN_LABELS: Record<string, string> = {
-  earth: "Earth (500 MB)",
-  explore: "Explore (2 GB)",
-  constellation: "Constellation (10 GB)",
-};
 
 // ─── Storage Bar ─────────────────────────────────────────────────────────────
 
 export function StorageBar() {
   const { storage } = useNBoxStorage();
   if (!storage) return null;
-  const pct = Math.min(100, (storage.usedBytes / storage.limitBytes) * 100);
-  const color =
-    pct > 90 ? "bg-destructive" : pct > 70 ? "bg-warning" : "bg-primary";
+  const usedRatio = storage.limitBytes ? storage.usedBytes / storage.limitBytes : 0;
+  const pct = Math.min(100, usedRatio * 100);
+  const isFull = usedRatio >= 1;
+  const isNearlyFull = usedRatio >= NBOX_STORAGE_WARNING_RATIO;
+  const color = isNearlyFull ? "bg-destructive" : pct > 70 ? "bg-warning" : "bg-primary";
   return (
     <div className="px-3 py-3 border-t space-y-1.5">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -45,9 +42,13 @@ export function StorageBar() {
         />
       </div>
       <p className="text-[10px] text-muted-foreground">
-        {formatBytes(storage.usedBytes)} /{" "}
-        {PLAN_LABELS[storage.planSlug] ?? formatBytes(storage.limitBytes)}
+        {formatBytes(storage.usedBytes)} / {formatBytes(storage.limitBytes)}
       </p>
+      {isNearlyFull && (
+        <p className="text-[11px] font-medium text-destructive">
+          {isFull ? "Espaço do Nbox cheio: apague arquivos para enviar novos." : "Espaço quase cheio."}
+        </p>
+      )}
     </div>
   );
 }

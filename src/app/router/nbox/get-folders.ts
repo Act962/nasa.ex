@@ -12,6 +12,7 @@ export const getFolders = base
     const folders = await prisma.nBoxFolder.findMany({
       where: {
         organizationId: context.org.id,
+        expiresAt: null,
         ...(canViewRestricted ? {} : { isRestricted: false }),
       },
       orderBy: { name: "asc" },

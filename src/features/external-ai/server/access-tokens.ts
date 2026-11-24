@@ -23,6 +23,8 @@ export const FINANCE_SCOPE = "financeiro";
 export const TRACKING_SCOPE = "tracking";
 /** Horários e compromissos da Agenda (spec 0146). Mesma regra: só chave criada depois dela. */
 export const AGENDA_SCOPE = "agenda";
+/** Arquivos e transferências do Nbox (spec 0148). Mesma regra: só chave criada depois dele. */
+export const NBOX_SCOPE = "nbox";
 
 /** Começo de toda chave do ÓRBITA; o que não começa assim é tratado como token OAuth (spec 0135, CB-11). */
 export const isAccessKeyToken = (token: string) => token.startsWith(TOKEN_PREFIX);
@@ -55,8 +57,8 @@ export async function createExternalAiToken(input: {
       tokenPrefix: token.slice(0, VISIBLE_PREFIX_LENGTH),
       organizationIds: input.organizationIds,
       scopes: input.includeTrafego
-        ? [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE, FINANCE_SCOPE, TRACKING_SCOPE, AGENDA_SCOPE, TRAFEGO_SCOPE]
-        : [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE, FINANCE_SCOPE, TRACKING_SCOPE, AGENDA_SCOPE],
+        ? [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE, FINANCE_SCOPE, TRACKING_SCOPE, AGENDA_SCOPE, NBOX_SCOPE, TRAFEGO_SCOPE]
+        : [PLANNER_SCOPE, FLOWASTRO_SCOPE, WORKSPACE_SCOPE, FINANCE_SCOPE, TRACKING_SCOPE, AGENDA_SCOPE, NBOX_SCOPE],
     },
     select: { id: true },
   });
