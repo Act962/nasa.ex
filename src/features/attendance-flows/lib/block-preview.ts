@@ -31,6 +31,7 @@ export function blockPreview(nodeType: string, data: unknown): PreviewLine[] {
       const payload = asFields(asFields(fields.action).payload);
       if (payload.type === "BUTTONS") return [line(String(payload.message ?? payload.bodyText ?? ""), "Insira o seu texto")];
       if (payload.type === "IMAGE") return [line(String(payload.caption ?? "") || (payload.imageUrl ? "Imagem" : ""), "Escolha a imagem")];
+      if (payload.type === "VIDEO") return [line(String(payload.caption ?? "") || (payload.videoUrl ? "Vídeo" : ""), "Escolha o vídeo")];
       if (payload.type === "AUDIO") return [line(payload.audioUrl ? `Áudio: ${String(payload.fileName ?? "") || "arquivo"}` : "", "Escolha o áudio")];
       if (payload.type === "DOCUMENT") return [line(String(payload.fileName ?? "") || (payload.documentUrl ? "Arquivo" : ""), "Escolha o arquivo")];
       return [line(String(payload.message ?? ""), "Insira o seu texto")];

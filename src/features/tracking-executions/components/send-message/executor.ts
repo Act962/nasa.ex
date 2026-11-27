@@ -12,6 +12,7 @@ import { sendTextMessage } from "./message/send-text-message";
 import { sendImageMessage } from "./message/send-image";
 import { sendDocumentMessage } from "./message/send-document";
 import { sendAudioMessage } from "./message/send-audio";
+import { sendVideoMessage } from "./message/send-video";
 import { sendButtonsOrList, sendItemsAsList } from "@/http/uazapi/send-menu";
 import {
   isLeadWindowOpen,
@@ -309,6 +310,23 @@ export const sendMessageExecutor: NodeExecutor<SendMessageNodeData> = async ({
             origin: flowOrigin,
           });
           break;
+        case "VIDEO": {
+          const videoUrl = data.action?.payload.videoUrl || "";
+          if (!videoUrl) throw new NonRetriableError("Vídeo não escolhido no passo.");
+          let videoCaption = data.action?.payload.caption || "";
+          for (const [key, value] of Object.entries(variables)) {
+            videoCaption = videoCaption.replace(key, value || "");
+          }
+          await sendVideoMessage({
+            body: videoCaption,
+            conversationId,
+            leadPhone: phone,
+            provider: resolved.provider,
+            mediaUrl: videoUrl,
+            origin: flowOrigin,
+          });
+          break;
+        }
         case "AUDIO": {
           const audioUrl = data.action?.payload.audioUrl || "";
           if (!audioUrl) throw new NonRetriableError("Áudio não escolhido no passo.");

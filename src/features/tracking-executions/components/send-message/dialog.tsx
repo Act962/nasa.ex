@@ -100,6 +100,13 @@ const imagePayloadSchema = z.object({
   caption: z.string().optional(),
 });
 
+/** Vídeo do bloco Enviar mensagem do FlowAstro (spec 0141); a tela antiga não oferece. */
+const videoPayloadSchema = z.object({
+  type: z.literal("VIDEO"),
+  videoUrl: z.string("URL inválida").min(1, "URL inválida"),
+  caption: z.string().optional(),
+});
+
 /** Áudio do bloco Enviar mensagem do FlowAstro (spec 0141); a tela antiga não oferece. */
 const audioPayloadSchema = z.object({
   type: z.literal("AUDIO"),
@@ -189,6 +196,7 @@ const payloadSchema = z.discriminatedUnion("type", [
   imagePayloadSchema,
   documentPayloadSchema,
   audioPayloadSchema,
+  videoPayloadSchema,
   buttonsPayloadSchema,
   templatePayloadSchema,
 ]);

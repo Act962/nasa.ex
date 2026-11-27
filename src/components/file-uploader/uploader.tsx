@@ -27,6 +27,12 @@ interface UploaderState {
 }
 
 const MAX_SIZE = 1024 * 1024 * 5;
+/** O WhatsApp aceita vídeo de até 16 MB, só MP4 ou 3GP (spec 0141). */
+const VIDEO_MAX_SIZE = 1024 * 1024 * 16;
+const VIDEO_ACCEPT = {
+  "video/mp4": [".mp4"],
+  "video/3gpp": [".3gp"],
+};
 
 /** Formatos de áudio que a API oficial do WhatsApp aceita (spec 0141, RF-1). */
 const AUDIO_ACCEPT = {
@@ -55,6 +61,7 @@ export function Uploader({
   onUploadStart,
 }: UploaderProps) {
   const fileUrl = useConstructUrl(value || "");
+  const maxSizeBytes = fileTypeAccepted === "video" ? VIDEO_MAX_SIZE : MAX_SIZE;
   const [fileState, setFileState] = useState<UploaderState>({
     error: false,
     file: null,
@@ -199,7 +206,7 @@ export function Uploader({
       );
 
       if (fileSizeToBig) {
-        toast.error("Arquivo muito grande, máximo de 5MB.");
+        toast.error(`Arquivo muito grande, máximo de ${maxSizeBytes / (1024 * 1024)}MB.`);
       }
 
       if (tooManyFiles) {
@@ -253,10 +260,10 @@ export function Uploader({
           ? { "*/*": [] }
           : fileTypeAccepted === "audio"
             ? AUDIO_ACCEPT
-            : { "video/*": [] },
+            : VIDEO_ACCEPT,
     maxFiles: 1,
     multiple: false,
-    maxSize: MAX_SIZE,
+    maxSize: maxSizeBytes,
     onDropRejected: rejectedFiles,
     disabled: fileState.uploading || !!fileState.objectUrl,
   });
