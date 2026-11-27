@@ -187,9 +187,12 @@ function MessageForm({ data, onChange }: FormProps) {
             fileTypeAccepted="video"
             onConfirm={(videoUrl: string) => setMedia({ videoUrl })}
           />
-          <p className="text-[11px] text-muted-foreground">MP4 ou 3GP, até 16 MB (limite do WhatsApp).</p>
+          <p className="text-[11px] text-muted-foreground">
+            MP4 ou 3GP, até 16 MB, em H.264 com som AAC (o que o WhatsApp aceita). Vídeo em alta qualidade do celular pode não abrir no
+            Android: se acontecer, exporte de novo em qualidade padrão.
+          </p>
           <Field label="Legenda">
-            <Input value={String(payload.caption ?? "")} onChange={(event) => setMedia({ caption: event.target.value })} placeholder="Opcional" />
+            <Input value={String(payload.caption ?? "")} maxLength={1024} onChange={(event) => setMedia({ caption: event.target.value })} placeholder="Opcional" />
           </Field>
         </>
       )}

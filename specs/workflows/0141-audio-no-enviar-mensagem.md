@@ -73,7 +73,9 @@ mensagem de voz quando o arquivo é OGG/Opus.
 | CB-1 | `.ogg` com Vorbis (não Opus) | A API oficial pode recusar como voz; o passo falha com o erro do provedor. Raro: gravadores de celular geram Opus. |
 | CB-2 | Bloco salvo como Áudio sem arquivo | O passo falha com "Áudio não escolhido", como a imagem sem arquivo. |
 | CB-3 | Número não oficial (Uazapi) | Envia como áudio; a Uazapi ignora a marca de voz. |
-| CB-4 | MP4 com codec que o WhatsApp não aceita (ex.: H.265) | A API oficial recusa e o passo falha com o erro do provedor. O WhatsApp pede H.264 com áudio AAC. |
+| CB-4 | MP4 com codec que o WhatsApp não aceita (ex.: H.265) | A API oficial recusa e o passo falha com o erro do provedor. O WhatsApp pede H.264 com áudio AAC e uma trilha de áudio no máximo. |
+| CB-5 | MP4 H.264 perfil High ou com B-frames (comum em vídeo de celular) | A Meta aceita, mas o WhatsApp do Android não reproduz. O fluxo não converte: a aba avisa para exportar em qualidade padrão. O certo seria converter para H.264 Main sem B-frames no upload (ffmpeg.wasm já está no projeto). |
+| CB-6 | Legenda acima de 1024 caracteres | O campo para em 1024, o limite da Meta. |
 
 ## 9. Changelog da spec
 
@@ -81,3 +83,4 @@ mensagem de voz quando o arquivo é OGG/Opus.
 | --- | --- | --- |
 | 2026-11-13 | João Gabriel | Criada e implementada (upload; gravação pelo navegador fica de fora). Falta o teste no WhatsApp (CA-1 e CA-2). |
 | 2026-11-27 | João Gabriel | Vídeo no mesmo bloco (RF-6, CA-5, CA-6, CB-4). Falta o teste no WhatsApp (CA-5). |
+| 2026-11-27 | João Gabriel | Conferido com a documentação de vídeo da Meta: legenda até 1024 (CB-6) e aviso do perfil H.264 no Android (CB-5). |
