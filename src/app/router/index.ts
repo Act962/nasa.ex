@@ -51,6 +51,7 @@ import { supportRouter } from "./support";
 import { scriptsRouter } from "./scripts";
 import { linnkerRouter } from "./linnker";
 import { spaceStationRouter } from "./space-station";
+import { orbitaStationRouter } from "./orbita-station";
 import { worldEventsRouter } from "./world-events";
 import { companySpaceRouter } from "./company-space";
 import { profileCardRouter } from "./profile-card";
@@ -146,6 +147,8 @@ export const router = {
   scripts: scriptsRouter,
   linnker: linnkerRouter,
   spaceStation: base.use(appRouterPermission("space-station")).router(spaceStationRouter),
+  // Avatar é dado pessoal: fica fora da matriz (spec 0119, RF-4).
+  orbitaStation: base.use(appRouterPermission("orbita-station", { skipPathSegments: ["avatar"] })).router(orbitaStationRouter),
   worldEvents: worldEventsRouter,
   companySpace: companySpaceRouter,
   profileCard: profileCardRouter,
