@@ -19,6 +19,7 @@ import { listOrderReviewQueue } from "@/features/trafego/server/lib/order-review
 import { resolveOrderMetaAccess } from "@/features/trafego/server/lib/meta/order-meta-access";
 import { getOrderAdsPerformance } from "@/features/trafego/server/lib/meta/order-ads-performance";
 import { TRAFEGO_SCOPE, isSystemAdmin, type ExternalAiCaller } from "../access-tokens";
+import { asError, asResult, type ToolResult } from "./tool-runner";
 
 /**
  * Ferramentas do trafeGO no MCP do ÓRBITA, só para a equipe (spec 0131). Leem os pedidos de todas as
@@ -30,13 +31,6 @@ const CREATIVE_LINK_SECONDS = 24 * 60 * 60;
 const RATE_LIMIT = { max: 120, windowMs: 60 * 60 * 1000 };
 const INSIGHT_METRICS: (keyof AdMetrics)[] = ["costPerConversationCents", "ctr", "cpcCents", "cpmCents", "conversationRate", "frequency"];
 
-export type ToolResult = {
-  content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>;
-  isError?: boolean;
-};
-
-export const asResult = (data: unknown): ToolResult => ({ content: [{ type: "text", text: JSON.stringify(data, null, 2) }] });
-const asError = (message: string): ToolResult => ({ content: [{ type: "text", text: message }], isError: true });
 
 /** Escopo na chave e admin do sistema conferidos a cada chamada (RF-2, CA-3). `work` devolve o resultado pronto. */
 export async function guardTrafegoTool(caller: ExternalAiCaller, work: () => Promise<ToolResult>): Promise<ToolResult> {

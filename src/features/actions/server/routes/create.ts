@@ -1,32 +1,11 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
-import { notifyNewTask } from "../lib/notify-new-task";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { generatePublicSlug } from "@/features/public-calendar/utils/slug";
 import { logActivity } from "@/features/admin/lib/activity-logger";
-import { resolveWorkspaceTrackingId } from "@/features/actions/lib/workspace-tracking";
-import { findColumnInOrg } from "../lib/action-access";
-import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
-import {
-  hasActionCreatedWorkflow,
-  sendWorkspaceWorkflowEvent,
-} from "@/inngest/utils";
-
-const EVENT_CATEGORY_VALUES = [
-  "WORKSHOP",
-  "PALESTRA",
-  "LANCAMENTO",
-  "WEBINAR",
-  "NETWORKING",
-  "CURSO",
-  "REUNIAO",
-  "HACKATHON",
-  "CONFERENCIA",
-  "OUTRO",
-] as const;
+import { EVENT_CATEGORY_VALUES, createWorkspaceAction } from "../lib/action-commands";
 
 export const createAction = base
   .use(requiredAuthMiddleware)
@@ -56,149 +35,33 @@ export const createAction = base
       registrationUrl: z.string().nullable().optional(),
     }),
   )
-  .handler(async ({ input, context, errors }) => {
-    // Sem validar destino, um id de workspace/coluna de outra org injeta o
-    // card no board alheio — a ação nasce com `organizationId` do chamador,
-    // mas quem lista o board filtra pelo workspace.
-    const column = await findColumnInOrg(input.columnId, context.org.id);
-    if (!column || column.workspaceId !== input.workspaceId) {
-      throw errors.NOT_FOUND({ message: "Coluna não encontrada" });
-    }
-
-    if (input.orgProjectId) {
-      const orgProject = await prisma.orgProject.findFirst({
-        where: { id: input.orgProjectId, organizationId: context.org.id },
-        select: { id: true },
-      });
-      if (!orgProject) {
-        throw errors.NOT_FOUND({ message: "Projeto não encontrado" });
-      }
-    }
-
-    const firstAction = await prisma.action.findFirst({
-      where: {
-        columnId: input.columnId,
-        workspaceId: input.workspaceId,
+  .handler(async ({ input, context }) => {
+    const action = await createWorkspaceAction({
+      organizationId: context.org.id,
+      actor: {
+        id: context.user.id,
+        name: context.user.name,
+        email: context.user.email,
+        image: (context.user as { image?: string | null }).image,
       },
-      orderBy: {
-        order: "asc",
-      },
-    });
-
-    let newOrder: Prisma.Decimal;
-
-    if (firstAction) {
-      newOrder = Prisma.Decimal.sub(firstAction.order, 1);
-    } else {
-      newOrder = new Prisma.Decimal(0);
-    }
-
-    // Se for criado já público, geramos slug único
-    let publicSlug: string | undefined;
-    let publishedAt: Date | undefined;
-    if (input.isPublic) {
-      for (let i = 0; i < 3; i++) {
-        const candidate = generatePublicSlug(input.title);
-        const exists = await prisma.action.findUnique({
-          where: { publicSlug: candidate },
-          select: { id: true },
-        });
-        if (!exists) {
-          publicSlug = candidate;
-          break;
-        }
-      }
-      publishedAt = new Date();
-    }
-
-    const trackingId = await resolveWorkspaceTrackingId(input.workspaceId);
-
-    const action = await prisma.action.create({
-      data: {
+      input: {
         title: input.title,
         description: input.description,
         priority: input.priority,
         dueDate: input.dueDate,
         startDate: input.startDate,
         workspaceId: input.workspaceId,
-        // organizationId é OBRIGATÓRIO pra ação aparecer no calendário do
-        // workspace — `getWorkspaceCalendar` filtra por organizationId.
-        organizationId: context.org.id,
-        trackingId,
-        order: newOrder,
         columnId: input.columnId,
         orgProjectId: input.orgProjectId,
-        createdBy: context.user.id,
-        isPublic: input.isPublic ?? false,
-        publicSlug,
-        publishedAt,
-        eventCategory: input.eventCategory ?? undefined,
-        state: input.state ?? undefined,
-        city: input.city ?? undefined,
-        address: input.address ?? undefined,
-        registrationUrl: input.registrationUrl ?? undefined,
-        participants: {
-          create: Array.from(
-            new Set([context.user.id, ...(input.participantIds ?? [])]),
-          ).map((userId) => ({ userId })),
-        },
+        participantIds: input.participantIds,
+        isPublic: input.isPublic,
+        eventCategory: input.eventCategory,
+        state: input.state,
+        city: input.city,
+        address: input.address,
+        registrationUrl: input.registrationUrl,
       },
     });
-
-    await notifyNewTask({
-      actionId: action.id,
-      title: action.title,
-      workspaceId: action.workspaceId,
-      organizationId: context.org.id,
-      actorId: context.user.id,
-      actorName: context.user.name,
-      userIds: input.participantIds ?? [],
-    });
-
-    try {
-      if (await hasActionCreatedWorkflow(action.workspaceId)) {
-        await sendWorkspaceWorkflowEvent({
-          trigger: "WS_ACTION_CREATED",
-          workspaceId: action.workspaceId,
-          actionId: action.id,
-        });
-      }
-    } catch (err) {
-      console.error(
-        "[workspace-workflow] failed to emit action.created",
-        err,
-      );
-    }
-
-    const orgId = context.session.activeOrganizationId;
-    if (orgId) {
-      await logActivity({
-        organizationId: orgId,
-        userId: context.user.id,
-        userName: context.user.name,
-        userEmail: context.user.email,
-        userImage: (context.user as any).image,
-        appSlug: "workspace",
-        subAppSlug: "workspace-actions",
-        featureKey: input.isPublic
-          ? "workspace.action.created.public"
-          : "workspace.action.created",
-        action: "workspace_action_create",
-        actionLabel: `Criou a ação "${action.title}"`,
-        resource: action.title,
-        resourceId: action.id,
-        metadata: {
-          priority: input.priority,
-          isPublic: input.isPublic ?? false,
-        },
-      });
-
-      await chargeStarsByAction(orgId, "workspace_action_create", {
-        userId: context.user.id,
-        description: `Criou ação "${action.title}"`,
-        appSlug: "workspace",
-      });
-    }
 
     // ─── Compartilhamento cross-org ─────────────────────────────────────
     // Pra cada targetOrgId selecionado: cópia direta (user é owner/admin/

@@ -18,7 +18,7 @@ export function pickWinnerIndex(seed: string, totalNumbers: number): number {
 }
 
 type DrawFailure = "not_found" | "already_drawn" | "sweep_required" | "pending_review" | "no_numbers";
-type RevokeFailure = "not_found" | "already_revoked" | "revoke_expired";
+type RevokeFailure = "not_found" | "already_revoked" | "revoke_expired" | "already_notified";
 type PrizeCountFailure = "not_found" | "prize_below_winners";
 
 class DrawAbort extends Error {
@@ -44,9 +44,11 @@ async function findDrawBlocker(campaign: { id: string; lastSweepAt: Date | null 
 export async function drawNextWinner(params: { organizationId: string; campaignId: string; actor: LoyaltyActor }) {
   const campaign = await prisma.loyaltyCampaign.findFirst({
     where: { id: params.campaignId, organizationId: params.organizationId },
-    select: { id: true, name: true, lastSweepAt: true, drawnAt: true },
+    select: { id: true, name: true, mode: true, lastSweepAt: true, drawnAt: true },
   });
   if (!campaign) return { ok: false as const, reason: "not_found" as const };
+  // Spec 0135, RF-9: campanha de pontos não tem sorteio.
+  if (campaign.mode === "POINTS") return { ok: false as const, reason: "points_mode" as const };
   if (campaign.drawnAt) return { ok: false as const, reason: "already_drawn" as const };
   const blocker = await findDrawBlocker(campaign);
   if (blocker) return { ok: false as const, reason: blocker };
@@ -138,18 +140,20 @@ export async function drawNextWinner(params: { organizationId: string; campaignI
 export async function revokeCampaignDraw(params: { organizationId: string; drawId: string; reason: string | null; actor: LoyaltyActor }) {
   const draw = await prisma.loyaltyCampaignDraw.findFirst({
     where: { id: params.drawId, campaign: { organizationId: params.organizationId } },
-    select: { id: true, campaignId: true, luckyNumberId: true, position: true, code: true, memberName: true, drawnAt: true, revokedAt: true, campaign: { select: { name: true } } },
+    select: { id: true, campaignId: true, luckyNumberId: true, position: true, code: true, memberName: true, drawnAt: true, revokedAt: true, notifiedAt: true, campaign: { select: { name: true } } },
   });
   if (!draw) return { ok: false as const, reason: "not_found" as const };
   if (draw.revokedAt) return { ok: false as const, reason: "already_revoked" as const };
   if (!isDrawRevocable(draw)) return { ok: false as const, reason: "revoke_expired" as const };
+  // O ganhador já recebeu a mensagem de parabéns (spec 0148, RF-7).
+  if (draw.notifiedAt) return { ok: false as const, reason: "already_notified" as const };
 
   const reason = params.reason?.trim() || "Sorteado sem querer";
   try {
     await prisma.$transaction(async (tx) => {
       await tx.loyaltyCampaign.update({ where: { id: draw.campaignId }, data: { drawnAt: null } });
       const revoked = await tx.loyaltyCampaignDraw.updateMany({
-        where: { id: draw.id, revokedAt: null },
+        where: { id: draw.id, revokedAt: null, notifiedAt: null },
         data: { revokedAt: new Date(), revokedByName: params.actor.name, revokeReason: reason },
       });
       if (revoked.count === 0) throw new DrawAbort("already_revoked");
@@ -159,8 +163,13 @@ export async function revokeCampaignDraw(params: { organizationId: string; drawI
       }
     });
   } catch (error) {
-    if (error instanceof DrawAbort) return { ok: false as const, reason: error.reason as RevokeFailure };
-    throw error;
+    if (!(error instanceof DrawAbort)) throw error;
+    if (error.reason === "already_revoked") {
+      // O aviso pode ter reservado o ganhador entre a leitura e a revogação (spec 0148).
+      const current = await prisma.loyaltyCampaignDraw.findUnique({ where: { id: draw.id }, select: { notifiedAt: true, revokedAt: true } });
+      if (current?.notifiedAt && !current.revokedAt) return { ok: false as const, reason: "already_notified" as const };
+    }
+    return { ok: false as const, reason: error.reason as RevokeFailure };
   }
 
   await auditLoyaltyAction({

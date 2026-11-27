@@ -28,7 +28,7 @@ import { useReasons } from "@/features/reasons/hooks/use-reasons";
 import { Skeleton } from "../ui/skeleton";
 import { SelectItem } from "../ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
+import { client, orpc } from "@/lib/orpc";
 import { toast } from "sonner";
 import { Spinner } from "../ui/spinner";
 
@@ -40,7 +40,7 @@ const schemaLostOrWinner = z.object({
 type FromLostOrWinner = z.infer<typeof schemaLostOrWinner>;
 
 export function LostOrWinModal() {
-  const { id: leadId, isOpen, onClose, type } = useLostOrWin();
+  const { leadIds, isOpen, onClose, onDone, type } = useLostOrWin();
   const params = useParams<{ trackingId: string }>();
   const queryClient = useQueryClient();
   const { reasons, isLoading } = useReasons(params.trackingId, type);
@@ -55,43 +55,51 @@ export function LostOrWinModal() {
 
   const isLost = type === "LOSS";
 
-  const mutation = useMutation(
-    orpc.leads.updateAction.mutationOptions({
-      onSuccess: (data) => {
-        queryClient.invalidateQueries({
-          queryKey: [
-            "leads.listLeadsByStatus",
-            data.lead.statusId,
-            data.lead.trackingId,
-          ],
-        });
-        queryClient.invalidateQueries({
-          queryKey: orpc.status.getMany.queryKey({
-            input: {
-              trackingId: params.trackingId,
-            },
+  const mutation = useMutation({
+    mutationFn: async (payload: FromLostOrWinner) => {
+      const results = await Promise.allSettled(
+        leadIds.map((leadId) =>
+          client.leads.updateAction({
+            leadId,
+            action: isLost ? "LOSS" : "WIN",
+            reasonId: payload.reasons,
+            observation: payload.observation,
           }),
-        });
+        ),
+      );
+      const failedCount = results.filter(
+        (result) => result.status === "rejected",
+      ).length;
+      return { failedCount, total: leadIds.length };
+    },
+    onSuccess: ({ failedCount, total }) => {
+      // A coluna do board usa uma queryKey manual; o prefixo cobre todas.
+      queryClient.invalidateQueries({ queryKey: ["leads.listLeadsByStatus"] });
+      queryClient.invalidateQueries({ queryKey: orpc.status.getMany.key() });
 
-        toast.success("Lead atualizado com sucesso");
-        form.reset();
-        onClose();
-      },
-      onError: () => {
+      if (failedCount === total) {
         toast.error("Erro ao atualizar lead");
-      },
-    }),
-  );
+        return;
+      }
+      if (failedCount > 0) {
+        toast.warning(`${total - failedCount} de ${total} leads atualizados.`);
+      } else {
+        toast.success(
+          total > 1 ? "Leads atualizados com sucesso" : "Lead atualizado com sucesso",
+        );
+      }
+      form.reset();
+      onDone?.();
+      onClose();
+    },
+    onError: () => {
+      toast.error("Erro ao atualizar lead");
+    },
+  });
 
-  const onSubmit = (data: FromLostOrWinner) => {
-    if (!leadId || mutation.isPending) return;
-
-    mutation.mutate({
-      leadId,
-      action: isLost ? "LOSS" : "WIN",
-      reasonId: data.reasons,
-      observation: data.observation,
-    });
+  const onSubmit = (payload: FromLostOrWinner) => {
+    if (leadIds.length === 0 || mutation.isPending) return;
+    mutation.mutate(payload);
   };
 
   useEffect(() => {
@@ -104,7 +112,10 @@ export function LostOrWinModal() {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isLost ? "Lead Perdido" : "Lead Ganho"}</DialogTitle>
+          <DialogTitle>
+            {isLost ? "Lead Perdido" : "Lead Ganho"}
+            {leadIds.length > 1 && ` (${leadIds.length} leads)`}
+          </DialogTitle>
           <DialogDescription>
             <span className="text-sm">
               {isLost ? "Não foi dessa vez" : "Parabéns você conseguiu"}

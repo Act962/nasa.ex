@@ -4,6 +4,7 @@ import { orpc } from "@/lib/orpc";
 import { useOrgRole } from "./use-org-role";
 import { useQuery } from "@tanstack/react-query";
 import type { PermissionAction } from "@/features/permissions/lib/app-permission-catalog";
+import { isAppViewAllowed } from "@/features/permissions/lib/app-view-keys";
 
 // Chaves do catálogo em features/permissions/lib/app-permission-catalog.ts.
 // Actions estendidas (`canApprove`, `canPay`) só valem para os apps de
@@ -23,14 +24,21 @@ export function useCheckPermission() {
     if (isMaster) return true;
     if (!role || !data?.matrix) return false;
 
-    const rolePerms = data.matrix[role];
-    if (!rolePerms) return false;
-
-    const appPerms = rolePerms[appKey];
+    // Exceção da própria pessoa vence a do papel (spec 0152).
+    const appPerms = data.myOverrides?.[appKey] ?? data.matrix[role]?.[appKey];
     if (!appPerms) return false;
 
     return !!appPerms[action as keyof typeof appPerms];
   };
 
-  return { checkPermission, isLoading: !data && !!role };
+  /**
+   * App (item do menu ou card de /apps) escondido por "Ver" desligado (specs 0152 e 0153).
+   * Enquanto carrega, nada some: esconder tudo por um instante faria o menu piscar.
+   */
+  const isAppHidden = (viewId: string): boolean => {
+    if (isMaster || !role || !data?.matrix) return false;
+    return !isAppViewAllowed(viewId, (appKey) => checkPermission(appKey, "canView"));
+  };
+
+  return { checkPermission, isAppHidden, isLoading: !data && !!role };
 }

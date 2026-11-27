@@ -58,7 +58,8 @@ const DATA_GUIDE: Record<BlockKey, string> = {
     'match: "ALL" ou "ANY". rules: [{id, field, operator, value}]. field: "tag" (is/is_not, value = id da etiqueta), "weekday" (is/is_not, value = lista de dias "0" a "6", 0 = domingo), "time" (between/not_between, value "08:00-18:00"), "responsible" (assigned/not_assigned/is/is_not), "temperature" (is/is_not: COLD, WARM, HOT, VERY_HOT), "column" (is/is_not, value = id da coluna), "lead.<campo>" ou "var.<variável>" (equals, not_equals, contains, not_contains, is_set, is_empty).',
   randomizer: 'paths: [{id, label, percent}], até 5 caminhos; cada um vira a saída path:<id>.',
   delay: 'action: {type: "minutes" | "hours" | "days", <type>: número}. Ex.: {type: "hours", hours: 2}. Mensagens do cliente durante o atraso não respondem nada.',
-  callFlow: "workflowId: id de outro fluxo do FlowAstro da mesma empresa (flowastro_list_flows).",
+  callFlow:
+    "workflowId: id de outro fluxo do FlowAstro da mesma empresa (flowastro_list_flows). O outro fluxo precisa estar ligado: o cliente sai deste e começa pelo bloco inicial dele, com as perguntas e os botões esperando a resposta normalmente.",
   aiAgent:
     "instructions: o que a IA faz nesta etapa. goal: quando a etapa está cumprida (sai por objective_done). maxReplies: limite de mensagens da IA (padrão 20). intents: [{id, label, description}] até 5, cada uma vira a saída intent:<id>. fields: [{variableName, leadField?, description}] o que a IA deve coletar. Sem `assistant`, usa a IA configurada no funil do número; o assistente próprio do bloco é configurado no editor.",
   distribute: "Sem campos: escolhe o atendente pelo rodízio do número. Saídas main (atendente escolhido) e no_attendant.",

@@ -21,6 +21,17 @@ function buildClaudeCommand(token: string) {
   return `claude mcp add --transport http orbita ${origin}${MCP_PATH} --header "Authorization: Bearer ${token}"`;
 }
 
+/** Apps que entraram no MCP depois do FlowAstro: chave antiga não ganha nenhum sem ser recriada. */
+const NEWER_APPS = [
+  { scope: "workspace", label: "Workspace" },
+  { scope: "financeiro", label: "Financeiro" },
+  { scope: "tracking", label: "Tracking" },
+  { scope: "agenda", label: "Agenda" },
+  { scope: "nbox", label: "Nbox" },
+];
+
+const missingAppsOf = (scopes: string[]) => NEWER_APPS.filter((app) => !scopes.includes(app.scope)).map((app) => app.label);
+
 export function ExternalAiSection() {
   const { clients } = usePlannerClients();
   const { tokens, canIncludeTrafego } = useExternalAiTokens();
@@ -55,7 +66,7 @@ export function ExternalAiSection() {
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-bold">IA externa (Claude Code, ChatGPT e outras)</h3>
           <p className="text-sm text-muted-foreground">
-            A IA lê o Kit da Marca, o calendário e os horários livres, e cria rascunhos que entram na Caixa de criações do Planner. Ela também revisa, aprova, programa e publica, e monta os fluxos de atendimento do FlowAstro, sempre com as suas permissões e pedindo sua confirmação antes de publicar ou ligar.
+            A IA lê o Kit da Marca, o calendário e os horários livres, e cria rascunhos que entram na Caixa de criações do Planner. Ela também revisa, aprova, programa e publica, monta os fluxos de atendimento do FlowAstro, cria e organiza os cards do Workspace, lê e lança contas no Financeiro, trabalha nos leads do Tracking e marca compromissos na Agenda, sempre com as suas permissões e pedindo sua confirmação antes de publicar ou ligar.
           </p>
         </div>
       </div>
@@ -138,6 +149,14 @@ export function ExternalAiSection() {
                     {!token.scopes.includes("flowastro") && (
                       <span title="Chave criada antes do FlowAstro no MCP: crie uma nova para montar fluxos" className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                         sem FlowAstro
+                      </span>
+                    )}
+                    {token.scopes.includes("flowastro") && missingAppsOf(token.scopes).length > 0 && (
+                      <span
+                        title={`Chave criada antes de ${missingAppsOf(token.scopes).join(", ")} no MCP: crie uma nova para usar esses apps`}
+                        className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                      >
+                        sem {missingAppsOf(token.scopes).join(", ")}
                       </span>
                     )}
                     {token.scopes.includes("trafego") && (

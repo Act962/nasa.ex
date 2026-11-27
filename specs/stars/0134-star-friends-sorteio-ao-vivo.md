@@ -93,3 +93,4 @@ Sortear um prêmio por vez numa tela própria para apresentação, testar antes 
 | --- | --- | --- |
 | 2026-11-06 | João Gabriel | Criação. |
 | 2026-11-06 | João Gabriel | RF-8, RF-9, CA-7, CA-8, D-4 e D-5: lançar cupom manual e anular cupom com estorno das stars. |
+| 2026-11-23 | João Gabriel | RF-4: ganhador já avisado pelo WhatsApp não pode ser revogado (spec 0148). O não-objetivo "avisar o ganhador" virou a spec 0148. |

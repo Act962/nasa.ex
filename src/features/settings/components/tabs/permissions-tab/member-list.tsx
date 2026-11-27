@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { UserX } from "lucide-react";
+import { SlidersHorizontal, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RoleBadge, initials } from "./role-config";
 
@@ -41,6 +41,8 @@ interface MemberListProps {
   canManage: boolean;
   onUpdateRole: (memberId: string, role: string) => void;
   onRemoveMember: (memberId: string) => void;
+  /** Só o Master edita as permissões de uma pessoa (spec 0152). */
+  onEditPermissions?: (member: Member) => void;
 }
 
 export function MemberList({
@@ -50,6 +52,7 @@ export function MemberList({
   canManage,
   onUpdateRole,
   onRemoveMember,
+  onEditPermissions,
 }: MemberListProps) {
   return (
     <div className="rounded-xl border overflow-hidden">
@@ -108,14 +111,29 @@ export function MemberList({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="owner">Master</SelectItem>
+                    {(isMaster || member.role === "owner") && (
+                      <SelectItem value="owner">Master</SelectItem>
+                    )}
                     <SelectItem value="admin">Adm</SelectItem>
                     <SelectItem value="member">Single</SelectItem>
                     <SelectItem value="moderador">Moderador</SelectItem>
                   </SelectContent>
                 </Select>
 
-                {/* Remove */}
+                {isMaster && member.role !== "owner" && onEditPermissions ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 text-muted-foreground hover:text-foreground"
+                    aria-label={`Permissões de ${member.user.name}`}
+                    title="Permissões desta pessoa"
+                    onClick={() => onEditPermissions(member)}
+                  >
+                    <SlidersHorizontal className="size-3.5" />
+                  </Button>
+                ) : null}
+
+                {(isMaster || member.role !== "owner") && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -147,6 +165,7 @@ export function MemberList({
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+                )}
               </div>
             )}
           </div>

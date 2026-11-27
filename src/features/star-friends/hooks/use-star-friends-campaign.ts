@@ -87,3 +87,18 @@ export function useStarFriendsDrawPool(campaignId: string | undefined) {
     }),
   );
 }
+
+export function useNotifyStarFriendsWinners() {
+  const invalidate = useInvalidateStarFriends();
+  return useMutation(orpc.starFriends.campaign.notifyWinners.mutationOptions({ onSuccess: invalidate }));
+}
+
+/** Modelos aprovados do número da campanha: o aviso aos ganhadores sai por eles (spec 0148). */
+export function useStarFriendsNoticeTemplates(trackingId: string | null, enabled: boolean) {
+  return useQuery({
+    ...orpc.integrations.listWhatsAppTemplates.queryOptions({ input: { trackingId: trackingId ?? "" } }),
+    enabled: enabled && Boolean(trackingId),
+    staleTime: 60_000,
+    retry: false,
+  });
+}

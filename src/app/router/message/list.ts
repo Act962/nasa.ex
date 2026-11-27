@@ -1,5 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import z from "zod";
 import dayjs from "dayjs";
 import _ from "lodash";
@@ -7,6 +8,7 @@ import prisma from "@/lib/prisma";
 
 export const listMessage = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "GET",
     path: "/message/list",
@@ -21,70 +23,74 @@ export const listMessage = base
   )
 
   .handler(async ({ input, context, errors }) => {
-    try {
-      const conversation = await prisma.conversation.findUnique({
-        where: {
-          id: input.conversationId,
-        },
-        include: {
-          lead: true,
-        },
-      });
+    const conversation = await prisma.conversation.findUnique({
+      where: {
+        id: input.conversationId,
+      },
+      select: {
+        remoteJid: true,
+        tracking: { select: { organizationId: true } },
+      },
+    });
 
-      if (!conversation) {
-        throw errors.BAD_REQUEST;
-      }
+    if (!conversation) {
+      throw errors.NOT_FOUND({ message: "Conversa não encontrada" });
+    }
 
-      const limit = input.limit ?? 30;
+    // Escopo de organização: a conversa só pode ser lida por quem está na
+    // mesma org do tracking dono dela. Sem isso qualquer usuário autenticado
+    // leria as mensagens de outra empresa passando o `conversationId` (IDOR).
+    if (conversation.tracking.organizationId !== context.org.id) {
+      throw errors.FORBIDDEN({ message: "Sem permissão" });
+    }
 
-      const messages = await prisma.message.findMany({
-        where: {
-          conversationId: input.conversationId,
-        },
-        include: {
-          quotedMessage: {
-            include: {
-              conversation: {
-                include: {
-                  lead: true,
-                },
+    const limit = input.limit ?? 30;
+
+    const messages = await prisma.message.findMany({
+      where: {
+        conversationId: input.conversationId,
+      },
+      include: {
+        quotedMessage: {
+          include: {
+            conversation: {
+              include: {
+                lead: true,
               },
             },
           },
-          conversation: {
-            include: {
-              lead: true,
-            },
+        },
+        conversation: {
+          include: {
+            lead: true,
           },
         },
-        ...(input.cursor
-          ? {
-              cursor: { id: input.cursor },
-              skip: 1,
-            }
-          : {}),
-        take: limit,
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      });
+      },
+      ...(input.cursor
+        ? {
+            cursor: { id: input.cursor },
+            skip: 1,
+          }
+        : {}),
+      take: limit,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
 
-      const grouped = _.groupBy(messages, (message) =>
-        dayjs(message.createdAt).format("YYYY-MM-DD"),
-      );
-      const groupedItems = Object.entries(grouped).map(([date, msgs]) => ({
-        date,
-        messages: msgs,
-      }));
-      const nextCursor =
-        messages.length === limit
-          ? messages[messages.length - 1].id
-          : undefined;
+    const grouped = _.groupBy(messages, (message) =>
+      dayjs(message.createdAt).format("YYYY-MM-DD"),
+    );
+    const groupedItems = Object.entries(grouped).map(([date, msgs]) => ({
+      date,
+      messages: msgs,
+    }));
+    const nextCursor =
+      messages.length === limit
+        ? messages[messages.length - 1].id
+        : undefined;
 
-      return {
-        items: groupedItems,
-        nextCursor,
-        remoteJid: conversation.remoteJid,
-      };
-    } catch (error) {
-      throw errors.INTERNAL_SERVER_ERROR;
-    }
+    return {
+      items: groupedItems,
+      nextCursor,
+      remoteJid: conversation.remoteJid,
+    };
   });

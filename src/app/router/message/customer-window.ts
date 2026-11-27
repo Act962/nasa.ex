@@ -1,4 +1,5 @@
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/prisma";
 import { WhatsAppProvider } from "@/generated/prisma/enums";
@@ -16,25 +17,33 @@ import z from "zod";
 
 export const getCustomerWindowState = base
   .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
   .route({
     method: "GET",
     path: "/message/customer-window",
     summary: "Meta 24h customer service window state for a conversation",
   })
   .input(z.object({ conversationId: z.string() }))
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const conversation = await prisma.conversation.findUnique({
       where: { id: input.conversationId },
       select: {
         trackingId: true,
         tracking: {
-          select: { whatsappInstance: { select: { provider: true } } },
+          select: {
+            organizationId: true,
+            whatsappInstance: { select: { provider: true } },
+          },
         },
       },
     });
 
     if (!conversation) {
       throw errors.NOT_FOUND({ message: "Conversa não encontrada" });
+    }
+
+    if (conversation.tracking.organizationId !== context.org.id) {
+      throw errors.FORBIDDEN({ message: "Sem permissão" });
     }
 
     const provider = conversation.tracking?.whatsappInstance?.provider;

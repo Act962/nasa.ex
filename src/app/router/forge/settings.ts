@@ -2,8 +2,10 @@ import { base } from "@/app/middlewares/base";
 import { requiredAuthMiddleware } from "@/app/middlewares/auth";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 import { isOrgOwnerOrAdmin } from "@/features/permissions/server/is-org-admin";
+import { normalizePaymentMethods, normalizeProposalSections, proposalLookInputSchema } from "@/features/forge/lib/proposal-look";
 
 /** Mesmo conteúdo com as chaves em outra ordem conta como igual. */
 function toStableJson(value: unknown): string {
@@ -30,6 +32,12 @@ const settingsShape = z.object({
   securityLevel: z.string(),
   reminderDaysBefore: z.number(),
   paymentGatewayConfigs: z.any(),
+  proposalTemplate: z.string(),
+  brandColor: z.string().nullable(),
+  accentColor: z.string().nullable(),
+  proposalSections: z.array(z.object({ id: z.string(), enabled: z.boolean() })),
+  paymentMethods: z.array(z.object({ method: z.string(), installments: z.number().nullable().optional(), note: z.string().nullable().optional() })),
+  commercialTerms: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -50,7 +58,14 @@ export const getForgeSettings = base
           data: { organizationId: context.org.id },
         });
       }
-      return { settings: { ...settings, commissionPercentage: settings.commissionPercentage.toString() } };
+      return {
+        settings: {
+          ...settings,
+          commissionPercentage: settings.commissionPercentage.toString(),
+          proposalSections: normalizeProposalSections(settings.proposalSections),
+          paymentMethods: normalizePaymentMethods(settings.paymentMethods),
+        },
+      };
     } catch {
       throw errors.INTERNAL_SERVER_ERROR;
     }
@@ -122,4 +137,28 @@ export const updateForgeSettings = base
       console.error("[forge/settings update]", err);
       throw errors.INTERNAL_SERVER_ERROR;
     }
+  });
+
+/** Visual da proposta pública (spec 0150): modelo, cores, ordem das seções, formas de pagamento e condições. */
+export const updateForgeProposalLook = base
+  .use(requiredAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .route({ method: "PATCH", summary: "Update the public proposal look", tags: ["Forge"] })
+  .input(proposalLookInputSchema)
+  .output(z.object({ ok: z.boolean() }))
+  .handler(async ({ input, context }) => {
+    const data = {
+      proposalTemplate: input.proposalTemplate,
+      brandColor: input.brandColor?.toLowerCase() ?? null,
+      accentColor: input.accentColor?.toLowerCase() ?? null,
+      proposalSections: normalizeProposalSections(input.proposalSections) as unknown as Prisma.InputJsonValue,
+      paymentMethods: normalizePaymentMethods(input.paymentMethods) as unknown as Prisma.InputJsonValue,
+      commercialTerms: input.commercialTerms || null,
+    };
+    await prisma.forgeSettings.upsert({
+      where: { organizationId: context.org.id },
+      update: data,
+      create: { organizationId: context.org.id, ...data },
+    });
+    return { ok: true };
   });

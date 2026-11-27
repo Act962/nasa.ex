@@ -35,7 +35,7 @@ import { nextFreePosition } from "../utils/live-draw";
 import { CampaignDrawRevokeButton } from "./campaign-draw-revoke-button";
 
 type StageEntry = { code: string; memberKey: string; displayName: string; maskedPhone: string };
-type StageWinner = StageEntry & { id: string; position: number; drawnAt: Date | string };
+type StageWinner = StageEntry & { id: string; position: number; drawnAt: Date | string; notifiedAt?: Date | string | null };
 type StagePhase = "idle" | "rolling" | "revealed";
 
 const MIN_ROLL_MS = 4200;
@@ -164,7 +164,7 @@ function LiveDrawStage({ isSimulation }: { isSimulation: boolean }) {
       (campaignQuery.data?.draws ?? [])
         .filter((draw) => !draw.revokedAt)
         .sort((first, second) => first.position - second.position)
-        .map((draw) => ({ id: draw.id, position: draw.position, code: draw.code, memberKey: draw.id, displayName: draw.displayName, maskedPhone: draw.maskedPhone, drawnAt: draw.drawnAt })),
+        .map((draw) => ({ id: draw.id, position: draw.position, code: draw.code, memberKey: draw.id, displayName: draw.displayName, maskedPhone: draw.maskedPhone, drawnAt: draw.drawnAt, notifiedAt: draw.notifiedAt })),
     [campaignQuery.data?.draws],
   );
   const prizeCount = isSimulation ? (simulatedPrizeCount ?? campaign?.prizeCount ?? DEFAULT_SIMULATED_PRIZES) : (campaign?.prizeCount ?? 0);
@@ -177,6 +177,7 @@ function LiveDrawStage({ isSimulation }: { isSimulation: boolean }) {
   const blockReason = (() => {
     if (isSimulation) return entries.length === 0 ? "Sem nomes para simular." : null;
     if (!campaign || !stats) return "Nenhuma campanha criada.";
+    if (campaign.mode === "POINTS") return "A campanha atual é de pontos de fidelidade: não tem sorteio.";
     if (!permissions.canApproveRedemptions) return "Seu papel não tem a permissão de Aprovar do STAR FRIENDS, que libera o sorteio.";
     if (nextPosition === null) return null;
     if (stats.pendingReceipts > 0) return `Há ${stats.pendingReceipts} cupom(ns) em conferência. Aprove ou recuse antes de sortear.`;
@@ -442,7 +443,7 @@ function LiveDrawStage({ isSimulation }: { isSimulation: boolean }) {
                   <p className="max-w-48 truncate text-sm font-semibold">{winner.displayName}</p>
                   <p className="font-mono text-xs text-white/60">Nº {winner.code}</p>
                 </div>
-                {!isSimulation && permissions.canApproveRedemptions && (
+                {!isSimulation && permissions.canApproveRedemptions && !winner.notifiedAt && (
                   <CampaignDrawRevokeButton variant="stage" draw={winner} />
                 )}
               </li>

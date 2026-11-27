@@ -61,3 +61,29 @@ async function removeFromInbox(externalMessageId: unknown): Promise<void> {
   delete metadata[INBOX_KEY];
   await prisma.message.update({ where: { messageId: externalMessageId }, data: { metadata: metadata as Prisma.InputJsonValue } });
 }
+
+/** Máximo de mensagens pendentes que acompanham o lead numa passagem: mais que isso é rajada, não resposta. */
+const HANDOFF_INBOX_LIMIT = 20;
+
+/**
+ * Leva para a execução nova as mensagens ainda não usadas da execução de origem (Conexão de fluxo, CB-8): a mensagem que
+ * o cliente mandou enquanto o fluxo de origem rodava vira a resposta da primeira espera do destino, em vez de se perder.
+ */
+export async function moveInboxToRun(
+  tx: Prisma.TransactionClient,
+  params: { leadId: string; fromRunId: string; toRunId: string },
+): Promise<number> {
+  const pendingMessages = await tx.message.findMany({
+    where: { fromMe: false, conversation: { leadId: params.leadId }, metadata: { path: [INBOX_KEY], equals: params.fromRunId } },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: HANDOFF_INBOX_LIMIT,
+    select: { id: true, metadata: true },
+  });
+  for (const message of pendingMessages) {
+    await tx.message.update({
+      where: { id: message.id },
+      data: { metadata: { ...metadataOf(message.metadata), [INBOX_KEY]: params.toRunId } as Prisma.InputJsonValue },
+    });
+  }
+  return pendingMessages.length;
+}

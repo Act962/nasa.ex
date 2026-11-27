@@ -19,6 +19,7 @@ export const createFolder = base
   }))
   .handler(async ({ input, context, errors }) => {
     const parent = await loadFolderRestriction(input.parentId, context.org.id);
+    if (parent?.expiresAt) throw errors.BAD_REQUEST({ message: "Transferência não tem subpastas." });
     if (parent?.isRestricted && !(await canViewRestrictedNBox(context.user, context.org.id))) {
       throw errors.FORBIDDEN({ message: "Pasta restrita: só administradores do financeiro." });
     }

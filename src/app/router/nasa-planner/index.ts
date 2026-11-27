@@ -73,7 +73,7 @@ import {
 } from "./v2/brand-kit";
 import { discardCreation, importCreation, listCreations } from "./v2/creations";
 import { getPublishGroup, setGroupAccounts, setGroupDetached } from "./v2/publish-group";
-import { getPlannerDashboard, listBoardPosts } from "./v2/board";
+import { getPlannerDashboard, listBoardColumnPage, listBoardPosts } from "./v2/board";
 import { parseWeeklyScriptText } from "./v2/weekly-script";
 import { deletePostComment, editOwnPostComment, listPostComments, replyToPostComment, setPostCommentHidden } from "./v2/post-comments";
 import {
@@ -188,6 +188,7 @@ export const nasaPlannerRouter = {
     moments: listCalendarMoments,
     broadcasts: listBroadcastsInRange,
     board: listBoardPosts,
+    boardColumn: listBoardColumnPage,
   },
   dashboard: {
     summary: getPlannerDashboard,

@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { logActivity } from "@/features/admin/lib/activity-logger";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { toNboxItemDto } from "@/features/nbox/server/items";
 import {
   canViewRestrictedNBox,
   isItemInRestrictedFolder,
@@ -23,6 +24,8 @@ export const updateItem = base
   .handler(async ({ input, context, errors }) => {
     const isCurrentlyRestricted = await isItemInRestrictedFolder(input.itemId, context.org.id);
     const targetFolder = input.folderId ? await loadFolderRestriction(input.folderId, context.org.id) : null;
+    if (input.folderId && !targetFolder) throw errors.NOT_FOUND({ message: "Pasta não encontrada." });
+    if (targetFolder?.expiresAt) throw errors.BAD_REQUEST({ message: "Para mandar um arquivo, crie uma transferência." });
     const isMovingIntoRestricted = targetFolder?.isRestricted === true;
     if (
       (isCurrentlyRestricted || isMovingIntoRestricted) &&
@@ -55,5 +58,5 @@ export const updateItem = base
       resourceId: item.id,
     });
 
-    return { item };
+    return { item: toNboxItemDto(item) };
   });

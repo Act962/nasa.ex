@@ -123,6 +123,8 @@ export const executeWorkflow = inngest.createFunction(
         // Toque numa opção de menu salvo (spec 0098): começa pela saída daquela opção.
         ...((event.data as { startFrom?: unknown }).startFrom ? { startFrom: (event.data as { startFrom?: unknown }).startFrom } : {}),
         ...(attendanceRunId ? { attendanceRunId } : {}),
+        // Conexão de fluxo do FlowAstro (spec 0139, CB-8): o destino recebe as variáveis que a origem coletou.
+        ...((event.data as { initialVars?: unknown }).initialVars ? { initialVars: (event.data as { initialVars?: unknown }).initialVars } : {}),
       };
       let lastResult: unknown = null;
 

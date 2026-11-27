@@ -97,7 +97,7 @@ export function LinnkerPreview({ page }: Props) {
               return (
                 <div
                   key={link.id}
-                  className="w-full overflow-hidden shadow-sm"
+                  className={`w-full overflow-hidden ${link.hasShadow === false ? "" : "shadow-sm"}`}
                   style={{ borderRadius: radius }}
                 >
                   {link.imageUrl ? (
@@ -108,7 +108,7 @@ export function LinnkerPreview({ page }: Props) {
                         className="w-full object-cover"
                         style={{ maxHeight: "64px" }}
                       />
-                      {link.title && (
+                      {link.title && link.showTitle !== false && (
                         <div
                           className="absolute bottom-0 left-0 right-0 px-2 py-1 text-white font-semibold text-[10px]"
                           style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}
@@ -133,7 +133,7 @@ export function LinnkerPreview({ page }: Props) {
             return (
               <div
                 key={link.id}
-                className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-white shadow-sm"
+                className={`flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-white ${link.hasShadow === false ? "" : "shadow-sm"}`}
                 style={{ background: link.color ?? page.coverColor, borderRadius: radius }}
               >
                 {link.imageUrl ? (

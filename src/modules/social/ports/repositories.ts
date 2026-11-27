@@ -50,6 +50,13 @@ export interface ChannelLookupRepository {
     provider: SocialProviderValue,
     externalAccountId: string,
   ): Promise<{ channel: Channel; tenant: TenantScope } | null>;
+  /** Lote de um webhook com várias contas: uma consulta só, em vez de uma por conta. */
+  findManyByExternalAccountIds(
+    provider: SocialProviderValue,
+    externalAccountIds: string[],
+  ): Promise<Array<{ channel: Channel; tenant: TenantScope }>>;
+  /** Verificação da URL única por app: o verify token de qualquer conta manual vale (spec 0024, changelog 2026-11-16). */
+  hasManualVerifyToken(provider: SocialProviderValue, verifyToken: string): Promise<boolean>;
 }
 
 export type ConnectChannelOutcome = {

@@ -465,7 +465,7 @@ export const getAppsInsights = base
     const nboxData = {
       totalItems: nboxItems.length,
       publicItems: nboxItems.filter((i) => i.isPublic).length,
-      totalSize: nboxItems.reduce((s, i) => s + (i.size ?? 0), 0),
+      totalSize: nboxItems.reduce((s, i) => s + Number(i.size ?? 0), 0),
       byType: nboxItems.reduce<Record<string, number>>((acc, i) => {
         acc[i.type] = (acc[i.type] ?? 0) + 1;
         return acc;

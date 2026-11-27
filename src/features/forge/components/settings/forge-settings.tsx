@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GUIDE_ANCHORS } from "@/features/astro-guides/lib/anchors";
+import { ProposalLookEditor } from "./proposal-look/proposal-look-editor";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
@@ -363,6 +365,7 @@ type FormData = z.infer<typeof schema>;
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export function ForgeSettingsPanel() {
+  const [isLookEditorOpen, setIsLookEditorOpen] = useState(false);
   const { data, isLoading } = useForgeSettings();
   const update = useUpdateForgeSettings();
 
@@ -540,60 +543,17 @@ export function ForgeSettingsPanel() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Palette className="size-4 text-info" /> Aparência da Proposta
+            <Palette className="size-4 text-info" /> Visual da proposta
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>Cor de fundo</Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  {...form.register("proposalBgColor")}
-                  className="w-10 h-9 rounded border cursor-pointer p-0.5"
-                />
-                <Input
-                  {...form.register("proposalBgColor")}
-                  className="flex-1 font-mono text-xs"
-                />
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Cor de fundo da proposta pública.
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Cor da tipografia</Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  {...form.register("typographyColor")}
-                  className="w-10 h-9 rounded border cursor-pointer p-0.5"
-                />
-                <Input
-                  {...form.register("typographyColor")}
-                  className="flex-1 font-mono text-xs"
-                />
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Cor do texto na proposta pública.
-              </p>
-            </div>
-          </div>
-          {/* Live preview swatch */}
-          <div
-            className="rounded-lg border p-4 text-sm font-medium transition-colors"
-            style={{
-              backgroundColor: form.watch("proposalBgColor") || "#ffffff",
-              color: form.watch("typographyColor") || "#111111",
-            }}
-          >
-            <p className="font-bold text-base">Preview: PROPOSTA Nº 0001</p>
-            <p className="mt-1 opacity-80">
-              Nome do cliente · Válida até 30/12/2026
-            </p>
-            <p className="font-black text-lg mt-2">Total: R$ 2.500,00</p>
-          </div>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Escolha o modelo, as cores da empresa, a ordem das seções e as formas de pagamento que aparecem na proposta.
+          </p>
+          <Button type="button" variant="outline" onClick={() => setIsLookEditorOpen(true)} data-guide={GUIDE_ANCHORS.forgeProposalLookOpen.id}>
+            <Palette className="size-4" /> Personalizar visual
+          </Button>
+          <ProposalLookEditor open={isLookEditorOpen} onOpenChange={setIsLookEditorOpen} />
         </CardContent>
       </Card>
 

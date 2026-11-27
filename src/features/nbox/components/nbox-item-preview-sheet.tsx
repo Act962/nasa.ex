@@ -1,6 +1,6 @@
 "use client";
 
-import { DownloadIcon, ExternalLinkIcon, MoreHorizontalIcon } from "lucide-react";
+import { DownloadIcon, ExternalLinkIcon, MoreHorizontalIcon, SendIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -14,7 +14,7 @@ import {
   getLinkHostname,
 } from "../lib/item-preview";
 import { formatBytes } from "./nbox-file-type-icon";
-import { ItemActionsMenuItems, NBoxItemThumb, NBoxPublicBadge, useResolvedItemHref } from "./nbox-item-views";
+import { ItemActionsMenuItems, NBoxItemThumb, NBoxPublicBadge, itemDownloadHref, useResolvedItemHref } from "./nbox-item-views";
 import type { NBoxItemHrefResolver, NBoxItemView } from "./nbox-types";
 
 export interface NBoxItemPreviewSheetProps {
@@ -25,6 +25,9 @@ export interface NBoxItemPreviewSheetProps {
   onDelete?: (itemId: string) => void;
   resolveHref?: NBoxItemHrefResolver;
   canPublish?: boolean;
+  /** Mostra "Transferir" (spec 0148). Some quando `canTransfer` recusa o item. */
+  onTransfer?: (item: NBoxItemView) => void;
+  canTransfer?: (item: NBoxItemView) => boolean;
 }
 
 export function NBoxItemPreviewSheet({ item, open, onOpenChange, ...contentProps }: NBoxItemPreviewSheetProps) {
@@ -51,11 +54,15 @@ function PreviewSheetBody({
   onDelete,
   resolveHref,
   canPublish = true,
+  onTransfer,
+  canTransfer,
 }: Omit<NBoxItemPreviewSheetProps, "item" | "open"> & { item: NBoxItemView }) {
+  const isTransferShown = !!onTransfer && (canTransfer?.(item) ?? true);
   const resolvedUrl = useResolvedItemHref(item, resolveHref);
   const previewKind = getItemPreviewKind(item);
   const isOpenAction = item.type === "LINK" || previewKind === "contract" || previewKind === "proposal";
   const hasSecondaryActions = canPublish || !!onDelete;
+  const primaryHref = isOpenAction ? resolvedUrl : itemDownloadHref(item, resolvedUrl, !!resolveHref);
 
   function deleteAndClose(itemId: string) {
     onDelete?.(itemId);
@@ -95,7 +102,10 @@ function PreviewSheetBody({
       <div className="flex shrink-0 items-center gap-2 border-t border-line p-4">
         {resolvedUrl && (
           <Button asChild className="h-12 flex-1 rounded-full text-[15px]">
-            <a href={resolvedUrl} target="_blank" rel="noopener noreferrer" download={!isOpenAction}>
+            <a
+              href={primaryHref ?? undefined}
+              {...(isOpenAction ? { target: "_blank", rel: "noopener noreferrer" } : { download: item.name })}
+            >
               {isOpenAction ? (
                 <ExternalLinkIcon className="size-4" />
               ) : (
@@ -103,6 +113,18 @@ function PreviewSheetBody({
               )}
               {isOpenAction ? "Abrir link" : "Baixar"}
             </a>
+          </Button>
+        )}
+        {isTransferShown && (
+          <Button
+            variant="outline"
+            className="h-12 shrink-0 rounded-full"
+            onClick={() => {
+              onTransfer?.(item);
+              onOpenChange(false);
+            }}
+          >
+            <SendIcon className="size-4" /> Transferir
           </Button>
         )}
         {hasSecondaryActions && (
@@ -124,6 +146,7 @@ function PreviewSheetBody({
                 onDelete={onDelete ? deleteAndClose : undefined}
                 canPublish={canPublish}
                 isPrimaryActionHidden
+                hasCustomResolver={!!resolveHref}
               />
             </DropdownMenuContent>
           </DropdownMenu>

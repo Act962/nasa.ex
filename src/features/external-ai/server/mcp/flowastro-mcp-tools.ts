@@ -10,18 +10,15 @@ import { createAttendanceFlow, setAttendanceFlowActive, setAttendanceFlowNumbers
 import { saveWorkflowGraph } from "@/features/workflows/server/save-workflow-graph";
 import { checkOrganizationAttendanceAccess, type AutomationAction } from "@/features/workflows/server/workflow-access";
 import prisma from "@/lib/prisma";
-import { takeRateLimit } from "@/lib/rate-limit";
 import { FLOWASTRO_SCOPE, type ExternalAiCaller } from "../access-tokens";
-import { asResult, type ToolResult } from "./trafego-mcp-tools";
+import { createScopedToolRunner } from "./tool-runner";
 
 // FlowAstro pelo MCP (spec 0142): a IA da pessoa monta, revisa e liga fluxos com as permissões que ela tem na tela.
 
-const RATE_LIMIT = { max: 300, windowMs: 60 * 60 * 1000 };
 const TAGS_PER_ORGANIZATION = 200;
 const FLOWS_LISTED = 200;
 const FLOW_TEMPLATE_KEYS = FLOW_TEMPLATES.map((template) => template.key) as [(typeof FLOW_TEMPLATES)[number]["key"], ...(typeof FLOW_TEMPLATES)[number]["key"][]];
 
-const asError = (message: string): ToolResult => ({ content: [{ type: "text", text: message }], isError: true });
 
 /** Empresas em que a pessoa tem a permissão de Automações do Tracking (a da tela). Na chave, só as gravadas nela. */
 async function listAttendanceOrganizationIds(userId: string, action: AutomationAction, keyOrganizationIds?: string[]): Promise<string[]> {
@@ -104,18 +101,7 @@ async function saveBlocks(caller: ExternalAiCaller, flowId: string, blocks: McpB
   return { version: saved.version, warnings };
 }
 
-async function runFlowTool(caller: ExternalAiCaller, work: () => Promise<unknown>): Promise<ToolResult> {
-  try {
-    if (!caller.scopes.includes(FLOWASTRO_SCOPE)) {
-      return asError("Esta chave não tem acesso ao FlowAstro. Gere uma chave nova em Satélites › IA externa ou conecte pelo OAuth.");
-    }
-    const limit = takeRateLimit("mcp-flowastro", `${caller.userId}:${caller.tokenId}`, RATE_LIMIT);
-    if (!limit.allowed) return asError(`Muitas chamadas seguidas. Tente de novo em ${Math.ceil(limit.retryAfterSeconds / 60)} min.`);
-    return asResult(await work());
-  } catch (error) {
-    return asError(error instanceof Error ? error.message : "Erro inesperado.");
-  }
-}
+const runFlowTool = createScopedToolRunner({ scope: FLOWASTRO_SCOPE, appName: "ao FlowAstro", rateLimitKey: "mcp-flowastro" });
 
 const blockSchema = z.object({
   id: z.string().describe("Apelido do bloco, único no fluxo (letras, números, _ e -)"),

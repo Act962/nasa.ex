@@ -129,6 +129,8 @@ model User {
 
   metaAccountAccess MemberMetaAccountAccess[]
 
+  memberAppPermissions MemberAppPermission[]
+
   // Meta Ads MCP — autorização do user pra usar Astro IA Meta Ads
   metaMcpAuthorizationsAuthorized MetaMcpAuthorization[] @relation("McpAuthorizedUser")
   metaMcpAuthorizationsGranted    MetaMcpAuthorization[] @relation("McpAuthorizedBy")
@@ -358,6 +360,7 @@ model Organization {
   brandKitAssets         BrandKitAsset[]
   brandKits              BrandKit[]
   orgPermissions         OrgPermission[]
+  memberAppPermissions   MemberAppPermission[]
   activityLogs           OrgActivityLog[]
   systemActivityLogs     SystemActivityLog[]
   userPresences          UserPresence[]
@@ -3845,11 +3848,18 @@ enum LoyaltyLuckyNumberStatus {
   VOIDED
 }
 
+/// Sorteio (padrão, specs 0102/0134) ou pontos (spec 0135): no modo pontos o cliente só vê ⭐ e prêmios.
+enum LoyaltyCampaignMode {
+  RAFFLE
+  POINTS
+}
+
 model LoyaltyCampaign {
   id                    String    @id @default(cuid())
   organizationId        String    @map("organization_id")
   trackingId            String?   @map("tracking_id")
   name                  String
+  mode                  LoyaltyCampaignMode @default(RAFFLE)
   isActive              Boolean   @default(false) @map("is_active")
   startsAt              DateTime  @map("starts_at")
   endsAt                DateTime  @map("ends_at")
@@ -3860,6 +3870,7 @@ model LoyaltyCampaign {
   rulesVersion          String    @map("rules_version")
   maxReceiptsPerDay     Int       @default(5) @map("max_receipts_per_day")
   prizeCount            Int       @default(1) @map("prize_count")
+  prizeNames            String[]  @default([]) @map("prize_names")
   lastSweepAt           DateTime? @map("last_sweep_at")
   drawnAt               DateTime? @map("drawn_at")
   drawSeed              String?   @map("draw_seed")
@@ -3979,6 +3990,9 @@ model LoyaltyCampaignDraw {
   revokedAt     DateTime? @map("revoked_at")
   revokedByName String?   @map("revoked_by_name")
   revokeReason  String?   @map("revoke_reason")
+  notifiedAt      DateTime? @map("notified_at")
+  notifyMessageId String?   @map("notify_message_id")
+  notifyError     String?   @map("notify_error")
 
   campaign    LoyaltyCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   luckyNumber LoyaltyLuckyNumber? @relation(fields: [luckyNumberId], references: [id], onDelete: SetNull)
@@ -4127,6 +4141,14 @@ model Widget {
 // FORGE — Propostas & Contratos
 // ─────────────────────────────────────────────
 
+enum ForgePaymentMethod {
+  PIX
+  DINHEIRO
+  DEBITO
+  CREDITO
+  BOLETO
+}
+
 enum ForgeProposalStatus {
   RASCUNHO
   ENVIADA
@@ -4206,6 +4228,11 @@ model ForgeProposal {
   discountType              ForgeDiscountType?   @map("discount_type")
   paymentLink               String?              @map("payment_link")
   paymentGateway            ForgePaymentGateway? @map("payment_gateway")
+  /// Como o cliente pagou e em quantas vezes (spec 0148): aparece no recibo.
+  paymentMethod             ForgePaymentMethod?  @map("payment_method")
+  installments              Int?
+  /// Quando a proposta virou PAGA (spec 0148): data do recibo e vendas do mês.
+  paidAt                    DateTime?            @map("paid_at")
   publicToken               String               @unique @default(cuid()) @map("public_token")
   headerConfig              Json                 @default("{}") @map("header_config")
   /// Imposto embutido no preço, estruturado (spec 0051): alíquota, base, fonte.
@@ -4231,6 +4258,7 @@ model ForgeProposal {
 
   @@unique([organizationId, number])
   @@index([organizationId])
+  @@index([organizationId, paidAt])
   @@index([clientId])
   @@index([status])
   @@map("forge_proposals")
@@ -4315,6 +4343,15 @@ model ForgeSettings {
   proposalBgColor       String             @default("#ffffff") @map("proposal_bg_color")
   proposalBgImage       String?            @map("proposal_bg_image")
   typographyColor       String             @default("#111111") @map("typography_color")
+  /// Visual da proposta pública (spec 0150): modelo pronto, cores da marca, ordem das seções.
+  proposalTemplate      String             @default("modern") @map("proposal_template")
+  brandColor            String?            @map("brand_color")
+  accentColor           String?            @map("accent_color")
+  /// Lista ordenada [{ id, enabled }] das seções da proposta. Configuração livre da empresa, nunca filtrada.
+  proposalSections      Json?              @map("proposal_sections")
+  /// Formas de pagamento aceitas [{ method, installments?, note? }], só para exibir na proposta.
+  paymentMethods        Json?              @map("payment_methods")
+  commercialTerms       String?            @map("commercial_terms")
   securityLevel         ForgeSecurityLevel @default(PUBLICO) @map("security_level")
   reminderDaysBefore    Int                @default(3) @map("reminder_days_before")
   paymentGatewayConfigs Json               @default("{}") @map("payment_gateway_configs")
@@ -4842,6 +4879,14 @@ model NBoxFolder {
   systemKey      String?  @map("system_key")
   /// Pasta restrita: só quem é ADMIN/OWNER do financeiro vê (spec 0051).
   isRestricted   Boolean  @default(false) @map("is_restricted")
+  /// Transferência com prazo (spec 0148): pasta fora da árvore que some depois desta data.
+  expiresAt      DateTime? @map("expires_at")
+  /// Token do link público da transferência (`/t/<token>`).
+  shareToken     String?   @unique @map("share_token")
+  /// Link para cliente sem conta enviar arquivos para esta pasta (`/enviar/<token>`, spec 0149).
+  uploadToken     String?   @unique @map("upload_token")
+  /// Até quando o link de envio aceita arquivos. A pasta e os arquivos ficam depois disso.
+  uploadExpiresAt DateTime? @map("upload_expires_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parent       NBoxFolder?  @relation("FolderChildren", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -4852,6 +4897,7 @@ model NBoxFolder {
   @@unique([organizationId, systemKey])
   @@index([organizationId])
   @@index([parentId])
+  @@index([expiresAt])
   @@map("nbox_folders")
 }
 
@@ -4863,7 +4909,8 @@ model NBoxItem {
   name            String
   url             String?
   mimeType        String?      @map("mime_type")
-  size            Int?
+  /// Bytes. BigInt porque o arquivo pode passar de 2 GB (spec 0148).
+  size            BigInt?
   description     String?
   tags            String[]
   forgeContractId String?      @map("forge_contract_id")
@@ -4880,7 +4927,11 @@ model NBoxItem {
   isPublic    Boolean @default(false) @map("is_public")
   publicToken String? @unique @map("public_token")
 
+  /// Hash do código do navegador que enviou pelo link de envio (spec 0149). Nulo = enviado pela equipe.
+  uploaderTokenHash String? @map("uploader_token_hash")
+
   @@index([organizationId])
+  @@index([folderId, uploaderTokenHash])
   @@index([folderId])
   @@index([organizationId, isPublic])
   @@map("nbox_items")
@@ -5692,6 +5743,29 @@ model OrgPermission {
   @@unique([organizationId, role, appKey])
   @@index([organizationId])
   @@map("org_permission")
+}
+
+// Exceção de permissão para UM usuário numa org (spec 0152): vence a de `OrgPermission` (papel).
+// Linha ausente = segue o papel. O Master (owner) nunca tem exceção.
+model MemberAppPermission {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appKey         String       @map("app_key")
+  canView        Boolean      @map("can_view")
+  canCreate      Boolean      @map("can_create")
+  canEdit        Boolean      @map("can_edit")
+  canDelete      Boolean      @map("can_delete")
+  canApprove     Boolean      @default(false) @map("can_approve")
+  canPay         Boolean      @default(false) @map("can_pay")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@unique([organizationId, userId, appKey])
+  @@index([organizationId, userId])
+  @@map("member_app_permission")
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
@@ -7749,6 +7823,10 @@ model LinnkerLink {
   emoji        String?
   imageUrl     String?         @map("image_url")
   displayStyle String          @default("button") @map("display_style")
+  /// Card com imagem: escreve o título sobre a imagem, com a faixa escura embaixo.
+  showTitle    Boolean         @default(true) @map("show_title")
+  /// Sombra do card ou do botão na página pública.
+  hasShadow    Boolean         @default(true) @map("has_shadow")
   color        String?
   position     Int             @default(0)
   isActive     Boolean         @default(true) @map("is_active")

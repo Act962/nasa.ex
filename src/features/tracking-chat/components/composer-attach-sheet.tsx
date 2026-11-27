@@ -19,6 +19,8 @@ export interface ComposerAttachItem {
   /** Cor do ícone dentro do círculo (token do tema). */
   iconClassName: string;
   onSelect?: () => void;
+  /** Âncora `data-guide` do guia do Astro (Regra 21). */
+  guideAnchor?: string;
   /** Item que abre o seletor de arquivo em vez de uma ação. */
   upload?: {
     fileTypeAccepted: "image" | "outros";
@@ -95,6 +97,7 @@ export function ComposerAttachSheet({
                   onOpenChange(false);
                 }}
                 className="flex flex-col items-center gap-2"
+                data-guide={item.guideAnchor}
               >
                 {tile}
               </button>

@@ -28,6 +28,7 @@ export const getLead = base
           name: true,
           nickname: true,
           publicToken: true,
+          document: true,
           addressZipCode: true,
           addressStreet: true,
           addressNumber: true,

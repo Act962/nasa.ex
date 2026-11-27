@@ -3,6 +3,78 @@ import { GUIDE_RESULT_KINDS } from "../result-kinds";
 
 export const FORGE_GUIDES: GuideDef[] = [
   {
+    key: "forge.proposal-look",
+    app: "forge",
+    title: "Personalizar o visual da proposta",
+    summary: "Escolha o modelo, as cores da empresa, a ordem das seções e as formas de pagamento da proposta.",
+    topicPattern: /\b(visual|cor\w*|modelo|layout|aparencia|personaliz\w*|design)\b.*\bpropostas?\b|\bpropostas?\b.*\b(visual|cor\w*|modelo|layout|aparencia|personaliz\w*)\b/,
+    steps: [
+      {
+        anchor: "forgeSettingsButton",
+        route: "/forge",
+        title: "Abra as configurações do Forge",
+        message: "Toque na engrenagem no canto da tela.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "forgeProposalLookOpen",
+        title: "Clique em Personalizar visual",
+        message: "Abre a janela com o modelo, as cores e as seções, com a prévia ao lado.",
+        position: "top",
+        advanceOn: "click",
+      },
+      {
+        anchor: "forgeProposalLookSave",
+        title: "Ajuste e salve",
+        message: "Escolha o modelo e as cores, arraste as seções e clique em Salvar visual. Toda proposta passa a sair assim.",
+        position: "top",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.proposalLookSaved,
+      },
+    ],
+    finish: {
+      title: "Visual salvo! 🎨",
+      message: "Abra qualquer proposta para ver como o cliente recebe.",
+    },
+  },
+  {
+    key: "forge.register-sale",
+    app: "forge",
+    title: "Registrar uma venda e entregar o recibo",
+    summary: "Digite o WhatsApp do cliente, os produtos e o pagamento: a venda fica registrada e o recibo sai pronto.",
+    topicPattern: /\b(registr\w*|lanc\w*|anot\w*)\b.*\bvendas?\b|\b(recibos?)\b/,
+    steps: [
+      {
+        anchor: "forgeProposalsTab",
+        route: "/forge",
+        title: "Abra a aba Propostas",
+        message: "As vendas registradas aparecem aqui como propostas pagas.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "forgeRegisterSaleButton",
+        title: "Clique em Registrar venda",
+        message: "Digite o WhatsApp do cliente: se ele já conversou com a empresa, o nome aparece sozinho.",
+        position: "bottom",
+        advanceOn: "click",
+      },
+      {
+        anchor: "forgeRegisterSaleSubmit",
+        title: "Clique em Gerar recibo",
+        message: "Escolha os produtos e a forma de pagamento antes. O recibo sai pronto para mandar no WhatsApp.",
+        position: "top",
+        advanceOn: "result",
+        resultKind: GUIDE_RESULT_KINDS.saleRegistered,
+      },
+    ],
+    finish: {
+      title: "Venda registrada! 🧾",
+      message: "Toque em \"Enviar recibo no WhatsApp\" para mandar ao cliente.",
+    },
+  },
+  {
     key: "forge.share-proposal",
     app: "forge",
     title: "Enviar a proposta ao cliente",

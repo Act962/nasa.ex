@@ -32,6 +32,10 @@ export const ALL_APPS: AppPermissionDefinition[] = [
   // Comunicação
   { key: "chat",                  label: "Chat / Atendimento",      icon: "💬" },
   { key: "linnker",               label: "Linnker",                 icon: "🔗" },
+  { key: "campanhas",             label: "Campanhas",               icon: "📣" },
+  { key: "flowastro",             label: "FlowAstro",               icon: "🔀" },
+  { key: "astro-chat",            label: "Astro Chat (site)",       icon: "🗨️" },
+  { key: "trafego",               label: "trafeGO",                 icon: "📈" },
   // Propostas & Contratos
   { key: "forge",                 label: "Forge / Propostas",       icon: "📄" },
   { key: "forge-contracts",       label: "Contratos",               icon: "✍️" },

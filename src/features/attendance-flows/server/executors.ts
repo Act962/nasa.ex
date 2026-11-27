@@ -84,7 +84,7 @@ export function waitingStateOf<TState>(nodeId: string, context: WorkflowContext)
 }
 
 /** Variáveis que o próprio fluxo criou (Pergunta, Agente de IA, Distribuir); as internas do motor ficam de fora. */
-const ENGINE_VARIABLE = /^(last[A-Z]|__)|^generatedTextHistory$/;
+export const ENGINE_VARIABLE = /^(last[A-Z]|__)|^generatedTextHistory$/;
 
 function flowVariablesOf(context: WorkflowContext): Record<string, string> {
   return Object.fromEntries(

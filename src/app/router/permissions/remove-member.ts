@@ -26,8 +26,11 @@ export const removeMember = base
     });
     if (!target) throw new ORPCError("NOT_FOUND", { message: "Membro não encontrado" });
 
-    // Cannot remove yourself if only owner
-    if (target.userId === context.user.id && target.role === "owner") {
+    if (target.role === "owner" && currentMember.role !== "owner") {
+      throw new ORPCError("FORBIDDEN", { message: "Apenas o Master pode remover um Master" });
+    }
+
+    if (target.role === "owner") {
       const ownerCount = await prisma.member.count({ where: { organizationId: orgId, role: "owner" } });
       if (ownerCount <= 1) throw new ORPCError("BAD_REQUEST", { message: "Não é possível remover o único Master" });
     }
@@ -43,6 +46,8 @@ export const removeMember = base
     }
 
     await prisma.member.delete({ where: { id: input.memberId } });
+    // Exceções de permissão da pessoa nesta empresa saem junto (spec 0152, RF-7).
+    await prisma.memberAppPermission.deleteMany({ where: { organizationId: orgId, userId: target.userId } });
 
     await prisma.orgActivityLog.create({
       data: {

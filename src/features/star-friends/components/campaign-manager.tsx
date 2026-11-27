@@ -6,6 +6,7 @@ import { OrbitaSpinner } from "@/components/orbita-spinner";
 import { formatCents } from "../utils/campaign";
 import { useExportStarFriendsCampaignNumbers, useStarFriendsCampaign } from "../hooks/use-star-friends-campaign";
 import { CampaignDrawPanel } from "./campaign-draw-panel";
+import { CampaignPointsPanel } from "./campaign-points-panel";
 import { CampaignForm } from "./campaign-form";
 import { CampaignReceipts } from "./campaign-receipts";
 import { CampaignManualReceiptDialog } from "./campaign-manual-receipt-dialog";
@@ -60,25 +61,34 @@ export function CampaignManager({ canEdit, canApprove }: { canEdit: boolean; can
     });
 
   const hasDrawStarted = (campaignQuery.data?.draws ?? []).some((draw) => !draw.revokedAt);
+  const isPoints = campaign?.mode === "POINTS";
 
   return (
     <div className="flex flex-col gap-5">
       {campaign && stats && (
         <>
-          <CampaignDrawPanel
-            campaign={campaign}
-            stats={stats}
-            draws={draws}
-            legacyWinners={winners}
-            canEdit={canEdit}
-            canApprove={canApprove}
-            isExporting={exportNumbers.isPending}
-            onExport={() => handleExport(campaign.id)}
-          />
+          {isPoints ? (
+            <CampaignPointsPanel campaign={campaign} stats={stats} canApprove={canApprove} />
+          ) : (
+            <CampaignDrawPanel
+              campaign={campaign}
+              stats={stats}
+              draws={draws}
+              legacyWinners={winners}
+              canEdit={canEdit}
+              canApprove={canApprove}
+              isExporting={exportNumbers.isPending}
+              onExport={() => handleExport(campaign.id)}
+            />
+          )}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <StatTile label="Participantes" value={String(stats.participants)} />
             <StatTile label="Cupons aceitos" value={String(stats.acceptedReceipts)} hint={formatCents(stats.acceptedTotalCents)} />
-            <StatTile label="Números válidos" value={String(stats.validNumbers)} hint={stats.voidedNumbers > 0 ? `${stats.voidedNumbers} anulados` : undefined} />
+            <StatTile
+              label={isPoints ? "⭐ geradas" : "Números válidos"}
+              value={String(stats.validNumbers)}
+              hint={stats.voidedNumbers > 0 ? `${stats.voidedNumbers} ${isPoints ? "estornadas ou anuladas" : "anulados"}` : undefined}
+            />
             <StatTile
               label={stats.pendingReceipts > 0 ? "Em conferência" : "Com alerta"}
               value={String(stats.pendingReceipts > 0 ? stats.pendingReceipts : stats.flaggedReceipts)}
@@ -109,10 +119,10 @@ export function CampaignManager({ canEdit, canApprove }: { canEdit: boolean; can
       )}
       {canEdit && !campaign?.drawnAt && !hasDrawStarted && (
         <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold">{campaign ? "Configuração da campanha" : "Criar campanha de sorteio"}</h2>
+          <h2 className="text-sm font-semibold">{campaign ? "Configuração da campanha" : "Criar campanha por cupom"}</h2>
           {!campaign && (
             <p className="text-sm text-muted-foreground">
-              O cliente manda a foto do cupom pelo WhatsApp e ganha números da sorte. Cupom repetido é barrado, e uma varredura antes do sorteio anula o que passou.
+              O cliente manda a foto do cupom pelo WhatsApp e ganha números da sorte (sorteio) ou ⭐ para trocar por prêmios (pontos). Cupom repetido é barrado, e a varredura anula o que passou.
             </p>
           )}
           <CampaignForm campaign={campaign} trackings={trackings} />
