@@ -84,10 +84,24 @@ const numberOptions = orgProcedure.handler(async ({ context, errors }) => {
   assertAccess(await checkOrganizationAttendanceAccess(context.org.id, context.user.id, "canView"), "canView", errors);
   const trackings = await prisma.tracking.findMany({
     where: { organizationId: context.org.id },
-    select: { id: true, name: true, status: { select: { id: true, name: true }, orderBy: { order: "asc" } } },
+    select: {
+      id: true,
+      name: true,
+      status: { select: { id: true, name: true }, orderBy: { order: "asc" } },
+      whatsappInstance: { select: { provider: true, metaBusinessAccountId: true } },
+    },
     orderBy: { name: "asc" },
   });
-  return { numbers: trackings.map((tracking) => ({ trackingId: tracking.id, name: tracking.name, columns: tracking.status })) };
+  return {
+    numbers: trackings.map((tracking) => ({
+      trackingId: tracking.id,
+      name: tracking.name,
+      columns: tracking.status,
+      // Template fora da janela de 24h só existe na API oficial, e é da conta da Meta (spec 0144, D-2).
+      isOfficial: tracking.whatsappInstance?.provider === "META_CLOUD",
+      wabaId: tracking.whatsappInstance?.provider === "META_CLOUD" ? (tracking.whatsappInstance.metaBusinessAccountId ?? null) : null,
+    })),
+  };
 });
 
 /** Agendas, formulários, Workspaces e documentos da empresa que o bloco Agente de IA pode liberar (spec 0139, D-14). */

@@ -22,7 +22,7 @@ function hasNonEmptyString(v: unknown): boolean {
   return typeof v === "string" && v.trim().length > 0;
 }
 
-function findTemplateProblems(
+export function findTemplateProblems(
   template: Record<string, unknown>,
   templateLabel: string,
 ): string[] {

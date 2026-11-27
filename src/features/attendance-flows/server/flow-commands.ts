@@ -5,6 +5,7 @@ import { PLACEHOLDER_PROBLEM, hasPlaceholderText } from "@/features/workflows/li
 import prisma from "@/lib/prisma";
 import { buildFlowTemplate, type FlowTemplateKey } from "../lib/flow-templates";
 import { LINK_BUTTON_TYPE, linkButtonUrlProblem } from "../lib/interactive-message";
+import { findTemplateProblems } from "@/features/workflows/lib/validate-node";
 import { findAttendanceEntryConflict } from "./entry-guard";
 import { endAllRunsOfFlow } from "./lock";
 
@@ -13,6 +14,15 @@ import { endAllRunsOfFlow } from "./lock";
 function isSavedMenuStep(nodeData: unknown): boolean {
   const payload = (nodeData as { action?: { payload?: { mode?: unknown } } } | null)?.action?.payload;
   return payload?.mode === "preset";
+}
+
+/** Template incompleto, como envio fixo ou como reserva fora da janela de 24h (spec 0144, RF-6). */
+function templateProblemOf(nodeData: unknown): string | null {
+  const action = (nodeData as { action?: { payload?: Record<string, unknown>; fallbackTemplate?: unknown } } | null)?.action;
+  if (action?.payload?.type === "TEMPLATE") return findTemplateProblems(action.payload, "template")[0] ?? null;
+  const fallback = action?.fallbackTemplate;
+  if (fallback && typeof fallback === "object") return findTemplateProblems(fallback as Record<string, unknown>, "template reserva")[0] ?? null;
+  return null;
 }
 
 /** Botão de link com endereço inválido ou com variável no domínio (spec 0143, CA-6 e D-3). */
@@ -113,6 +123,8 @@ export async function setAttendanceFlowActive(params: { workflowId: string; isAc
     }
     const linkProblem = flow.nodes.map((node) => linkButtonProblemOf(node.data)).find(Boolean);
     if (linkProblem) throw new FlowCommandError(`Botão de link: ${linkProblem}`);
+    const templateProblem = flow.nodes.map((node) => templateProblemOf(node.data)).find(Boolean);
+    if (templateProblem) throw new FlowCommandError(`Bloco de mensagem: ${templateProblem}.`);
   }
   await prisma.workflow.update({ where: { id: flow.id }, data: { isActive: params.isActive } });
   if (!params.isActive) await endAllRunsOfFlow(flow.id);

@@ -10,6 +10,7 @@ import { createAttendanceFlow, setAttendanceFlowActive, setAttendanceFlowNumbers
 import { saveWorkflowGraph } from "@/features/workflows/server/save-workflow-graph";
 import { checkOrganizationAttendanceAccess, type AutomationAction } from "@/features/workflows/server/workflow-access";
 import prisma from "@/lib/prisma";
+import { loadApprovedTemplates, TemplateListError } from "@/app/router/integrations/list-whatsapp-templates";
 import { FLOWASTRO_SCOPE, type ExternalAiCaller } from "../access-tokens";
 import { createScopedToolRunner } from "./tool-runner";
 
@@ -125,7 +126,15 @@ export function registerFlowAstroMcpTools(server: McpServer, caller: ExternalAiC
           select: {
             id: true,
             name: true,
-            trackings: { select: { id: true, name: true, status: { select: { id: true, name: true }, orderBy: { order: "asc" } } }, orderBy: { name: "asc" } },
+            trackings: {
+              select: {
+                id: true,
+                name: true,
+                status: { select: { id: true, name: true }, orderBy: { order: "asc" } },
+                whatsappInstance: { select: { provider: true } },
+              },
+              orderBy: { name: "asc" },
+            },
           },
         });
         // Uma consulta por empresa: o limite vale para cada uma, sem uma empresa com muitas etiquetas esconder as outras.
@@ -143,9 +152,40 @@ export function registerFlowAstroMcpTools(server: McpServer, caller: ExternalAiC
         return organizations.map((organization) => ({
           organizationId: organization.id,
           name: organization.name,
-          numbers: organization.trackings.map((tracking) => ({ trackingId: tracking.id, name: tracking.name, columns: tracking.status })),
+          numbers: organization.trackings.map((tracking) => ({
+            trackingId: tracking.id,
+            name: tracking.name,
+            columns: tracking.status,
+            // API oficial: tem janela de 24h e template (flowastro_list_templates).
+            isOfficial: tracking.whatsappInstance?.provider === "META_CLOUD",
+          })),
           tags: tagsByOrganization.get(organization.id) ?? [],
         }));
+      }),
+  );
+
+  server.registerTool(
+    "flowastro_list_templates",
+    {
+      description:
+        "Templates aprovados pela Meta de um número oficial (trackingId de flowastro_list_numbers com isOfficial). Use no fallbackTemplate do bloco de mensagem, ou no tipo TEMPLATE. Só os que têm sendable true podem ser usados.",
+      inputSchema: { trackingId: z.string() },
+    },
+    ({ trackingId }) =>
+      runFlowTool(caller, async () => {
+        const tracking = await prisma.tracking.findUnique({ where: { id: trackingId }, select: { organizationId: true } });
+        if (!tracking) throw new Error("Número não encontrado.");
+        await assertOrganization(caller, tracking.organizationId, "canView");
+        try {
+          const templates = await loadApprovedTemplates({ trackingId, organizationId: tracking.organizationId });
+          return templates.map((template) => ({
+            ...template,
+            usage: "headerParameters com headerVariableCount itens e bodyParameters com bodyVariableCount itens, na ordem {{1}}, {{2}}...",
+          }));
+        } catch (error) {
+          if (error instanceof TemplateListError) throw new Error(error.message);
+          throw error;
+        }
       }),
   );
 
