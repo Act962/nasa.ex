@@ -66,7 +66,7 @@ export function NavTracking() {
 
   return (
     <>
-      <div className="sticky top-0 bg-background z-10 flex justify-between items-center px-4 py-2 gap-2">
+      <div className="sticky top-0 bg-background z-10 flex flex-wrap justify-between items-center px-4 py-2 gap-2">
         <div className="flex items-center gap-x-2">
           <SidebarTrigger />
 
@@ -78,7 +78,7 @@ export function NavTracking() {
           </InputGroup>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           {!isPending && data?.participants && data.participants.length > 0 && (
             <div className="flex items-center gap-0.5">
               <div className="*:data-[slot=avatar]:ring-background flex -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:grayscale">

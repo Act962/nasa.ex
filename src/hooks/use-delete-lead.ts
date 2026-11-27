@@ -1,21 +1,22 @@
 import { create } from "zustand";
 
-type leadsDeletModal = {
+export type LeadToDelete = {
   id: string;
   name: string;
-  trackingId: string;
-} | null;
+};
 
-type deletLeadType = {
-  lead: leadsDeletModal;
+type DeleteLeadStore = {
+  leads: LeadToDelete[];
   isOpen: boolean;
-  onOpen: (idLead: leadsDeletModal) => void;
+  onDone?: () => void;
+  onOpen: (leads: LeadToDelete[], onDone?: () => void) => void;
   onClose: () => void;
 };
 
-export const useDeletLead = create<deletLeadType>((set) => ({
-  lead: null,
+export const useDeletLead = create<DeleteLeadStore>((set) => ({
+  leads: [],
   isOpen: false,
-  onOpen: (idLead: leadsDeletModal) => set({ lead: idLead, isOpen: true }),
-  onClose: () => set({ isOpen: false, lead: null }),
+  onDone: undefined,
+  onOpen: (leads, onDone) => set({ leads, isOpen: true, onDone }),
+  onClose: () => set({ isOpen: false, leads: [], onDone: undefined }),
 }));

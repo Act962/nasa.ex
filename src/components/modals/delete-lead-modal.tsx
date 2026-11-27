@@ -15,47 +15,66 @@ import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
+import { client, orpc } from "@/lib/orpc";
 import { toast } from "sonner";
+import { ConfirmationPhrase } from "../confirmation-phrase";
+
+function toShortName(name: string) {
+  return name.trim().split(/\s+/).slice(0, 2).join(" ");
+}
 
 export function DeletarLeadModal() {
   const queryClient = useQueryClient();
-  const { lead, onClose, isOpen } = useDeletLead();
-  const leadName = lead?.name.split(" ").slice(0, 2).join(" ");
-  const [leadConfimed, setLeadConfirmed] = useState("");
+  const { leads, onClose, onDone, isOpen } = useDeletLead();
+  const [typedConfirmation, setTypedConfirmation] = useState("");
 
-  const mutation = useMutation(
-    orpc.leads.archive.mutationOptions({
-      onSuccess: ({ lead }) => {
-        queryClient.invalidateQueries({
-          queryKey: orpc.status.getMany.queryKey({
-            input: {
-              trackingId: lead.trackingId,
-            },
-          }),
-        });
-        queryClient.invalidateQueries({
-          queryKey: ["leads.listLeadsByStatus", lead.trackingId, lead.statusId],
-        });
-        toast.success("Lead deletado!");
-        onClose();
-      },
-      onError: () => {
+  const isSingleLead = leads.length === 1;
+  const leadName = isSingleLead ? toShortName(leads[0].name) : "";
+  const confirmationPhrase = isSingleLead
+    ? `Deletar ${leadName}`
+    : `Deletar ${leads.length} leads`;
+  const isConfirmed = typedConfirmation.trim() === confirmationPhrase;
+
+  const mutation = useMutation({
+    mutationFn: async (leadIds: string[]) => {
+      const results = await Promise.allSettled(
+        leadIds.map((leadId) => client.leads.archive({ leadId })),
+      );
+      const failedCount = results.filter(
+        (result) => result.status === "rejected",
+      ).length;
+      return { failedCount, total: leadIds.length };
+    },
+    onSuccess: ({ failedCount, total }) => {
+      // A coluna do board usa uma queryKey manual; o prefixo cobre todas.
+      queryClient.invalidateQueries({ queryKey: ["leads.listLeadsByStatus"] });
+      queryClient.invalidateQueries({ queryKey: orpc.status.getMany.key() });
+
+      if (failedCount === total) {
         toast.error("Erro ao deletar lead!");
-      },
-    }),
-  );
+        return;
+      }
+      if (failedCount > 0) {
+        toast.warning(`${total - failedCount} de ${total} leads deletados.`);
+      } else {
+        toast.success(isSingleLead ? "Lead deletado!" : "Leads deletados!");
+      }
+      onDone?.();
+      onClose();
+    },
+    onError: () => {
+      toast.error("Erro ao deletar lead!");
+    },
+  });
 
   function onDelete() {
-    if (!lead?.id) return;
-
-    mutation.mutate({
-      leadId: lead.id,
-    });
+    if (leads.length === 0 || !isConfirmed) return;
+    mutation.mutate(leads.map((lead) => lead.id));
   }
+
   useEffect(() => {
     if (!isOpen) {
-      setLeadConfirmed("");
+      setTypedConfirmation("");
     }
   }, [isOpen]);
 
@@ -63,32 +82,52 @@ export function DeletarLeadModal() {
     <Dialog onOpenChange={onClose} open={isOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Deletar lead</DialogTitle>
+          <DialogTitle>
+            {isSingleLead ? "Deletar lead" : "Deletar leads"}
+          </DialogTitle>
           <DialogDescription>
-            Deseja realmente deletar o lead <strong>{leadName}</strong>? Essa
-            ação não pode ser desfeita
+            {isSingleLead ? (
+              <>
+                Deseja realmente deletar o lead <strong>{leadName}</strong>?
+              </>
+            ) : (
+              <>
+                Deseja realmente deletar os <strong>{leads.length}</strong>{" "}
+                leads selecionados?
+              </>
+            )}{" "}
+            Eles vão para os Deletados.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2">
-          <Label htmlFor="nameLead">
-            Confirme digitando a palavra "Confirmar"
+        <form
+          className="space-y-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onDelete();
+          }}
+        >
+          <Label htmlFor="deleteLeadConfirmation" className="flex-wrap">
+            Para confirmar, digite
+            <ConfirmationPhrase phrase={confirmationPhrase} />
           </Label>
           <Input
-            onChange={(e) => setLeadConfirmed(e.target.value)}
-            id={"nameLead"}
+            value={typedConfirmation}
+            onChange={(event) => setTypedConfirmation(event.target.value)}
+            id="deleteLeadConfirmation"
+            placeholder="Digite ou cole o texto acima"
             autoComplete="off"
           />
-        </div>
+        </form>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant={"outline"}>Cancelar</Button>
+            <Button variant="outline">Cancelar</Button>
           </DialogClose>
           <Button
             onClick={onDelete}
-            variant={"destructive"}
-            disabled={!(leadConfimed == "Confirmar")}
+            variant="destructive"
+            disabled={!isConfirmed || mutation.isPending}
           >
-            Deletar
+            {mutation.isPending ? "Deletando..." : "Deletar"}
           </Button>
         </DialogFooter>
       </DialogContent>
