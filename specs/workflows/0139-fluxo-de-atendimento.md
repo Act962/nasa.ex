@@ -303,3 +303,4 @@ viram script em `scripts/` (como `accounting-qa-check.ts`) até o runner existir
 | 2026-11-13 | João Gabriel | Revisão de código: espera relê a caixa depois de 1 minuto e usa sempre a resposta mais antiga (D-13); lead esperando num bloco apagado sai do fluxo ao salvar; salvar não troca quem assina a IA do bloco (D-14); bloco Início em conflito volta ao que era e o resto do desenho é salvo (RF-5); desligar o fluxo encerra os leads em lote; lista com teto de 500 fluxos. |
 | 2026-11-13 | João Gabriel | Bloco Enviar mensagem ganha a aba Áudio: ver [spec 0141](0141-audio-no-enviar-mensagem.md). |
 | 2026-11-13 | João Gabriel | Fluxos criados e editados pela IA da pessoa, pelo MCP do ÓRBITA: ver [spec 0142](0142-flowastro-pelo-mcp.md). O salvamento do desenho virou `saveWorkflowGraph`. |
+| 2026-11-27 | João Gabriel | Bloco Enviar mensagem ganha botão de link, cabeçalho, rodapé e descrição dos itens da lista: ver [spec 0143](0143-botao-de-link-e-cabecalho.md). |

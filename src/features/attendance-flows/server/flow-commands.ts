@@ -4,6 +4,7 @@ import type { NodeType } from "@/generated/prisma/enums";
 import { PLACEHOLDER_PROBLEM, hasPlaceholderText } from "@/features/workflows/lib/placeholder-text";
 import prisma from "@/lib/prisma";
 import { buildFlowTemplate, type FlowTemplateKey } from "../lib/flow-templates";
+import { LINK_BUTTON_TYPE, linkButtonUrlProblem } from "../lib/interactive-message";
 import { findAttendanceEntryConflict } from "./entry-guard";
 import { endAllRunsOfFlow } from "./lock";
 
@@ -12,6 +13,14 @@ import { endAllRunsOfFlow } from "./lock";
 function isSavedMenuStep(nodeData: unknown): boolean {
   const payload = (nodeData as { action?: { payload?: { mode?: unknown } } } | null)?.action?.payload;
   return payload?.mode === "preset";
+}
+
+/** Botão de link com endereço inválido ou com variável no domínio (spec 0143, CA-6 e D-3). */
+function linkButtonProblemOf(nodeData: unknown): string | null {
+  const payload = (nodeData as { action?: { payload?: { type?: unknown; ctaUrl?: unknown; ctaText?: unknown } } } | null)?.action?.payload;
+  if (payload?.type !== LINK_BUTTON_TYPE) return null;
+  if (typeof payload.ctaText !== "string" || !payload.ctaText.trim()) return "Escreva o texto do botão de link.";
+  return linkButtonUrlProblem(typeof payload.ctaUrl === "string" ? payload.ctaUrl : "");
 }
 
 export class FlowCommandError extends Error {
@@ -102,6 +111,8 @@ export async function setAttendanceFlowActive(params: { workflowId: string; isAc
     if (flow.nodes.some((node) => isSavedMenuStep(node.data))) {
       throw new FlowCommandError("Um bloco de mensagem usa menu salvo do funil. No FlowAstro, monte os botões no próprio bloco.");
     }
+    const linkProblem = flow.nodes.map((node) => linkButtonProblemOf(node.data)).find(Boolean);
+    if (linkProblem) throw new FlowCommandError(`Botão de link: ${linkProblem}`);
   }
   await prisma.workflow.update({ where: { id: flow.id }, data: { isActive: params.isActive } });
   if (!params.isActive) await endAllRunsOfFlow(flow.id);

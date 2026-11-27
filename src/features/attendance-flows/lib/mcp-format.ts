@@ -1,6 +1,7 @@
 // Fluxo do FlowAstro no formato da IA (spec 0142, D-1): blocos com apelido, tipo do catálogo e `next` por saída. O
 // servidor gera ids, posições e ligações do editor, e devolve avisos em linguagem simples para a IA corrigir.
 import { createId } from "@paralleldrive/cuid2";
+import { INTERACTIVE_TEXT_LIMITS, LINK_BUTTON_TYPE } from "./interactive-message";
 import { autoLayoutWorkflow } from "@/features/editor/lib/auto-layout";
 import { OFFICIAL_MENU_LIMITS } from "@/features/workflows/lib/button-reply-flow";
 import { BLOCKS, blockOf, blockOutputs, type BlockKey } from "./block-catalog";
@@ -51,7 +52,7 @@ function asFields(value: unknown): Fields {
 const DATA_GUIDE: Record<BlockKey, string> = {
   start:
     'mode: "WELCOME" (primeira mensagem do contato no número), "KEYWORD" (a mensagem tem uma das keywords), "DEFAULT" (nenhuma outra regra pegou) ou "BROADCAST" (só por disparo). keywords: lista de palavras, só no KEYWORD. matchMode: "CONTAINS" (padrão) ou "EXACT". Um fluxo tem um bloco inicial só.',
-  message: `action.payload.type: "TEXT" (message), "BUTTONS" (message + buttons [{id, text}], menuFormat "BUTTON" até ${OFFICIAL_MENU_LIMITS.maxButtons} botões de ${OFFICIAL_MENU_LIMITS.buttonTitleChars} letras, ou "LIST" até ${OFFICIAL_MENU_LIMITS.maxListRows} itens de ${OFFICIAL_MENU_LIMITS.listRowTitleChars} letras com listButton), "IMAGE" (imageUrl, caption), "VIDEO" (videoUrl, caption; MP4 até 16 MB), "DOCUMENT" (documentUrl, fileName, caption) ou "AUDIO" (audioUrl, fileName; OGG sai como mensagem de voz). Mídia: link https público. replyTimeoutMinutes (opcional, só com botões) cria a saída no_reply. O id de cada botão vira a saída btn:<id>; use ids curtos sem espaço.`,
+  message: `action.payload.type: "TEXT" (message), "BUTTONS" (message + buttons [{id, text}], menuFormat "BUTTON" até ${OFFICIAL_MENU_LIMITS.maxButtons} botões de ${OFFICIAL_MENU_LIMITS.buttonTitleChars} letras, ou "LIST" até ${OFFICIAL_MENU_LIMITS.maxListRows} itens de ${OFFICIAL_MENU_LIMITS.listRowTitleChars} letras com listButton), "IMAGE" (imageUrl, caption), "VIDEO" (videoUrl, caption; MP4 até 16 MB), "DOCUMENT" (documentUrl, fileName, caption) ou "AUDIO" (audioUrl, fileName; OGG sai como mensagem de voz), ou "CTA_URL" (message + ctaText até ${INTERACTIVE_TEXT_LIMITS.linkButtonText} letras + ctaUrl https; botão que abre um site, sem saída por clique; variável {{...}} só depois do domínio). Com BUTTONS ou CTA_URL: header opcional {type: "text", text até ${INTERACTIVE_TEXT_LIMITS.headerText}} ou {type: "image" | "video" | "document", mediaUrl, fileName?} (lista só aceita "text"), footerText opcional até ${INTERACTIVE_TEXT_LIMITS.footer} letras, e na lista cada item aceita description até ${INTERACTIVE_TEXT_LIMITS.rowDescription}. Mídia: link https público. replyTimeoutMinutes (opcional, só com botões) cria a saída no_reply. O id de cada botão vira a saída btn:<id>; use ids curtos sem espaço.`,
   question: `question: o texto da pergunta. answerType: ${ANSWER_TYPES.join(", ")} (FILE = foto ou arquivo). variableName: nome da variável do fluxo que guarda a resposta ({{vars.nome}}). saveToField (opcional): ${LEAD_FIELD_OPTIONS.map((option) => option.key).join(", ")}. maxAttempts 1 a 5. invalidMessage: o que mandar quando a resposta não vale. replyTimeoutMinutes (opcional) cria a saída no_reply.`,
   condition:
     'match: "ALL" ou "ANY". rules: [{id, field, operator, value}]. field: "tag" (is/is_not, value = id da etiqueta), "weekday" (is/is_not, value = lista de dias "0" a "6", 0 = domingo), "time" (between/not_between, value "08:00-18:00"), "responsible" (assigned/not_assigned/is/is_not), "temperature" (is/is_not: COLD, WARM, HOT, VERY_HOT), "column" (is/is_not, value = id da coluna), "lead.<campo>" ou "var.<variável>" (equals, not_equals, contains, not_contains, is_set, is_empty).',
@@ -151,17 +152,21 @@ function normalizeMessageData(data: Fields): Fields {
   const action = asFields(data.action);
   const payload = asFields(action.payload);
   const buttons = Array.isArray(payload.buttons) ? (payload.buttons as unknown[]).map((button) => asFields(button)) : [];
-  const isMenu = payload.type === "BUTTONS" || (payload.type !== "IMAGE" && payload.type !== "DOCUMENT" && payload.type !== "AUDIO" && payload.type !== "VIDEO" && buttons.length > 0);
+  const isMenu = payload.type === "BUTTONS" || (payload.type !== "IMAGE" && payload.type !== "DOCUMENT" && payload.type !== "AUDIO" && payload.type !== "VIDEO" && payload.type !== LINK_BUTTON_TYPE && buttons.length > 0);
   if (!isMenu) {
     const type = typeof payload.type === "string" ? payload.type : "TEXT";
     const message = typeof payload.message === "string" ? payload.message : "";
-    return { ...data, action: { ...action, payload: { ...payload, type, ...(type === "TEXT" ? { message, bodyText: message, buttons: [] } : {}) } } };
+    return {
+      ...data,
+      action: { ...action, payload: { ...payload, type, ...(type === "TEXT" || type === LINK_BUTTON_TYPE ? { message, bodyText: message, buttons: [] } : {}) } },
+    };
   }
   const message = typeof payload.message === "string" ? payload.message : typeof payload.bodyText === "string" ? payload.bodyText : "";
   const menuFormat = payload.menuFormat === "LIST" ? "LIST" : "BUTTON";
   const normalizedButtons = buttons.map((button, index) => ({
     id: typeof button.id === "string" && button.id.trim() ? button.id.trim() : `op${index + 1}`,
     text: typeof button.text === "string" ? button.text : "",
+    ...(typeof button.description === "string" && button.description.trim() ? { description: button.description.trim() } : {}),
   }));
   return {
     ...data,

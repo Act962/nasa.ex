@@ -40,6 +40,12 @@ import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { AGENT_STARS_ACTIONS } from "../agent-stars-actions";
 import { getByPath, interpolate, isAttendanceFlowContext } from "../workflow-context";
 import { resolveReplyDeadline } from "@/features/attendance-flows/lib/nodes";
+import {
+  LINK_BUTTON_TYPE,
+  fillLinkButtonUrl,
+  linkButtonUrlProblem,
+  parseMessageHeader,
+} from "@/features/attendance-flows/lib/interactive-message";
 import { sendLinkToLead } from "@/features/tracking-executions/lib/send-link-to-lead";
 import { sendMessageExecutor as classicSendMessageExecutor } from "@/features/tracking-executions/components/send-message/executor";
 import { sendProposalExecutor as classicSendProposalExecutor } from "@/features/tracking-executions/components/send-proposal/executor";
@@ -501,12 +507,68 @@ export const sendMessageExecutor: NodeExecutor = async ({
     return { output: { error: "lead_not_found" }, status: "FAILED", errorMessage: "Lead not found" };
   }
 
+  // Fora da janela de 24h vai o template reserva, ou o passo para (o mesmo do modo normal).
+  const closedWindowResult = async () => {
+    const fallbackTemplate = toTemplateContent(action.fallbackTemplate, fillText);
+    try {
+      if (await isFreeFormWindowClosedForLead({ leadId, trackingId })) {
+        if (fallbackTemplate) return sendTemplateStep({ leadId, trackingId, template: fallbackTemplate, origin });
+        return { output: { error: WINDOW_CLOSED_MESSAGE }, status: "FAILED" as const, errorMessage: WINDOW_CLOSED_MESSAGE };
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "send_failed";
+      return { output: { error: errorMessage }, status: "FAILED" as const, errorMessage };
+    }
+    return null;
+  };
+  const headerOf = (value: unknown) => {
+    const header = parseMessageHeader(value);
+    return header?.type === "text" ? { ...header, text: fillText(header.text ?? "").trim() } : header;
+  };
+
+  // Botão de link (spec 0143): texto com um botão que abre um site. A Meta não avisa o clique, então segue direto.
+  if (payloadType === LINK_BUTTON_TYPE) {
+    const bodyText = fillText(String(payload.message ?? "")).trim();
+    const linkText = String(payload.ctaText ?? "").trim();
+    const rawUrl = String(payload.ctaUrl ?? "");
+    const footerText = payload.footerText ? fillText(String(payload.footerText)).trim() || undefined : undefined;
+    const header = headerOf(payload.header);
+    const problem = !bodyText ? "Texto da mensagem vazio" : !linkText ? "Texto do botão de link vazio" : linkButtonUrlProblem(rawUrl);
+    if (problem) return { output: { error: problem }, status: "FAILED", errorMessage: problem };
+    if (dryRun) return { output: { dryRun: true, type: LINK_BUTTON_TYPE, preview: bodyText.slice(0, 200), link: rawUrl } };
+
+    const closedWindow = await closedWindowResult();
+    if (closedWindow) return closedWindow;
+    if (hasPlaceholderText({ bodyText, footerText, linkText, header })) {
+      return { output: { error: "placeholder_text" }, status: "FAILED", errorMessage: PLACEHOLDER_NOT_SENT_MESSAGE };
+    }
+    try {
+      const { sendButtonsToLead } = await import("@/features/tracking-executions/lib/send-buttons-to-lead");
+      const result = await sendButtonsToLead({
+        leadId,
+        trackingId,
+        bodyText,
+        footerText,
+        buttons: [],
+        header,
+        cta: { text: linkText, url: fillLinkButtonUrl(rawUrl, fillText) },
+        chargeStars: true,
+        origin,
+        forceOfficialInteractive: isAttendanceFlowContext(context),
+      });
+      return { output: { sent: true, type: LINK_BUTTON_TYPE, messageId: result.messageId, viaInChat: result.viaInChat } };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "send_link_button_failed";
+      return { output: { error: errorMessage }, status: "FAILED", errorMessage };
+    }
+  }
+
   if (payloadType === "BUTTONS") {
     const { sendButtonsToLead } =
       await import("@/features/tracking-executions/lib/send-buttons-to-lead");
     let bodyText = "";
     let footerText: string | undefined;
-    let buttons: Array<{ text: string; id: string; tagId?: string }> = [];
+    let buttons: Array<{ text: string; id: string; tagId?: string; description?: string }> = [];
     let menuFormat: "BUTTON" | "LIST" = "BUTTON";
     let listButton: string | undefined;
 
@@ -564,6 +626,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
               text: typeof b.text === "string" ? b.text : "",
               id: typeof b.id === "string" ? b.id : "",
               tagId: typeof b.tagId === "string" ? b.tagId : undefined,
+              description: typeof b.description === "string" ? b.description : undefined,
             }))
             .filter((b) => b.text && b.id)
         : [];
@@ -571,6 +634,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
 
     bodyText = fillText(bodyText).trim();
     if (footerText) footerText = fillText(footerText);
+    const header = payload.mode === "preset" ? undefined : headerOf(payload.header);
 
     if (!bodyText) {
       return {
@@ -598,18 +662,9 @@ export const sendMessageExecutor: NodeExecutor = async ({
       };
     }
 
-    // Como no modo normal: fora da janela de 24h vai o template reserva, ou o passo para.
-    const fallbackTemplate = toTemplateContent(action.fallbackTemplate, fillText);
-    try {
-      if (await isFreeFormWindowClosedForLead({ leadId, trackingId })) {
-        if (fallbackTemplate) return sendTemplateStep({ leadId, trackingId, template: fallbackTemplate, origin });
-        return { output: { error: WINDOW_CLOSED_MESSAGE }, status: "FAILED", errorMessage: WINDOW_CLOSED_MESSAGE };
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "send_failed";
-      return { output: { error: errorMessage }, status: "FAILED", errorMessage };
-    }
-    if (hasPlaceholderText({ bodyText, footerText, buttons })) {
+    const closedWindow = await closedWindowResult();
+    if (closedWindow) return closedWindow;
+    if (hasPlaceholderText({ bodyText, footerText, buttons, header })) {
       return { output: { error: "placeholder_text" }, status: "FAILED", errorMessage: PLACEHOLDER_NOT_SENT_MESSAGE };
     }
 
@@ -622,6 +677,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
         buttons,
         menuFormat,
         listButton,
+        header,
         chargeStars: true,
         origin,
         forceOfficialInteractive: isAttendanceFlowContext(context),

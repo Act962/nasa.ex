@@ -4,7 +4,8 @@ import type { SendMessageResponse } from "./types";
 
 // Mensagem interativa da Cloud API (spec 0079): até 3 botões de resposta ou uma lista de até
 // 10 linhas. O clique volta no webhook como `interactive.button_reply` / `interactive.list_reply`
-// com o mesmo `id` enviado aqui. Só vale dentro da janela de 24h.
+// com o mesmo `id` enviado aqui. Com `cta`, vira um botão de link (`cta_url`, spec 0143), que não
+// avisa o clique. Só vale dentro da janela de 24h.
 
 const INTERACTIVE_LIMITS = {
   body: 1024,
@@ -16,7 +17,21 @@ const INTERACTIVE_LIMITS = {
   rowTitle: 24,
   rowDescription: 72,
   optionId: 200,
+  headerText: 60,
 } as const;
+
+/** Cabeçalho da mensagem (spec 0143). Lista só aceita texto; mídia vai por link público. */
+export interface InteractiveHeader {
+  type: "text" | "image" | "video" | "document";
+  text?: string;
+  link?: string;
+  fileName?: string;
+}
+
+export interface InteractiveCta {
+  displayText: string;
+  url: string;
+}
 
 export interface InteractiveOption {
   id: string;
@@ -32,6 +47,9 @@ export interface SendInteractiveInput {
   options: InteractiveOption[];
   /** Texto do botão que abre a lista. Ignorado quando as opções cabem em botões. */
   listButtonLabel?: string;
+  header?: InteractiveHeader;
+  /** Botão de link no lugar das opções. */
+  cta?: InteractiveCta;
   replyToWamid?: string;
 }
 
@@ -41,16 +59,35 @@ function shorten(text: string, maxLength: number): string {
   return clean.length <= maxLength ? clean : `${clean.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
+function headerFieldOf(header: InteractiveHeader | undefined, interactiveType: string): Record<string, unknown> {
+  if (!header) return {};
+  if (header.type === "text") {
+    const text = header.text?.trim();
+    return text ? { header: { type: "text", text: shorten(text, INTERACTIVE_LIMITS.headerText) } } : {};
+  }
+  // A lista só aceita cabeçalho de texto: mídia ali faria a Meta recusar a mensagem inteira.
+  if (interactiveType === "list" || !header.link) return {};
+  const media: Record<string, string> = { link: header.link };
+  if (header.type === "document" && header.fileName) media.filename = header.fileName;
+  return { header: { type: header.type, [header.type]: media } };
+}
+
 export async function sendOfficialInteractive(
   accessToken: string,
   phoneNumberId: string,
   input: SendInteractiveInput,
 ): Promise<SendMessageResponse> {
   const options = input.options.slice(0, INTERACTIVE_LIMITS.listRows);
-  if (options.length === 0) throw new Error("sendOfficialInteractive: sem opções.");
+  if (options.length === 0 && !input.cta) throw new Error("sendOfficialInteractive: sem opções.");
 
   const isButtons = options.length <= INTERACTIVE_LIMITS.buttons;
-  const action = isButtons
+  const interactiveType = input.cta ? "cta_url" : isButtons ? "button" : "list";
+  const action = input.cta
+    ? {
+        name: "cta_url",
+        parameters: { display_text: shorten(input.cta.displayText, INTERACTIVE_LIMITS.buttonTitle), url: input.cta.url },
+      }
+    : isButtons
     ? {
         buttons: options.map((option) => ({
           type: "reply",
@@ -78,7 +115,8 @@ export async function sendOfficialInteractive(
     to: input.to,
     type: "interactive",
     interactive: {
-      type: isButtons ? "button" : "list",
+      type: interactiveType,
+      ...headerFieldOf(input.header, interactiveType),
       body: { text: shorten(input.body, INTERACTIVE_LIMITS.body) },
       ...(input.footer ? { footer: { text: shorten(input.footer, INTERACTIVE_LIMITS.footer) } } : {}),
       action,
