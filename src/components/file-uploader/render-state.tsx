@@ -85,6 +85,12 @@ export function RenderUploadedState({
         />
       )}
 
+      {fileType === "video" && (
+        <div className="flex size-full items-center justify-center p-2">
+          <video src={previewUrl} controls className="max-h-full max-w-full rounded-md" />
+        </div>
+      )}
+
       {fileType === "audio" && (
         <div className="flex w-full flex-col items-center justify-center gap-2 px-10">
           <audio src={previewUrl} controls className="w-full max-w-64" />

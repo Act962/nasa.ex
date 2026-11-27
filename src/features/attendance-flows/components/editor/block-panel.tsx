@@ -69,7 +69,7 @@ interface MenuButton {
 function MessageForm({ data, onChange }: FormProps) {
   const action = asFields(data.action);
   const payload = asFields(action.payload);
-  const kind = payload.type === "IMAGE" || payload.type === "DOCUMENT" || payload.type === "AUDIO" ? String(payload.type) : "TEXT";
+  const kind = payload.type === "IMAGE" || payload.type === "DOCUMENT" || payload.type === "AUDIO" || payload.type === "VIDEO" ? String(payload.type) : "TEXT";
   const text = String(payload.message ?? payload.bodyText ?? "");
   const buttons = (kind === "TEXT" && payload.type === "BUTTONS" && Array.isArray(payload.buttons) ? payload.buttons : []) as MenuButton[];
   const isList = payload.menuFormat === "LIST";
@@ -97,10 +97,11 @@ function MessageForm({ data, onChange }: FormProps) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-1 rounded-lg bg-muted p-1">
+      <div className="grid grid-cols-5 gap-1 rounded-lg bg-muted p-1">
         {[
           ["TEXT", "Texto"],
           ["IMAGE", "Imagem"],
+          ["VIDEO", "Vídeo"],
           ["AUDIO", "Áudio"],
           ["DOCUMENT", "Arquivo"],
         ].map(([value, label]) => (
@@ -173,6 +174,20 @@ function MessageForm({ data, onChange }: FormProps) {
       {kind === "IMAGE" && (
         <>
           <Uploader value={String(payload.imageUrl ?? "")} onConfirm={(imageUrl: string) => setMedia({ imageUrl })} />
+          <Field label="Legenda">
+            <Input value={String(payload.caption ?? "")} onChange={(event) => setMedia({ caption: event.target.value })} placeholder="Opcional" />
+          </Field>
+        </>
+      )}
+      {kind === "VIDEO" && (
+        <>
+          <Uploader
+            key={String(payload.videoUrl ?? "")}
+            value={String(payload.videoUrl ?? "")}
+            fileTypeAccepted="video"
+            onConfirm={(videoUrl: string) => setMedia({ videoUrl })}
+          />
+          <p className="text-[11px] text-muted-foreground">MP4 ou 3GP, até 16 MB (limite do WhatsApp).</p>
           <Field label="Legenda">
             <Input value={String(payload.caption ?? "")} onChange={(event) => setMedia({ caption: event.target.value })} placeholder="Opcional" />
           </Field>

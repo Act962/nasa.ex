@@ -1,17 +1,17 @@
 ---
 id: 0141
-titulo: Enviar áudio no bloco Enviar mensagem do FlowAstro
+titulo: Enviar áudio e vídeo no bloco Enviar mensagem do FlowAstro
 dominio: workflows
 status: implementada
 autor: João Gabriel
 criada: 2026-11-13
-atualizada: 2026-11-13
+atualizada: 2026-11-27
 branch: claude/fluxo-atendimento-creator-ac11e1
 pr:
 peso: leve
 ---
 
-# 0141 — Enviar áudio no bloco Enviar mensagem do FlowAstro
+# 0141 — Enviar áudio e vídeo no bloco Enviar mensagem do FlowAstro
 
 ## 1. Contexto
 
@@ -48,6 +48,9 @@ mensagem de voz quando o arquivo é OGG/Opus.
 - **RF-4**: a janela de 24 horas da API oficial vale como para imagem e arquivo: fechada e sem modelo de mensagem de
   reserva, o passo falha com a mensagem de sempre.
 - **RF-5**: o cartão do bloco no editor mostra "Áudio" e o nome do arquivo.
+- **RF-6** (vídeo): aba "Vídeo" no bloco, com upload só de MP4 ou 3GP até 16 MB (o limite do WhatsApp; o upload do
+  servidor aceita até 20 MB) e legenda opcional com variáveis. Dado: `payload.type = "VIDEO"`, `videoUrl`, `caption`.
+  Envia pelo mesmo caminho, com `mediaKind: "video"`. O cartão mostra a legenda ou "Vídeo".
 
 ### Não-funcionais
 
@@ -60,6 +63,8 @@ mensagem de voz quando o arquivo é OGG/Opus.
 - **CA-2**: subir um OGG/Opus: na API oficial o cliente recebe uma mensagem de voz.
 - **CA-3**: o seletor de arquivo não aceita PDF nem imagem na aba Áudio.
 - **CA-4**: o cartão do bloco mostra "Áudio: <nome do arquivo>".
+- **CA-5**: subir um MP4 na aba Vídeo: o cliente recebe o vídeo com a legenda no WhatsApp.
+- **CA-6**: a aba Vídeo recusa arquivo acima de 16 MB e formato que não seja MP4 ou 3GP.
 
 ## 5. Casos de borda
 
@@ -68,9 +73,11 @@ mensagem de voz quando o arquivo é OGG/Opus.
 | CB-1 | `.ogg` com Vorbis (não Opus) | A API oficial pode recusar como voz; o passo falha com o erro do provedor. Raro: gravadores de celular geram Opus. |
 | CB-2 | Bloco salvo como Áudio sem arquivo | O passo falha com "Áudio não escolhido", como a imagem sem arquivo. |
 | CB-3 | Número não oficial (Uazapi) | Envia como áudio; a Uazapi ignora a marca de voz. |
+| CB-4 | MP4 com codec que o WhatsApp não aceita (ex.: H.265) | A API oficial recusa e o passo falha com o erro do provedor. O WhatsApp pede H.264 com áudio AAC. |
 
 ## 9. Changelog da spec
 
 | Data | Autor | Mudança |
 | --- | --- | --- |
 | 2026-11-13 | João Gabriel | Criada e implementada (upload; gravação pelo navegador fica de fora). Falta o teste no WhatsApp (CA-1 e CA-2). |
+| 2026-11-27 | João Gabriel | Vídeo no mesmo bloco (RF-6, CA-5, CA-6, CB-4). Falta o teste no WhatsApp (CA-5). |

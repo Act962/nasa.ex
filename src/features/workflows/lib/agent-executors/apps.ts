@@ -485,7 +485,7 @@ export const sendMessageExecutor: NodeExecutor = async ({
 
   // Imagem, documento e envio para outro número (spec 0112): o mesmo envio do modo normal.
   const target = action.target as { sendMode?: unknown } | undefined;
-  if (payloadType === "IMAGE" || payloadType === "DOCUMENT" || payloadType === "AUDIO" || target?.sendMode === "CUSTOM") {
+  if (payloadType === "IMAGE" || payloadType === "DOCUMENT" || payloadType === "AUDIO" || payloadType === "VIDEO" || target?.sendMode === "CUSTOM") {
     if (dryRun) return { output: { dryRun: true, type: payloadType } };
     return runClassicNodeInAgentMode(classicSendMessageExecutor as ClassicNodeExecutor)({
       nodeId,
