@@ -52,7 +52,7 @@ function asFields(value: unknown): Fields {
 const DATA_GUIDE: Record<BlockKey, string> = {
   start:
     'mode: "WELCOME" (primeira mensagem do contato no número), "KEYWORD" (a mensagem tem uma das keywords), "DEFAULT" (nenhuma outra regra pegou) ou "BROADCAST" (só por disparo). keywords: lista de palavras, só no KEYWORD. matchMode: "CONTAINS" (padrão) ou "EXACT". Um fluxo tem um bloco inicial só.',
-  message: `action.payload.type: "TEXT" (message), "BUTTONS" (message + buttons [{id, text}], menuFormat "BUTTON" até ${OFFICIAL_MENU_LIMITS.maxButtons} botões de ${OFFICIAL_MENU_LIMITS.buttonTitleChars} letras, ou "LIST" até ${OFFICIAL_MENU_LIMITS.maxListRows} itens de ${OFFICIAL_MENU_LIMITS.listRowTitleChars} letras com listButton), "IMAGE" (imageUrl, caption), "VIDEO" (videoUrl, caption; MP4 até 16 MB), "DOCUMENT" (documentUrl, fileName, caption) ou "AUDIO" (audioUrl, fileName; OGG sai como mensagem de voz), ou "CTA_URL" (message + ctaText até ${INTERACTIVE_TEXT_LIMITS.linkButtonText} letras + ctaUrl https; botão que abre um site, sem saída por clique; variável {{...}} só depois do domínio). Com BUTTONS ou CTA_URL: header opcional {type: "text", text até ${INTERACTIVE_TEXT_LIMITS.headerText}} ou {type: "image" | "video" | "document", mediaUrl, fileName?} (lista só aceita "text"), footerText opcional até ${INTERACTIVE_TEXT_LIMITS.footer} letras, e na lista cada item aceita description até ${INTERACTIVE_TEXT_LIMITS.rowDescription}. Mídia: link https público. replyTimeoutMinutes (opcional, só com botões) cria a saída no_reply. O id de cada botão vira a saída btn:<id>; use ids curtos sem espaço.`,
+  message: `action.payload.type: "TEXT" (message), "BUTTONS" (message + buttons [{id, text}], menuFormat "BUTTON" até ${OFFICIAL_MENU_LIMITS.maxButtons} botões de ${OFFICIAL_MENU_LIMITS.buttonTitleChars} letras, ou "LIST" até ${OFFICIAL_MENU_LIMITS.maxListRows} itens de ${OFFICIAL_MENU_LIMITS.listRowTitleChars} letras com listButton), "IMAGE" (imageUrl, caption), "VIDEO" (videoUrl, caption; MP4 até 16 MB), "DOCUMENT" (documentUrl, fileName, caption) ou "AUDIO" (audioUrl, fileName; OGG sai como mensagem de voz), ou "CTA_URL" (message + ctaText até ${INTERACTIVE_TEXT_LIMITS.linkButtonText} letras + ctaUrl https; botão que abre um site, sem saída por clique; variável {{...}} só depois do domínio). Com BUTTONS ou CTA_URL: header opcional {type: "text", text até ${INTERACTIVE_TEXT_LIMITS.headerText}} ou {type: "image" | "video" | "document", mediaUrl, fileName?} (lista só aceita "text"), footerText opcional até ${INTERACTIVE_TEXT_LIMITS.footer} letras, e na lista cada item aceita description até ${INTERACTIVE_TEXT_LIMITS.rowDescription}. Mídia: link https público. replyTimeoutMinutes (opcional, só com botões) cria a saída no_reply. O id de cada botão vira a saída btn:<id>; use ids curtos sem espaço. Janela de 24h (só número oficial, isOfficial em flowastro_list_numbers): fora dela a Meta só entrega template aprovado, e sem template o passo falha e o fluxo para para aquele cliente. Use action.fallbackTemplate {templateName, languageCode, headerText, bodyText, headerParameters: [], bodyParameters: []} para mandar um template no lugar quando a janela estiver fechada, ou action.payload.type "TEMPLATE" com os mesmos campos para mandar sempre o template (saída main). Pegue nome, idioma, textos e a quantidade de variáveis em flowastro_list_templates; cada parâmetro aceita texto fixo ou variável ({{nome}}). Bloco de mensagem depois de um atraso de 24h ou mais quase sempre precisa de fallbackTemplate.`,
   question: `question: o texto da pergunta. answerType: ${ANSWER_TYPES.join(", ")} (FILE = foto ou arquivo). variableName: nome da variável do fluxo que guarda a resposta ({{vars.nome}}). saveToField (opcional): ${LEAD_FIELD_OPTIONS.map((option) => option.key).join(", ")}. maxAttempts 1 a 5. invalidMessage: o que mandar quando a resposta não vale. replyTimeoutMinutes (opcional) cria a saída no_reply.`,
   condition:
     'match: "ALL" ou "ANY". rules: [{id, field, operator, value}]. field: "tag" (is/is_not, value = id da etiqueta), "weekday" (is/is_not, value = lista de dias "0" a "6", 0 = domingo), "time" (between/not_between, value "08:00-18:00"), "responsible" (assigned/not_assigned/is/is_not), "temperature" (is/is_not: COLD, WARM, HOT, VERY_HOT), "column" (is/is_not, value = id da coluna), "lead.<campo>" ou "var.<variável>" (equals, not_equals, contains, not_contains, is_set, is_empty).',
@@ -201,6 +201,22 @@ function cardSizeOf(outputCount: number): { width: number; height: number } {
   return { width: 260, height: 130 + outputCount * 28 };
 }
 
+const MINUTES_IN_A_DAY = 24 * 60;
+const MINUTES_PER_UNIT: Record<string, number> = { minutes: 1, hours: 60, days: MINUTES_IN_A_DAY };
+
+function isLongDelay(nodeType: string, data: unknown): boolean {
+  if (blockOf(nodeType, data)?.key !== "delay") return false;
+  const action = asFields(asFields(data).action);
+  const unit = String(action.type ?? "");
+  return (MINUTES_PER_UNIT[unit] ?? 0) * Number(action[unit] ?? 0) >= MINUTES_IN_A_DAY;
+}
+
+function needsFallbackTemplate(nodeType: string, data: unknown): boolean {
+  if (blockOf(nodeType, data)?.key !== "message") return false;
+  const action = asFields(asFields(data).action);
+  return asFields(action.payload).type !== "TEMPLATE" && !(action.fallbackTemplate && typeof action.fallbackTemplate === "object");
+}
+
 export type FromMcpResult = { ok: true; graph: GraphForSave; warnings: string[] } | { ok: false; error: string };
 
 /**
@@ -289,6 +305,18 @@ export function fromMcpBlocks(blocks: McpBlock[], previousNodes: StoredNode[]): 
   }
   const unreachable = workingBlocks.filter((_, index) => !reached.has(nodes[index].id)).map((block) => block.id);
   if (unreachable.length > 0) warnings.push(`Nenhum caminho do bloco inicial chega a: ${unreachable.join(", ")}.`);
+
+  // Depois de um atraso longo a janela de 24h já fechou: sem template a mensagem não sai (spec 0144, RF-7).
+  const aliasByNodeId = new Map(nodes.map((node, index) => [node.id, workingBlocks[index].id] as const));
+  const nodeById = new Map(nodes.map((node) => [node.id, node] as const));
+  for (const edge of edges) {
+    const source = nodeById.get(edge.source);
+    const target = nodeById.get(edge.target);
+    if (!source || !target || !isLongDelay(source.type, source.data) || !needsFallbackTemplate(target.type, target.data)) continue;
+    warnings.push(
+      `"${aliasByNodeId.get(target.id)}" vem depois de um atraso de 24h ou mais e não tem fallbackTemplate: em número oficial a mensagem não sai se o cliente não escrever nesse tempo.`,
+    );
+  }
 
   // Só textos mudaram: os blocos ficam onde a pessoa deixou. Bloco novo reorganiza tudo, como o botão "Organizar".
   const previousPositionById = new Map(previousNodes.flatMap((node) => (node.position ? [[node.id, node.position] as const] : [])));

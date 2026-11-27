@@ -27,6 +27,8 @@ import { PromoEnrollForm, PromoLookupForm, PromoReceiptForm } from "./promo-form
 import { ConditionPanel } from "./condition-panel";
 import { BLOCK_ICONS, TONE_CLASSES } from "./flow-block-node";
 import { TagChips } from "./tag-chips";
+import { FallbackTemplateSection, FlowTemplatePicker, SendWindowModeSelect, type OfficialNumber } from "./message-template-fields";
+import type { WorkflowTemplateSelection } from "@/features/tracking-executions/components/send-message/template-fields";
 
 type NodeData = Record<string, unknown>;
 type FormProps = { data: NodeData; onChange: (data: NodeData) => void };
@@ -35,6 +37,9 @@ export interface FlowNumber {
   trackingId: string;
   name: string;
   columns: { id: string; name: string }[];
+  /** API oficial: o bloco de mensagem oferece template fora da janela de 24h (spec 0144). */
+  isOfficial?: boolean;
+  wabaId?: string | null;
 }
 
 const NO_VALUE = "__none__";
@@ -123,9 +128,52 @@ function HeaderField({ value, allowMedia, onChange }: { value: NodeData; allowMe
  * Mensagem no estilo do BotConversa (spec 0139): texto com botões opcionais. Com botões o dado vira um menu que espera
  * o clique (`BUTTONS` + `waitForReply`), e cada botão ganha a própria saída no cartão; sem botões, é texto comum.
  */
-function MessageForm({ data, onChange }: FormProps) {
+function MessageForm({ data, onChange, numbers }: FormProps & { numbers: FlowNumber[] }) {
   const action = asFields(data.action);
   const payload = asFields(action.payload);
+  const officialNumbers: OfficialNumber[] = numbers
+    .filter((number) => number.isOfficial)
+    .map((number) => ({ trackingId: number.trackingId, name: number.name, wabaId: number.wabaId ?? null }));
+  const isTemplateOnly = payload.type === "TEMPLATE";
+  const fallbackTemplate =
+    action.fallbackTemplate && typeof action.fallbackTemplate === "object" ? (action.fallbackTemplate as Partial<WorkflowTemplateSelection>) : null;
+  const showsWindowControls = officialNumbers.length > 0 || isTemplateOnly || Boolean(fallbackTemplate);
+  const setAction = (changes: NodeData) => onChange({ ...data, action: { ...action, ...changes } });
+  // Trocar o modo não perde o template escolhido: ele passa de envio fixo para reserva e vice-versa (CB-4).
+  const switchWindowMode = (mode: "window" | "template") => {
+    if (mode === "template") {
+      setAction({ payload: { type: "TEMPLATE", ...(fallbackTemplate ?? {}) }, fallbackTemplate: null });
+      return;
+    }
+    const { type: _templateType, ...selection } = payload;
+    setAction({
+      payload: { type: "TEXT", message: "", bodyText: "", buttons: [] },
+      fallbackTemplate: typeof selection.templateName === "string" && selection.templateName ? selection : null,
+    });
+  };
+
+  if (isTemplateOnly) {
+    return (
+      <div className="space-y-4">
+        <SendWindowModeSelect value="template" onChange={switchWindowMode} />
+        <Section title="Template aprovado">
+          {officialNumbers.length > 0 ? (
+            <FlowTemplatePicker
+              numbers={officialNumbers}
+              value={payload as Partial<WorkflowTemplateSelection>}
+              onChange={(selection) => setAction({ payload: { type: "TEMPLATE", ...selection } })}
+            />
+          ) : (
+            <p className="text-[11px] text-muted-foreground">Escolha um número da API oficial para o fluxo para ver os templates.</p>
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            Template é o único envio que a API oficial entrega fora da janela de 24h. Ele sai sempre, e o fluxo segue pelo &quot;Próximo
+            passo&quot;. Para criar um template novo, use o app de Campanhas.
+          </p>
+        </Section>
+      </div>
+    );
+  }
   const kind = payload.type === "IMAGE" || payload.type === "DOCUMENT" || payload.type === "AUDIO" || payload.type === "VIDEO" ? String(payload.type) : "TEXT";
   const text = String(payload.message ?? payload.bodyText ?? "");
   const buttons = (kind === "TEXT" && payload.type === "BUTTONS" && Array.isArray(payload.buttons) ? payload.buttons : []) as MenuButton[];
@@ -164,6 +212,7 @@ function MessageForm({ data, onChange }: FormProps) {
 
   return (
     <div className="space-y-4">
+      {showsWindowControls && <SendWindowModeSelect value="window" onChange={switchWindowMode} />}
       <div className="grid grid-cols-5 gap-1 rounded-lg bg-muted p-1">
         {[
           ["TEXT", "Texto"],
@@ -357,6 +406,14 @@ function MessageForm({ data, onChange }: FormProps) {
           </Field>
         </>
       )}
+
+      {showsWindowControls && (
+        <FallbackTemplateSection
+          numbers={officialNumbers}
+          value={fallbackTemplate}
+          onChange={(selection) => setAction({ fallbackTemplate: selection })}
+        />
+      )}
     </div>
   );
 }
@@ -526,7 +583,7 @@ export function BlockPanel({
   const renderForm = () => {
     switch (block?.key) {
       case "message":
-        return <MessageForm data={data} onChange={onChange} />;
+        return <MessageForm data={data} onChange={onChange} numbers={numbers} />;
       case "delay":
         return <DelayForm data={data} onChange={onChange} />;
       case "condition":

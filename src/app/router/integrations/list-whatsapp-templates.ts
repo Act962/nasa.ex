@@ -69,6 +69,53 @@ export function summarizeTemplate(template: MessageTemplate): WhatsAppTemplateSu
   };
 }
 
+/** Por que a lista não sai, em texto para a pessoa (ou a IA) entender. */
+export class TemplateListError extends Error {
+  constructor(
+    message: string,
+    readonly kind: "not_found" | "unsupported" | "incomplete",
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * Templates aprovados da WABA do número. Usado pela tela e pelo MCP do FlowAstro (spec 0144, RF-7). Confere que o
+ * número é da empresa antes de falar com a Meta.
+ */
+export async function loadApprovedTemplates(params: { trackingId: string; organizationId: string }): Promise<WhatsAppTemplateSummary[]> {
+  const instance = await prisma.whatsAppInstance.findUnique({
+    where: { trackingId: params.trackingId },
+    select: {
+      organizationId: true,
+      provider: true,
+      metaAccessToken: true,
+      metaPhoneNumberId: true,
+      metaAppSecret: true,
+      metaVerifyToken: true,
+      metaBusinessAccountId: true,
+    },
+  });
+  if (!instance || instance.organizationId !== params.organizationId) {
+    throw new TemplateListError("Instância não encontrada", "not_found");
+  }
+  if (instance.provider !== WhatsAppProvider.META_CLOUD) {
+    throw new TemplateListError("Templates só estão disponíveis para instâncias com a API Oficial (Meta Cloud).", "unsupported");
+  }
+  if (!instance.metaBusinessAccountId) {
+    throw new TemplateListError("Conta WhatsApp Business (WABA) não configurada. Reconecte a instância via Meta.", "incomplete");
+  }
+  const credentials = decryptStoredMetaCredentialsPartial({
+    metaAccessToken: instance.metaAccessToken,
+    metaPhoneNumberId: instance.metaPhoneNumberId,
+    metaAppSecret: instance.metaAppSecret,
+    metaVerifyToken: instance.metaVerifyToken,
+    metaBusinessAccountId: instance.metaBusinessAccountId,
+  });
+  const response = await getMessageTemplates(credentials.accessToken, instance.metaBusinessAccountId);
+  return response.data.filter((template) => template.status === "APPROVED").map(summarizeTemplate);
+}
+
 export const listWhatsAppTemplates = base
   .use(requiredAuthMiddleware)
   .use(requireOrgMiddleware)
@@ -80,55 +127,14 @@ export const listWhatsAppTemplates = base
   })
   .input(z.object({ trackingId: z.string() }))
   .handler(async ({ input, context, errors }) => {
-    const instance = await prisma.whatsAppInstance.findUnique({
-      where: { trackingId: input.trackingId },
-      select: {
-        organizationId: true,
-        provider: true,
-        metaAccessToken: true,
-        metaPhoneNumberId: true,
-        metaAppSecret: true,
-        metaVerifyToken: true,
-        metaBusinessAccountId: true,
-      },
-    });
-
-    if (!instance || instance.organizationId !== context.org.id) {
-      throw errors.NOT_FOUND({ message: "Instância não encontrada" });
-    }
-
-    if (instance.provider !== WhatsAppProvider.META_CLOUD) {
+    try {
+      return { templates: await loadApprovedTemplates({ trackingId: input.trackingId, organizationId: context.org.id }) };
+    } catch (error) {
+      if (!(error instanceof TemplateListError)) throw error;
+      if (error.kind === "not_found") throw errors.NOT_FOUND({ message: error.message });
       throw errors.BAD_REQUEST({
-        message:
-          "Templates só estão disponíveis para instâncias com a API Oficial (Meta Cloud).",
-        data: { code: "PROVIDER_FEATURE_UNSUPPORTED" } as never,
+        message: error.message,
+        data: { code: error.kind === "unsupported" ? "PROVIDER_FEATURE_UNSUPPORTED" : "META_CREDENTIALS_INCOMPLETE" } as never,
       });
     }
-
-    if (!instance.metaBusinessAccountId) {
-      throw errors.BAD_REQUEST({
-        message:
-          "Conta WhatsApp Business (WABA) não configurada. Reconecte a instância via Meta.",
-        data: { code: "META_CREDENTIALS_INCOMPLETE" } as never,
-      });
-    }
-
-    const credentials = decryptStoredMetaCredentialsPartial({
-      metaAccessToken: instance.metaAccessToken,
-      metaPhoneNumberId: instance.metaPhoneNumberId,
-      metaAppSecret: instance.metaAppSecret,
-      metaVerifyToken: instance.metaVerifyToken,
-      metaBusinessAccountId: instance.metaBusinessAccountId,
-    });
-
-    const response = await getMessageTemplates(
-      credentials.accessToken,
-      instance.metaBusinessAccountId,
-    );
-
-    const templates = response.data
-      .filter((template) => template.status === "APPROVED")
-      .map(summarizeTemplate);
-
-    return { templates };
   });
