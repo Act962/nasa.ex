@@ -18,8 +18,14 @@ export type NumberedOption = {
 };
 
 /** O texto que vai ao cliente no lugar dos botões. */
-export function formatNumberedMenu(params: { body: string; options: NumberedOption[]; footer?: string | null }): string {
-  const lines = params.options.map((option, optionIndex) => `${optionIndex + 1} – ${option.title}`);
+export function formatNumberedMenu(params: {
+  body: string;
+  options: Array<NumberedOption & { description?: string }>;
+  footer?: string | null;
+}): string {
+  const lines = params.options.map(
+    (option, optionIndex) => `${optionIndex + 1} – ${option.title}${option.description?.trim() ? ` (${option.description.trim()})` : ""}`,
+  );
   return [params.body.trim(), "", ...lines, "", ...(params.footer?.trim() ? [params.footer.trim()] : []), REPLY_INSTRUCTION].join("\n");
 }
 

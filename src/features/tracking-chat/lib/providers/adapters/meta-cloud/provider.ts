@@ -389,6 +389,8 @@ export class OfficialProvider implements WhatsAppChatProvider {
         footer: input.footer,
         options: input.options.map((option) => ({ ...option })),
         listButtonLabel: input.listButtonLabel,
+        header: input.header ? { ...input.header } : undefined,
+        cta: input.cta ? { ...input.cta } : undefined,
         replyToWamid: input.replyToExternalMessageId,
       },
     ).catch(rethrowWindowClosed);

@@ -13,6 +13,13 @@ import { useTags } from "@/features/tags/hooks/use-tags";
 import { OFFICIAL_MENU_LIMITS } from "@/features/workflows/lib/button-reply-flow";
 import { cn } from "@/lib/utils";
 import { blockOf } from "../../lib/block-catalog";
+import {
+  HEADER_TYPES,
+  INTERACTIVE_TEXT_LIMITS,
+  LINK_BUTTON_TYPE,
+  linkButtonUrlProblem,
+  type HeaderType,
+} from "../../lib/interactive-message";
 import { parseColumnMove } from "../../lib/nodes";
 import { AttendanceNodeForm, ReplyDeadlineField } from "../attendance-node-forms";
 import { FlowVariablesContext, VariableTextarea } from "./variable-textarea";
@@ -60,6 +67,56 @@ function Section({ title, children }: { title?: string; children: React.ReactNod
 interface MenuButton {
   id: string;
   text: string;
+  /** Só aparece no formato lista (spec 0143). */
+  description?: string;
+}
+
+const HEADER_LABELS: Record<HeaderType, string> = {
+  none: "Sem cabeçalho",
+  text: "Título",
+  image: "Imagem",
+  video: "Vídeo",
+  document: "Documento",
+};
+
+/** Cabeçalho da mensagem com botões ou botão de link (spec 0143). A lista só aceita título. */
+function HeaderField({ value, allowMedia, onChange }: { value: NodeData; allowMedia: boolean; onChange: (header: NodeData | null) => void }) {
+  const type: HeaderType = (HEADER_TYPES as readonly string[]).includes(String(value.type)) ? (value.type as HeaderType) : "none";
+  const options = allowMedia ? HEADER_TYPES : (["none", "text"] as const);
+  const mediaUrl = String(value.mediaUrl ?? "");
+  return (
+    <Section title="Cabeçalho">
+      <Select value={type} onValueChange={(nextType) => onChange(nextType === "none" ? null : { type: nextType })}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option} value={option}>
+              {HEADER_LABELS[option]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {type === "text" && (
+        <Input
+          value={String(value.text ?? "")}
+          maxLength={INTERACTIVE_TEXT_LIMITS.headerText}
+          onChange={(event) => onChange({ type: "text", text: event.target.value })}
+          placeholder="Título em negrito no topo"
+        />
+      )}
+      {(type === "image" || type === "video" || type === "document") && (
+        <Uploader
+          key={`${type}-${mediaUrl}`}
+          value={mediaUrl}
+          fileTypeAccepted={type === "image" ? "image" : type === "video" ? "video" : "outros"}
+          onConfirm={(nextMediaUrl: string, name?: string) => onChange({ type, mediaUrl: nextMediaUrl, fileName: name ?? "" })}
+        />
+      )}
+      {!allowMedia && <p className="text-[11px] text-muted-foreground">Na lista, o WhatsApp só aceita título no cabeçalho.</p>}
+    </Section>
+  );
 }
 
 /**
@@ -72,7 +129,13 @@ function MessageForm({ data, onChange }: FormProps) {
   const kind = payload.type === "IMAGE" || payload.type === "DOCUMENT" || payload.type === "AUDIO" || payload.type === "VIDEO" ? String(payload.type) : "TEXT";
   const text = String(payload.message ?? payload.bodyText ?? "");
   const buttons = (kind === "TEXT" && payload.type === "BUTTONS" && Array.isArray(payload.buttons) ? payload.buttons : []) as MenuButton[];
-  const isList = payload.menuFormat === "LIST";
+  const isLink = kind === "TEXT" && payload.type === LINK_BUTTON_TYPE;
+  const isList = !isLink && payload.menuFormat === "LIST";
+  const isInteractive = isLink || buttons.length > 0;
+  const header = asFields(payload.header);
+  const isMediaHeader = header.type === "image" || header.type === "video" || header.type === "document";
+  const linkUrl = String(payload.ctaUrl ?? "");
+  const linkProblem = linkUrl.trim() ? linkButtonUrlProblem(linkUrl) : null;
   const maxOptions = isList ? OFFICIAL_MENU_LIMITS.maxListRows : OFFICIAL_MENU_LIMITS.maxButtons;
   const titleLimit = isList ? OFFICIAL_MENU_LIMITS.listRowTitleChars : OFFICIAL_MENU_LIMITS.buttonTitleChars;
 
@@ -94,6 +157,10 @@ function MessageForm({ data, onChange }: FormProps) {
     onChange({ ...data, action: { ...action, payload: nextPayload } });
   };
   const setMedia = (changes: NodeData) => onChange({ ...data, action: { ...action, payload: { ...payload, ...changes } } });
+  const switchToLink = () => {
+    if (buttons.length > 0 && !window.confirm("Os botões montados serão descartados. Continuar?")) return;
+    setMedia({ type: LINK_BUTTON_TYPE, message: text, bodyText: text, buttons: [], menuFormat: "BUTTON", waitForReply: false });
+  };
 
   return (
     <div className="space-y-4">
@@ -116,52 +183,122 @@ function MessageForm({ data, onChange }: FormProps) {
         ))}
       </div>
 
+      {kind === "TEXT" && isInteractive && (
+        <HeaderField value={header} allowMedia={!isList} onChange={(nextHeader) => setMedia({ header: nextHeader })} />
+      )}
+
       {kind === "TEXT" && (
         <Section>
-          <VariableTextarea rows={5} value={text} onChange={(nextText) => writeText(nextText, buttons)} placeholder="Insira o seu texto" maxLength={1024} />
-          {buttons.map((button, index) => (
-            <div key={button.id} className="flex items-center gap-2">
-              <Input
-                value={button.text}
-                maxLength={titleLimit}
-                placeholder={isList ? `Item ${index + 1}` : `Botão ${index + 1}`}
-                className="border-emerald-200 text-center dark:border-emerald-500/30"
-                onChange={(event) => writeText(text, buttons.map((item, itemIndex) => (itemIndex === index ? { ...item, text: event.target.value } : item)))}
-              />
-              <Button variant="ghost" size="icon" title="Tirar" onClick={() => writeText(text, buttons.filter((_, itemIndex) => itemIndex !== index))}>
-                <XIcon className="size-4" />
+          <VariableTextarea
+            rows={5}
+            value={text}
+            onChange={(nextText) => (isLink ? setMedia({ message: nextText, bodyText: nextText }) : writeText(nextText, buttons))}
+            placeholder="Insira o seu texto"
+            maxLength={1024}
+          />
+          <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+            {[
+              [false, "Botões de resposta"],
+              [true, "Botão de link"],
+            ].map(([isLinkOption, label]) => (
+              <button
+                key={String(label)}
+                type="button"
+                onClick={() => (isLinkOption === isLink ? undefined : isLinkOption ? switchToLink() : writeText(text, []))}
+                className={cn("rounded-md py-1.5 text-xs font-medium", isLinkOption === isLink ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {isLink ? (
+            <>
+              <Field label="Texto do botão">
+                <Input
+                  value={String(payload.ctaText ?? "")}
+                  maxLength={INTERACTIVE_TEXT_LIMITS.linkButtonText}
+                  onChange={(event) => setMedia({ ctaText: event.target.value })}
+                  placeholder="Ver cardápio"
+                />
+              </Field>
+              <Field label="Endereço" hint={linkProblem ? undefined : "O cliente toca e abre o site. O fluxo segue logo depois do envio."}>
+                <Input value={linkUrl} onChange={(event) => setMedia({ ctaUrl: event.target.value })} placeholder="https://site.com/cardapio" />
+              </Field>
+              {linkProblem && <p className="text-[11px] text-destructive">{linkProblem}</p>}
+            </>
+          ) : (
+            <>
+              {buttons.map((button, index) => (
+                <div key={button.id} className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={button.text}
+                      maxLength={titleLimit}
+                      placeholder={isList ? `Item ${index + 1}` : `Botão ${index + 1}`}
+                      className="border-emerald-200 text-center dark:border-emerald-500/30"
+                      onChange={(event) => writeText(text, buttons.map((item, itemIndex) => (itemIndex === index ? { ...item, text: event.target.value } : item)))}
+                    />
+                    <Button variant="ghost" size="icon" title="Tirar" onClick={() => writeText(text, buttons.filter((_, itemIndex) => itemIndex !== index))}>
+                      <XIcon className="size-4" />
+                    </Button>
+                  </div>
+                  {isList && (
+                    <Input
+                      value={button.description ?? ""}
+                      maxLength={INTERACTIVE_TEXT_LIMITS.rowDescription}
+                      placeholder="Descrição (opcional)"
+                      className="h-8 text-xs"
+                      onChange={(event) =>
+                        writeText(text, buttons.map((item, itemIndex) => (itemIndex === index ? { ...item, description: event.target.value } : item)))
+                      }
+                    />
+                  )}
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-dashed text-emerald-700 dark:text-emerald-400"
+                disabled={buttons.length >= maxOptions}
+                onClick={() => writeText(text, [...buttons, { id: createId().slice(0, 10), text: "" }])}
+              >
+                {isList ? "Adicionar item" : "Adicionar botão"}
               </Button>
-            </div>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full border-dashed text-emerald-700 dark:text-emerald-400"
-            disabled={buttons.length >= maxOptions}
-            onClick={() => writeText(text, [...buttons, { id: createId().slice(0, 10), text: "" }])}
-          >
-            {isList ? "Adicionar item" : "Adicionar botão"}
-          </Button>
-          <p className="text-[11px] text-muted-foreground">
-            Cada {isList ? "item" : "botão"} leva o lead para um caminho. Você pode adicionar até {maxOptions}. &quot;Próximo passo&quot; é para quando o cliente
-            escreve outra coisa em vez de tocar num botão.
-          </p>
-          {buttons.length > 0 && (
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Checkbox
-                checked={isList}
-                onCheckedChange={(checked) => {
-                  const nextFormat = checked === true ? "LIST" : "BUTTON";
-                  const limit = nextFormat === "LIST" ? OFFICIAL_MENU_LIMITS.maxListRows : OFFICIAL_MENU_LIMITS.maxButtons;
-                  writeText(text, buttons.slice(0, limit), { menuFormat: nextFormat });
-                }}
-              />
-              Enviar como lista (até {OFFICIAL_MENU_LIMITS.maxListRows} opções)
-            </label>
+              <p className="text-[11px] text-muted-foreground">
+                Cada {isList ? "item" : "botão"} leva o lead para um caminho. Você pode adicionar até {maxOptions}. &quot;Próximo passo&quot; é para quando o cliente
+                escreve outra coisa em vez de tocar num botão.
+              </p>
+              {buttons.length > 0 && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Checkbox
+                    checked={isList}
+                    onCheckedChange={(checked) => {
+                      const nextFormat = checked === true ? "LIST" : "BUTTON";
+                      const limit = nextFormat === "LIST" ? OFFICIAL_MENU_LIMITS.maxListRows : OFFICIAL_MENU_LIMITS.maxButtons;
+                      // A lista só aceita título no cabeçalho (spec 0143, CB-3).
+                      writeText(text, buttons.slice(0, limit), { menuFormat: nextFormat, ...(nextFormat === "LIST" && isMediaHeader ? { header: null } : {}) });
+                    }}
+                  />
+                  Enviar como lista (até {OFFICIAL_MENU_LIMITS.maxListRows} opções)
+                </label>
+              )}
+              {isList && (
+                <Field label="Texto do botão que abre a lista">
+                  <Input value={String(payload.listButton ?? "")} maxLength={20} onChange={(event) => setMedia({ listButton: event.target.value })} placeholder="Ver opções" />
+                </Field>
+              )}
+            </>
           )}
-          {isList && (
-            <Field label="Texto do botão que abre a lista">
-              <Input value={String(payload.listButton ?? "")} maxLength={20} onChange={(event) => setMedia({ listButton: event.target.value })} placeholder="Ver opções" />
+
+          {isInteractive && (
+            <Field label="Rodapé">
+              <Input
+                value={String(payload.footerText ?? "")}
+                maxLength={INTERACTIVE_TEXT_LIMITS.footer}
+                onChange={(event) => setMedia({ footerText: event.target.value })}
+                placeholder="Opcional, em cinza embaixo do texto"
+              />
             </Field>
           )}
         </Section>

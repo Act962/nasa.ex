@@ -107,6 +107,15 @@ const videoPayloadSchema = z.object({
   caption: z.string().optional(),
 });
 
+/** Botão de link do bloco Enviar mensagem do FlowAstro (spec 0143); a tela antiga não oferece. */
+const linkButtonPayloadSchema = z.object({
+  type: z.literal("CTA_URL"),
+  message: z.string().min(1, "Mensagem obrigatória"),
+  ctaText: z.string().min(1, "Texto do botão obrigatório").max(20),
+  ctaUrl: z.string().url("Endereço inválido"),
+  footerText: z.string().max(60).optional(),
+});
+
 /** Áudio do bloco Enviar mensagem do FlowAstro (spec 0141); a tela antiga não oferece. */
 const audioPayloadSchema = z.object({
   type: z.literal("AUDIO"),
@@ -197,6 +206,7 @@ const payloadSchema = z.discriminatedUnion("type", [
   documentPayloadSchema,
   audioPayloadSchema,
   videoPayloadSchema,
+  linkButtonPayloadSchema,
   buttonsPayloadSchema,
   templatePayloadSchema,
 ]);

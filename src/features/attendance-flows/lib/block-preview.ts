@@ -1,5 +1,6 @@
 // O que cada bloco mostra no cartão do editor do FlowAstro (spec 0139): o conteúdo, não um resumo técnico.
 import { ATTENDANCE_ENTRY_LABELS, parseAttendanceEntry } from "./entry-rules";
+import { LINK_BUTTON_TYPE, linkButtonUrlProblem, parseMessageHeader } from "./interactive-message";
 import { ANSWER_TYPE_LABELS, parseAiAgent, parseAskQuestion, parseColumnMove, parsePromoLookup, parsePromoReceipt, parseRandomizerPaths } from "./nodes";
 
 export interface PreviewLine {
@@ -17,6 +18,14 @@ function line(text: string, emptyText: string): PreviewLine {
   return text.trim() ? { text: text.trim() } : { text: emptyText, isEmpty: true };
 }
 
+const HEADER_MEDIA_LABELS = { image: "Imagem", video: "Vídeo", document: "Documento" } as const;
+
+function headerLines(payload: Fields): PreviewLine[] {
+  const header = parseMessageHeader(payload.header);
+  if (!header) return [];
+  return [{ text: header.type === "text" ? (header.text ?? "") : `${HEADER_MEDIA_LABELS[header.type]} no cabeçalho` }];
+}
+
 const WAIT_UNIT_LABELS: Record<string, string> = { minutes: "minuto(s)", hours: "hora(s)", days: "dia(s)" };
 
 export function blockPreview(nodeType: string, data: unknown): PreviewLine[] {
@@ -29,7 +38,16 @@ export function blockPreview(nodeType: string, data: unknown): PreviewLine[] {
     }
     case "SEND_MESSAGE": {
       const payload = asFields(asFields(fields.action).payload);
-      if (payload.type === "BUTTONS") return [line(String(payload.message ?? payload.bodyText ?? ""), "Insira o seu texto")];
+      if (payload.type === "BUTTONS") return [...headerLines(payload), line(String(payload.message ?? payload.bodyText ?? ""), "Insira o seu texto")];
+      if (payload.type === LINK_BUTTON_TYPE) {
+        const linkText = String(payload.ctaText ?? "").trim();
+        const problem = linkButtonUrlProblem(String(payload.ctaUrl ?? ""));
+        return [
+          ...headerLines(payload),
+          line(String(payload.message ?? ""), "Insira o seu texto"),
+          !linkText ? { text: "Escreva o texto do botão de link", isEmpty: true } : problem ? { text: problem, isEmpty: true } : { text: `🔗 ${linkText}` },
+        ];
+      }
       if (payload.type === "IMAGE") return [line(String(payload.caption ?? "") || (payload.imageUrl ? "Imagem" : ""), "Escolha a imagem")];
       if (payload.type === "VIDEO") return [line(String(payload.caption ?? "") || (payload.videoUrl ? "Vídeo" : ""), "Escolha o vídeo")];
       if (payload.type === "AUDIO") return [line(payload.audioUrl ? `Áudio: ${String(payload.fileName ?? "") || "arquivo"}` : "", "Escolha o áudio")];

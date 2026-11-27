@@ -32,6 +32,26 @@ import {
 import { OFFICIAL_MENU_LIMITS, isMetaInteractiveOn } from "@/features/workflows/lib/button-reply-flow";
 import { chargeStarsByAction } from "@/features/stars/lib/charge-by-action";
 import { flowOriginMetadata, type FlowMessageOrigin } from "@/features/workflows/lib/flow-origin";
+import { useConstructUrl } from "@/hooks/use-construct-url";
+
+/** Cabeçalho da mensagem (spec 0143). `mediaUrl` é a chave no armazenamento, como na imagem do fluxo. */
+export interface MenuHeader {
+  type: "text" | "image" | "video" | "document";
+  text?: string;
+  mediaUrl?: string;
+  fileName?: string;
+}
+
+const HEADER_MIMETYPES = { image: "image/jpeg", video: "video/mp4", document: "application/pdf" } as const;
+
+function mediaHeaderOf(header: MenuHeader | undefined): (MenuHeader & { type: "image" | "video" | "document"; mediaUrl: string }) | null {
+  if (!header || header.type === "text" || !header.mediaUrl) return null;
+  return { ...header, type: header.type, mediaUrl: header.mediaUrl };
+}
+
+function textHeaderOf(header: MenuHeader | undefined): string {
+  return header?.type === "text" ? (header.text?.trim() ?? "") : "";
+}
 
 export interface SendButtonsToLeadParams {
   leadId: string;
@@ -40,7 +60,7 @@ export interface SendButtonsToLeadParams {
   footerText?: string;
   // tagId opcional por botão — quando presente, grava buttonTagMap no
   // metadata da Message pra o webhook aplicar a tag no clique do lead.
-  buttons: Array<{ text: string; id: string; tagId?: string }>;
+  buttons: Array<{ text: string; id: string; tagId?: string; description?: string }>;
   // LIST envia a mesma composição de itens como lista; BUTTON (default) como
   // botões. `listButton` é o rótulo que abre a lista (default "Ver opções").
   menuFormat?: "BUTTON" | "LIST";
@@ -51,15 +71,22 @@ export interface SendButtonsToLeadParams {
   origin?: FlowMessageOrigin | null;
   /** Botões de verdade na API oficial mesmo com o interruptor da 0090 desligado (FlowAstro, spec 0139). */
   forceOfficialInteractive?: boolean;
+  /** Cabeçalho (spec 0143). Na lista só o texto vale; mídia é ignorada. */
+  header?: MenuHeader;
+  /** Botão de link no lugar das opções (spec 0143). Com ele, `buttons` vai vazio. */
+  cta?: { text: string; url: string };
 }
 
 export async function sendButtonsToLead(
   params: SendButtonsToLeadParams,
 ): Promise<{ messageId: string; viaInChat: boolean }> {
   const { leadId, trackingId, bodyText, footerText, buttons } = params;
-  const asList = params.menuFormat === "LIST";
+  const cta = params.cta;
+  const asList = !cta && params.menuFormat === "LIST";
+  const mediaHeader = asList ? null : mediaHeaderOf(params.header);
+  const headerText = textHeaderOf(params.header);
 
-  if (buttons.length === 0) {
+  if (buttons.length === 0 && !cta) {
     throw new NonRetriableError("Menu de botões sem opções");
   }
   if (!bodyText.trim()) {
@@ -99,6 +126,11 @@ export async function sendButtonsToLead(
   let externalMessageId = `auto-${uuidv4()}`;
   let isSentAsNumberedText = false;
   const numberedOptions = buttons.filter((button) => button.id).map((button) => ({ id: button.id, title: button.text }));
+  const numberedOptionsWithDescription = buttons
+    .filter((button) => button.id)
+    .map((button) => ({ id: button.id, title: button.text, description: asList ? button.description : undefined }));
+  // Fora da API oficial não há cabeçalho nem botão de link: o título vira a 1ª linha e o link, a última.
+  const plainBody = [headerText ? `*${headerText}*` : "", bodyText.trim()].filter(Boolean).join("\n\n");
   const resolvedProvider = skipUazapi ? null : await resolveWorkflowProvider(trackingId);
   // Em modo In-Chat nada sai pelo WhatsApp: sem custo de envio, como no `sendLinkToLead`.
   if (resolvedProvider && params.chargeStars) {
@@ -117,6 +149,9 @@ export async function sendButtonsToLead(
   if (resolvedProvider && sendOfficialInteractive) {
     // API oficial (spec 0090, seção F): até 3 botões ou 10 itens de lista, com título curto. Fora
     // disso a Meta recusa; melhor falhar aqui com uma frase clara do que mandar algo cortado.
+    if (cta && cta.text.length > OFFICIAL_MENU_LIMITS.buttonTitleChars) {
+      throw new NonRetriableError(`O botão de link "${cta.text}" passa de ${OFFICIAL_MENU_LIMITS.buttonTitleChars} caracteres, o limite da API oficial.`);
+    }
     const maxOptions = asList ? OFFICIAL_MENU_LIMITS.maxListRows : OFFICIAL_MENU_LIMITS.maxButtons;
     const maxTitleChars = asList ? OFFICIAL_MENU_LIMITS.listRowTitleChars : OFFICIAL_MENU_LIMITS.buttonTitleChars;
     if (buttons.length > maxOptions) {
@@ -132,29 +167,62 @@ export async function sendButtonsToLead(
         to: lead.phone as string,
         body: bodyText,
         footer: footerText || undefined,
-        options: buttons.map((button) => ({ id: button.id, title: button.text })),
+        options: cta
+          ? []
+          : buttons.map((button) => ({
+              id: button.id,
+              title: button.text,
+              ...(asList && button.description?.trim() ? { description: button.description.trim() } : {}),
+            })),
         listButtonLabel: asList ? params.listButton?.trim() || "Ver opções" : undefined,
+        header: mediaHeader
+          ? { type: mediaHeader.type, link: useConstructUrl(mediaHeader.mediaUrl), fileName: mediaHeader.fileName }
+          : headerText
+            ? { type: "text", text: headerText }
+            : undefined,
+        cta: cta ? { displayText: cta.text, url: cta.url } : undefined,
       }),
     );
     externalMessageId = sent.externalMessageId ?? externalMessageId;
-  } else if (resolvedProvider && resolvedProvider.uazapiToken && isButtonsOfficialOnly()) {
+  } else if (resolvedProvider && mediaHeader) {
+    // Número fora da API oficial: o cabeçalho de mídia vai numa mensagem antes do menu (spec 0143, RF-7).
+    await sendWithWorkflowErrors(() =>
+      resolvedProvider.provider.sendMedia({
+        kind: "media",
+        mediaKind: mediaHeader.type,
+        to: lead.phone as string,
+        mediaUrl: useConstructUrl(mediaHeader.mediaUrl),
+        mimetype: mediaHeader.type === "document" ? undefined : HEADER_MIMETYPES[mediaHeader.type],
+        fileName: mediaHeader.fileName || undefined,
+      }),
+    );
+  }
+  if (resolvedProvider && !sendOfficialInteractive && cta) {
+    const menuCredentials = requireUazapiMenuCredentials(resolvedProvider);
+    const sentText = await sendText(
+      menuCredentials.token,
+      { number: lead.phone, text: formatTextWithLink(plainBody, footerText, cta), readchat: true, readmessages: true, delay: 2000 },
+      menuCredentials.baseUrl,
+    );
+    externalMessageId = sentText.messageid ?? externalMessageId;
+  } else if (resolvedProvider && !sendOfficialInteractive && resolvedProvider.uazapiToken && isButtonsOfficialOnly()) {
     // Número fora da API oficial (spec 0095): o menu sai como texto numerado, sem botão nem lista.
     const menuCredentials = requireUazapiMenuCredentials(resolvedProvider);
     const sentText = await sendText(
       menuCredentials.token,
-      { number: lead.phone, text: formatNumberedMenu({ body: bodyText, options: numberedOptions, footer: footerText }), readchat: true, readmessages: true, delay: 2000 },
+      { number: lead.phone, text: formatNumberedMenu({ body: plainBody, options: numberedOptionsWithDescription, footer: footerText }), readchat: true, readmessages: true, delay: 2000 },
       menuCredentials.baseUrl,
     );
     externalMessageId = sentText.messageid ?? externalMessageId;
     isSentAsNumberedText = true;
-  } else if (resolvedProvider) {
+  } else if (resolvedProvider && !sendOfficialInteractive) {
     const menuCredentials = requireUazapiMenuCredentials(resolvedProvider);
     const response = asList
       ? await sendItemsAsList(
           menuCredentials.token,
           {
             number: lead.phone,
-            text: bodyText,
+            text: plainBody,
             items: buttons,
             footer: footerText || undefined,
             button: params.listButton,
@@ -168,7 +236,7 @@ export async function sendButtonsToLead(
           menuCredentials.token,
           {
             number: lead.phone,
-            text: bodyText,
+            text: plainBody,
             buttons,
             footer: footerText || undefined,
             readchat: true,
@@ -181,9 +249,11 @@ export async function sendButtonsToLead(
   }
 
   // 5. Persiste Message — body inclui texto + opções pro histórico
-  const bodyFormatted = isSentAsNumberedText
-    ? formatNumberedMenu({ body: bodyText, options: numberedOptions, footer: footerText })
-    : formatBodyWithButtons(bodyText, footerText, buttons, asList ? (params.listButton?.trim() || "Ver opções") : null);
+  const bodyFormatted = cta
+    ? formatTextWithLink(plainBody, footerText, cta)
+    : isSentAsNumberedText
+      ? formatNumberedMenu({ body: plainBody, options: numberedOptionsWithDescription, footer: footerText })
+      : formatBodyWithButtons(plainBody, footerText, buttons, asList ? (params.listButton?.trim() || "Ver opções") : null);
   // buttonTagMap (buttonId→tagId) — grava no metadata pra o webhook aplicar
   // a tag quando o lead clicar num botão com tag associada.
   const buttonTagMap: Record<string, string> = {};
@@ -197,6 +267,9 @@ export async function sendButtonsToLead(
     data: {
       conversationId: conversation.id,
       body: bodyFormatted,
+      ...(mediaHeader
+        ? { mediaUrl: mediaHeader.mediaUrl, mimetype: HEADER_MIMETYPES[mediaHeader.type], fileName: mediaHeader.fileName || null }
+        : {}),
       messageId: externalMessageId,
       fromMe: true,
       status: MessageStatus.SENT,
@@ -239,6 +312,11 @@ export async function sendButtonsToLead(
  * (`tracking-chat-ai/server/tools/send-buttons.ts:57-58`) pra manter
  * histórico do chat consistente entre IA e automação.
  */
+function formatTextWithLink(body: string, footerText: string | undefined, cta: { text: string; url: string }): string {
+  const withLink = `${body.trim()}\n\n${cta.text.trim()}: ${cta.url}`;
+  return footerText?.trim() ? `${withLink}\n\n${footerText.trim()}` : withLink;
+}
+
 function formatBodyWithButtons(
   bodyText: string,
   footerText: string | undefined,

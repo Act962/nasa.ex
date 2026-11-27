@@ -321,6 +321,15 @@ export interface SendCanonicalInteractive extends SendBase {
   readonly options: ReadonlyArray<{ readonly id: string; readonly title: string; readonly description?: string }>;
   /** Texto do botão que abre a lista. */
   readonly listButtonLabel?: string;
+  /** Cabeçalho (spec 0143): texto, ou mídia por link público. Lista só aceita texto. */
+  readonly header?: {
+    readonly type: "text" | "image" | "video" | "document";
+    readonly text?: string;
+    readonly link?: string;
+    readonly fileName?: string;
+  };
+  /** Botão de link no lugar das opções (spec 0143). `options` vai vazio. */
+  readonly cta?: { readonly displayText: string; readonly url: string };
 }
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -89,7 +89,7 @@ export async function sendItemsAsList(
     text: string;
     footer?: string;
     button?: string;
-    items: Array<{ text: string; id: string }>;
+    items: Array<{ text: string; id: string; description?: string }>;
     readchat?: boolean;
     readmessages?: boolean;
     delay?: number;
@@ -108,6 +108,7 @@ export async function sendItemsAsList(
           rows: data.items.map((item) => ({
             id: item.id,
             title: item.text,
+            ...(item.description ? { description: item.description } : {}),
           })),
         },
       ],
