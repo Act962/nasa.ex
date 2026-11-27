@@ -2,18 +2,21 @@ import { create } from "zustand";
 
 type Type = "WIN" | "LOSS";
 
-type lostOwWinStore = {
-  id?: string;
+type LostOrWinStore = {
+  leadIds: string[];
   isOpen: boolean;
-  onOpen: (id: string, type: Type) => void;
-  onClose: () => void;
   type: Type;
+  onDone?: () => void;
+  onOpen: (leadIds: string[], type: Type, onDone?: () => void) => void;
+  onClose: () => void;
 };
 
-export const useLostOrWin = create<lostOwWinStore>((set) => ({
-  id: undefined,
+export const useLostOrWin = create<LostOrWinStore>((set) => ({
+  leadIds: [],
   isOpen: false,
-  onOpen: (id: string, type: Type) => set({ isOpen: true, id, type }),
-  onClose: () => set({ isOpen: false, id: undefined }),
   type: "LOSS",
+  onDone: undefined,
+  onOpen: (leadIds, type, onDone) =>
+    set({ isOpen: true, leadIds, type, onDone }),
+  onClose: () => set({ isOpen: false, leadIds: [], onDone: undefined }),
 }));

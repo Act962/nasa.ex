@@ -53,7 +53,7 @@ export function FiltersTracking() {
     <>
       <div
         className={cn(
-          "flex justify-between items-center gap-2 mb-2 px-3 py-2 lg:px-4",
+          "flex flex-wrap justify-between items-center gap-2 mb-2 px-3 py-2 lg:px-4",
         )}
       >
         {/* Celular: busca ocupa a linha; filtros moram no "Personalizar board". */}
@@ -83,7 +83,7 @@ export function FiltersTracking() {
         {/* Lado direito: toggle + Filtros + IA de Leads + Novo Lead.
             Toggle e Filtros ficam SEMPRE visíveis; IA de Leads esconde
             quando recolhido. */}
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <AstroCommandButton
             examples={ASTRO_COMMAND_EXAMPLES.tracking}
             className="hidden lg:inline-flex"

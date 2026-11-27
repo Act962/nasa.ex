@@ -1,9 +1,12 @@
 "use client";
 
 import {
+  ArchiveIcon,
   CircleCheckIcon,
   CircleIcon,
   RedoDotIcon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react";
@@ -38,9 +41,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { ConfirmationPhrase } from "@/components/confirmation-phrase";
 import { useEffect, useState } from "react";
 import { useMutationUpdateLeads, useDeleteLead } from "../hooks/use-leads";
 import { useDetectMergeConflicts } from "../hooks/use-lead-merge";
+import { useLostOrWin } from "@/hooks/use-lost-or-win";
+import { useDeletLead } from "@/hooks/use-delete-lead";
 import {
   MergeLeadsDialog,
   type MergeConflict,
@@ -67,6 +73,8 @@ export function NavOptionsTracking() {
   const mutationUpdate = useMutationUpdateLeads(selectedTrackingId);
   const mutationDelete = useDeleteLead();
   const detectConflicts = useDetectMergeConflicts();
+  const openLostOrWin = useLostOrWin((state) => state.onOpen);
+  const openDeleteLead = useDeletLead((state) => state.onOpen);
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [confirmDeleteText, setConfirmDeleteText] = useState("");
@@ -152,8 +160,10 @@ export function NavOptionsTracking() {
     (lead) => lead.currentAction === "DELETED",
   );
 
+  const selectedLeadIds = selectedLeads.map((lead) => lead.id);
+
   return (
-    <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between w-full max-w-[80%] bg-background border-2 border-border rounded-lg px-3 py-2 shadow-2xl ring-1 ring-primary/10 animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-wrap items-center justify-between gap-2 w-full max-w-[80%] bg-background border-2 border-border rounded-lg px-3 py-2 shadow-2xl ring-1 ring-primary/10 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="flex items-center gap-x-2">
         <Button
           variant="ghost"
@@ -167,7 +177,47 @@ export function NavOptionsTracking() {
           {selectedLeads.length} selecionados
         </Badge>
       </div>
-      <div className="flex items-center gap-x-2">
+      <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+        {!canDelete && (
+          <>
+            <Button
+              variant="outline"
+              className="rounded-md text-success hover:text-success"
+              onClick={() =>
+                openLostOrWin(selectedLeadIds, "WIN", clearSelection)
+              }
+            >
+              <ThumbsUpIcon className="size-4" />
+              Ganho
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-md text-destructive hover:text-destructive"
+              onClick={() =>
+                openLostOrWin(selectedLeadIds, "LOSS", clearSelection)
+              }
+            >
+              <ThumbsDownIcon className="size-4" />
+              Perdido
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-md"
+              onClick={() =>
+                openDeleteLead(
+                  selectedLeads.map((lead) => ({
+                    id: lead.id,
+                    name: lead.name,
+                  })),
+                  clearSelection,
+                )
+              }
+            >
+              <ArchiveIcon className="size-4" />
+              Excluir
+            </Button>
+          </>
+        )}
         {canDelete && (
           <AlertDialog
             open={isDeleteDialogOpen}
@@ -190,9 +240,8 @@ export function NavOptionsTracking() {
                 <AlertDialogDescription>
                   Esta ação não pode ser desfeita. Isso excluirá permanentemente
                   os {selectedLeads.length} leads selecionados. Para confirmar,
-                  digite{" "}
-                  <span className="font-bold text-foreground">DELETAR</span> no
-                  campo abaixo.
+                  digite <ConfirmationPhrase phrase="DELETAR" /> no campo
+                  abaixo.
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
